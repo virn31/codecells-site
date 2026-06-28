@@ -1214,6 +1214,11 @@
                 '<span class="capture-note">Tus datos solo se usan para contactarte.</span>' +
               '</div>' +
             '</div>' +
+            '<div class="nova-cta-block">' +
+              '<button class="btn-nova-cta" type="button" id="novaCTABtn">🧬 Hablar con NOVA sobre mis resultados</button>' +
+              '<p class="nova-cta-note">NOVA es nuestra asistente IA. Analizará tu perfil y preparará tu consulta.</p>' +
+            '<div style="display:none">' +
+            '</div>' +
             '<button class="btn-ghost" type="button" id="testRestartBtn" style="margin-top:1.2rem;">Repetir evaluaci\u00f3n</button>' +
           '</div>' +
           '<p class="test-disclaimer">Este resultado es un mapa orientativo, no un diagn\u00f3stico m\u00e9dico. CODE CELLS\u2122 identifica posibilidades de mejora, no enfermedades.</p>' +
@@ -1289,6 +1294,14 @@
       document.getElementById('testRestartBtn').addEventListener('click', function(){
         step = -1; answers = {}; render();
       });
+
+      document.getElementById('novaCTABtn').addEventListener('click', function(){
+        var nombre = document.getElementById('cf-nombre').value.trim() || 'amigo';
+        var sistemaTexto = top.sys.name + ' (' + top.pct + '%)';
+        if (typeof window.novaActivar === 'function') {
+          window.novaActivar(nombre, sistemaTexto);
+        }
+      });
     }
 
     function render(){
@@ -1316,6 +1329,38 @@
      ============================================================ -->
 
 <style>
+  /* NOVA CTA en resultados del test */
+  .nova-cta-block {
+    margin-top: 1.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(242,239,230,0.1);
+    text-align: center;
+  }
+  .btn-nova-cta {
+    background: transparent;
+    border: 1.5px solid #5FAE6E;
+    color: #5FAE6E;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.92rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s, color 0.2s;
+    letter-spacing: 0.01em;
+  }
+  .btn-nova-cta:hover {
+    background: #5FAE6E;
+    color: #0E1410;
+  }
+  .nova-cta-note {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.75rem;
+    color: rgba(242,239,230,0.45);
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+  }
+
   /* NOVA — Variables heredadas del design system */
   #nova-chat {
     --nova-bg: #0E1410;
