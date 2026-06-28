@@ -1862,28 +1862,28 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
 })();
 </script>
 
-<!-- Patch al script del test: llama novaActivar después de guardar en Airtable -->
+<!-- Patch al script del test: llama novaActivar ANTES de abrir WhatsApp -->
 <script>
 (function() {
   var _origOpen = window.open;
   window.open = function(url, target, features) {
-    var result = _origOpen.apply(this, arguments);
-    // Detectar apertura del WhatsApp del test
+    // Detectar apertura del WhatsApp del test ANTES de abrirlo
     if (typeof url === 'string' && url.indexOf('wa.me/526671264060') !== -1 && url.indexOf('sistema') !== -1) {
       try {
         var decoded = decodeURIComponent(url.split('text=')[1] || '');
-        // Extraer sistema: "sistema prioritario es ⚡ CODE ENERGY™ (75%)"
         var matchSistema = decoded.match(/sistema prioritario es (.+?\(\d+%\))/);
         var sistemaTexto = matchSistema ? matchSistema[1].trim() : '';
-        // Extraer nombre del campo del DOM
         var nombreEl = document.getElementById('cf-nombre');
         var nombre = nombreEl ? nombreEl.value.trim() : 'amigo';
         if (sistemaTexto && typeof window.novaActivar === 'function') {
-          setTimeout(function() { window.novaActivar(nombre, sistemaTexto); }, 2500);
+          // Activar NOVA primero, luego abrir WhatsApp con delay
+          window.novaActivar(nombre, sistemaTexto);
+          setTimeout(function() { _origOpen.call(window, url, target, features); }, 800);
+          return;
         }
       } catch(e) { console.error('NOVA trigger:', e); }
     }
-    return result;
+    return _origOpen.apply(this, arguments);
   };
 })();
 </script>
