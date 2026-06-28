@@ -1209,14 +1209,11 @@
                 '<div class="capture-field"><label>WhatsApp *</label><input type="tel" id="cf-wa" placeholder="+52 667 000 0000" autocomplete="tel"></div>' +
               '</div>' +
               '<p class="capture-error" id="captureError">Por favor completa tu nombre y WhatsApp.</p>' +
+              '<p class="nova-pre-note">Completa tus datos para iniciar con NOVA, nuestra asistente IA que preparará tu consulta.</p>' +
               '<div class="capture-submit">' +
-                '<button class="btn-whatsapp" type="button" id="captureSubmit">' + waIcon + 'Enviar y agendar</button>' +
+                '<button class="btn-whatsapp" type="button" id="captureSubmit">' + waIcon + 'Enviar y continuar</button>' +
                 '<span class="capture-note">Tus datos solo se usan para contactarte.</span>' +
               '</div>' +
-            '</div>' +
-            '<div class="nova-cta-block">' +
-              '<button class="btn-nova-cta" type="button" id="novaCTABtn">🧬 Hablar con NOVA sobre mis resultados</button>' +
-              '<p class="nova-cta-note">NOVA es nuestra asistente IA. Analizará tu perfil y preparará tu consulta.</p>' +
             '</div>' +
             '<button class="btn-ghost" type="button" id="testRestartBtn" style="margin-top:1.2rem;">Repetir evaluaci\u00f3n</button>' +
           '</div>' +
@@ -1282,11 +1279,27 @@
             console.error('Network error:', err);
           })
           .finally(function(){
-            btn.innerHTML = waIcon + 'Abriendo WhatsApp...';
+            // Guardar datos en variables para NOVA
+            var _nombre = document.getElementById('cf-nombre').value.trim();
+            var _wa     = document.getElementById('cf-wa').value.trim();
+            var _sistema = top.sys.name + ' (' + top.pct + '%)';
+            var _waMsg = 'Hola, hice la evaluación CODE CELLS™ y mi sistema prioritario es ' + _sistema + '. Me gustaría que un especialista revise mi mapa biológico.';
+
+            // Abrir WhatsApp en background
             setTimeout(function(){
-              window.open('https://wa.me/526671264060?text=' + encodeURIComponent(whatsappMsg), '_blank');
-              btn.innerHTML = waIcon + 'Listo \u2713';
-            }, 2000);
+              window.open('https://wa.me/526671264060?text=' + encodeURIComponent(_waMsg), '_blank');
+            }, 800);
+
+            // Transformar el botón en NOVA
+            btn.disabled = false;
+            btn.className = 'btn-nova-cta';
+            btn.style.width = '100%';
+            btn.innerHTML = '🧬 Hablar ahora con NOVA';
+            btn.onclick = function(){
+              if (typeof window.novaActivar === 'function') {
+                window.novaActivar(_nombre, _sistema);
+              }
+            };
           });
       });
 
@@ -1294,13 +1307,6 @@
         step = -1; answers = {}; render();
       });
 
-      document.getElementById('novaCTABtn').addEventListener('click', function(){
-        var nombre = document.getElementById('cf-nombre').value.trim() || 'amigo';
-        var sistemaTexto = top.sys.name + ' (' + top.pct + '%)';
-        if (typeof window.novaActivar === 'function') {
-          window.novaActivar(nombre, sistemaTexto);
-        }
-      });
     }
 
     function render(){
@@ -1328,6 +1334,15 @@
      ============================================================ -->
 
 <style>
+  /* Leyenda previa al formulario */
+  .nova-pre-note {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.82rem;
+    color: rgba(242,239,230,0.55);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+  }
+
   /* NOVA CTA en resultados del test */
   .nova-cta-block {
     margin-top: 1.5rem;
