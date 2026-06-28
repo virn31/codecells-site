@@ -1464,9 +1464,10 @@
     gap: 1rem;
     scroll-behavior: smooth;
   }
-  #nova-messages::-webkit-scrollbar { width: 4px; }
-  #nova-messages::-webkit-scrollbar-track { background: transparent; }
-  #nova-messages::-webkit-scrollbar-thumb { background: var(--nova-line); border-radius: 4px; }
+  #nova-messages::-webkit-scrollbar { width: 5px; }
+  #nova-messages::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 4px; }
+  #nova-messages::-webkit-scrollbar-thumb { background: rgba(95,174,110,0.4); border-radius: 4px; }
+  #nova-messages::-webkit-scrollbar-thumb:hover { background: rgba(95,174,110,0.7); }
 
   .nova-msg {
     max-width: 86%;
@@ -1792,11 +1793,18 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
   }
 
   /* ─── Render mensaje ─── */
+  function parseMarkdown(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/---/g, '<hr style="border:none;border-top:1px solid rgba(242,239,230,0.12);margin:0.5rem 0;">')
+      .replace(/\n/g, '<br>');
+  }
+
   function renderMessage(text, who) {
     var div = document.createElement('div');
     div.className = 'nova-msg nova-msg--' + who;
-    // Convertir saltos de línea
-    div.innerHTML = text.replace(/\n/g, '<br>');
+    div.innerHTML = parseMarkdown(text);
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
     return div;
