@@ -1465,9 +1465,10 @@
     scroll-behavior: smooth;
   }
   #nova-messages::-webkit-scrollbar { width: 5px; }
-  #nova-messages::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 4px; }
-  #nova-messages::-webkit-scrollbar-thumb { background: rgba(95,174,110,0.4); border-radius: 4px; }
-  #nova-messages::-webkit-scrollbar-thumb:hover { background: rgba(95,174,110,0.7); }
+  #nova-messages::-webkit-scrollbar-track { background: rgba(255,255,255,0.06); border-radius: 4px; }
+  #nova-messages::-webkit-scrollbar-thumb { background: rgba(95,174,110,0.55); border-radius: 4px; }
+  #nova-messages::-webkit-scrollbar-thumb:hover { background: rgba(95,174,110,0.85); }
+  #nova-messages { scrollbar-width: thin; scrollbar-color: rgba(95,174,110,0.55) rgba(255,255,255,0.06); }
 
   .nova-msg {
     max-width: 86%;
@@ -1570,6 +1571,26 @@
     padding: 0 1.4rem 0.6rem;
     opacity: 0.7;
   }
+
+  .nova-wa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #25D366;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.7rem 1.2rem;
+    font-family: var(--nova-font-body);
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 0.75rem;
+    transition: opacity 0.2s;
+    width: 100%;
+    justify-content: center;
+  }
+  .nova-wa-btn:hover { opacity: 0.88; }
 
   @media (max-width: 600px) {
     #nova-panel { border-radius: 12px 12px 0 0; max-height: 95vh; }
@@ -1739,10 +1760,11 @@ para ti. ¿Cuándo te vendría bien tu primera consulta?
 Tenemos disponibilidad entre semana y fines de semana."
 
 Cierre cálido:
-"En breve el Dr. Víctor revisará tu perfil antes de la consulta 
-para que el tiempo sea 100% tuyo. 
-Tu primera consulta tiene un costo de $1,500 MXN y dura 
-aproximadamente 60 minutos. ¿Te parece bien?"
+"Perfecto, [Nombre]. Ya tengo todo lo que el Dr. Víctor necesita para preparar tu consulta.
+
+Tu primera consulta tiene un costo de $1,500 MXN y dura aproximadamente 60 minutos.
+
+En un momento te aparecerá un botón para continuar por WhatsApp, donde confirmaremos el día y hora que mejor te funcione. ¡Nos vemos pronto! 🌿"
 
 ---
 
@@ -1806,6 +1828,25 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
     div.className = 'nova-msg nova-msg--' + who;
     div.innerHTML = parseMarkdown(text);
     messages.appendChild(div);
+
+    // Detectar cierre del flujo e inyectar botón de WhatsApp
+    if (who === 'nova' && (
+      text.indexOf('$1,500') !== -1 ||
+      text.indexOf('1500') !== -1 ||
+      text.indexOf('primera consulta') !== -1 && text.indexOf('costo') !== -1
+    )) {
+      var nombreEl = document.getElementById('cf-nombre');
+      var nombre = nombreEl ? nombreEl.value.trim() : '';
+      var waMsg = 'Hola, vengo de la evaluación CODE CELLS™. Me atendió NOVA y quiero agendar mi primera consulta.' + (nombre ? ' Mi nombre es ' + nombre + '.' : '');
+      var waBtn = document.createElement('button');
+      waBtn.className = 'nova-wa-btn';
+      waBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.122 1.523 5.855L0 24l6.335-1.498A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.652-.5-5.18-1.375l-.37-.22-3.762.89.948-3.658-.242-.378A9.956 9.956 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg> Continuar en WhatsApp';
+      waBtn.onclick = function() {
+        window.open('https://wa.me/526671264060?text=' + encodeURIComponent(waMsg), '_blank');
+      };
+      div.appendChild(waBtn);
+    }
+
     messages.scrollTop = messages.scrollHeight;
     return div;
   }
