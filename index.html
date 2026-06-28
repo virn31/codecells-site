@@ -1865,30 +1865,23 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
 <!-- Patch al script del test: llama novaActivar después de guardar en Airtable -->
 <script>
 (function() {
-  // Esperamos a que el DOM esté listo y parchamos el listener del captureSubmit
-  // usando MutationObserver para detectar cuando el resultado se renderiza
-  var _origAddEventListener = EventTarget.prototype.addEventListener;
-
-  // Alternativa más simple: monkey-patch window.open para interceptar el WhatsApp open
-  // e inyectar la apertura de NOVA justo después
   var _origOpen = window.open;
   window.open = function(url, target, features) {
     var result = _origOpen.apply(this, arguments);
-    // Si es el WhatsApp de CODE CELLS con el mensaje del test
-    if (typeof url === 'string' && url.indexOf('wa.me/526671264060') !== -1 && url.indexOf('evaluación CODE CELLS') !== -1) {
-      // Extraer nombre del DOM (campo cf-nombre puede no existir en este punto, usamos fallback)
-      var nombreEl = document.getElementById('cf-nombre');
-      var nombre = nombreEl ? nombreEl.value.trim() : '';
-
-      // Extraer sistema del URL del WhatsApp
+    // Detectar apertura del WhatsApp del test
+    if (typeof url === 'string' && url.indexOf('wa.me/526671264060') !== -1 && url.indexOf('sistema') !== -1) {
       try {
         var decoded = decodeURIComponent(url.split('text=')[1] || '');
-        var matchSistema = decoded.match(/sistema prioritario es ([^(]+)\((\d+)%\)/);
-        var sistemaTexto = matchSistema ? matchSistema[1].trim() + ' (' + matchSistema[2] + '%)' : '';
-        if (nombre && sistemaTexto && typeof window.novaActivar === 'function') {
+        // Extraer sistema: "sistema prioritario es ⚡ CODE ENERGY™ (75%)"
+        var matchSistema = decoded.match(/sistema prioritario es (.+?\(\d+%\))/);
+        var sistemaTexto = matchSistema ? matchSistema[1].trim() : '';
+        // Extraer nombre del campo del DOM
+        var nombreEl = document.getElementById('cf-nombre');
+        var nombre = nombreEl ? nombreEl.value.trim() : 'amigo';
+        if (sistemaTexto && typeof window.novaActivar === 'function') {
           setTimeout(function() { window.novaActivar(nombre, sistemaTexto); }, 2500);
         }
-      } catch(e) { /* silencio */ }
+      } catch(e) { console.error('NOVA trigger:', e); }
     }
     return result;
   };
