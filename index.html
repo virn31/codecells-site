@@ -2055,7 +2055,6 @@ Proporciona reportes, métricas y KPIs cuando se soliciten. Tono ejecutivo y dir
         var nombre      = nombreEl ? nombreEl.value.trim() : 'amigo';
         if (sistemaTexto && typeof window.novaActivar === 'function') {
           window.novaActivar(nombre, sistemaTexto);
-          setTimeout(function() { _origOpen.call(window, url, target, features); }, 800);
           return;
         }
       } catch(e) { console.error('NOVA trigger:', e); }
