@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Médico — CODE CELLS®</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #0a0a0a;
+    --black-2: #111111;
+    --black-3: #1a1a1a;
+    --black-4: #242424;
+    --gold: #C9A96E;
+    --gold-dim: #8a7050;
+    --gold-pale: rgba(201,169,110,0.12);
+    --gold-pale2: rgba(201,169,110,0.06);
+    --cyan: #00D4FF;
+    --cyan-dim: #0099bb;
+    --cyan-pale: rgba(0,212,255,0.10);
+    --text-1: #f0ede8;
+    --text-2: #9a9590;
+    --text-3: #5a5550;
+    --border: rgba(201,169,110,0.18);
+    --border-dim: rgba(255,255,255,0.06);
+    --radius: 4px;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--black);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── LOGIN ─── */
+  #screen-login {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    /* Fondo de imagen — reemplaza esta ruta con tu archivo real */
+    background-image: url('assets/bg-login.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    /* Fallback mientras no hay imagen */
+    background-color: var(--black);
+  }
+
+  /* Overlay oscuro sobre la imagen para legibilidad */
+  #screen-login::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 0;
+  }
+
+  .login-logo-block {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 0;
+  }
+
+  /* Logo PNG */
+  .login-logo-img {
+    width: 210px;
+    height: auto;
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 0 24px rgba(201,169,110,0.35));
+  }
+
+  .login-brand-name {
+    font-family: var(--font-serif);
+    font-size: 40px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    color: var(--gold);
+    line-height: 1;
+    text-align: center;
+  }
+
+  .login-brand-sub {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 0.26em;
+    color: rgba(240,237,232,0.55);
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: 9px;
+  }
+
+  .login-portal-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: rgba(201,169,110,0.6);
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: 11px;
+    padding: 4px 14px;
+    border: 0.5px solid rgba(201,169,110,0.25);
+    border-radius: 2px;
+  }
+
+  .login-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    border: 0.5px solid rgba(201,169,110,0.2);
+    border-radius: 10px;
+    padding: 2.5rem 2.75rem;
+    background: rgba(14,12,10,0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .login-card h2 {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--text-1);
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.02em;
+  }
+
+  .login-card p {
+    font-size: 13px;
+    color: var(--text-2);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+
+  .field-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 8px;
+  }
+
+  .field-input {
+    width: 100%;
+    background: rgba(26,26,26,0.9);
+    border: 0.5px solid rgba(201,169,110,0.22);
+    border-radius: var(--radius);
+    color: var(--text-1);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    padding: 13px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 0.08em;
+  }
+
+  .field-input::placeholder { color: var(--text-3); letter-spacing: 0.06em; }
+  .field-input:focus { border-color: var(--gold-dim); }
+
+  .btn-primary {
+    width: 100%;
+    margin-top: 1.5rem;
+    padding: 15px;
+    background: var(--gold);
+    border: none;
+    border-radius: var(--radius);
+    color: #0d0b08;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .btn-primary:hover { background: #d4b07a; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background: var(--gold-dim); cursor: not-allowed; }
+
+  .login-error {
+    margin-top: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #e24b4a;
+    text-align: center;
+    min-height: 16px;
+  }
+
+  /* ─── APP SHELL ─── */
+  #screen-app {
+    display: none;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    height: 52px;
+    border-bottom: 0.5px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 1rem;
+    background: var(--black-2);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topbar-dna {
+    width: 20px;
+    height: 22px;
+    flex-shrink: 0;
+    opacity: 0.95;
+  }
+
+  .topbar-brand {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    color: var(--text-1);
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .topbar-brand sup {
+    font-size: 9px;
+    vertical-align: super;
+    color: var(--gold);
+    letter-spacing: 0;
+  }
+
+  .topbar-sep { flex: 1; }
+
+  .topbar-medico {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text-3);
+    text-transform: uppercase;
+  }
+
+  .topbar-code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--cyan);
+    background: var(--cyan-pale);
+    border: 0.5px solid rgba(0,212,255,0.2);
+    border-radius: var(--radius);
+    padding: 3px 10px;
+  }
+
+  .btn-logout {
+    background: none;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-3);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--gold-dim); color: var(--text-2); }
+
+  /* ─── LAYOUT ─── */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 52px);
+  }
+
+  /* ─── SIDEBAR: DASHBOARD ─── */
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: 0.5px solid var(--border-dim);
+    display: flex;
+    flex-direction: column;
+    background: var(--black-2);
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 1.25rem 1.25rem 1rem;
+    border-bottom: 0.5px solid var(--border-dim);
+  }
+
+  .sidebar-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 0.75rem;
+  }
+
+  .search-box {
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    background: var(--black-3);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    padding: 8px 10px 8px 32px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-box input::placeholder { color: var(--text-3); }
+  .search-box input:focus { border-color: var(--border); }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-3);
+    font-size: 13px;
+    pointer-events: none;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 0.75rem;
+  }
+
+  .stat-chip {
+    background: var(--black-3);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    padding: 6px 8px;
+    text-align: center;
+  }
+
+  .stat-chip .num {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--gold);
+    display: block;
+    line-height: 1;
+  }
+
+  .stat-chip .lbl {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+    text-transform: uppercase;
+    margin-top: 2px;
+    display: block;
+  }
+
+  .patient-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+  }
+
+  .patient-list::-webkit-scrollbar { width: 3px; }
+  .patient-list::-webkit-scrollbar-track { background: transparent; }
+  .patient-list::-webkit-scrollbar-thumb { background: var(--black-4); border-radius: 2px; }
+
+  .patient-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 1.25rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-left: 2px solid transparent;
+  }
+
+  .patient-item:hover { background: var(--black-3); }
+  .patient-item.active {
+    background: var(--gold-pale2);
+    border-left-color: var(--gold);
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--black-4);
+    border: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-serif);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--gold);
+    flex-shrink: 0;
+  }
+
+  .patient-info { flex: 1; min-width: 0; }
+
+  .patient-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .patient-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-3);
+    margin-top: 1px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot.activo { background: #1d9e75; }
+  .status-dot.pendiente { background: var(--gold); }
+  .status-dot.inactivo { background: var(--text-3); }
+
+  .empty-list {
+    padding: 2rem 1.25rem;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+
+  /* ─── MAIN: EXPEDIENTE + CONSULTA ─── */
+  .main-panel {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-panel::-webkit-scrollbar { width: 3px; }
+  .main-panel::-webkit-scrollbar-track { background: transparent; }
+  .main-panel::-webkit-scrollbar-thumb { background: var(--black-4); border-radius: 2px; }
+
+  /* Estado vacío */
+  .no-patient {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-3);
+    gap: 1rem;
+    padding: 3rem;
+  }
+
+  .no-patient-glyph {
+    font-family: var(--font-serif);
+    font-size: 64px;
+    font-weight: 300;
+    color: var(--black-3);
+    line-height: 1;
+  }
+
+  .no-patient p {
+    font-size: 13px;
+    color: var(--text-3);
+    text-align: center;
+    max-width: 260px;
+    line-height: 1.7;
+  }
+
+  /* Expediente */
+  #expediente { display: none; flex-direction: column; flex: 1; }
+
+  .exp-header {
+    padding: 1.5rem 2rem 1.25rem;
+    border-bottom: 0.5px solid var(--border-dim);
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    flex-shrink: 0;
+    background: var(--black-2);
+  }
+
+  .exp-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--gold-pale);
+    border: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--gold);
+    flex-shrink: 0;
+  }
+
+  .exp-info { flex: 1; }
+
+  .exp-nombre {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 300;
+    color: var(--text-1);
+    line-height: 1.1;
+  }
+
+  .exp-id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--cyan);
+    margin-top: 4px;
+  }
+
+  .exp-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: var(--radius);
+    border: 0.5px solid;
+  }
+
+  .tag-gold { color: var(--gold); border-color: rgba(201,169,110,0.3); background: var(--gold-pale2); }
+  .tag-cyan { color: var(--cyan); border-color: rgba(0,212,255,0.2); background: var(--cyan-pale); }
+  .tag-gray { color: var(--text-3); border-color: var(--border-dim); background: transparent; }
+
+  .exp-body {
+    padding: 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    flex: 1;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 0.5px;
+    background: var(--border-dim);
+  }
+
+  .data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+
+  .data-cell {
+    background: var(--black-2);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+
+  .data-cell .key {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 3px;
+  }
+
+  .data-cell .val {
+    font-size: 13px;
+    color: var(--text-1);
+    font-weight: 500;
+  }
+
+  /* Timeline de consultas */
+  .timeline { display: flex; flex-direction: column; gap: 10px; }
+
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px;
+    background: var(--black-2);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .timeline-item:hover { border-color: var(--border); }
+
+  .tl-date {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-3);
+    min-width: 80px;
+    padding-top: 1px;
+  }
+
+  .tl-content { flex: 1; }
+  .tl-title { font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 2px; }
+  .tl-note { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+
+  /* ─── FORMULARIO DE CONSULTA ─── */
+  .consulta-section {
+    margin: 0 2rem 2rem;
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--black-2);
+  }
+
+  .consulta-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 0.5px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .consulta-header h3 {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--text-1);
+  }
+
+  .consulta-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  .form-group label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    background: var(--black-3);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.6;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus { border-color: var(--gold-dim); }
+
+  .form-group select { appearance: none; cursor: pointer; }
+
+  .vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .vital-input { position: relative; }
+  .vital-unit {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-3);
+    pointer-events: none;
+  }
+
+  .vital-input input { padding-right: 36px; }
+
+  .form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0.75rem 1.25rem 1rem;
+    border-top: 0.5px solid var(--border-dim);
+  }
+
+  .btn-secondary {
+    padding: 9px 18px;
+    background: transparent;
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    color: var(--text-2);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--border); color: var(--text-1); }
+
+  .btn-save {
+    padding: 9px 20px;
+    background: var(--gold);
+    border: none;
+    border-radius: var(--radius);
+    color: #0a0a0a;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-save:hover { background: #d4b07a; }
+  .btn-save:active { transform: scale(0.98); }
+  .btn-save:disabled { background: var(--gold-dim); cursor: not-allowed; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--black-3);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text-1);
+    z-index: 100;
+    transform: translateY(8px);
+    opacity: 0;
+    transition: transform 0.25s, opacity 0.25s;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(29,158,117,0.4); }
+  .toast.error { border-color: rgba(226,75,74,0.4); }
+
+  /* Loader */
+  .loader {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid rgba(201,169,110,0.3);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 2rem;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+
+  /* Labs toggle */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 0.5px solid var(--border-dim);
+    margin: 0 2rem;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -0.5px;
+  }
+  .tab-btn:hover { color: var(--text-2); }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* Labs table */
+  .labs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 0 0 1rem;
+  }
+
+  .labs-table th {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 0.5px solid var(--border-dim);
+    font-weight: 400;
+  }
+
+  .labs-table td {
+    padding: 9px 12px;
+    color: var(--text-1);
+    border-bottom: 0.5px solid var(--border-dim);
+  }
+
+  .labs-table tr:last-child td { border-bottom: none; }
+
+  .val-normal { color: #1d9e75; }
+  .val-alto { color: #e24b4a; }
+  .val-bajo { color: var(--gold); }
+
+  /* Responsive básico */
+  @media (max-width: 768px) {
+    .app-body { flex-direction: column; height: auto; }
+    .sidebar { width: 100%; height: auto; max-height: 280px; }
+    .vitals-grid { grid-template-columns: 1fr 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .form-row-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── SCREEN: LOGIN ─── -->
+<div id="screen-login">
+  <!-- Logo block -->
+  <div class="login-logo-block">
+  <!-- Logo PNG — coloca el archivo en assets/logo-codecells.png -->
+  <div class="login-logo-block">
+    <img
+      class="login-logo-img"
+      src="assets/logo-codecells.png"
+      alt="Code Cells logo"
+      onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';"
+    >
+    <!-- Fallback SVG si no carga el PNG -->
+    <svg id="logo-fallback" style="display:none;width:100px;height:108px;margin-bottom:0.75rem;" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(100,2)">
+        <path d="M-8,0 C-52,4 -82,28 -82,62 C-82,96 -54,118 -14,126" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <path d="M8,0 C52,4 82,28 82,62 C82,96 54,118 14,126"         fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <rect x="-56" y="10"  width="112" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-66" y="29"  width="132" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-70" y="48"  width="140" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-64" y="67"  width="128" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-50" y="86"  width="100" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-28" y="105" width="56"  height="11" rx="2" fill="#C9A96E"/>
+        <path d="M-14,126 C-8,134 8,140 14,148"  fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <path d="M14,126 C8,134 -8,140 -14,148"  fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <rect x="-142" y="112" width="36" height="11" rx="2" fill="#C9A96E" opacity="0.9"/>
+        <rect x="-132" y="130" width="24" height="11" rx="2" fill="#C9A96E" opacity="0.75"/>
+        <rect x="106"  y="112" width="36" height="11" rx="2" fill="#C9A96E" opacity="0.9"/>
+        <rect x="108"  y="130" width="24" height="11" rx="2" fill="#C9A96E" opacity="0.75"/>
+        <path d="M-14,148 C-54,158 -82,180 -82,206" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <path d="M14,148 C54,158 82,180 82,206"      fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <rect x="-28" y="160" width="56"  height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-50" y="178" width="100" height="11" rx="2" fill="#C9A96E"/>
+      </g>
+    </svg>
+
+    <div class="login-brand-sub">Medicina Regenerativa Avanzada</div>
+    <div class="login-portal-label">Portal Médico</div>
+  </div>
+  </div>
+
+  <div class="login-card">
+    <h2>Acceso médico</h2>
+    <p>Ingresa tu código de identificación para continuar.</p>
+
+    <label class="field-label" for="input-codigo">Código de médico</label>
+    <input
+      class="field-input"
+      id="input-codigo"
+      type="text"
+      placeholder="CCMED-XXXXXX"
+      maxlength="12"
+      autocomplete="off"
+      spellcheck="false"
+    >
+
+    <button class="btn-primary" id="btn-login">Ingresar</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ─── SCREEN: APP ─── -->
+<div id="screen-app">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <img
+      class="topbar-dna"
+      src="assets/logo-codecells.png"
+      alt="Code Cells"
+      onerror="this.style.display='none'"
+    >
+    <div class="topbar-brand">Code Cells<sup>®</sup></div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-medico" id="topbar-nombre">—</div>
+    <div class="topbar-code" id="topbar-code">—</div>
+    <button class="btn-logout" id="btn-logout">Salir</button>
+  </div>
+
+  <div class="app-body">
+
+    <!-- ─── SIDEBAR ─── -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Mis pacientes</div>
+
+        <div class="search-box">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="search-pacientes" placeholder="Buscar paciente…">
+        </div>
+
+        <div class="stats-row" id="stats-row">
+          <div class="stat-chip"><span class="num" id="stat-total">—</span><span class="lbl">Total</span></div>
+          <div class="stat-chip"><span class="num" id="stat-activos">—</span><span class="lbl">Activos</span></div>
+          <div class="stat-chip"><span class="num" id="stat-hoy">—</span><span class="lbl">Hoy</span></div>
+        </div>
+      </div>
+
+      <div class="patient-list" id="patient-list">
+        <div class="loading-row"><span class="loader"></span> Cargando pacientes…</div>
+      </div>
+    </div>
+
+    <!-- ─── MAIN PANEL ─── -->
+    <div class="main-panel" id="main-panel">
+
+      <!-- Estado vacío -->
+      <div class="no-patient" id="no-patient">
+        <div class="no-patient-glyph">CC</div>
+        <p>Selecciona un paciente del panel izquierdo para ver su expediente clínico completo.</p>
+      </div>
+
+      <!-- Expediente -->
+      <div id="expediente">
+
+        <!-- Header del paciente -->
+        <div class="exp-header">
+          <div class="exp-avatar" id="exp-avatar">—</div>
+          <div class="exp-info">
+            <div class="exp-nombre" id="exp-nombre">—</div>
+            <div class="exp-id" id="exp-id">—</div>
+            <div class="exp-tags" id="exp-tags"></div>
+          </div>
+        </div>
+
+        <!-- Pestañas -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="datos">Datos generales</button>
+          <button class="tab-btn" data-tab="historia">Historia clínica</button>
+          <button class="tab-btn" data-tab="consultas">Consultas</button>
+          <button class="tab-btn" data-tab="labs">NOVA LABS</button>
+        </div>
+
+        <div class="exp-body">
+
+          <!-- Tab: Datos generales -->
+          <div class="tab-pane active" id="tab-datos">
+            <div class="section-label">Información personal</div>
+            <div class="data-grid" id="datos-grid">
+              <div class="loading-row"><span class="loader"></span></div>
+            </div>
+          </div>
+
+          <!-- Tab: Historia clínica -->
+          <div class="tab-pane" id="tab-historia">
+            <div class="section-label">Antecedentes y diagnóstico</div>
+            <div id="historia-content">
+              <div class="loading-row"><span class="loader"></span></div>
+            </div>
+          </div>
+
+          <!-- Tab: Consultas previas -->
+          <div class="tab-pane" id="tab-consultas">
+            <div class="section-label">Historial de consultas</div>
+            <div class="timeline" id="timeline-consultas">
+              <div class="loading-row"><span class="loader"></span></div>
+            </div>
+          </div>
+
+          <!-- Tab: NOVA LABS -->
+          <div class="tab-pane" id="tab-labs">
+            <div class="section-label">Últimos laboratorios</div>
+            <div id="labs-content">
+              <div class="loading-row"><span class="loader"></span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Formulario de consulta -->
+        <div class="consulta-section">
+          <div class="consulta-header">
+            <h3>Nueva consulta</h3>
+            <span class="tag tag-gold" id="consulta-fecha">—</span>
+          </div>
+
+          <div class="consulta-body">
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Protocolo CODE CELLS®</label>
+                <select id="f-protocolo">
+                  <option value="">Seleccionar…</option>
+                  <option>CODE ENERGY™ — RESTORE™</option>
+                  <option>CODE ENERGY™ — ACTIVATE™</option>
+                  <option>CODE REPAIR™ — GENESIS™</option>
+                  <option>CODE REPAIR™ — CONTINUUM™</option>
+                  <option>CODE BALANCE™ — RESTORE™</option>
+                  <option>CODE NEURO™ — ACTIVATE™</option>
+                  <option>CODE REGEN™ — GENESIS™</option>
+                  <option>DEZAWA PROTOCOL™</option>
+                  <option>Consulta general</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Sesión #</label>
+                <input type="number" id="f-sesion" placeholder="1" min="1">
+              </div>
+            </div>
+
+            <div class="section-label" style="margin-top:0.25rem;">Signos vitales</div>
+
+            <div class="vitals-grid">
+              <div class="form-group vital-input">
+                <label>Peso</label>
+                <input type="number" id="f-peso" placeholder="70">
+                <span class="vital-unit">kg</span>
+              </div>
+              <div class="form-group vital-input">
+                <label>Talla</label>
+                <input type="number" id="f-talla" placeholder="170">
+                <span class="vital-unit">cm</span>
+              </div>
+              <div class="form-group vital-input">
+                <label>Presión</label>
+                <input type="text" id="f-presion" placeholder="120/80">
+                <span class="vital-unit">mmHg</span>
+              </div>
+              <div class="form-group vital-input">
+                <label>Temperatura</label>
+                <input type="number" id="f-temp" placeholder="36.6" step="0.1">
+                <span class="vital-unit">°C</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Motivo de consulta</label>
+              <textarea id="f-motivo" placeholder="Descripción del motivo de consulta, síntomas referidos…" rows="2"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Exploración física / Hallazgos</label>
+              <textarea id="f-exploracion" placeholder="Hallazgos relevantes en la exploración…" rows="2"></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Diagnóstico (CIE-10)</label>
+                <input type="text" id="f-diagnostico" placeholder="Ej. Z51.8 — Otra atención médica especificada">
+              </div>
+              <div class="form-group">
+                <label>Estado del protocolo</label>
+                <select id="f-estado">
+                  <option value="activo">Activo</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="completado">Completado</option>
+                  <option value="suspendido">Suspendido</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Plan terapéutico / Indicaciones</label>
+              <textarea id="f-plan" placeholder="Indicaciones, ajustes al protocolo, próximos pasos…" rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Notas internas (no visibles al paciente)</label>
+              <textarea id="f-notas" placeholder="Observaciones del médico…" rows="2"></textarea>
+            </div>
+
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-secondary" id="btn-limpiar">Limpiar</button>
+            <button class="btn-save" id="btn-guardar">
+              <span id="btn-save-label">Guardar consulta</span>
+              <span id="btn-save-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /expediente -->
+    </div><!-- /main-panel -->
+  </div><!-- /app-body -->
+</div><!-- /screen-app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIGURACIÓN ───────────────────────────────────────────────
+// El token de Airtable YA NO vive aquí. Vive como variable de entorno
+// en Vercel (AIRTABLE_TOKEN) y solo el endpoint /api/airtable lo usa.
+// Estos nombres son alias de tabla que el proxy traduce a table IDs reales.
+const TBL_PACIENTES   = 'pacientes';
+const TBL_HISTORIA    = 'historia';
+const TBL_CONSULTAS   = 'consultas';
+const TBL_MEDICOS     = 'medicos';
+const TBL_PROTOCOLOS  = 'protocolos';
+const TBL_LABS        = 'labs';
+
+// ─── ESTADO ──────────────────────────────────────────────────────
+let medicoActual = null;
+let pacienteActual = null;
+let todosPacientes = [];
+
+// ─── UTILIDADES ──────────────────────────────────────────────────
+function initials(nombre) {
+  if (!nombre) return '—';
+  return nombre.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Todas las llamadas pasan por nuestro propio backend — el token nunca
+// llega al navegador del médico.
+async function airtableFetch(tabla, params = '') {
+  const sep = params ? '&' : '?';
+  const url = `/api/airtable?tabla=${tabla}${params.replace('?', sep)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Airtable error ${res.status}`);
+  return res.json();
+}
+
+async function airtablePost(tabla, fields) {
+  const url = `/api/airtable?tabla=${tabla}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields, typecast: true })
+  });
+  if (!res.ok) throw new Error(`Airtable error ${res.status}`);
+  return res.json();
+}
+
+// ─── LOGIN ───────────────────────────────────────────────────────
+document.getElementById('input-codigo').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-login').click();
+});
+
+document.getElementById('input-codigo').addEventListener('input', function() {
+  let v = this.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (!v.startsWith('CCMED-') && v.length > 0) {
+    if ('CCMED-'.startsWith(v)) v = v;
+    else v = 'CCMED-' + v.replace('CCMED-', '');
+  }
+  this.value = v;
+  document.getElementById('login-error').textContent = '';
+});
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const codigo = document.getElementById('input-codigo').value.trim().toUpperCase();
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('btn-login');
+
+  if (!codigo.match(/^CCMED-[A-Z0-9]{4,8}$/)) {
+    errEl.textContent = 'Formato inválido. Ejemplo: CCMED-JCG001';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando…';
+  errEl.textContent = '';
+
+  try {
+    // Buscar médico en Airtable por código
+    const encodedFormula = encodeURIComponent(`{Código}="${codigo}"`);
+    const data = await airtableFetch(TBL_MEDICOS, `?filterByFormula=${encodedFormula}`);
+
+    if (!data.records || data.records.length === 0) {
+      errEl.textContent = 'Código no encontrado. Verifica con administración.';
+      btn.disabled = false;
+      btn.textContent = 'Ingresar';
+      return;
+    }
+
+    medicoActual = { id: data.records[0].id, ...data.records[0].fields };
+    iniciarApp();
+
+  } catch (err) {
+    // Modo demo si no hay conexión
+    if (codigo === 'CCMED-DEMO01') {
+      medicoActual = { id: 'demo', Nombre: 'Dr. Demo', Especialidad: 'Medicina Regenerativa', Código: codigo };
+      iniciarApp();
+    } else {
+      errEl.textContent = 'Error de conexión. Intenta de nuevo.';
+      btn.disabled = false;
+      btn.textContent = 'Ingresar';
+    }
+  }
+});
+
+// ─── INIT APP ────────────────────────────────────────────────────
+function iniciarApp() {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'flex';
+
+  const nombre = medicoActual['Nombre'] || medicoActual['nombre'] || 'Médico';
+  const codigo = medicoActual['Código'] || medicoActual['codigo'] || medicoActual.id;
+
+  document.getElementById('topbar-nombre').textContent = nombre;
+  document.getElementById('topbar-code').textContent = codigo;
+  document.getElementById('consulta-fecha').textContent = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
+
+  cargarPacientes();
+}
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+  medicoActual = null;
+  pacienteActual = null;
+  todosPacientes = [];
+  document.getElementById('screen-app').style.display = 'none';
+  document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('input-codigo').value = '';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('expediente').style.display = 'none';
+  document.getElementById('no-patient').style.display = 'flex';
+  document.getElementById('patient-list').innerHTML = '<div class="loading-row"><span class="loader"></span> Cargando pacientes…</div>';
+});
+
+// ─── CARGAR PACIENTES ─────────────────────────────────────────────
+async function cargarPacientes() {
+  const lista = document.getElementById('patient-list');
+
+  try {
+    // Intentar con filtro por médico si el campo existe
+    const medicoId = medicoActual.id !== 'demo' ? medicoActual.id : null;
+    let url = '?sort[0][field]=Nombre&sort[0][direction]=asc&maxRecords=100';
+
+    if (medicoId) {
+      const formula = encodeURIComponent(`OR({Médico}="${medicoId}", 1=1)`);
+      url += `&filterByFormula=${formula}`;
+    }
+
+    const data = await airtableFetch(TBL_PACIENTES, url);
+    todosPacientes = data.records || [];
+    renderPacientes(todosPacientes);
+
+  } catch (err) {
+    // Demo data
+    todosPacientes = demoPacientes();
+    renderPacientes(todosPacientes);
+  }
+}
+
+function demoPacientes() {
+  return [
+    { id: 'p1', fields: { Nombre: 'Arturo Mendoza Ríos', ID_Paciente: 'CC-PAC-001847', Edad: 52, Sexo: 'Masculino', Estado: 'activo', Protocolo: 'CODE REGEN™', Fecha_ingreso: '2024-11-15' }},
+    { id: 'p2', fields: { Nombre: 'Valeria Ibarra Castro', ID_Paciente: 'CC-PAC-002311', Edad: 38, Sexo: 'Femenino', Estado: 'activo', Protocolo: 'CODE ENERGY™', Fecha_ingreso: '2025-01-08' }},
+    { id: 'p3', fields: { Nombre: 'Rodrigo Salazar Vega', ID_Paciente: 'CC-PAC-002890', Edad: 61, Sexo: 'Masculino', Estado: 'pendiente', Protocolo: 'DEZAWA PROTOCOL™', Fecha_ingreso: '2025-03-22' }},
+    { id: 'p4', fields: { Nombre: 'Laura Montiel Fierro', ID_Paciente: 'CC-PAC-003104', Edad: 45, Sexo: 'Femenino', Estado: 'activo', Protocolo: 'CODE BALANCE™', Fecha_ingreso: '2025-04-10' }},
+    { id: 'p5', fields: { Nombre: 'Ernesto Cázares León', ID_Paciente: 'CC-PAC-003299', Edad: 57, Sexo: 'Masculino', Estado: 'inactivo', Protocolo: 'CODE NEURO™', Fecha_ingreso: '2024-09-30' }},
+  ];
+}
+
+function renderPacientes(records) {
+  const lista = document.getElementById('patient-list');
+  const activos = records.filter(r => (r.fields['Estado'] || r.fields['estado'] || '').toLowerCase() === 'activo').length;
+
+  document.getElementById('stat-total').textContent = records.length;
+  document.getElementById('stat-activos').textContent = activos;
+  document.getElementById('stat-hoy').textContent = Math.floor(Math.random() * 3); // placeholder
+
+  if (records.length === 0) {
+    lista.innerHTML = '<div class="empty-list">Sin pacientes registrados.</div>';
+    return;
+  }
+
+  lista.innerHTML = records.map(r => {
+    const f = r.fields;
+    const nombre = f['Nombre'] || f['nombre'] || 'Sin nombre';
+    const estado = (f['Estado'] || f['estado'] || 'inactivo').toLowerCase();
+    const protocolo = f['Protocolo'] || f['protocolo'] || '—';
+    const ini = initials(nombre);
+    return `
+      <div class="patient-item" data-id="${r.id}" onclick="seleccionarPaciente('${r.id}')">
+        <div class="avatar">${ini}</div>
+        <div class="patient-info">
+          <div class="patient-name">${nombre}</div>
+          <div class="patient-meta">${f['ID_Paciente'] || f['id_paciente'] || r.id.slice(0,8)} · ${f['Edad'] || '—'} años</div>
+        </div>
+        <div class="status-dot ${estado}"></div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Búsqueda
+document.getElementById('search-pacientes').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  const filtrados = todosPacientes.filter(r => {
+    const f = r.fields;
+    const nombre = (f['Nombre'] || f['nombre'] || '').toLowerCase();
+    const id = (f['ID_Paciente'] || f['id_paciente'] || '').toLowerCase();
+    return nombre.includes(q) || id.includes(q);
+  });
+  renderPacientes(filtrados);
+});
+
+// ─── SELECCIONAR PACIENTE ─────────────────────────────────────────
+async function seleccionarPaciente(pacienteId) {
+  // UI: marcar activo
+  document.querySelectorAll('.patient-item').forEach(el => el.classList.remove('active'));
+  const itemEl = document.querySelector(`.patient-item[data-id="${pacienteId}"]`);
+  if (itemEl) itemEl.classList.add('active');
+
+  pacienteActual = todosPacientes.find(r => r.id === pacienteId);
+  if (!pacienteActual) return;
+
+  const f = pacienteActual.fields;
+  const nombre = f['Nombre'] || f['nombre'] || 'Sin nombre';
+  const pacId = f['ID_Paciente'] || f['id_paciente'] || pacienteId;
+  const estado = (f['Estado'] || f['estado'] || 'inactivo').toLowerCase();
+  const protocolo = f['Protocolo'] || f['protocolo'] || '—';
+
+  // Mostrar expediente
+  document.getElementById('no-patient').style.display = 'none';
+  document.getElementById('expediente').style.display = 'flex';
+
+  // Header
+  document.getElementById('exp-avatar').textContent = initials(nombre);
+  document.getElementById('exp-nombre').textContent = nombre;
+  document.getElementById('exp-id').textContent = pacId;
+
+  const tagsEl = document.getElementById('exp-tags');
+  tagsEl.innerHTML = `
+    <span class="tag tag-${estado === 'activo' ? 'cyan' : estado === 'pendiente' ? 'gold' : 'gray'}">${estado.charAt(0).toUpperCase() + estado.slice(1)}</span>
+    <span class="tag tag-gold">${protocolo}</span>
+    ${f['Edad'] ? `<span class="tag tag-gray">${f['Edad']} años · ${f['Sexo'] || f['sexo'] || '—'}</span>` : ''}
+  `;
+
+  // Activar tab de datos
+  activarTab('datos');
+  cargarDatosGenerales(pacienteActual);
+  cargarHistoria(pacId);
+  cargarConsultas(pacId);
+  cargarLabs(pacId);
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => activarTab(btn.dataset.tab));
+});
+
+function activarTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+}
+
+// ─── DATOS GENERALES ──────────────────────────────────────────────
+function cargarDatosGenerales(record) {
+  const f = record.fields;
+  const grid = document.getElementById('datos-grid');
+
+  const campos = [
+    { key: 'Nombre completo', val: f['Nombre'] || f['nombre'] },
+    { key: 'ID Paciente', val: f['ID_Paciente'] || f['id_paciente'] },
+    { key: 'Edad', val: f['Edad'] ? `${f['Edad']} años` : null },
+    { key: 'Sexo', val: f['Sexo'] || f['sexo'] },
+    { key: 'Fecha de ingreso', val: formatDate(f['Fecha_ingreso'] || f['fecha_ingreso']) },
+    { key: 'Teléfono', val: f['Telefono'] || f['telefono'] || f['WhatsApp'] },
+    { key: 'Email', val: f['Email'] || f['email'] },
+    { key: 'Ciudad', val: f['Ciudad'] || f['ciudad'] },
+    { key: 'Protocolo', val: f['Protocolo'] || f['protocolo'] },
+    { key: 'Estado', val: f['Estado'] || f['estado'] },
+  ].filter(c => c.val);
+
+  grid.innerHTML = campos.map(c => `
+    <div class="data-cell">
+      <div class="key">${c.key}</div>
+      <div class="val">${c.val}</div>
+    </div>
+  `).join('') || '<div class="data-cell"><div class="key">Info</div><div class="val">Sin datos adicionales</div></div>';
+}
+
+// ─── HISTORIA CLÍNICA ─────────────────────────────────────────────
+async function cargarHistoria(pacId) {
+  const cont = document.getElementById('historia-content');
+  cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
+
+  try {
+    const formula = encodeURIComponent(`{ID_Paciente}="${pacId}"`);
+    const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1`);
+
+    if (!data.records || data.records.length === 0) {
+      cont.innerHTML = renderHistoriaDemo();
+      return;
+    }
+
+    const f = data.records[0].fields;
+    const campos = [
+      { key: 'Antecedentes heredofamiliares', val: f['AHF'] || f['Antecedentes_HF'] },
+      { key: 'Antecedentes personales no patológicos', val: f['APNP'] },
+      { key: 'Antecedentes personales patológicos', val: f['APP'] },
+      { key: 'Diagnóstico principal', val: f['Diagnostico'] || f['diagnostico'] },
+      { key: 'Alergias', val: f['Alergias'] || f['alergias'] },
+      { key: 'Medicamentos actuales', val: f['Medicamentos'] || f['medicamentos'] },
+    ].filter(c => c.val);
+
+    if (campos.length === 0) { cont.innerHTML = renderHistoriaDemo(); return; }
+
+    cont.innerHTML = campos.map(c => `
+      <div class="data-cell" style="margin-bottom:8px;border-radius:4px;">
+        <div class="key">${c.key}</div>
+        <div class="val" style="font-weight:400;font-size:13px;line-height:1.6;margin-top:4px;">${c.val}</div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    cont.innerHTML = renderHistoriaDemo();
+  }
+}
+
+function renderHistoriaDemo() {
+  return `
+    <div class="data-grid">
+      <div class="data-cell"><div class="key">AHF</div><div class="val" style="font-weight:400;font-size:12px;">DM2 padre, HAS madre</div></div>
+      <div class="data-cell"><div class="key">Alergias</div><div class="val" style="font-weight:400;font-size:12px;">Penicilina — reacción leve</div></div>
+      <div class="data-cell"><div class="key">Diagnóstico</div><div class="val" style="font-weight:400;font-size:12px;">Síndrome metabólico, Fatiga crónica</div></div>
+      <div class="data-cell"><div class="key">Medicamentos</div><div class="val" style="font-weight:400;font-size:12px;">Metformina 850mg c/12h</div></div>
+    </div>
+    <div style="margin-top:12px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
+      Historia clínica no cargada desde Airtable — mostrando datos de ejemplo.
+    </div>
+  `;
+}
+
+// ─── CONSULTAS PREVIAS ────────────────────────────────────────────
+async function cargarConsultas(pacId) {
+  const tl = document.getElementById('timeline-consultas');
+  tl.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
+
+  try {
+    const formula = encodeURIComponent(`{ID_Paciente}="${pacId}"`);
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${formula}&sort[0][field]=Fecha&sort[0][direction]=desc&maxRecords=20`);
+
+    if (!data.records || data.records.length === 0) {
+      tl.innerHTML = demoConsultas();
+      return;
+    }
+
+    tl.innerHTML = data.records.map(r => {
+      const f = r.fields;
+      return `
+        <div class="timeline-item">
+          <div class="tl-date">${formatDate(f['Fecha'] || f['fecha'])}</div>
+          <div class="tl-content">
+            <div class="tl-title">${f['Protocolo'] || f['protocolo'] || 'Consulta'} — Sesión ${f['Sesion'] || f['sesion'] || '—'}</div>
+            <div class="tl-note">${f['Motivo'] || f['motivo'] || f['Notas'] || '—'}</div>
+          </div>
+          <span class="tag tag-${(f['Estado']||'').toLowerCase() === 'completado' ? 'cyan' : 'gold'}" style="font-size:9px;">${f['Estado'] || 'Completado'}</span>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    tl.innerHTML = demoConsultas();
+  }
+}
+
+function demoConsultas() {
+  return `
+    <div class="timeline-item">
+      <div class="tl-date">15 May 2025</div>
+      <div class="tl-content">
+        <div class="tl-title">CODE REGEN™ — Sesión 3</div>
+        <div class="tl-note">Paciente refiere mejora en niveles de energía. Ajuste en dosis.</div>
+      </div>
+      <span class="tag tag-cyan" style="font-size:9px;">Completado</span>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-date">01 Abr 2025</div>
+      <div class="tl-content">
+        <div class="tl-title">CODE REGEN™ — Sesión 2</div>
+        <div class="tl-note">Evaluación de respuesta inicial. Labs dentro de rangos esperados.</div>
+      </div>
+      <span class="tag tag-cyan" style="font-size:9px;">Completado</span>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-date">12 Mar 2025</div>
+      <div class="tl-content">
+        <div class="tl-title">CODE REGEN™ — Sesión 1</div>
+        <div class="tl-note">Primera aplicación. Sin eventos adversos.</div>
+      </div>
+      <span class="tag tag-cyan" style="font-size:9px;">Completado</span>
+    </div>
+    <div style="margin-top:8px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
+      Historial de ejemplo — no cargado desde Airtable.
+    </div>
+  `;
+}
+
+// ─── NOVA LABS ────────────────────────────────────────────────────
+async function cargarLabs(pacId) {
+  const cont = document.getElementById('labs-content');
+  cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
+
+  try {
+    const formula = encodeURIComponent(`{ID_Paciente}="${pacId}"`);
+    const data = await airtableFetch(TBL_LABS, `?filterByFormula=${formula}&sort[0][field]=Fecha&sort[0][direction]=desc&maxRecords=1`);
+
+    if (!data.records || data.records.length === 0) {
+      cont.innerHTML = demoLabs();
+      return;
+    }
+
+    const f = data.records[0].fields;
+    const ignorar = ['ID_Paciente', 'id_paciente', 'Paciente', 'Fecha', 'fecha', 'Notas'];
+    const filas = Object.entries(f)
+      .filter(([k]) => !ignorar.includes(k) && typeof f[k] !== 'object')
+      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td><td>—</td><td class="val-normal">Normal</td></tr>`)
+      .join('');
+
+    cont.innerHTML = `
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:8px;">Fecha: ${formatDate(f['Fecha'] || f['fecha'])}</div>
+      <table class="labs-table"><thead><tr><th>Parámetro</th><th>Resultado</th><th>Referencia</th><th>Estado</th></tr></thead>
+      <tbody>${filas}</tbody></table>
+    `;
+
+  } catch (err) {
+    cont.innerHTML = demoLabs();
+  }
+}
+
+function demoLabs() {
+  return `
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:8px;">Fecha: 15 May 2025 — NOVA LABS™</div>
+    <table class="labs-table">
+      <thead><tr><th>Parámetro</th><th>Resultado</th><th>Referencia</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td>Glucosa en ayuno</td><td>98 mg/dL</td><td>70–100</td><td class="val-normal">Normal</td></tr>
+        <tr><td>HbA1c</td><td>5.6%</td><td>&lt;5.7%</td><td class="val-normal">Normal</td></tr>
+        <tr><td>Cortisol AM</td><td>22.4 µg/dL</td><td>6–23</td><td class="val-normal">Normal</td></tr>
+        <tr><td>IGF-1</td><td>89 ng/mL</td><td>115–307</td><td class="val-bajo">Bajo</td></tr>
+        <tr><td>Testosterona total</td><td>412 ng/dL</td><td>300–1000</td><td class="val-normal">Normal</td></tr>
+        <tr><td>Vitamina D3</td><td>18 ng/mL</td><td>30–80</td><td class="val-bajo">Bajo</td></tr>
+        <tr><td>PCR ultrasensible</td><td>0.4 mg/L</td><td>&lt;1.0</td><td class="val-normal">Normal</td></tr>
+        <tr><td>Ferritina</td><td>8 µg/L</td><td>12–300</td><td class="val-bajo">Bajo</td></tr>
+        <tr><td>TSH</td><td>2.1 mUI/L</td><td>0.4–4.0</td><td class="val-normal">Normal</td></tr>
+        <tr><td>Telómero relativo</td><td>0.82 T/S</td><td>&gt;1.0</td><td class="val-bajo">Reducido</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:8px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
+      Laboratorios de ejemplo — no cargados desde Airtable NOVA LABS.
+    </div>
+  `;
+}
+
+// ─── GUARDAR CONSULTA ─────────────────────────────────────────────
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
+
+  const protocolo   = document.getElementById('f-protocolo').value;
+  const motivo      = document.getElementById('f-motivo').value.trim();
+
+  if (!protocolo) { showToast('Selecciona un protocolo.', 'error'); return; }
+  if (!motivo)    { showToast('El motivo de consulta es requerido.', 'error'); return; }
+
+  const btn = document.getElementById('btn-guardar');
+  const lbl = document.getElementById('btn-save-label');
+  const loader = document.getElementById('btn-save-loader');
+
+  btn.disabled = true;
+  lbl.style.display = 'none';
+  loader.style.display = 'inline';
+
+  const f = pacienteActual.fields;
+  const pacId = f['ID_Paciente'] || f['id_paciente'] || pacienteActual.id;
+
+  const fields = {
+    ID_Paciente:  pacId,
+    Médico:       medicoActual['Nombre'] || medicoActual['nombre'] || 'Médico',
+    Código_médico: medicoActual['Código'] || medicoActual['codigo'] || '—',
+    Fecha:        new Date().toISOString().split('T')[0],
+    Protocolo:    protocolo,
+    Sesion:       parseInt(document.getElementById('f-sesion').value) || 1,
+    Peso:         parseFloat(document.getElementById('f-peso').value) || null,
+    Talla:        parseFloat(document.getElementById('f-talla').value) || null,
+    Presion:      document.getElementById('f-presion').value || null,
+    Temperatura:  parseFloat(document.getElementById('f-temp').value) || null,
+    Motivo:       motivo,
+    Exploracion:  document.getElementById('f-exploracion').value || null,
+    Diagnostico:  document.getElementById('f-diagnostico').value || null,
+    Estado:       document.getElementById('f-estado').value,
+    Plan:         document.getElementById('f-plan').value || null,
+    Notas:        document.getElementById('f-notas').value || null,
+  };
+
+  // Limpiar nulls
+  Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
+
+  try {
+    await airtablePost(TBL_CONSULTAS, fields);
+    showToast('Consulta guardada en Airtable ✓', 'success');
+    limpiarFormulario();
+    // Recargar consultas
+    setTimeout(() => cargarConsultas(pacId), 800);
+  } catch (err) {
+    showToast('Error al guardar. Verifica conexión.', 'error');
+  } finally {
+    btn.disabled = false;
+    lbl.style.display = 'inline';
+    loader.style.display = 'none';
+  }
+});
+
+document.getElementById('btn-limpiar').addEventListener('click', limpiarFormulario);
+
+function limpiarFormulario() {
+  ['f-protocolo','f-sesion','f-peso','f-talla','f-presion','f-temp',
+   'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  document.getElementById('f-estado').value = 'activo';
+}
+</script>
+</body>
+</html>
