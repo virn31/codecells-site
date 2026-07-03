@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal VIP — CODE CELLS®</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #0a0a0a;
+    --black-2: #111111;
+    --black-3: #1a1a1a;
+    --black-4: #242424;
+    --gold: #C9A96E;
+    --gold-dim: #8a7050;
+    --gold-pale: rgba(201,169,110,0.12);
+    --gold-pale2: rgba(201,169,110,0.06);
+    --cyan: #00D4FF;
+    --cyan-dim: #0099bb;
+    --cyan-pale: rgba(0,212,255,0.10);
+    --text-1: #f0ede8;
+    --text-2: #9a9590;
+    --text-3: #5a5550;
+    --border: rgba(201,169,110,0.18);
+    --border-dim: rgba(255,255,255,0.06);
+    --radius: 4px;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Acentos de los 5 sistemas CODE (mismos que index.html) */
+    --c-energy: #E8A33D;
+    --c-repair: #D4654A;
+    --c-balance: #4FA8A0;
+    --c-neuro: #8B7FD4;
+    --c-regen: #5FAE6E;
+  }
+
+  body.light {
+    --black: #F5F0E8;
+    --black-2: #EDEAE2;
+    --black-3: #E4DDD0;
+    --black-4: #D8D0C4;
+    --text-1: #1C1915;
+    --text-2: #4A4540;
+    --text-3: #7A7570;
+    --border: rgba(184,146,74,0.25);
+    --border-dim: rgba(28,25,21,0.10);
+    --gold-pale: rgba(184,146,74,0.12);
+    --gold-pale2: rgba(184,146,74,0.06);
+  }
+  body.light #screen-login { background-color: #1a1a1a; }
+
+  html, body {
+    height: 100%;
+    background: var(--black);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── SESIÓN / TOPBAR CONTROLES ─── */
+  .session-timer {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+    padding: 4px 10px; background: var(--black-3);
+    border: 0.5px solid var(--border-dim); border-radius: var(--radius);
+    letter-spacing: 0.06em; transition: color 0.3s;
+  }
+  .session-timer.warning { color: #e24b4a; border-color: rgba(226,75,74,0.3); }
+  .session-icon { font-size: 12px; }
+
+  .btn-topbar {
+    background: var(--black-3); border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius); color: var(--text-2); font-size: 14px;
+    width: 30px; height: 30px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, color 0.2s; flex-shrink: 0;
+  }
+  .btn-topbar:hover { background: var(--black-4); color: var(--text-1); }
+
+  .btn-nova-topbar {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--gold-pale); border: 0.5px solid var(--border);
+    border-radius: var(--radius); color: var(--gold);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.12em; padding: 5px 12px; cursor: pointer;
+    transition: background 0.2s; flex-shrink: 0;
+  }
+  .btn-nova-topbar:hover { background: rgba(201,169,110,0.2); }
+
+  .nova-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--gold);
+    display: inline-block; animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.5; transform:scale(0.8); }
+  }
+
+  .btn-logout {
+    background: none; border: 0.5px solid var(--border); border-radius: var(--radius);
+    color: var(--text-3); font-family: var(--font-sans); font-size: 12px;
+    padding: 5px 12px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--gold-dim); color: var(--text-2); }
+
+  /* ─── PANEL NOVA LATERAL (tipo app) ─── */
+  .nova-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:40; }
+  .nova-overlay.active { display:block; }
+
+  .nova-panel {
+    position: fixed; top:0; right:-420px; width:400px; height:100vh;
+    background: var(--black-2); border-left: 0.5px solid var(--border);
+    z-index:50; display:flex; flex-direction:column;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -4px 0 32px rgba(0,0,0,0.3);
+  }
+  .nova-panel.open { right:0; }
+  @media (max-width:520px){ .nova-panel{ width:100%; right:-100%; } }
+
+  .nova-panel-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:0.5px solid var(--border-dim);
+    flex-shrink:0; background: var(--black-3);
+  }
+  .nova-panel-title {
+    display:flex; align-items:center; gap:8px;
+    font-family: var(--font-mono); font-size:12px; font-weight:500;
+    letter-spacing:0.14em; color: var(--gold);
+  }
+  .nova-panel-close {
+    background:none; border:none; color:var(--text-3); font-size:14px;
+    cursor:pointer; padding:4px 6px; border-radius:3px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nova-panel-close:hover { color: var(--text-1); background: var(--black-4); }
+
+  .nova-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .nova-messages::-webkit-scrollbar { width:3px; }
+  .nova-messages::-webkit-scrollbar-thumb { background: var(--black-4); border-radius:2px; }
+
+  .nova-msg { display:flex; }
+  .nova-msg--nova { justify-content:flex-start; }
+  .nova-msg--user { justify-content:flex-end; }
+
+  .nova-bubble { max-width:85%; padding:10px 13px; border-radius:8px; font-size:13px; line-height:1.6; }
+  .nova-msg--nova .nova-bubble { background: var(--black-3); border:0.5px solid var(--border-dim); color:var(--text-1); border-bottom-left-radius:2px; }
+  .nova-msg--user .nova-bubble { background: var(--gold-pale); border:0.5px solid var(--border); color:var(--text-1); border-bottom-right-radius:2px; }
+
+  .nova-typing { display:flex; gap:4px; padding:12px 13px; align-items:center; }
+  .nova-typing span { width:6px; height:6px; border-radius:50%; background:var(--gold-dim); animation: typing-dot 1.2s ease-in-out infinite; }
+  .nova-typing span:nth-child(2){ animation-delay:0.2s; }
+  .nova-typing span:nth-child(3){ animation-delay:0.4s; }
+  @keyframes typing-dot { 0%,60%,100%{ transform:translateY(0); opacity:0.4; } 30%{ transform:translateY(-5px); opacity:1; } }
+
+  .nova-input-row { display:flex; gap:8px; padding:12px 16px; border-top:0.5px solid var(--border-dim); flex-shrink:0; background:var(--black-3); }
+  .nova-input-row input {
+    flex:1; background:var(--black-4); border:0.5px solid var(--border-dim); border-radius:var(--radius);
+    color:var(--text-1); font-family: var(--font-sans); font-size:13px; padding:9px 12px; outline:none;
+    transition: border-color 0.2s;
+  }
+  .nova-input-row input:focus { border-color: var(--gold-dim); }
+  .nova-input-row input::placeholder { color: var(--text-3); }
+  .nova-input-row button {
+    width:36px; height:36px; border-radius:var(--radius); background:var(--gold); border:none;
+    color:#0a0a0a; font-size:16px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition: background 0.2s; flex-shrink:0;
+  }
+  .nova-input-row button:hover { background:#d4b07a; }
+  .nova-input-row button:disabled { background:var(--gold-dim); cursor:not-allowed; }
+
+  /* ─── LOGIN ─── */
+  #screen-login {
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:2rem; position:relative; overflow:hidden;
+    background-image: url('assets/bg-login.jpg'); background-size:cover; background-position:center; background-repeat:no-repeat;
+    background-color: var(--black);
+  }
+  #screen-login::before { content:''; position:absolute; inset:0; background:rgba(0,0,0,0.45); z-index:0; }
+
+  .login-logo-block { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; margin-bottom:2rem; }
+  .login-logo-img { width:210px; height:auto; margin-bottom:0.5rem; filter: drop-shadow(0 0 24px rgba(201,169,110,0.35)); }
+  .login-brand-sub {
+    font-family: var(--font-sans); font-size:10px; font-weight:300; letter-spacing:0.26em;
+    color: rgba(240,237,232,0.55); text-transform:uppercase; text-align:center; margin-top:9px;
+  }
+  .login-portal-label {
+    font-family: var(--font-mono); font-size:9px; letter-spacing:0.2em; color: rgba(201,169,110,0.75);
+    text-transform:uppercase; text-align:center; margin-top:11px; padding:4px 14px;
+    border:0.5px solid rgba(201,169,110,0.35); border-radius:2px;
+  }
+  .login-vip-mark {
+    position:relative; z-index:1; font-family: var(--font-mono); font-size:10px; letter-spacing:0.3em;
+    color:var(--gold); text-transform:uppercase; margin-bottom:1.4rem; opacity:0.9;
+  }
+
+  .login-card {
+    position:relative; z-index:1; width:100%; max-width:420px;
+    border:0.5px solid rgba(201,169,110,0.2); border-radius:10px; padding:2.5rem 2.75rem;
+    background: rgba(14,12,10,0.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .login-card h2 { font-family: var(--font-serif); font-size:28px; font-weight:300; color:var(--text-1); margin-bottom:0.4rem; letter-spacing:0.02em; }
+  .login-card p { font-size:13px; color:var(--text-2); margin-bottom:2rem; line-height:1.6; }
+
+  .field-label { display:block; font-family: var(--font-mono); font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
+  .field-input {
+    width:100%; background:#1a1a1a; border:0.5px solid rgba(201,169,110,0.22); border-radius:var(--radius);
+    color:#f0ede8 !important; -webkit-text-fill-color:#f0ede8 !important; font-family: var(--font-mono);
+    font-size:15px; padding:13px 16px; outline:none; transition: border-color 0.2s; letter-spacing:0.08em; caret-color:#C9A96E;
+  }
+  .field-input::placeholder { color: rgba(240,237,232,0.3); letter-spacing:0.06em; }
+  .field-input:focus { border-color: var(--gold-dim); background:#1f1f1f; }
+  .field-input:-webkit-autofill,
+  .field-input:-webkit-autofill:hover,
+  .field-input:-webkit-autofill:focus { -webkit-text-fill-color:#f0ede8 !important; -webkit-box-shadow:0 0 0 1000px #1a1a1a inset !important; background-color:#1a1a1a !important; }
+
+  .btn-primary {
+    width:100%; margin-top:1.5rem; padding:15px; background:var(--gold); border:none; border-radius:var(--radius);
+    color:#0d0b08; font-family: var(--font-sans); font-size:14px; font-weight:500; letter-spacing:0.12em;
+    text-transform:uppercase; cursor:pointer; transition: background 0.2s, transform 0.1s;
+  }
+  .btn-primary:hover { background:#d4b07a; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background:var(--gold-dim); cursor:not-allowed; }
+
+  .login-error { margin-top:0.75rem; font-family: var(--font-mono); font-size:11px; color:#e24b4a; text-align:center; min-height:16px; }
+
+  /* ─── APP SHELL ─── */
+  #screen-app { display:none; flex-direction:column; min-height:100vh; }
+
+  .topbar {
+    height:52px; border-bottom:0.5px solid var(--border-dim); display:flex; align-items:center;
+    padding:0 1.5rem; gap:1rem; background:var(--black-2); flex-shrink:0; position:sticky; top:0; z-index:10;
+  }
+  .topbar-dna { width:20px; height:22px; flex-shrink:0; opacity:0.95; }
+  .topbar-brand { font-family: var(--font-serif); font-size:18px; font-weight:300; letter-spacing:0.05em; color:var(--text-1); flex-shrink:0; line-height:1; }
+  .topbar-brand sup { font-size:9px; vertical-align:super; color:var(--gold); letter-spacing:0; }
+  .topbar-sep { flex:1; }
+  .topbar-nombre { font-family: var(--font-mono); font-size:11px; letter-spacing:0.06em; color:var(--text-2); }
+  .topbar-vip {
+    font-family: var(--font-mono); font-size:10px; letter-spacing:0.14em; color:var(--gold);
+    background:var(--gold-pale); border:0.5px solid var(--border); border-radius:var(--radius); padding:3px 9px;
+  }
+
+  .app-scroll { flex:1; overflow-y:auto; }
+  .app-wrap { max-width:920px; margin:0 auto; padding:2rem 1.5rem 4rem; }
+
+  /* ─── ESTADO VACÍO / CARGA ─── */
+  .loading-row { display:flex; align-items:center; justify-content:center; gap:8px; padding:3rem; color:var(--text-3); font-size:13px; }
+  .loader { display:inline-block; width:14px; height:14px; border:1.5px solid rgba(201,169,110,0.3); border-top-color:var(--gold); border-radius:50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── HERO: ESTADO ACTUAL ─── */
+  .hero-status {
+    display:flex; gap:1.75rem; align-items:center; padding:2rem;
+    background:var(--black-2); border:0.5px solid var(--border-dim); border-radius:14px; margin-bottom:1.5rem;
+  }
+  .hero-blob {
+    --accent: var(--gold);
+    width:84px; height:84px; flex-shrink:0; background:var(--accent);
+    border-radius: 42% 58% 65% 35% / 45% 45% 55% 55%;
+    box-shadow: 0 0 42px -6px var(--accent);
+    animation: blob-pulse 7s ease-in-out infinite;
+  }
+  @keyframes blob-pulse {
+    0%,100%{ border-radius: 42% 58% 65% 35% / 45% 45% 55% 55%; transform: scale(1); }
+    50%{ border-radius: 58% 42% 35% 65% / 55% 60% 40% 45%; transform: scale(1.06); }
+  }
+  .hero-info { flex:1; min-width:0; }
+  .hero-eyebrow { font-family: var(--font-mono); font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
+  .hero-name { font-family: var(--font-serif); font-size:30px; font-weight:300; color:var(--text-1); line-height:1.1; margin-bottom:8px; }
+  .hero-meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .pill {
+    font-family: var(--font-mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase;
+    padding:4px 10px; border-radius:var(--radius); border:0.5px solid var(--border-dim); color:var(--text-2);
+  }
+  .pill-accent { color:var(--accent-text,var(--gold)); border-color:var(--accent-border,var(--border)); background:var(--accent-pale,var(--gold-pale)); }
+  .pill-vip { color:var(--gold); border-color:var(--border); background:var(--gold-pale); }
+  .pill-estado-activo { color:#1d9e75; border-color:rgba(29,158,117,0.3); background:rgba(29,158,117,0.08); }
+  .pill-estado-pendiente { color:#e0a83d; border-color:rgba(224,168,61,0.3); background:rgba(224,168,61,0.08); }
+  .pill-estado-inactivo { color:var(--text-3); }
+
+  /* ─── SEGUIMIENTO 90 DÍAS ─── */
+  .card { background:var(--black-2); border:0.5px solid var(--border-dim); border-radius:14px; padding:1.6rem 1.75rem; margin-bottom:1.5rem; }
+  .card-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.1rem; flex-wrap:wrap; gap:6px; }
+  .card-title { font-family: var(--font-serif); font-size:19px; font-weight:300; color:var(--text-1); }
+  .card-sub { font-family: var(--font-mono); font-size:11px; color:var(--text-3); }
+
+  .progress-track { height:6px; border-radius:3px; background:var(--black-4); overflow:hidden; margin-bottom:8px; }
+  .progress-fill { height:100%; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); border-radius:3px; transition: width 0.6s ease; }
+  .progress-labels { display:flex; justify-content:space-between; font-family: var(--font-mono); font-size:10px; color:var(--text-3); }
+
+  /* Timeline */
+  .timeline { display:flex; flex-direction:column; gap:10px; }
+  .timeline-item { display:flex; gap:12px; align-items:flex-start; padding:12px; background:var(--black-3); border:0.5px solid var(--border-dim); border-radius:var(--radius); }
+  .tl-date { font-family: var(--font-mono); font-size:10px; color:var(--text-3); min-width:78px; padding-top:1px; }
+  .tl-content { flex:1; }
+  .tl-title { font-size:13px; font-weight:500; color:var(--text-1); margin-bottom:2px; }
+  .tl-note { font-size:12px; color:var(--text-2); line-height:1.5; }
+  .empty-note { font-size:12px; color:var(--text-3); padding:1rem 0; }
+
+  /* ─── TABS ─── */
+  .tabs { display:flex; gap:0; border-bottom:0.5px solid var(--border-dim); margin-bottom:1.5rem; }
+  .tab-btn {
+    background:none; border:none; border-bottom:2px solid transparent; color:var(--text-3);
+    font-family: var(--font-mono); font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+    padding:10px 16px; cursor:pointer; transition: color 0.15s, border-color 0.15s; margin-bottom:-0.5px;
+  }
+  .tab-btn:hover { color:var(--text-2); }
+  .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  /* ─── DATOS / GRID ─── */
+  .data-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:10px; }
+  .data-cell { background:var(--black-3); border:0.5px solid var(--border-dim); border-radius:var(--radius); padding:10px 12px; }
+  .data-cell .key { font-family: var(--font-mono); font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-3); margin-bottom:3px; }
+  .data-cell .val { font-size:13px; color:var(--text-1); font-weight:500; }
+
+  /* ─── TABLA LABS ─── */
+  .labs-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .labs-table th { font-family: var(--font-mono); font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-3); text-align:left; padding:8px 12px; border-bottom:0.5px solid var(--border-dim); font-weight:400; }
+  .labs-table td { padding:9px 12px; color:var(--text-1); border-bottom:0.5px solid var(--border-dim); }
+  .labs-table tr:last-child td { border-bottom:none; }
+  .val-normal { color:#1d9e75; }
+  .val-alto { color:#e24b4a; }
+  .val-bajo { color:var(--gold); }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position:fixed; bottom:2rem; right:2rem; background:var(--black-3); border:0.5px solid var(--border);
+    border-radius:var(--radius); padding:10px 16px; font-size:13px; color:var(--text-1); z-index:100;
+    transform: translateY(8px); opacity:0; transition: transform 0.25s, opacity 0.25s; pointer-events:none;
+  }
+  .toast.show { transform: translateY(0); opacity:1; }
+  .toast.success { border-color: rgba(29,158,117,0.4); }
+  .toast.error { border-color: rgba(226,75,74,0.4); }
+
+  @media (max-width:640px) {
+    .hero-status { flex-direction:column; align-items:flex-start; text-align:left; }
+    .topbar-nombre { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── SCREEN: LOGIN ─── -->
+<div id="screen-login">
+  <div class="login-logo-block">
+    <img class="login-logo-img" src="assets/logo-codecells.png" alt="Code Cells logo"
+      onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';">
+    <svg id="logo-fallback" style="display:none;width:100px;height:108px;margin-bottom:0.75rem;" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(100,2)">
+        <path d="M-8,0 C-52,4 -82,28 -82,62 C-82,96 -54,118 -14,126" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <path d="M8,0 C52,4 82,28 82,62 C82,96 54,118 14,126" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <rect x="-56" y="10" width="112" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-66" y="29" width="132" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-70" y="48" width="140" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-64" y="67" width="128" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-50" y="86" width="100" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-28" y="105" width="56" height="11" rx="2" fill="#C9A96E"/>
+        <path d="M-14,126 C-8,134 8,140 14,148" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <path d="M14,126 C8,134 -8,140 -14,148" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <rect x="-142" y="112" width="36" height="11" rx="2" fill="#C9A96E" opacity="0.9"/>
+        <rect x="-132" y="130" width="24" height="11" rx="2" fill="#C9A96E" opacity="0.75"/>
+        <rect x="106" y="112" width="36" height="11" rx="2" fill="#C9A96E" opacity="0.9"/>
+        <rect x="108" y="130" width="24" height="11" rx="2" fill="#C9A96E" opacity="0.75"/>
+        <path d="M-14,148 C-54,158 -82,180 -82,206" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <path d="M14,148 C54,158 82,180 82,206" fill="none" stroke="#C9A96E" stroke-width="13" stroke-linecap="round"/>
+        <rect x="-28" y="160" width="56" height="11" rx="2" fill="#C9A96E"/>
+        <rect x="-50" y="178" width="100" height="11" rx="2" fill="#C9A96E"/>
+      </g>
+    </svg>
+    <div class="login-brand-sub">Medicina Regenerativa Avanzada</div>
+    <div class="login-portal-label">✦ Portal VIP</div>
+  </div>
+
+  <div class="login-card">
+    <h2>Bienvenido</h2>
+    <p>Ingresa tu código de acceso VIP para ver tu estado actual y hablar con NOVA.</p>
+
+    <label class="field-label" for="input-codigo">Código de acceso</label>
+    <input class="field-input" id="input-codigo" type="text" placeholder="DZW-XXXXXXXX" maxlength="16" autocomplete="off" spellcheck="false">
+
+    <button class="btn-primary" id="btn-login">Ingresar</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ─── SCREEN: APP ─── -->
+<div id="screen-app">
+
+  <div class="topbar">
+    <img class="topbar-dna" src="assets/logo-codecells.png" alt="Code Cells" onerror="this.style.display='none'">
+    <div class="topbar-brand">Code Cells<sup>®</sup></div>
+    <span class="topbar-vip">VIP ✦</span>
+    <div class="topbar-sep"></div>
+    <div class="session-timer" id="session-timer" title="Tiempo restante de sesión">
+      <span class="session-icon">⏱</span>
+      <span id="session-countdown">6:00:00</span>
+    </div>
+    <div class="topbar-nombre" id="topbar-nombre">—</div>
+    <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
+    <button class="btn-nova-topbar" id="btn-nova-open" title="Hablar con NOVA">
+      <span class="nova-dot"></span> NOVA
+    </button>
+    <button class="btn-logout" id="btn-logout">Salir</button>
+  </div>
+
+  <!-- NOVA lateral -->
+  <div class="nova-panel" id="nova-panel">
+    <div class="nova-panel-header">
+      <div class="nova-panel-title">
+        <span class="nova-dot"></span> NOVA <span style="font-size:10px;opacity:0.5;font-family:var(--font-mono);margin-left:6px;">MODO VIP</span>
+      </div>
+      <button class="nova-panel-close" id="btn-nova-close">✕</button>
+    </div>
+    <div class="nova-messages" id="nova-messages">
+      <div class="nova-msg nova-msg--nova">
+        <div class="nova-bubble">Hola, soy NOVA. Estoy aquí para acompañarte durante tu protocolo — puedo explicarte tu estado actual, resolver dudas y guiarte en cada etapa. ¿En qué te ayudo hoy?</div>
+      </div>
+    </div>
+    <div class="nova-input-row">
+      <input type="text" id="nova-input" placeholder="Escribe tu mensaje…" autocomplete="off">
+      <button id="nova-send">↑</button>
+    </div>
+  </div>
+  <div class="nova-overlay" id="nova-overlay"></div>
+
+  <div class="app-scroll">
+    <div class="app-wrap">
+
+      <div id="loading-paciente" class="loading-row"><span class="loader"></span> Cargando tu expediente…</div>
+
+      <div id="contenido-vip" style="display:none;">
+
+        <!-- HERO: estado actual -->
+        <div class="hero-status">
+          <div class="hero-blob" id="hero-blob"></div>
+          <div class="hero-info">
+            <div class="hero-eyebrow">Tu estado actual</div>
+            <div class="hero-name" id="hero-nombre">—</div>
+            <div class="hero-meta">
+              <span class="pill pill-accent" id="hero-protocolo">—</span>
+              <span class="pill" id="hero-estado">—</span>
+              <span class="pill pill-vip">✦ DEZAWA / VIP</span>
+              <span class="pill" id="hero-dia">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEGUIMIENTO 90 DÍAS -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Seguimiento de 90 días</div>
+            <div class="card-sub" id="seg-resumen">—</div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="seg-fill" style="width:0%;"></div></div>
+          <div class="progress-labels"><span>Día 0</span><span>Día 45</span><span>Día 90</span></div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="resumen">Resumen</button>
+          <button class="tab-btn" data-tab="expediente">Expediente</button>
+          <button class="tab-btn" data-tab="historia">Historia clínica</button>
+          <button class="tab-btn" data-tab="consultas">Consultas</button>
+          <button class="tab-btn" data-tab="labs">NOVA LABS</button>
+        </div>
+
+        <div class="tab-pane active" data-pane="resumen">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Línea de tiempo</div></div>
+            <div class="timeline" id="timeline-resumen"><div class="empty-note">Cargando…</div></div>
+          </div>
+        </div>
+
+        <div class="tab-pane" data-pane="expediente">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Datos generales</div></div>
+            <div class="data-grid" id="grid-expediente"><div class="empty-note">Cargando…</div></div>
+          </div>
+        </div>
+
+        <div class="tab-pane" data-pane="historia">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Historia clínica</div></div>
+            <div class="data-grid" id="grid-historia"><div class="empty-note">Sin registros aún.</div></div>
+          </div>
+        </div>
+
+        <div class="tab-pane" data-pane="consultas">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Historial de consultas</div></div>
+            <div class="timeline" id="timeline-consultas"><div class="empty-note">Cargando…</div></div>
+          </div>
+        </div>
+
+        <div class="tab-pane" data-pane="labs">
+          <div class="card">
+            <div class="card-head"><div class="card-title">NOVA LABS · Últimos resultados</div></div>
+            <div id="tabla-labs"><div class="empty-note">Sin resultados registrados aún.</div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG TABLAS (proxy /api/airtable — token nunca llega al navegador) ───
+const TBL_PACIENTES = 'pacientes';
+const TBL_HISTORIA  = 'historia';
+const TBL_CONSULTAS = 'consultas';
+const TBL_LABS      = 'labs';
+
+let pacienteActual = null;
+
+async function airtableFetch(tabla, params = '') {
+  const sep = params ? '&' : '?';
+  const url = `/api/airtable?tabla=${tabla}${params.replace('?', sep)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Airtable error ${res.status}`);
+  return res.json();
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── SESIÓN 6 HORAS ───────────────────────────────────────────────
+const SESSION_KEY = 'cc_vip_session';
+const SESSION_DURATION = 6 * 60 * 60 * 1000;
+
+function guardarSesion(paciente) {
+  const sesion = { paciente, expira: Date.now() + SESSION_DURATION };
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(sesion));
+}
+function cargarSesion() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const sesion = JSON.parse(raw);
+    if (Date.now() > sesion.expira) { sessionStorage.removeItem(SESSION_KEY); return null; }
+    return sesion.paciente;
+  } catch { return null; }
+}
+function borrarSesion() { sessionStorage.removeItem(SESSION_KEY); }
+
+// ─── LOGIN ────────────────────────────────────────────────────────
+document.getElementById('input-codigo').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-login').click();
+});
+
+document.getElementById('input-codigo').addEventListener('input', function() {
+  let v = this.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (v.length > 0 && !('DZW-'.startsWith(v)) && !v.startsWith('DZW-')) v = 'DZW-' + v;
+  v = v.replace(/^(DZW-)+/, 'DZW-');
+  this.value = v;
+  document.getElementById('login-error').textContent = '';
+});
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const codigo = document.getElementById('input-codigo').value.trim().toUpperCase();
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('btn-login');
+
+  if (!codigo.match(/^DZW-[A-Z0-9]{4,10}$/)) {
+    errEl.textContent = 'Formato inválido. Ejemplo: DZW-A1B2C3';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando…';
+  errEl.textContent = '';
+
+  try {
+    const encodedFormula = encodeURIComponent(`OR({Código de paciente}="${codigo}",{ID_Paciente}="${codigo}")`);
+    const data = await airtableFetch(TBL_PACIENTES, `?filterByFormula=${encodedFormula}`);
+
+    if (!data.records || data.records.length === 0) {
+      errEl.textContent = 'Código no encontrado. Verifica con tu especialista CODE CELLS®.';
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      return;
+    }
+
+    const rec = data.records[0];
+    const status = (rec.fields['Status'] || rec.fields['Estado'] || '').toString().toUpperCase();
+    if (status !== 'VIP' && !codigo.startsWith('DZW-')) {
+      errEl.textContent = 'Este código no tiene acceso VIP activo.';
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      return;
+    }
+
+    pacienteActual = { id: rec.id, ...rec.fields };
+    guardarSesion(pacienteActual);
+    iniciarApp();
+
+  } catch (err) {
+    if (codigo === 'DZW-DEMO01') {
+      pacienteActual = {
+        id: 'demo', 'Nombre': 'Paciente Demo', 'Código de paciente': codigo,
+        'Estado': 'activo', 'Status': 'VIP', 'Protocolo': 'DEZAWA PROTOCOL™',
+        'Fecha_ingreso': new Date(Date.now() - 18*86400000).toISOString().slice(0,10)
+      };
+      guardarSesion(pacienteActual);
+      iniciarApp();
+    } else {
+      errEl.textContent = 'Error de conexión. Usa DZW-DEMO01 para modo demo.';
+      btn.disabled = false; btn.textContent = 'Ingresar';
+    }
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  const sesionGuardada = cargarSesion();
+  if (sesionGuardada) { pacienteActual = sesionGuardada; iniciarApp(); }
+});
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+  borrarSesion();
+  pacienteActual = null;
+  document.getElementById('screen-app').style.display = 'none';
+  document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('input-codigo').value = '';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('btn-login').disabled = false;
+  document.getElementById('btn-login').textContent = 'Ingresar';
+  document.getElementById('contenido-vip').style.display = 'none';
+  document.getElementById('loading-paciente').style.display = 'flex';
+});
+
+// ─── INIT APP ────────────────────────────────────────────────────
+function iniciarApp() {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'flex';
+
+  const f = pacienteActual;
+  const nombre = f['Nombre'] || f['Nombre completo'] || f['nombre'] || 'Paciente';
+  document.getElementById('topbar-nombre').textContent = nombre;
+
+  renderHero(f);
+  renderExpediente(f);
+  cargarSeguimiento(f);
+}
+
+// ─── ACENTO POR SISTEMA / PROTOCOLO ────────────────────────────────
+function accentFor(protocolo) {
+  const p = (protocolo || '').toUpperCase();
+  if (p.includes('DEZAWA')) return { var: '--gold', pale: 'var(--gold-pale)', border: 'var(--border)' };
+  if (p.includes('ENERGY'))  return { var: '--c-energy',  pale: 'rgba(232,163,61,0.12)',  border: 'rgba(232,163,61,0.3)' };
+  if (p.includes('REPAIR'))  return { var: '--c-repair',  pale: 'rgba(212,101,74,0.12)',  border: 'rgba(212,101,74,0.3)' };
+  if (p.includes('BALANCE')) return { var: '--c-balance', pale: 'rgba(79,168,160,0.12)',  border: 'rgba(79,168,160,0.3)' };
+  if (p.includes('NEURO'))   return { var: '--c-neuro',   pale: 'rgba(139,127,212,0.12)', border: 'rgba(139,127,212,0.3)' };
+  if (p.includes('REGEN'))   return { var: '--c-regen',   pale: 'rgba(95,174,110,0.12)',  border: 'rgba(95,174,110,0.3)' };
+  return { var: '--gold', pale: 'var(--gold-pale)', border: 'var(--border)' };
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  try {
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    return d.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
+  } catch { return str; }
+}
+
+// ─── HERO ────────────────────────────────────────────────────────
+function renderHero(f) {
+  const nombre    = f['Nombre'] || f['Nombre completo'] || f['nombre'] || 'Paciente';
+  const protocolo = f['Protocolo'] || f['Protocolo activo'] || f['protocolo'] || 'CODE CELLS®';
+  const estado    = (f['Estado'] || f['estado'] || 'activo').toString().toLowerCase();
+  const fechaIng  = f['Fecha_ingreso'] || f['Fecha de registro'] || f['fecha_ingreso'];
+
+  const acc = accentFor(protocolo);
+  const blob = document.getElementById('hero-blob');
+  blob.style.setProperty('--accent', `var(${acc.var})`);
+
+  document.getElementById('hero-nombre').textContent = nombre;
+
+  const pillProt = document.getElementById('hero-protocolo');
+  pillProt.textContent = protocolo;
+  pillProt.style.setProperty('--accent-text', `var(${acc.var})`);
+  pillProt.style.setProperty('--accent-pale', acc.pale);
+  pillProt.style.setProperty('--accent-border', acc.border);
+
+  const pillEstado = document.getElementById('hero-estado');
+  pillEstado.textContent = estado.charAt(0).toUpperCase() + estado.slice(1);
+  pillEstado.className = 'pill ' +
+    (estado.includes('activ') ? 'pill-estado-activo' :
+     estado.includes('pend')  ? 'pill-estado-pendiente' : 'pill-estado-inactivo');
+
+  const pillDia = document.getElementById('hero-dia');
+  if (fechaIng) {
+    const dias = Math.max(0, Math.floor((Date.now() - new Date(fechaIng).getTime()) / 86400000));
+    pillDia.textContent = `Día ${dias} de tu protocolo`;
+  } else {
+    pillDia.textContent = '—';
+  }
+
+  document.getElementById('loading-paciente').style.display = 'none';
+  document.getElementById('contenido-vip').style.display = 'block';
+}
+
+// ─── EXPEDIENTE (datos generales) ───────────────────────────────────
+function renderExpediente(f) {
+  const rows = [
+    ['Código de paciente', f['Código de paciente'] || f['ID_Paciente']],
+    ['Edad', f['Edad']],
+    ['Sexo', f['Sexo'] || f['sexo']],
+    ['Protocolo activo', f['Protocolo'] || f['Protocolo activo']],
+    ['Estado', f['Estado'] || f['estado']],
+    ['Fecha de ingreso', formatDate(f['Fecha_ingreso'] || f['Fecha de registro'])],
+    ['Médico asignado', f['Médico asignado'] || f['Medico'] || '—'],
+    ['Canal de entrada', f['Canal de entrada'] || '—'],
+  ];
+  const grid = document.getElementById('grid-expediente');
+  grid.innerHTML = rows.map(([k,v]) => `
+    <div class="data-cell"><div class="key">${k}</div><div class="val">${v || '—'}</div></div>
+  `).join('');
+}
+
+// ─── SEGUIMIENTO 90 DÍAS + TIMELINES ────────────────────────────────
+async function cargarSeguimiento(f) {
+  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
+  const fechaIng = f['Fecha_ingreso'] || f['Fecha de registro'] || f['fecha_ingreso'];
+
+  // Barra de progreso 90 días
+  let dias = 0;
+  if (fechaIng) dias = Math.max(0, Math.floor((Date.now() - new Date(fechaIng).getTime()) / 86400000));
+  const pct = Math.min(100, Math.round((dias / 90) * 100));
+  document.getElementById('seg-fill').style.width = pct + '%';
+  document.getElementById('seg-resumen').textContent =
+    dias >= 90 ? 'Seguimiento de 90 días completado' : `Día ${dias} de 90 · ${100 - pct}% restante`;
+
+  // Historia clínica
+  try {
+    const formula = encodeURIComponent(`OR({ID_Paciente}="${pacId}",{Código de paciente}="${pacId}")`);
+    const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1`);
+    const rec = data.records && data.records[0];
+    const grid = document.getElementById('grid-historia');
+    if (rec) {
+      const ignorar = ['ID_Paciente','Código de paciente','Paciente'];
+      const entries = Object.entries(rec.fields).filter(([k]) => !ignorar.includes(k));
+      grid.innerHTML = entries.length
+        ? entries.map(([k,v]) => `<div class="data-cell"><div class="key">${k}</div><div class="val">${Array.isArray(v) ? v.join(', ') : v}</div></div>`).join('')
+        : '<div class="empty-note">Sin registros aún.</div>';
+    } else {
+      grid.innerHTML = '<div class="empty-note">Sin registros de historia clínica todavía.</div>';
+    }
+  } catch { document.getElementById('grid-historia').innerHTML = '<div class="empty-note">No se pudo cargar la historia clínica.</div>'; }
+
+  // Consultas → timeline
+  try {
+    const formula = encodeURIComponent(`OR({ID_Paciente}="${pacId}",{Código de paciente}="${pacId}")`);
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${formula}&sort[0][field]=Fecha&sort[0][direction]=desc&maxRecords=20`);
+    const recs = data.records || [];
+
+    const renderTimeline = (target, items, limite) => {
+      const el = document.getElementById(target);
+      if (!items.length) { el.innerHTML = '<div class="empty-note">Aún no hay consultas registradas.</div>'; return; }
+      const lista = limite ? items.slice(0, limite) : items;
+      el.innerHTML = lista.map(r => {
+        const cf = r.fields;
+        const fecha = formatDate(cf['Fecha'] || cf['fecha']);
+        const motivo = cf['Motivo'] || cf['motivo'] || cf['Diagnóstico'] || 'Consulta de seguimiento';
+        const notas = cf['Notas'] || cf['Plan'] || cf['notas'] || '';
+        return `
+          <div class="timeline-item">
+            <div class="tl-date">${fecha}</div>
+            <div class="tl-content">
+              <div class="tl-title">${motivo}</div>
+              ${notas ? `<div class="tl-note">${notas}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    };
+
+    renderTimeline('timeline-resumen', recs, 5);
+    renderTimeline('timeline-consultas', recs, null);
+
+  } catch {
+    document.getElementById('timeline-resumen').innerHTML = '<div class="empty-note">No se pudieron cargar tus consultas.</div>';
+    document.getElementById('timeline-consultas').innerHTML = '<div class="empty-note">No se pudieron cargar tus consultas.</div>';
+  }
+
+  // NOVA LABS
+  try {
+    const formula = encodeURIComponent(`OR({ID_Paciente}="${pacId}",{Código de paciente}="${pacId}")`);
+    const data = await airtableFetch(TBL_LABS, `?filterByFormula=${formula}&sort[0][field]=Fecha&sort[0][direction]=desc&maxRecords=1`);
+    const rec = data.records && data.records[0];
+    const cont = document.getElementById('tabla-labs');
+    if (rec) {
+      const ignorar = ['ID_Paciente','Código de paciente','Paciente','Fecha','fecha','Notas'];
+      const filas = Object.entries(rec.fields).filter(([k]) => !ignorar.includes(k));
+      cont.innerHTML = `
+        <table class="labs-table">
+          <thead><tr><th>Marcador</th><th>Valor</th></tr></thead>
+          <tbody>${filas.map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</tbody>
+        </table>`;
+    }
+  } catch { /* silencioso: sección opcional */ }
+}
+
+// ─── TABS ────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+  });
+});
+
+// ─── TEMPORIZADOR DE SESIÓN ───────────────────────────────────────
+function iniciarTemporizador() {
+  const timerEl = document.getElementById('session-countdown');
+  const timerBox = document.getElementById('session-timer');
+  if (!timerEl) return;
+  function tick() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const sesion = JSON.parse(raw);
+      const restante = sesion.expira - Date.now();
+      if (restante <= 0) { timerEl.textContent = '0:00:00'; return; }
+      const h = Math.floor(restante / 3600000);
+      const m = Math.floor((restante % 3600000) / 60000);
+      const s = Math.floor((restante % 60000) / 1000);
+      timerEl.textContent = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      if (restante < 30 * 60 * 1000) timerBox.classList.add('warning'); else timerBox.classList.remove('warning');
+    } catch {}
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+iniciarTemporizador();
+
+// ─── TOGGLE TEMA CLARO / OSCURO ──────────────────────────────────
+const THEME_KEY = 'cc_vip_theme';
+function aplicarTema(tema) {
+  if (tema === 'light') { document.body.classList.add('light'); document.getElementById('btn-theme').textContent = '🌙'; }
+  else { document.body.classList.remove('light'); document.getElementById('btn-theme').textContent = '☀'; }
+  localStorage.setItem(THEME_KEY, tema);
+}
+document.getElementById('btn-theme').addEventListener('click', () => {
+  const actual = document.body.classList.contains('light') ? 'light' : 'dark';
+  aplicarTema(actual === 'light' ? 'dark' : 'light');
+});
+aplicarTema(localStorage.getItem(THEME_KEY) || 'dark');
+
+// ─── PANEL NOVA (modo VIP) ─────────────────────────────────────────
+const novaPanel = document.getElementById('nova-panel');
+const novaOverlay = document.getElementById('nova-overlay');
+const novaMessages = document.getElementById('nova-messages');
+const novaInput = document.getElementById('nova-input');
+const novaSend = document.getElementById('nova-send');
+let novaHistorial = [];
+
+function abrirNova() { novaPanel.classList.add('open'); novaOverlay.classList.add('active'); novaInput.focus(); }
+function cerrarNova() { novaPanel.classList.remove('open'); novaOverlay.classList.remove('active'); }
+document.getElementById('btn-nova-open').addEventListener('click', abrirNova);
+document.getElementById('btn-nova-close').addEventListener('click', cerrarNova);
+novaOverlay.addEventListener('click', cerrarNova);
+
+novaInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarNova(); } });
+novaSend.addEventListener('click', enviarNova);
+
+function agregarMensajeNova(rol, texto) {
+  const div = document.createElement('div');
+  div.className = `nova-msg nova-msg--${rol === 'assistant' ? 'nova' : 'user'}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'nova-bubble';
+  bubble.innerHTML = texto.split('\n').join('<br>');
+  div.appendChild(bubble);
+  novaMessages.appendChild(div);
+  novaMessages.scrollTop = novaMessages.scrollHeight;
+}
+function mostrarTyping() {
+  const div = document.createElement('div');
+  div.className = 'nova-msg nova-msg--nova';
+  div.id = 'nova-typing';
+  div.innerHTML = '<div class="nova-bubble nova-typing"><span></span><span></span><span></span></div>';
+  novaMessages.appendChild(div);
+  novaMessages.scrollTop = novaMessages.scrollHeight;
+}
+function quitarTyping() { const t = document.getElementById('nova-typing'); if (t) t.remove(); }
+
+async function enviarNova() {
+  const texto = novaInput.value.trim();
+  if (!texto) return;
+
+  novaInput.value = '';
+  novaSend.disabled = true;
+  agregarMensajeNova('user', texto);
+  novaHistorial.push({ role: 'user', content: texto });
+  mostrarTyping();
+
+  const f = pacienteActual || {};
+  const nombre    = f['Nombre'] || f['Nombre completo'] || 'Paciente';
+  const codigo    = f['Código de paciente'] || f['ID_Paciente'] || '';
+  const protocolo = f['Protocolo'] || f['Protocolo activo'] || 'CODE CELLS®';
+  const fechaIng  = f['Fecha_ingreso'] || f['Fecha de registro'];
+  const dias      = fechaIng ? Math.max(0, Math.floor((Date.now() - new Date(fechaIng).getTime()) / 86400000)) : null;
+
+  const systemNova = `Eres NOVA, la inteligencia artificial de acompañamiento de CODE CELLS® en modo VIP exclusivo.
+Estás acompañando a ${nombre} (${codigo}), quien se encuentra en su protocolo "${protocolo}"${dias !== null ? `, día ${dias} de su seguimiento de 90 días` : ''}.
+Tu rol es ser una guía cálida, cercana y profesional: explicar en qué consiste su protocolo, resolver dudas sobre síntomas o proceso de recuperación, orientarlo dentro de este portal, y acompañarlo emocionalmente durante su seguimiento de 90 días.
+Responde siempre en español, con calidez y sin tecnicismos innecesarios. Nunca des diagnósticos definitivos ni ajustes de dosis — para eso, indica que su especialista de la Red CODE CELLS® debe confirmarlo.
+Nunca menciones a los fundadores por nombre; refiérete siempre a "un especialista de la Red CODE CELLS®".`;
+
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system: systemNova, messages: novaHistorial, model: 'claude-sonnet-4-6', max_tokens: 1024 })
+    });
+    const data = await res.json();
+    quitarTyping();
+    const respuesta = data.content?.[0]?.text || 'Sin respuesta de NOVA.';
+    agregarMensajeNova('assistant', respuesta);
+    novaHistorial.push({ role: 'assistant', content: respuesta });
+  } catch (err) {
+    quitarTyping();
+    agregarMensajeNova('assistant', 'Error de conexión. Intenta de nuevo.');
+  } finally {
+    novaSend.disabled = false;
+    novaInput.focus();
+  }
+}
+</script>
+</body>
+</html>
