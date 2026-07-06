@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Portal Médico — Uso de la plataforma</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .steprow { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .stepchip { background:var(--surface); border-radius:8px; padding:8px 10px; font-size:11.5px; text-align:center; flex:1; min-width:80px; border-bottom:3px solid var(--teal-light); }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { caseText: "Un médico intenta entrar al Portal Médico usando su correo electrónico y contraseña personal, como si fuera cualquier plataforma web.",
+    opts: ["Es correcto, el portal usa correo y contraseña como cualquier sitio.", "El acceso al Portal Médico se hace con el código CCMED-XXXXXX validado contra la tabla MÉDICOS de Airtable, no con correo/contraseña genérico.", "Solo los médicos Senior usan código, el resto usa correo."], correct: 1,
+    rationale: "El login del Portal Médico está diseñado sobre códigos CCMED-XXXXXX validados contra Airtable, no sobre un sistema de correo/contraseña tradicional — es importante que el médico use el código correcto que se le asignó." },
+  { caseText: "Un médico deja su sesión abierta en una computadora compartida de la clínica y se retira sin cerrar sesión, confiando en que 'el sistema se encarga solo'.",
+    opts: ["No hay ningún riesgo, la sesión permanece abierta indefinidamente por diseño.", "La sesión tiene una duración de 6 horas vía sessionStorage; aun así, es buena práctica cerrar sesión manualmente en equipos compartidos para no depender solo del vencimiento automático.", "La sesión se cierra automáticamente a los 5 minutos de inactividad."], correct: 1,
+    rationale: "El portal usa sessionStorage con una ventana de 6 horas — no es indefinida, pero tampoco instantánea. En equipos compartidos, cerrar sesión manualmente es la práctica correcta para no depender únicamente del vencimiento automático." },
+  { caseText: "Un médico busca en su lista de pacientes a alguien que no está asignado a él como Médico_principal, pero que fue visto por otro colega de la red en una interconsulta.",
+    opts: ["No puede verlo bajo ninguna circunstancia, el portal solo muestra pacientes propios.", "Puede localizarlo mediante la función de búsqueda compartida para interconsulta, diseñada específicamente para este escenario.", "Debe pedirle al paciente que se re-registre bajo su nombre."], correct: 1,
+    rationale: "El portal incluye una función de búsqueda de pacientes compartida pensada exactamente para casos de interconsulta entre médicos de la red, sin que el paciente tenga que estar asignado como propio para poder localizarlo." },
+  { caseText: "Un médico completa una nueva consulta en el expediente de un paciente y nota que el campo de la próxima cita quedó vacío tras guardar.",
+    opts: ["No pasa nada, ese campo es opcional y puede quedar vacío sin problema.", "Debe corregirlo: el campo 'Próxima cita' es obligatorio tras la corrección del formato de notas, y una consulta no debería quedar sin ese dato.", "Solo es obligatorio si el paciente lo solicita expresamente."], correct: 1,
+    rationale: "El formato de evolución médica establece 'Próxima cita' como campo obligatorio tras la corrección aplicada al formato — dejarlo vacío es un error que debe corregirse antes de considerar completa la nota." },
+  { caseText: "Un médico en modo NOVA (panel lateral del portal) hace una consulta clínica rápida sobre un caso mientras atiende a un paciente.",
+    opts: ["NOVA en modo médico está diseñada justamente para consultas clínicas rápidas de este tipo, como panel lateral dentro de la misma sesión.", "NOVA solo funciona en modo público, no dentro del portal médico.", "Debe cerrar el portal por completo para poder usar NOVA."], correct: 0,
+    rationale: "NOVA está integrada como panel lateral dentro del Portal Médico específicamente en modo médico (CCMED-), pensada para consultas clínicas rápidas sin salir de la sesión de trabajo." },
+  { caseText: "Un médico nuevo pregunta cómo se registra en el sistema para empezar a usar el portal, asumiendo que puede autorregistrarse igual que un paciente en el Portal VIP.",
+    opts: ["Puede autorregistrarse libremente, igual que en el Portal VIP.", "Actualmente el registro de médicos nuevos es manual por parte del equipo administrativo (vía Airtable), no un autorregistro como en el Portal VIP.", "Debe pedirle a otro médico que lo registre desde su propia sesión."], correct: 1,
+    rationale: "A diferencia del flujo de invitación del Portal VIP, el registro de médicos nuevos en el sistema actualmente se hace de forma manual por el equipo administrativo en Airtable — no existe todavía un autorregistro desde el portal." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Un médico confunde el código de acceso al Portal Médico (CCMED-XXXXXX) con el código de invitación del Portal VIP (INV-XXXXXXXX), asumiendo que ambos sirven para lo mismo.",
+    opts: ["Son intercambiables, ambos dan acceso a cualquier portal.", "Son sistemas distintos: CCMED- valida médicos contra la tabla MÉDICOS para el Portal Médico; INV- es un código de invitación de 7 días para pacientes en el Portal VIP Nivel 1 — no son intercambiables."], correct: 1,
+    rationale: "Confundir ambos sistemas de código puede llevar a un médico a intentar acceder por la vía equivocada. Cada código pertenece a un flujo y una tabla de validación distintos." },
+  { caseText: "Un médico piensa que, como ya vio a un paciente por interconsulta usando la búsqueda compartida, ese paciente pasa a estar asignado a él como Médico_principal automáticamente.",
+    opts: ["Correcto, la interconsulta reasigna automáticamente al paciente.", "Incorrecto: la búsqueda compartida permite consultar el expediente para fines de interconsulta, pero no cambia el campo Médico_principal — eso requiere una acción de reasignación explícita, no ocurre por el solo hecho de consultar."], correct: 1,
+    rationale: "Ver un expediente por interconsulta y ser el Médico_principal son dos cosas distintas. Confundirlas puede llevar a asumir una responsabilidad de seguimiento que no corresponde, o a perder de vista quién es el responsable real del caso." },
+  { caseText: "Un médico asume que, si la sesión no ha vencido (menos de 6 horas), es igual de seguro dejar la computadora desatendida que cerrar sesión manualmente.",
+    opts: ["Sí, mientras la sesión no haya vencido no hay ninguna diferencia práctica de seguridad.", "No: que la sesión no haya vencido no equivale a que sea seguro dejarla desatendida — cerrar sesión manualmente en equipos compartidos sigue siendo la práctica correcta, independientemente del tiempo restante de la ventana de 6 horas."], correct: 1,
+    rationale: "El vencimiento automático es una medida de respaldo, no un sustituto de la buena práctica de cerrar sesión al alejarse de un equipo compartido — tratarlos como equivalentes es un error de seguridad." }
+];
+
+var QUESTIONS = [
+  { q: "¿Cómo se valida el acceso de un médico al Portal Médico?", opts: ["Correo y contraseña genérico", "Código CCMED-XXXXXX validado contra la tabla MÉDICOS de Airtable", "Únicamente reconocimiento facial", "Código INV-XXXXXXXX"], correct: 1 },
+  { q: "¿Cuál es la duración de la sesión en el Portal Médico?", opts: ["1 hora", "6 horas vía sessionStorage", "24 horas", "Indefinida, sin vencimiento"], correct: 1 },
+  { q: "¿Cómo se filtra la lista de pacientes de un médico en el portal?", opts: ["Muestra todos los pacientes de la red sin distinción", "Se filtra por el campo Médico_principal vinculado a ese médico", "Se filtra únicamente por fecha de nacimiento", "No existe ningún filtro"], correct: 1 },
+  { q: "¿Qué función del portal permite localizar un paciente que no es propio, con fines de interconsulta?", opts: ["No existe tal función", "La búsqueda compartida de pacientes", "Solo el paciente puede compartir su propio expediente por correo", "Se requiere reasignar primero al médico_principal"], correct: 1 },
+  { q: "¿Cuántas pestañas tiene el expediente del paciente en el portal?", opts: ["Dos", "Cuatro", "Seis", "Una sola vista general"], correct: 1 },
+  { q: "¿Qué campo es obligatorio en una nueva consulta tras la corrección de formato aplicada?", opts: ["Próxima cita", "Color de piel del paciente", "Nombre del asistente en sala", "Ninguno es obligatorio"], correct: 0 },
+  { q: "¿En qué modo funciona NOVA cuando se usa dentro del Portal Médico?", opts: ["Modo público únicamente", "Como panel lateral en modo médico (CCMED-)", "No está integrada al portal médico", "Solo en modo fundadores"], correct: 1 },
+  { q: "¿Cómo se registra actualmente un médico nuevo en el sistema?", opts: ["Autorregistro libre, igual que en el Portal VIP", "Registro manual del equipo administrativo en Airtable", "Un médico existente lo registra desde su propia sesión", "No es posible registrar médicos nuevos"], correct: 1 },
+  { q: "¿Es lo mismo el código CCMED-XXXXXX que el código INV-XXXXXXXX?", opts: ["Sí, ambos dan acceso al mismo portal", "No: CCMED- es para médicos en el Portal Médico; INV- es un código de invitación de 7 días para pacientes en el Portal VIP Nivel 1", "INV- es exclusivo de médicos Senior", "CCMED- es exclusivo del modo fundadores"], correct: 1 },
+  { q: "¿Ver el expediente de un paciente por interconsulta reasigna automáticamente al médico como Médico_principal?", opts: ["Sí, automáticamente", "No, se requiere una acción de reasignación explícita, distinta de la consulta por interconsulta", "Solo si el paciente lo autoriza en el momento", "Solo aplica a médicos de nivel Senior"], correct: 1 },
+  { q: "¿Es seguro dejar la computadora desatendida solo porque la sesión de 6 horas aún no ha vencido?", opts: ["Sí, no hay ninguna diferencia práctica de seguridad", "No, cerrar sesión manualmente en equipos compartidos sigue siendo la práctica correcta independientemente del tiempo restante", "Solo es un riesgo después de las primeras 3 horas", "El sistema cierra sesión automáticamente a los 10 minutos de inactividad"], correct: 1 },
+  { q: "¿Dónde está asegurado el token de Airtable usado por el Portal Médico?", opts: ["Directamente visible en el código del frontend", "En un proxy serverless (api/airtable.js)", "En un archivo de texto público", "No requiere ningún tipo de protección"], correct: 1 },
+  { q: "¿Qué físico médico existe para pruebas del portal sin afectar datos reales?", opts: ["No existe ningún médico de prueba", "El médico demo CCMED-DEMO01", "Se usa el código de Víctor para todas las pruebas", "Se usa un médico aleatorio de la tabla MÉDICOS"], correct: 1 },
+  { q: "¿Qué información filtra la vista de pacientes de un médico, evitando ver pacientes de otros colegas por default?", opts: ["El campo Médico_principal", "El nombre del médico escrito manualmente", "La fecha de la última consulta", "No existe ningún filtro, se ven todos"], correct: 0 },
+  { q: "¿Qué acción NO debe asumirse como 'segura por defecto' en un equipo compartido de la clínica?", opts: ["Cerrar el navegador por completo", "Dejar la sesión abierta confiando únicamente en el vencimiento de 6 horas", "Cerrar sesión manualmente antes de retirarse", "Verificar que el paciente correcto esté cargado antes de escribir la nota"], correct: 1 },
+  { q: "¿El formulario de nueva consulta en el portal escribe directamente a qué tabla de Airtable?", opts: ["MÉDICOS", "CONSULTAS", "PROTOCOLOS", "NOVA LABS"], correct: 1 },
+  { q: "¿Qué pendiente de v2 del Portal Médico permite firmar digitalmente las notas de consulta?", opts: ["Ya está implementado y en uso", "Es un workstream pendiente: firma digital en notas de consulta", "No está contemplado en ningún plan futuro", "Solo aplica a médicos Senior"], correct: 1 },
+  { q: "¿Qué integración pendiente permitiría a cada médico gestionar su propia agenda desde el portal?", opts: ["Integración con WhatsApp Business", "OAuth 2.0 con Google Calendar por médico", "Un calendario de papel físico", "No hay ninguna integración de calendario planeada"], correct: 1 },
+  { q: "¿Qué elemento del portal está pendiente para permitir a un médico registrar pacientes nuevos directamente desde la plataforma?", opts: ["Ya existe y está en producción", "Registro de nuevo paciente desde el portal, aún pendiente", "Solo se puede hacer desde el Portal VIP", "No está contemplado en ningún workstream"], correct: 1 },
+  { q: "¿Qué debe verificar siempre un médico antes de escribir una nota de consulta en el portal?", opts: ["Que el paciente correcto esté cargado en el expediente activo", "Que su sesión tenga más de 3 horas de antigüedad", "Que NOVA esté desactivada", "Que el paciente tenga código INV- vigente"], correct: 0 }
+];
+
+var CELLS = [
+  { label: "1 · Bienvenida", render: function() {
+    return '<div class="icon-badge">💻</div><h3>Portal Médico — Uso de la plataforma</h3>' +
+      '<p>El Portal Médico es la herramienta de trabajo diaria de cada médico afiliado: expediente, consultas, interconsulta y NOVA en un solo lugar. Este módulo asegura que el uso de la plataforma sea correcto y seguro.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás iniciar sesión correctamente, navegar el expediente y registrar consultas completas, usar la búsqueda compartida para interconsulta, y aplicar buenas prácticas de seguridad de sesión.</p></div>';
+  }},
+  { label: "2 · Contexto", render: function() {
+    return '<div class="icon-badge">💡</div><h3>¿Por qué importa esto?</h3>' +
+      '<p>El portal se usa todos los días, con pacientes reales y datos clínicos sensibles — un mal uso (dejar sesión abierta, notas incompletas, confundir códigos de acceso) tiene consecuencias directas de seguridad y calidad clínica.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+      '<p style="margin:0;">Confundir el código CCMED- (médico) con el código INV- (invitación VIP), o asumir que revisar un expediente por interconsulta reasigna automáticamente al paciente como propio.</p></div>';
+  }},
+  { label: "3 · Concepto", render: function() {
+    return '<div class="icon-badge">📚</div><h3>Las piezas del portal</h3>' +
+      '<div class="steprow"><div class="stepchip">Login CCMED-</div><div class="stepchip">Lista de pacientes</div><div class="stepchip">Expediente (4 pestañas)</div><div class="stepchip">Interconsulta</div><div class="stepchip">NOVA lateral</div></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Login:</strong> código CCMED-XXXXXX validado contra la tabla MÉDICOS, sesión de 6 horas vía sessionStorage. <strong style="color:#fff;">Lista de pacientes:</strong> filtrada por Médico_principal. <strong style="color:#fff;">Interconsulta:</strong> búsqueda compartida para localizar pacientes de otros médicos sin reasignación automática. <strong style="color:#fff;">Nueva consulta:</strong> formulario que escribe a la tabla CONSULTAS, con "Próxima cita" obligatoria.</p></div>' +
+      '<p>NOVA aparece como panel lateral en modo médico, pensada para consultas clínicas rápidas sin salir de la sesión de trabajo.</p>';
+  }},
+  { label: "4 · Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Un colega de otra sede pide apoyo para revisar el expediente de un paciente que no es propio del médico consultado.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1 — usar la búsqueda compartida.</strong> No es necesario que el paciente esté asignado como Médico_principal para localizarlo.</p>' +
+      '<p><strong style="color:#fff;">Paso 2 — revisar sin reasignar.</strong> Consultar el expediente por interconsulta no cambia automáticamente quién es el médico responsable del caso.</p>' +
+      '<p><strong style="color:#fff;">Paso 3 — cerrar sesión al terminar.</strong> Si se usó un equipo compartido, se cierra sesión manualmente en vez de confiar solo en el vencimiento de 6 horas.</p>' +
+      '<p style="margin:0;"><strong style="color:#fff;">Conclusión:</strong> interconsulta e identidad de Médico_principal son conceptos distintos, y la seguridad de sesión es responsabilidad activa del médico.</p>';
+  }},
+  { label: "5 · Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "6 · Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos ideas compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "7 · Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "8 · Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>El acceso al Portal Médico es por código CCMED- validado contra Airtable, con sesión de 6 horas — no es correo/contraseña ni el código INV- del Portal VIP.</li>' +
+      '<li>Interconsulta y reasignación de Médico_principal son conceptos distintos: consultar no reasigna automáticamente.</li>' +
+      '<li>La seguridad de sesión en equipos compartidos es responsabilidad activa del médico, no solo del vencimiento automático.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, regresa a la celda 7 para reintentar")+'</p>' +
+      '<p style="margin:8px 0 0;">Siguiente módulo sugerido: Protocolo DEZAWA.</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===4) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===5) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===6) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>

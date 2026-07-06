@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sueroterapia IV — Fundamento científico y protocolos completos</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  h4 { margin:20px 0 8px; font-size:13.5px; font-weight:700; color:var(--gold-light); letter-spacing:0.03em; text-transform:uppercase; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .fundcard { background:var(--surface); border-left:3px solid var(--gold-light); border-radius:8px; padding:12px 14px; margin-bottom:8px; }
+  .fundcard .fname { font-weight:700; color:#fff; font-size:13.5px; margin-bottom:5px; }
+  .fundcard .ftext { font-size:12.5px; color:var(--text-secondary); line-height:1.6; }
+  .protocard { background:var(--surface); border-left:3px solid var(--teal-light); border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+  .protocard .pname { font-weight:700; color:#fff; font-size:13.5px; margin-bottom:4px; }
+  .protocard .pcomp { font-size:12.5px; color:var(--text-secondary); margin-bottom:4px; }
+  .protocard .pmeta { font-size:11px; color:var(--teal-light); font-family:monospace; margin-bottom:4px; }
+  .protocard .pwarn { font-size:11.5px; color:var(--danger); }
+  .protocard.premium { border-left-color:var(--gold-light); }
+  .protocard.premium .pmeta { color:var(--gold-light); }
+  .protocard.new { border-left-color:#c9a8e8; }
+  .protocard.new .pmeta { color:#c9a8e8; }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { caseText: "Paciente con desgaste articular y dolor crónico busca sueroterapia específica para su condición.",
+    opts: ["Flexmotion IV — Traumeel 2 amp, Zeel T 2 amp, Magnesio 1g, Coenzima Compositum 1 amp y Discus Compositum 1 amp.", "Energy IV, ya que cualquier protocolo con magnesio cubre el componente articular.", "Protocolo Riordan, por su alta dosis de vitamina C antiinflamatoria."], correct: 0,
+    rationale: "Flexmotion IV está diseñado específicamente para el componente articular, combinando Traumeel y Zeel T con Discus Compositum — Energy IV es soporte mitocondrial sin relación con lo articular." },
+  { caseText: "Paciente con enfermedad renal crónica leve (TFG 45 ml/min) solicita el protocolo IRC IV.",
+    opts: ["Se aplica el protocolo estándar sin ningún límite, ya que TFG 45 no es insuficiencia grave.", "El límite documentado es evitar más de 3g de vitamina C si la TFG es menor a 30 — con TFG 45 el paciente no cae en ese umbral, pero la dosis debe confirmarse según su función renal.", "IRC IV está contraindicado en cualquier grado de insuficiencia renal."], correct: 1,
+    rationale: "El protocolo IRC IV documenta el límite de evitar más de 3g de vitamina C si TFG<30 — con TFG 45 el paciente no cae en ese umbral, pero la dosis siempre se ajusta según función renal individual." },
+  { caseText: "Paciente con insuficiencia renal diagnosticada solicita el protocolo de Quelación IV (EDTA 1-3g).",
+    opts: ["Se aplica con precaución, ajustando la dosis de EDTA según función renal.", "Quelación IV está formalmente contraindicada en insuficiencia renal — no es un simple ajuste de dosis.", "Solo se contraindica si la insuficiencia renal es terminal."], correct: 1,
+    rationale: "El protocolo de Quelación IV documenta la insuficiencia renal como contraindicación formal, no como condición que solo requiere ajuste de dosis." },
+  { caseText: "Un paciente con anemia severa va a recibir el protocolo Hematopoyético IV (hierro 6 ampolletas en 1000ml SSF + eritropoyetina).",
+    opts: ["Se inicia la infusión de hierro directamente, sin ningún paso previo.", "Se debe premedicar siempre con Hidrocortisona 300mg IV + Difenhidramina 3ml IV en 100ml SSF antes de iniciar, por el riesgo de anafilaxia documentado.", "La premedicación es opcional si el paciente nunca ha tenido reacciones alérgicas."], correct: 1,
+    rationale: "El protocolo Hematopoyético IV documenta riesgo de anafilaxia y exige premedicación obligatoria — no es un paso condicional al antecedente alérgico del paciente." },
+  { caseText: "Paciente con hipertiroidismo conocido solicita Energy IV para mejorar su fatiga.",
+    opts: ["Se indica sin reservas, la fatiga siempre se beneficia de soporte energético.", "Energy IV debe evitarse en hipertiroidismo, según la precaución explícita del protocolo.", "Solo se evita si el hipertiroidismo no está tratado farmacológicamente."], correct: 1,
+    rationale: "Energy IV documenta como precaución explícita evitarse en hipertiroidismo — la fatiga por sí sola no es indicación suficiente si existe esta condición de base." },
+  { caseText: "Paciente hipertenso (bien controlado con tratamiento) es candidato a NAD+ IV.",
+    opts: ["Se aplica la dosis completa de 500mg igual que a cualquier paciente.", "Se ajusta a dosis de 2-3ml de NAD+ por sesión, con monitoreo de presión arterial antes, durante y después — el NAD+ puede elevar la presión al pasar por el torrente sanguíneo.", "Está formalmente contraindicado en cualquier paciente hipertenso."], correct: 1,
+    rationale: "La ficha técnica de NAD+ señala explícitamente que en pacientes hipertensos debe monitorizarse la presión arterial y no aplicar la dosis máxima — se recomienda 2-3ml por sesión en vez del esquema completo." },
+  { caseText: "Un médico debe decidir si aplica Glutatión con el esquema general de mantenimiento o con el esquema adyuvante a quimioterapia para un paciente que inicia quimioterapia esta semana.",
+    opts: ["El esquema general (600-1400mg IV) es igual de válido en cualquier contexto, incluido el oncológico.", "Debe usarse el esquema adyuvante específico: 600mg/día IM en los días 2-5 de quimioterapia, más 1.5g/m² IV previo a la sesión — un esquema distinto al de mantenimiento general.", "El Glutatión no tiene ningún esquema documentado para uso oncológico."], correct: 1,
+    rationale: "El Glutatión tiene dos regímenes documentados con el mismo producto: uno general (600-1400mg IV) y uno específico como adyuvante de quimioterapia (600mg/día IM días 2-5 + 1.5g/m² IV previo) — no son intercambiables." },
+  { caseText: "Un paciente con cáncer activo solicita Gerovital H3 para 'sentirse con más energía' durante su tratamiento.",
+    opts: ["Se indica sin reservas, Gerovital H3 no tiene relación con procesos oncológicos.", "Gerovital H3 no es recomendable en pacientes con cáncer, ya que no se ha descartado el efecto carcinógeno del clorhidrato de procaína sobre células no plasmáticas.", "Se indica solo si el paciente firma un consentimiento adicional."], correct: 1,
+    rationale: "La ficha técnica de Gerovital H3 señala explícitamente que no es recomendable en pacientes con cáncer, porque no se ha comprobado su efecto carcinógeno en células no plasmáticas — es una contraindicación relativa documentada, no una opción libre con consentimiento." },
+  { caseText: "Un paciente con trasplante renal previo solicita Peroxilive (peróxido de hidrógeno) como terapia antioxidante.",
+    opts: ["Se indica, el peróxido de hidrógeno es un suplemento alimenticio no tóxico sin relación con trasplantes.", "Peroxilive está contraindicado en pacientes trasplantados, ya que estimula el sistema inmunológico y puede provocar rechazo del órgano trasplantado al detectarlo como algo extraño.", "Solo se contraindica si el trasplante fue en los últimos 6 meses."], correct: 1,
+    rationale: "La ficha técnica de Peroxilive contraindica explícitamente su uso en pacientes trasplantados, porque la estimulación inmunológica que provoca puede desencadenar un rechazo del órgano al reconocerlo como ajeno." },
+  { caseText: "Un médico va a escalar la dosis de vitamina C de un paciente dentro del Protocolo Riordan, pasando de 15g a 25g.",
+    opts: ["Escala directamente sin ninguna pregunta adicional, ya que el esquema ya está definido por el protocolo.", "Antes de escalar a dosis altas, pregunta por antecedente personal o familiar de anemia hemolítica o favismo (déficit de G6PD) — una pregunta de historia clínica, sin requerir laboratorio.", "Solicita un estudio de laboratorio de G6PD obligatorio antes de cualquier escalamiento."], correct: 1,
+    rationale: "El escalamiento de dosis altas de vitamina C IV exige indagar antecedente personal o familiar de anemia hemolítica o favismo mediante la historia clínica — una pregunta de bajo costo que reduce el riesgo de hemólisis no anticipada, sin imponer un estudio de laboratorio obligatorio." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Un médico debe elegir entre Myers' Cocktail IV y Boost Your Immunity IV para dos pacientes distintos. Paciente A busca soporte energético general de mantenimiento. Paciente B cursa un proceso infeccioso agudo y busca soporte inmunológico específico.",
+    opts: ["Ambos protocolos son intercambiables porque comparten vitamina C, complejo B y magnesio como base.", "Son protocolos distintos: Myers' Cocktail IV agrega Coenzima Compositum y Ubichinon Compositum (soporte energético), mientras que Boost Your Immunity IV agrega Zinc, Glutatión, Traumeel y Lymphomyosot (inmunomodulación específica)."], correct: 1,
+    rationale: "Ambos comparten una base similar, pero sus componentes añadidos definen su propósito real — elegir por la base compartida en vez del componente diferencial es un error." },
+  { caseText: "Un médico confunde el protocolo de Quelación IV con el Detox (Premium), asumiendo que son el mismo protocolo porque ambos usan EDTA, Vitamina C, Magnesio y Lymphomyosot.",
+    opts: ["Son el mismo protocolo, la diferencia de nombre es solo comercial.", "Son protocolos distintos: Quelación IV usa EDTA 1-3g y está contraindicado en insuficiencia renal; Detox agrega Hepeel con foco hepático y usa EDTA fijo de 1g."], correct: 1,
+    rationale: "Compartir varios componentes base no equivale a ser el mismo protocolo — Detox incorpora Hepeel con enfoque hepático adicional, y las precauciones específicas de cada uno deben respetarse por separado." },
+  { caseText: "Un médico ve que NAD+ IV y Anti-aging IV contienen ambos NAD+ y considera que puede usar cualquiera indistintamente.",
+    opts: ["Son intercambiables porque ambos contienen NAD+ como ingrediente principal.", "Son protocolos distintos: NAD+ IV usa dosis mayor (500mg) enfocada en repleción pura; Anti-aging IV usa dosis menor (250mg) pero añade Glutatión, Complejo B y Lymphomyosot para un abordaje anti-aging más integral."], correct: 1,
+    rationale: "La presencia del mismo ingrediente principal en dos protocolos no los hace equivalentes — la dosis y los componentes adicionales reflejan objetivos clínicos distintos." },
+  { caseText: "Un médico ve que el Glutatión aparece tanto en un esquema general de mantenimiento como en un esquema adyuvante a quimioterapia, y asume que puede aplicar cualquiera de los dos según la disponibilidad de horario en el consultorio, sin relación con el estado del paciente.",
+    opts: ["Correcto, ambos esquemas son equivalentes y se eligen por conveniencia operativa.", "Incorrecto: el esquema adyuvante a quimioterapia (600mg/día IM días 2-5 + 1.5g/m² IV previo) responde a un objetivo clínico específico —proteger y sincronizar con el ciclo de quimioterapia— mientras que el esquema general (600-1400mg IV) es de mantenimiento; la elección depende del contexto clínico del paciente, no de la agenda de la clínica."], correct: 1,
+    rationale: "Mismo producto, dos protocolos con lógicas distintas — elegir por conveniencia operativa en vez de por el contexto clínico del paciente (si está o no en ciclo de quimioterapia) es un error de razonamiento." },
+  { caseText: "Un paciente pregunta si Gerovital H3 y Peroxilive son 'básicamente lo mismo', ya que ambos se presentan como terapias de longevidad y antienvejecimiento.",
+    opts: ["Sí, son intercambiables, ambos tienen el mismo objetivo de longevidad.", "No: son terapias distintas con mecanismos y contraindicaciones opuestas en puntos clave — Gerovital H3 se contraindica en cáncer y QT prolongado; Peroxilive se contraindica en pacientes trasplantados por estimulación inmunológica. Compartir un objetivo de longevidad no las vuelve intercambiables ni implica las mismas precauciones."], correct: 1,
+    rationale: "Dos terapias pueden perseguir un objetivo similar (longevidad) y aun así tener mecanismos y perfiles de seguridad completamente distintos — asumir equivalencia por el objetivo compartido ignora las contraindicaciones específicas de cada una." }
+];
+
+var QUESTIONS = [
+  { q: "¿Cuánta vitamina C contiene el protocolo Boost Your Immunity IV?", opts: ["5 g", "7.5 g", "25-50 g", "3-5 g"], correct: 1 },
+  { q: "¿Qué precaución genética debe descartarse antes de aplicar Boost Your Immunity IV?", opts: ["Déficit de G6PD", "Polimorfismo MTHFR", "Hemocromatosis", "Déficit de lactasa"], correct: 0 },
+  { q: "¿Qué dos componentes distinguen a Myers' Cocktail IV de Boost Your Immunity IV?", opts: ["Coenzima Compositum y Ubichinon Compositum", "Traumeel y Lymphomyosot", "Zinc y Glutatión", "EDTA y Hepeel"], correct: 0 },
+  { q: "¿Cuántas ampolletas de Traumeel lleva el protocolo Flexmotion IV?", opts: ["1 ampolleta", "2 ampolletas", "3 ampolletas", "No lleva Traumeel"], correct: 1 },
+  { q: "¿Ante qué signos debe suspenderse el protocolo Flexmotion IV?", opts: ["Fiebre o rash cutáneo", "Cefalea leve", "Sed excesiva", "Somnolencia"], correct: 0 },
+  { q: "¿Cuál es la dosis de inicio y la dosis completa de NAD+ IV?", opts: ["250mg (inicio) y 500mg (completa)", "50mg (inicio) y 100mg (completa)", "1000mg fijo, sin escalamiento", "100mg (inicio) y 250mg (completa)"], correct: 0 },
+  { q: "¿Por qué el NAD+ IV debe infundirse siempre por goteo lento?", opts: ["Un goteo rápido se asocia a cefalea, dificultad para respirar y otros efectos adversos documentados", "No tiene ninguna relación con la velocidad de infusión", "Solo es relevante para la vía intramuscular", "Se debe a que el NAD+ es inestable a temperatura ambiente"], correct: 0 },
+  { q: "¿Cómo se ajusta el NAD+ IV en un paciente hipertenso?", opts: ["Se aplica la dosis máxima igual que a cualquier paciente", "Se recomienda 2-3ml por sesión, con monitoreo de presión arterial antes, durante y después", "Se contraindica de forma absoluta en cualquier hipertenso", "Se cambia a vía oral exclusivamente"], correct: 1 },
+  { q: "¿Con qué anestésico local se puede aplicar el NAD+ por vía intramuscular para reducir la molestia?", opts: ["Procaína", "Lidocaína en gel", "No se recomienda ningún anestésico", "Benzocaína tópica"], correct: 0 },
+  { q: "¿Qué rango de EDTA se utiliza en el protocolo de Quelación IV?", opts: ["1-3 g en 500 ml SSF", "10-15 g en 250 ml SSF", "0.1 g en 100 ml SSF", "No usa EDTA"], correct: 0 },
+  { q: "¿Qué contraindicación formal tiene el protocolo de Quelación IV?", opts: ["Insuficiencia renal", "Hipertensión arterial leve", "Alergia estacional", "Edad mayor a 50 años"], correct: 0 },
+  { q: "¿En qué condición debe evitarse el protocolo Energy IV?", opts: ["Hipertiroidismo", "Hipotiroidismo", "Anemia leve", "Migraña ocasional"], correct: 0 },
+  { q: "¿Qué protocolo reemplaza al antiguo esquema de dosis fija de Vitamina C oncológica en el módulo actual?", opts: ["El Protocolo Riordan de Vitamina C Intravenosa", "El protocolo IRC IV", "El protocolo Detox Premium", "No hay ningún protocolo de vitamina C oncológica"], correct: 0 },
+  { q: "¿Cuál es la meta de concentración plasmática que busca alcanzar el Protocolo Riordan?", opts: ["350-400 mg/dL", "10-20 mg/dL", "1000-1200 mg/dL", "No se mide nivel plasmático en este protocolo"], correct: 0 },
+  { q: "¿Qué pregunta de historia clínica debe hacerse antes de escalar a dosis altas de vitamina C en el Protocolo Riordan?", opts: ["Antecedente personal o familiar de anemia hemolítica o favismo (déficit de G6PD)", "Antecedente de migraña crónica", "Antecedente de cirugía estética previa", "Ninguna pregunta adicional es necesaria"], correct: 0 },
+  { q: "¿Por qué la vitamina C IV en dosis altas tiene un efecto pro-oxidante selectivo relevante en oncología?", opts: ["Genera peróxido de hidrógeno extracelular, al que las células con baja catalasa/glutatión peroxidasa (como algunas células tumorales) son más vulnerables", "Porque bloquea directamente la replicación del ADN de cualquier célula", "No tiene ningún mecanismo pro-oxidante, solo actúa como antioxidante", "Actúa exclusivamente uniéndose a receptores de insulina"], correct: 0 },
+  { q: "¿Con qué serie de infusiones inicia típicamente el escalamiento del Protocolo Riordan?", opts: ["15 g, 25 g y 50 g consecutivos, con determinación de niveles plasmáticos post-infusión", "Una dosis única fija de 100 g", "0.5 g diarios de forma indefinida", "No existe una serie de inicio, se aplica la dosis máxima desde el primer día"], correct: 0 },
+  { q: "¿Qué premedicación es obligatoria antes del protocolo Hematopoyético IV?", opts: ["Hidrocortisona 300 mg + Difenhidramina 3 ml IV", "Paracetamol oral únicamente", "Ninguna premedicación es necesaria", "Solo antihistamínico oral 24h antes"], correct: 0 },
+  { q: "¿Cuántas ampolletas de hierro y en qué volumen se administran en el protocolo Hematopoyético IV?", opts: ["6 ampolletas en 1000 ml SSF", "1 ampolleta en 100 ml SSF", "10 ampolletas en 250 ml SSF", "3 ampolletas en 500 ml SSF"], correct: 0 },
+  { q: "¿Cuáles son los tres sub-protocolos que integran Restart Metabólico IV?", opts: ["Metabólico, Tiroideo y Psico-Infeccioso", "Articular, Renal y Oncológico", "Energético, Detox y Hematológico", "Solo existe un protocolo único"], correct: 0 },
+  { q: "¿Qué componentes son exclusivos del sub-protocolo Tiroideo de Restart Metabólico IV?", opts: ["Thyrheel y Galheel", "Lipolisheel y Carboxilasa", "Engystol y Spascupreel", "EDTA y Hepeel"], correct: 0 },
+  { q: "¿Qué debe monitorizarse específicamente durante el protocolo Diabetes IV?", opts: ["La glucemia", "La temperatura corporal", "El peso corporal", "La frecuencia respiratoria"], correct: 0 },
+  { q: "¿Qué componente adicional distingue al protocolo Detox (Premium) de Quelación IV?", opts: ["Hepeel, con enfoque hepático", "Zinc, con enfoque inmune", "Discus Compositum, con enfoque articular", "Eritropoyetina, con enfoque hematológico"], correct: 0 },
+  { q: "¿Cuáles son las indicaciones documentadas para Azul de Metileno Plus?", opts: ["Soporte cognitivo, antioxidante y anti-fatiga", "Exclusivamente detoxificación renal", "Únicamente soporte articular", "Exclusivamente premedicación previa a hierro IV"], correct: 0 },
+  { q: "¿Cuál es la dosis del esquema general de Glutatión IV?", opts: ["600 a 1,400 mg en 250ml SSF", "50 mg fijos, sin rango", "10 g en 500ml SSF", "No existe un esquema general, solo el oncológico"], correct: 0 },
+  { q: "¿Cuál es el esquema adyuvante de Glutatión durante quimioterapia?", opts: ["600 mg/día IM en días 2-5 de quimioterapia, más 1.5 g/m² IV previo a la sesión", "Una dosis única de 5g el día de la quimioterapia", "Solo por vía oral, 3g al día", "No existe ningún esquema adyuvante documentado"], correct: 0 },
+  { q: "¿Por qué la vía oral de Glutatión no es considerada eficaz para elevar los niveles circulantes?", opts: ["Estudios muestran que dosis orales grandes (3g) no logran aumentar el glutatión circulante de forma clínicamente beneficiosa, por mala absorción gastrointestinal", "Porque el glutatión oral se destruye instantáneamente en la boca", "Porque no existen presentaciones orales de glutatión", "Porque la vía oral solo funciona en niños"], correct: 0 },
+  { q: "¿Cuál es el mecanismo fundamental de Gerovital H3?", opts: ["La procaína se descompone en PABA y DEAE, este último similar al DMAE, mejorando circulación tisular y producción de fosfatidilcolina", "Actúa exclusivamente inhibiendo la aromatasa", "Es un precursor directo de NAD+", "Bloquea receptores de serotonina de forma selectiva"], correct: 0 },
+  { q: "¿Qué contraindicación formal comparten Gerovital H3 (relativa) y Peroxilive (absoluta en su población específica)?", opts: ["Gerovital H3 se contraindica en cáncer (efecto carcinógeno no descartado); Peroxilive se contraindica en trasplantados (riesgo de rechazo inmunológico) — ambas son precauciones documentadas en poblaciones vulnerables específicas, aunque de naturaleza distinta", "Ambas están contraindicadas en cualquier paciente sano", "Ninguna de las dos tiene contraindicaciones documentadas", "Ambas se contraindican exclusivamente en menores de 50 años"], correct: 0 },
+  { q: "¿Qué producto debe iniciarse primero y suspenderse último en todos los protocolos del Manual Premium, por su función de drenaje biológico universal?", opts: ["Lymphomyosot", "Traumeel", "Coenzima Compositum", "Zeel T"], correct: 0 }
+];
+
+var CELLS = [
+  { label: "1 · Bienvenida", render: function() {
+    return '<div class="icon-badge">💧</div><h3>Sueroterapia IV — Fundamento y protocolos completos</h3>' +
+      '<p>Este módulo integra los 16 protocolos del Manual Premium, el Protocolo Riordan de Vitamina C, Gerovital H3, Peroxilive, y el fundamento científico que sostiene a las sustancias centrales — para que domines no solo los protocolos, sino la base que los sustenta.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás explicar el fundamento fisiológico de las sustancias centrales, identificar la composición exacta de cada protocolo, seleccionar el correcto según el perfil del paciente, y aplicar las precauciones y contraindicaciones documentadas.</p></div>';
+  }},
+  { label: "2 · Contexto", render: function() {
+    return '<div class="icon-badge">💡</div><h3>¿Por qué importa este nivel de detalle?</h3>' +
+      '<p>Memorizar protocolos sin entender su fundamento lleva a aplicarlos como recetas rígidas. Entender, por ejemplo, por qué la vitamina C IV en dosis altas genera un efecto pro-oxidante selectivo en ciertas células tumorales explica por qué el Protocolo Riordan mide niveles plasmáticos en vez de aplicar una dosis fija.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+      '<p style="margin:0;">Elegir un protocolo por un componente compartido con otro, o tratar el mismo producto (ej. Glutatión) como si tuviera un único esquema de dosis, sin distinguir el contexto clínico que determina cuál usar.</p></div>';
+  }},
+  { label: "3 · Concepto", render: function() {
+    return '<div class="icon-badge">📚</div><h3>Fundamento científico</h3>' +
+      '<div class="fundcard"><div class="fname">NAD+</div><div class="ftext">Coenzima redox esencial en glucólisis, ciclo de Krebs, reparación del ADN e inflamación. Sus niveles caen ~50% después de los 50 años. Las sirtuinas (Sirt 1-7) —dependientes de NAD+— regulan metabolismo, ritmos circadianos y respuesta al estrés; las PARP controlan reparación del ADN. Esto sustenta su uso en energía y longevidad.</div></div>' +
+      '<div class="fundcard"><div class="fname">Vitamina C (Protocolo Riordan)</div><div class="ftext">Por vía oral, la absorción se satura (~90% intestinal, meseta a 1000mg/día); por IV se alcanzan concentraciones plasmáticas mucho mayores, no comparables a la vía oral. En dosis altas actúa como pro-oxidante selectivo: genera peróxido de hidrógeno extracelular al que células con baja catalasa/glutatión peroxidasa (frecuente en algunas células tumorales) son más vulnerables. Esto sustenta el escalamiento con medición plasmática, no una dosis arbitraria.</div></div>' +
+      '<div class="fundcard"><div class="fname">Glutatión</div><div class="ftext">Antioxidante intracelular maestro (GSH/GSSG). La vía oral no es eficaz: estudios muestran que dosis orales grandes (3g) no elevan el glutatión circulante de forma clínicamente beneficiosa, por mala absorción gastrointestinal — de ahí la preferencia por vía IV/IM/inhalada.</div></div>' +
+      '<div class="fundcard"><div class="fname">Gerovital H3</div><div class="ftext">La procaína se descompone en PABA y DEAE; el DEAE es químicamente similar al DMAE, que mejora circulación tisular y estimula fosfatidilcolina (componente de membrana celular). La teoría original (Dra. Ana Aslan) vincula la integridad de membrana celular con el envejecimiento.</div></div>' +
+      '<div class="fundcard"><div class="fname">Peroxilive (H2O2)</div><div class="ftext">Marco teórico histórico (Otto Warburg, 1931): células con niveles insuficientes de oxígeno tendrían mayor vulnerabilidad metabólica. El peróxido de hidrógeno actuaría activando enzimas oxidativas (catalasa, superóxido dismutasa). <strong style="color:#fff;">Nota:</strong> esto se presenta como marco teórico histórico del fabricante, no como evidencia clínica establecida.</div></div>' +
+
+      '<h4>Regla universal: monodosis Rubio Pharma</h4>' +
+      '<div class="card"><p style="margin:0;">Cada ampolleta antihomotóxica (Traumeel, Lymphomyosot, Zeel T, Coenzima/Ubichinon Compositum, Discus Compositum, Hepeel, Nervoheel, Spascupreel, Engystol) se usa <strong style="color:#fff;">completa</strong> por aplicación: IV lento diluida en 10ml, o IM 1-2 veces por semana en control domiciliario. Aplica transversalmente a todos los protocolos.</p></div>' +
+
+      '<h4>Soporte general e inmune</h4>' +
+      '<div class="protocard"><div class="pname">Myers\' Cocktail IV</div><div class="pcomp">Vit C 5g · Complejo B 1amp · Magnesio 1g · Coenzima Compositum 1amp · Ubichinon Compositum 1amp</div><div class="pmeta">250ml SSF · 60 min</div><div class="pwarn">IR avanzada, alergia a complejo B — suspender ante mareo o náusea persistente</div></div>' +
+      '<div class="protocard"><div class="pname">Boost Your Immunity IV</div><div class="pcomp">Vit C 7.5g · Zinc 1amp · Magnesio 1g · Complejo B 1amp · Glutatión 600mg IV lento al final · Traumeel 1amp · Lymphomyosot 1amp</div><div class="pmeta">250ml SSF · 60-90 min</div><div class="pwarn">Déficit G6PD, IR grave — suspender ante hipotensión o disnea</div></div>' +
+      '<div class="protocard"><div class="pname">Energy IV</div><div class="pcomp">Complejo B 1amp · Magnesio 1g · Vit C 5g · Coenzima Q10 200mg · Nervoheel 1amp</div><div class="pmeta">250ml SSF · 60 min</div><div class="pwarn">Evitar en hipertiroidismo — suspender ante ansiedad o palpitaciones</div></div>' +
+
+      '<h4>Articular</h4>' +
+      '<div class="protocard"><div class="pname">Flexmotion IV</div><div class="pcomp">Traumeel 2amp · Zeel T 2amp · Magnesio 1g · Coenzima Compositum 1amp · Discus Compositum 1amp</div><div class="pmeta">250ml SSF · 90 min</div><div class="pwarn">Evitar en infección activa — suspender ante fiebre o rash</div></div>' +
+      '<div class="protocard premium"><div class="pname">C-Art (Premium)</div><div class="pcomp">Traumeel 2amp · Zeel T 2amp · Discus Compositum 1amp · Magnesio 1g · Vit C 5g</div><div class="pmeta">250ml SSF · 90 min · PREMIUM</div></div>' +
+
+      '<h4>Metabólico / endocrino</h4>' +
+      '<div class="protocard"><div class="pname">Restart Metabólico IV</div><div class="pcomp"><strong>Metabólico:</strong> Lipolisheel, Hepeel, Pank Suis, Lymphomyosot, Ác. alfa-lipoico, Carboxilasa. <strong>Tiroideo:</strong> Thyrheel, Hepeel, Galheel, Lymphomyosot. <strong>Psico-Infeccioso:</strong> Engystol, Nervoheel, Spascupreel, Lymphomyosot, Glutatión 1200mg</div><div class="pmeta">90-120 min, rotativo semanal</div></div>' +
+      '<div class="protocard"><div class="pname">Diabetes IV</div><div class="pcomp">Vit C 7.5g · Magnesio 1g · Zinc 1amp · Coenzima Compositum 1amp · Carboxilasa 1amp</div><div class="pmeta">250ml SSF · 90 min</div><div class="pwarn">Monitorizar glucemia — ajustar en IRC</div></div>' +
+
+      '<h4>Detox / quelación</h4>' +
+      '<div class="protocard"><div class="pname">Quelación IV</div><div class="pcomp">EDTA 1-3g · Vit C 7.5g · Magnesio 1g · Lymphomyosot 1amp</div><div class="pmeta">500ml SSF · 2-3 h</div><div class="pwarn">Contraindicado en IR — vigilar calcio, suspender ante arritmias</div></div>' +
+      '<div class="protocard premium"><div class="pname">Detox (Premium)</div><div class="pcomp">EDTA 1g · Vit C 5g · Magnesio 1g · Hepeel 1amp · Lymphomyosot 1amp</div><div class="pmeta">250ml SSF · 2-3 h · PREMIUM</div></div>' +
+
+      '<h4>Renal</h4>' +
+      '<div class="protocard"><div class="pname">IRC IV</div><div class="pcomp">Vit C 3-5g · Magnesio 1g · Hepeel 1amp · Lymphomyosot 1amp · Nux vomica-Homaccord 1amp</div><div class="pmeta">250ml SSF · 90 min</div><div class="pwarn">Evitar Vit C >3g si TFG<30 — suspender ante edema agudo</div></div>' +
+
+      '<h4>Oncológico / Vitamina C — Protocolo Riordan</h4>' +
+      '<div class="protocard new"><div class="pname">Protocolo Riordan de Vitamina C IV</div><div class="pcomp">Escalamiento individualizado: series de 15g → 25g → 50g (y hasta 75-100g si es necesario), con determinación de niveles plasmáticos post-infusión. Meta: 350-400 mg/dL. Nivel Básico/Intermedio.</div><div class="pmeta">Velocidad 0.5-1.0 g/min · Ver Tabla de aplicación</div><div class="pwarn">Preguntar antecedente personal/familiar de anemia hemolítica o favismo (G6PD) antes de escalar — sin requerir laboratorio. Contraindicado en IR severa/hipernatremia. Evitar mismo día que quimioterapia.</div></div>' +
+
+      '<h4>Longevidad / anti-aging</h4>' +
+      '<div class="protocard"><div class="pname">NAD+ IV</div><div class="pcomp">Inicio 250mg (1.5-2h) → dosis completa 500mg (2.5-3h), goteo lento. IM: 1ml con procaína. SC: 3x/semana (120mg/semana). Refrigerar 2-8°C.</div><div class="pmeta">Ajuste en hipertensos: 2-3ml/sesión + monitoreo PA</div><div class="pwarn">Riesgo de cefalea/disnea si goteo rápido</div></div>' +
+      '<div class="protocard"><div class="pname">Anti-aging IV</div><div class="pcomp">NAD+ 250mg · Glutatión 1200mg · Complejo B 1amp · Ubichinon Compositum 1amp · Lymphomyosot 1amp</div><div class="pmeta">250ml SSF · 2 h</div><div class="pwarn">Infusión lenta indispensable</div></div>' +
+      '<div class="protocard premium"><div class="pname">Longevity (Premium)</div><div class="pcomp">NAD+ 250mg · CoQ10 200mg · Glutatión 600mg · Complejo B 1amp · Lymphomyosot 1amp</div><div class="pmeta">250ml SSF · 2 h · PREMIUM</div></div>' +
+
+      '<h4>Hematológico</h4>' +
+      '<div class="protocard"><div class="pname">Hematopoyético IV</div><div class="pcomp"><strong>Premedicación:</strong> Hidrocortisona 300mg + Difenhidramina 3ml en 100ml SSF. <strong>Luego:</strong> Hierro 6amp en 1000ml SSF (3h) · Eritropoyetina SC c/72h</div><div class="pwarn">Riesgo de anafilaxia — siempre premedicar</div></div>' +
+
+      '<h4>Cognitivo</h4>' +
+      '<div class="protocard premium"><div class="pname">Azul de Metileno Plus (Premium)</div><div class="pcomp">Azul de metileno 1mg/kg · Vit C 5g · Glutatión 600mg · Coenzima Compositum 1amp</div><div class="pmeta">250ml SSF · 90 min · PREMIUM</div></div>' +
+
+      '<h4>Glutatión — dos regímenes distintos</h4>' +
+      '<div class="protocard new"><div class="pname">Esquema general</div><div class="pcomp">600-1,400mg IV en 250ml SSF</div></div>' +
+      '<div class="protocard new"><div class="pname">Esquema adyuvante de quimioterapia</div><div class="pcomp">600mg/día IM días 2-5 de quimioterapia, más 1.5g/m² IV previo a la sesión</div></div>' +
+
+      '<h4>Gerovital H3 (nuevo)</h4>' +
+      '<div class="protocard new"><div class="pname">Gerovital H3</div><div class="pcomp">5ml IM esquemas variables según indicación (envejecimiento, depresión, Parkinson, arteriosclerosis, diabetes, colesterol, circulación). Nivel Básico/Intermedio.</div><div class="pwarn">Contraindicado con sulfamidas, en cáncer (efecto carcinógeno no descartado) y en QT prolongado</div></div>' +
+
+      '<h4>Peroxilive / H2O2 (nuevo)</h4>' +
+      '<div class="protocard new"><div class="pname">Peroxilive</div><div class="pcomp">Oral: esquema escalonado en gotas. IV: dilución exacta 3.75% en SSF/Dextrosa. Nivel Básico/Intermedio. Condiciones con expectativa de beneficio reportada por el fabricante (no evidencia clínica establecida).</div><div class="pwarn">Contraindicado en trasplantados (riesgo de rechazo), alcohol, hierro oral, embarazo, cirrosis, <12 años</div></div>';
+  }},
+  { label: "4 · Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado — Escalamiento Riordan</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Paciente oncológico, candidato al Protocolo Riordan de Vitamina C IV.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1 — historia clínica dirigida.</strong> Antes de cualquier escalamiento a dosis altas, se pregunta antecedente personal o familiar de anemia hemolítica o favismo (déficit de G6PD) — sin requerir laboratorio.</p>' +
+      '<p><strong style="color:#fff;">Paso 2 — serie inicial.</strong> Se inicia con series de 15g, 25g y 50g, determinando niveles plasmáticos post-infusión tras cada una.</p>' +
+      '<p><strong style="color:#fff;">Paso 3 — ajustar según nivel plasmático.</strong> Si se alcanza el rango de 350-400 mg/dL, se continúa con esa dosis 2 veces por semana; si no se alcanza, se aumenta el escalamiento (hasta 75-100g), siempre revisando osmolaridad sérica antes de superar 100g.</p>' +
+      '<p><strong style="color:#fff;">Paso 4 — por qué funciona así.</strong> La vitamina C en dosis altas genera peróxido de hidrógeno extracelular selectivamente tóxico para células con baja catalasa/glutatión peroxidasa — de ahí que el objetivo sea alcanzar un nivel plasmático específico, no simplemente "aplicar mucha vitamina C".</p>' +
+      '<p style="margin:0;"><strong style="color:#fff;">Conclusión:</strong> el protocolo es individualizado y guiado por laboratorio, no una dosis fija — y entender el mecanismo (pro-oxidación selectiva) es lo que justifica ese diseño.</p>';
+  }},
+  { label: "5 · Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica clínica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "6 · Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos protocolos compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "7 · Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "8 · Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>El fundamento científico (por qué NAD+, Vitamina C, Glutatión, Gerovital H3 y Peroxilive hacen lo que hacen) sostiene el diseño de cada protocolo — no son recetas arbitrarias.</li>' +
+      '<li>El Protocolo Riordan reemplaza al esquema fijo de Vitamina C oncológica: es individualizado, guiado por laboratorio, e incluye una pregunta de historia clínica (G6PD/favismo) antes de escalar.</li>' +
+      '<li>Un mismo producto (Glutatión, NAD+) puede tener esquemas de dosis completamente distintos según el contexto clínico — nunca se asume un esquema único por producto.</li>' +
+      '<li>Gerovital H3 y Peroxilive son nuevas incorporaciones de nivel Básico/Intermedio, cada una con contraindicaciones específicas que no deben confundirse entre sí ni con los 16 protocolos base.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, regresa a la celda 7 para reintentar")+'</p>' +
+      '<p style="margin:8px 0 0;">Siguiente módulo sugerido: Péptidos (ACTIVATE™).</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===4) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===5) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===6) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>

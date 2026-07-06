@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Marco regulatorio mexicano — Módulo 3</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185; --purple: #b79ae0;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .phase-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .phase-chip { background:var(--surface); border-radius:8px; padding:8px 10px; font-size:11.5px; text-align:center; flex:1; min-width:80px; }
+  .phase-chip.humoral { border-bottom:3px solid var(--teal-light); }
+  .phase-chip.celular { border-bottom:3px solid var(--danger); }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+
+  /* etiquetas gobierno / interno / puente */
+  .tag { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+         padding:3px 9px; border-radius:20px; margin-bottom:10px; border:1px solid; }
+  .tag-gob { color:var(--teal-light); border-color:rgba(79,209,192,0.5); background:rgba(79,209,192,0.08); }
+  .tag-interno { color:var(--gold-light); border-color:rgba(200,160,80,0.5); background:rgba(200,160,80,0.08); }
+  .tag-puente { color:var(--purple); border-color:rgba(183,154,224,0.5); background:rgba(183,154,224,0.08); }
+
+  .two-col { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .colcard { flex:1; min-width:230px; background:var(--surface); border-radius:var(--radius); padding:14px 16px; }
+  .colcard.gob { border-top:3px solid var(--teal-light); }
+  .colcard.interno { border-top:3px solid var(--gold); }
+  .colcard h4 { margin:0 0 8px; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase; }
+  .colcard.gob h4 { color:var(--teal-light); }
+  .colcard.interno h4 { color:var(--gold-light); }
+  .colcard ul { margin:0; padding-left:16px; font-size:12.5px; color:var(--text-secondary); }
+  .colcard li { margin-bottom:6px; }
+  .colcard li b { color:var(--text); }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { tag: "gob",
+    caseText: "La Ley General de Salud (LGS) es el marco general del ejercicio de las profesiones médicas en México. ¿Qué establece exactamente, y qué les delega a otros instrumentos?",
+    opts: [
+      "Regula ella misma, de forma exclusiva y detallada, el manejo de células con fines terapéuticos.",
+      "Establece el marco general del ejercicio profesional (cédula, responsabilidad médica) y delega en reglamentos específicos — como el de Trasplantes — la regulación puntual del manejo de tejidos y células.",
+      "No tiene ninguna relación con la medicina regenerativa.",
+      "Regula exclusivamente los aspectos fiscales de los establecimientos de salud."
+    ], correct: 1,
+    rationale: "La LGS es el paraguas general: exige cédula profesional y fija responsabilidades del ejercicio médico, pero no entra en el detalle técnico de tejidos y células — eso lo delega en reglamentos específicos, como el de Trasplantes." },
+
+  { tag: "gob",
+    caseText: "Se va a aplicar una infusión de MSC placentarias (RGCD042414) dentro de un protocolo ACTIVATE™. ¿Bajo qué instrumento cae el manejo y la aplicación terapéutica de estas células?",
+    opts: [
+      "Reglamento de la Ley General de Salud en Materia de Trasplantes.",
+      "NOM-253-SSA1-2012, exclusivamente.",
+      "Ley Federal de Protección de Datos Personales.",
+      "Reglamento de Insumos para la Salud, en su capítulo de nutracéuticos."
+    ], correct: 0,
+    rationale: "El Reglamento en Materia de Trasplantes regula específicamente la disposición, obtención, procesamiento y aplicación terapéutica de tejidos y células — incluidas las troncales/progenitoras como las MSC placentarias." },
+
+  { tag: "gob",
+    caseText: "Un protocolo RESTORE™ incluye manejo de componentes sanguíneos como parte de la sueroterapia. ¿Qué norma regula específicamente ese manejo?",
+    opts: [
+      "La importación de biológicos extranjeros a territorio mexicano.",
+      "Los requisitos de etiquetado de productos nutracéuticos de venta libre.",
+      "NOM-253-SSA1-2012 — disposición de sangre humana y sus componentes con fines terapéuticos.",
+      "La certificación de médicos especialistas en medicina interna."
+    ], correct: 2,
+    rationale: "La NOM-253-SSA1-2012 regula puntualmente la disposición de sangre humana y sus componentes con fines terapéuticos." },
+
+  { tag: "gob",
+    caseText: "Un médico nuevo pregunta: \"¿Tengo que tramitar mi propia licencia sanitaria ante COFEPRIS antes de atender pacientes?\" ¿Cómo funciona realmente el mecanismo de licenciamiento de COFEPRIS aquí?",
+    opts: [
+      "COFEPRIS exige que cada médico tramite licencia individual, sin excepción.",
+      "COFEPRIS otorga licencias sanitarias a nivel de establecimiento; puede sostenerse una licencia institucional bajo la cual operan los médicos afiliados a esa institución.",
+      "COFEPRIS no tiene ninguna facultad sobre establecimientos de medicina regenerativa.",
+      "COFEPRIS delega el licenciamiento por completo a la Secretaría de Educación Pública."
+    ], correct: 1,
+    rationale: "COFEPRIS es la autoridad sanitaria federal que otorga licencias a nivel de establecimiento y vigila el cumplimiento de las NOM. Una institución puede sostener una licencia propia bajo la cual ejercen sus médicos certificados, sin que cada uno tramite la suya." },
+
+  { tag: "gob",
+    caseText: "Un médico pregunta si ya existe registro confirmado ante COFEPRIS/CNTS específicamente para el estado de Sinaloa. ¿Cuál es el estatus real, según la información institucional vigente?",
+    opts: [
+      "Confirmado y vigente desde hace más de un año.",
+      "Pendiente de confirmación — en gestión activa.",
+      "No aplica, porque el CNTS solo regula trasplantes de órganos sólidos.",
+      "Fue rechazado formalmente y está en apelación."
+    ], correct: 1,
+    rationale: "El estatus de registro en Sinaloa ante COFEPRIS/CNTS permanece pendiente de confirmación. Es preferible manejar esto con transparencia interna en vez de asumir un trámite ya resuelto." },
+
+  { tag: "puente",
+    caseText: "Un médico nuevo pregunta: \"¿El Diplomado de la Anáhuac Mayab (con RVOE) reemplaza mi certificación clínica interna de CODE CELLS®?\" ¿Cuál es la relación real entre ambos?",
+    opts: [
+      "Son el mismo requisito: cursar uno exime automáticamente del otro.",
+      "Son requisitos independientes: el RVOE es un reconocimiento educativo que otorga la SEP al Diplomado; la certificación clínica interna (Asociado/Certificado/Senior) es un sistema propio de CODE CELLS® que habilita el acceso a cada protocolo.",
+      "El Diplomado sustituye la cédula profesional del médico.",
+      "El Diplomado solo es obligatorio para médicos con nivel Senior."
+    ], correct: 1,
+    rationale: "El RVOE (gobierno, vía SEP) valida la formalidad académica de un programa educativo externo. La certificación clínica interna (CODE CELLS®) es un eje totalmente distinto que habilita el acceso a los protocolos. Cumplir uno no sustituye al otro." },
+
+  { tag: "puente",
+    caseText: "Un médico resume, en sus propias palabras, cómo entiende el respaldo regulatorio de la red. ¿Cuál es el orden correcto de esa cascada?",
+    opts: [
+      "Médico → CODE CELLS® → Regene Global.",
+      "COFEPRIS → médico → CODE CELLS®.",
+      "Regene Global (proveedor biológico, con sus propias autorizaciones) → CODE CELLS® (licencia institucional ante COFEPRIS) → médico certificado internamente, ejerciendo bajo ese respaldo.",
+      "CNTS → Regene Global → médico."
+    ], correct: 2,
+    rationale: "El flujo real combina ambos planos: el gubernamental (COFEPRIS licencia a CODE CELLS® como institución, apoyada en el convenio con su proveedor biológico) y el interno (el médico certificado ejerce bajo ese respaldo, no de forma independiente)." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { tag: "interno",
+    caseText: "Un médico con nivel \"Certificado\" (Intermedio) necesita, por urgencia clínica real, aplicar un protocolo GENESIS™ (Avanzado) fuera de su nivel actual. Según la política interna de certificación (Flujo B), ¿qué debe ocurrir?",
+    opts: [
+      "Se le niega el acceso hasta que apruebe formalmente el nivel Avanzado.",
+      "Se le otorga acceso inmediato al protocolo, pero debe firmar un compromiso de capacitación dentro de los 7 días naturales siguientes, o el acceso se revierte automáticamente.",
+      "Debe tramitar primero una licencia COFEPRIS individual antes de proceder — esto no aplica, es una regla interna, no un trámite gubernamental."
+    ], correct: 1,
+    rationale: "El Flujo B es una política administrativa propia de CODE CELLS®, no una exigencia gubernamental: da acceso inmediato por la urgencia clínica, con la condición de firmar compromiso de capacitación en 7 días naturales, o el acceso revierte." },
+
+  { tag: "gob",
+    caseText: "Se plantea la duda de qué autoridad vigila el cumplimiento de la NOM-253 en el manejo de componentes sanguíneos. Dos instancias gubernamentales reales podrían confundirse aquí: COFEPRIS y el CNTS.",
+    opts: [
+      "Exclusivamente el CNTS, ya que regula todo lo relativo a tejidos y células.",
+      "COFEPRIS, como autoridad sanitaria federal encargada de vigilar el cumplimiento de las Normas Oficiales Mexicanas — el CNTS coordina y registra establecimientos de trasplantes, pero no es quien vigila el cumplimiento de la NOM-253."
+    ], correct: 1,
+    rationale: "Es un error frecuente asignarle al CNTS funciones que corresponden a COFEPRIS. El CNTS mantiene el registro nacional de establecimientos autorizados; COFEPRIS es la autoridad que vigila el cumplimiento de las NOM." },
+
+  { tag: "puente",
+    caseText: "Un médico asume que, como el Diplomado de la Anáhuac Mayab tiene RVOE (gobierno), terminarlo le otorga automáticamente el nivel clínico interno \"Senior\" de CODE CELLS®.",
+    opts: [
+      "Correcto: el RVOE, al ser un aval gubernamental, otorga automáticamente cualquier nivel clínico interno.",
+      "Incorrecto: el RVOE valida la formalidad académica del Diplomado ante la SEP — un asunto gubernamental. El nivel clínico interno se obtiene solo mediante el sistema de certificación propio de CODE CELLS®, con sus módulos y su 80% mínimo — un asunto administrativo interno, independiente del RVOE."
+    ], correct: 1,
+    rationale: "Aquí compiten dos ejes que suenan parecido pero son de naturaleza distinta: uno es un reconocimiento educativo gubernamental (RVOE/SEP) y el otro es una certificación clínica interna de la empresa. Completar uno no adelanta al otro." }
+];
+
+var QUESTIONS = [
+  { tag:"gob", q: "¿Qué instrumento establece el marco general del ejercicio de las profesiones médicas en México?", opts: ["Ley General de Salud (LGS)", "NOM-253-SSA1-2012", "Reglamento en Materia de Trasplantes", "El convenio con Regene Global"], correct: 0 },
+  { tag:"gob", q: "¿Qué reglamento regula la disposición, obtención y aplicación terapéutica de tejidos y células, incluidas las troncales?", opts: ["Reglamento de Insumos para la Salud", "Reglamento en Materia de Trasplantes", "NOM-253-SSA1-2012", "Ley de Propiedad Industrial"], correct: 1 },
+  { tag:"gob", q: "¿Qué regula específicamente la NOM-253-SSA1-2012?", opts: ["El etiquetado de nutracéuticos", "La disposición de sangre humana y sus componentes con fines terapéuticos", "La certificación de médicos especialistas", "La importación de dispositivos médicos"], correct: 1 },
+  { tag:"gob", q: "¿Qué institución gubernamental otorga las licencias sanitarias a nivel de establecimiento?", opts: ["La SEP", "El Colegio de Médicos local", "COFEPRIS", "La Universidad Anáhuac Mayab"], correct: 2 },
+  { tag:"gob", q: "¿Qué instancia gubernamental coordina y mantiene el registro nacional de establecimientos autorizados en materia de trasplantes de tejidos y células?", opts: ["El CNTS (Centro Nacional de Trasplantes)", "La SEP", "COFEPRIS exclusivamente", "El IMSS"], correct: 0 },
+  { tag:"gob", q: "¿Qué significa la sigla RVOE?", opts: ["Registro de Validación Oficial Estatal", "Reconocimiento de Validez Oficial de Estudios", "Requisito de Verificación Operativa Externa", "Reglamento de Vigilancia Ocupacional Estatal"], correct: 1 },
+  { tag:"gob", q: "¿Quién otorga el RVOE de un programa educativo como el Diplomado de la Anáhuac Mayab?", opts: ["COFEPRIS", "El CNTS", "La SEP, a través de la institución educativa", "CODE CELLS®"], correct: 2 },
+  { tag:"gob", q: "¿Cuál es el estatus actual del registro de CODE CELLS® ante COFEPRIS/CNTS específicamente en Sinaloa?", opts: ["Confirmado y vigente", "Pendiente de confirmación", "Rechazado", "No aplica para Sinaloa"], correct: 1 },
+  { tag:"puente", q: "¿Quién sostiene la licencia sanitaria institucional bajo la que ejercen los médicos afiliados?", opts: ["Cada médico de forma individual, ante COFEPRIS", "CODE CELLS®, como institución (equipo legal propio + convenio con Regene Global)", "Regene Global directamente ante cada médico", "El paciente, mediante consentimiento informado"], correct: 1 },
+  { tag:"puente", q: "¿Los médicos afiliados a la Red CODE CELLS® deben tramitar una licencia sanitaria individual ante COFEPRIS?", opts: ["Sí, es obligatorio para cada médico", "No — ejercen bajo el respaldo de la licencia institucional que sostiene CODE CELLS®", "Solo los médicos de nivel Senior", "Solo si aplican protocolos GENESIS™"], correct: 1 },
+  { tag:"interno", q: "¿Cuál es el plazo interno para que un médico afiliado curse el Diplomado con RVOE de la Anáhuac Mayab?", opts: ["6 meses desde la afiliación", "1 año desde la afiliación", "2 años desde la afiliación", "No hay plazo definido"], correct: 2 },
+  { tag:"interno", q: "Si no hay cupo disponible en el Diplomado, ¿qué puede solicitar el médico según la política interna?", opts: ["Una exención permanente del requisito", "Una prórroga", "La sustitución automática por la certificación interna", "No existe ninguna opción"], correct: 1 },
+  { tag:"interno", q: "Para un médico nuevo (Flujo A), ¿cuándo obtiene acceso al portal médico y puede comenzar a aplicar protocolos?", opts: ["De inmediato al afiliarse, sin ningún requisito previo", "Únicamente después de completar la capacitación interna correspondiente con 80% mínimo", "Solo tras terminar el Diplomado externo con RVOE", "Nunca — siempre requiere aprobación caso por caso de los socios"], correct: 1 },
+  { tag:"interno", q: "En la política interna del Flujo B (médico activo que solicita protocolo fuera de su nivel), ¿cuánto tiempo tiene para firmar el compromiso de capacitación?", opts: ["24 horas", "7 días naturales", "30 días naturales", "No tiene plazo"], correct: 1 },
+  { tag:"interno", q: "¿Qué ocurre si el médico no firma ese compromiso dentro del plazo del Flujo B?", opts: ["No pasa nada", "El acceso al protocolo se revierte automáticamente", "Se le da un plazo adicional de 30 días", "Pierde su afiliación de forma permanente"], correct: 1 },
+  { tag:"interno", q: "¿Cuál es el porcentaje mínimo de aprobación exigido en los módulos de certificación interna de CODE CELLS®?", opts: ["60%", "70%", "80%", "90%"], correct: 2 },
+  { tag:"interno", q: "¿Cuántos intentos tiene un médico para aprobar un módulo de certificación interna?", opts: ["Un único intento", "Máximo 2 intentos", "Máximo 3 intentos", "Intentos ilimitados"], correct: 3 },
+  { tag:"interno", q: "¿Qué deben hacer los médicos certificados en el nivel Avanzado (GENESIS™) para mantener vigente su certificación?", opts: ["Nada, la certificación es vigente de por vida", "Recertificarse anualmente", "Renovar únicamente cada 5 años", "Repetir el Diplomado externo cada año"], correct: 1 },
+  { tag:"interno", q: "Si un médico no completa el Diplomado dentro del plazo de 2 años y no solicitó prórroga a tiempo, ¿qué estatus refleja su registro?", opts: ["En curso", "Completado", "Vencido", "Prórroga otorgada"], correct: 2 },
+  { tag:"interno", q: "¿Cuál es la modalidad del Diplomado en Medicina Regenerativa (Anáhuac Mayab) que el médico debe cursar?", opts: ["Presencial obligatorio todos los días", "Mixta: plataforma 24/7 más una sesión sincrónica no obligatoria por módulo", "Únicamente sesiones sincrónicas obligatorias en vivo", "Solo un examen final, sin contenido previo"], correct: 1 }
+];
+
+var CELLS = [
+  {
+    label: "1 · Bienvenida",
+    render: function() {
+      return '<div class="icon-badge">⚖️</div>' +
+        '<h3>Marco regulatorio mexicano</h3>' +
+        '<p>Este módulo separa dos cosas que suelen mezclarse: lo que exige realmente el gobierno mexicano, y lo que CODE CELLS® decidió exigir como política administrativa propia. Confundirlas genera dudas legales donde no las hay, y descuido donde sí importa.</p>' +
+        '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+        '<p style="margin:0;">Podrás identificar qué instrumento legal aplica a cada etapa del manejo de células, explicar la cascada Regene Global → CODE CELLS® → médico, y distinguir siempre una obligación gubernamental de una política interna de la empresa.</p></div>';
+    }
+  },
+  {
+    label: "2 · Contexto",
+    render: function() {
+      return '<div class="icon-badge">💡</div><h3>¿Por qué importa esta distinción?</h3>' +
+        '<p>Un médico nuevo suele asumir una de dos cosas, ambas incorrectas: que necesita tramitar su propia licencia COFEPRIS, o que su cédula general ya es suficiente y no hace falta ninguna certificación adicional.</p>' +
+        '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+        '<p style="margin:0;">Tratar una política administrativa de CODE CELLS® (como el plazo de 7 días del Flujo B, o el convenio con Regene Global) como si fuera una obligación gubernamental — o al revés, tratar una norma real (COFEPRIS, NOM-253) como si fuera negociable internamente.</p></div>' +
+        '<p>Ninguna de las dos cosas tiene el mismo peso. Una es ley; la otra es la forma en que la empresa decidió organizarse dentro de esa ley.</p>';
+    }
+  },
+  {
+    label: "3 · Concepto",
+    render: function() {
+      return '<div class="icon-badge">📚</div><h3>Dos planos que no deben mezclarse</h3>' +
+        '<div class="two-col">' +
+          '<div class="colcard gob"><h4>Gobierno (externo)</h4><ul>' +
+            '<li><b>LGS</b> — marco general de las profesiones médicas.</li>' +
+            '<li><b>Reglamento en Materia de Trasplantes</b> — manejo de tejidos y células.</li>' +
+            '<li><b>NOM-253-SSA1-2012</b> — componentes sanguíneos.</li>' +
+            '<li><b>COFEPRIS</b> — licencias sanitarias, vigilancia de NOM.</li>' +
+            '<li><b>CNTS</b> — registro nacional de establecimientos.</li>' +
+            '<li><b>RVOE (SEP)</b> — validez oficial del Diplomado externo.</li>' +
+          '</ul></div>' +
+          '<div class="colcard interno"><h4>CODE CELLS® (interno)</h4><ul>' +
+            '<li><b>Convenio con Regene Global</b> — acuerdo comercial.</li>' +
+            '<li><b>Certificación clínica</b> — Asociado/Certificado/Senior.</li>' +
+            '<li><b>Eje "Partner"</b> — comercial, independiente del clínico.</li>' +
+            '<li><b>Flujo A / Flujo B</b> — reglas propias de acceso a protocolos.</li>' +
+            '<li><b>Plazo de 2 años + prórroga</b> — regla propia sobre el Diplomado.</li>' +
+            '<li><b>NOVA / CAPACITACIONES_MEDICO</b> — seguimiento administrativo.</li>' +
+          '</ul></div>' +
+        '</div>' +
+        '<p>La licencia institucional de COFEPRIS sí es gubernamental — pero la manera en que CODE CELLS® organiza quién puede usarla día a día (niveles, flujos, plazos) es enteramente una decisión interna de la empresa.</p>' +
+        '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Regla práctica:</strong> si puede cambiar en una junta de los tres socios sin tocar ninguna ley, es política interna. Si requiere modificar un trámite ante una autoridad federal, es marco gubernamental.</p></div>';
+    }
+  },
+  {
+    label: "4 · Ejemplo guiado",
+    render: function() {
+      return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+        '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Pregunta real de un médico:</strong> "Voy a aplicar exosomas RGCD042417 la próxima semana. ¿Necesito sacar mi propia licencia COFEPRIS antes de hacerlo?"</p></div>' +
+        '<p><strong style="color:#fff;">Paso 1 — separar los dos planos.</strong> Hay una pregunta gubernamental real (¿existe requisito de licencia sanitaria?) y una pregunta interna (¿qué nivel de certificación necesito?). No son lo mismo.</p>' +
+        '<p><strong style="color:#fff;">Paso 2 — resolver el plano gubernamental.</strong> El uso terapéutico de exosomas cae en el Reglamento en Materia de Trasplantes, que exige licencia sanitaria — pero del establecimiento, no de cada médico. Esa licencia ya la sostiene CODE CELLS® ante COFEPRIS.</p>' +
+        '<p><strong style="color:#fff;">Paso 3 — resolver el plano interno.</strong> Lo que sí depende del médico es su nivel de certificación clínica. Si el protocolo es GENESIS™ (Avanzado) y su nivel actual no lo cubre, aplica el Flujo B: acceso inmediato + compromiso de capacitación en 7 días — una regla de CODE CELLS®, no de ninguna autoridad.</p>' +
+        '<p style="margin:0;"><strong style="color:#fff;">Respuesta correcta:</strong> "No necesitas tramitar licencia COFEPRIS individual — eso ya está resuelto a nivel institucional. Lo que sí debes confirmar es tu nivel de certificación interna para ese protocolo específico."</p>';
+    }
+  },
+  {
+    label: "5 · Práctica",
+    render: function(st) {
+      var idx = st.practiceIndex || 0;
+      var c = PRACTICE_CASES[idx];
+      var answered = st.practiceAnswers[idx];
+      var tagLabel = c.tag === "gob" ? "GOBIERNO" : (c.tag === "interno" ? "CODE CELLS® INTERNO" : "PUENTE");
+      var html = '<div class="icon-badge">✏️</div><h3>Práctica — un caso por subtema</h3>' +
+        '<p class="subcounter">Caso ' + (idx + 1) + ' de ' + PRACTICE_CASES.length + '</p>' +
+        '<span class="tag tag-' + c.tag + '">' + tagLabel + '</span>' +
+        '<div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+      c.opts.forEach(function(o, i) {
+        var cls = "opt";
+        if (answered !== undefined) {
+          if (i === c.correct) cls += " correct";
+          else if (i === answered) cls += " wrong";
+        }
+        html += '<button class="' + cls + '" onclick="pickPractice(' + i + ')">' + o + '</button>';
+      });
+      if (answered !== undefined) {
+        var ok = answered === c.correct;
+        html += '<p class="feedback ' + (ok ? "ok" : "bad") + '">' + (ok ? "Correcto." : "No es correcto.") + '</p>';
+        html += '<p class="rationale">' + c.rationale + '</p>';
+        if (idx < PRACTICE_CASES.length - 1) {
+          html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+        } else {
+          html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los 7 casos. Continúa al diagnóstico diferencial.</p>';
+        }
+      }
+      return html;
+    }
+  },
+  {
+    label: "6 · Diagnóstico diferencial",
+    render: function(st) {
+      var idx = st.diffIndex || 0;
+      var c = DIFFERENTIAL_CASES[idx];
+      var answered = st.diffAnswers[idx];
+      var tagLabel = c.tag === "gob" ? "GOBIERNO" : (c.tag === "interno" ? "CODE CELLS® INTERNO" : "PUENTE");
+      var html = '<div class="icon-badge">🔍</div><h3>Cuando dos conceptos compiten</h3>' +
+        '<p class="subcounter">Caso ' + (idx + 1) + ' de ' + DIFFERENTIAL_CASES.length + '</p>' +
+        '<span class="tag tag-' + c.tag + '">' + tagLabel + '</span>' +
+        '<div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+      c.opts.forEach(function(o, i) {
+        var cls = "opt";
+        if (answered !== undefined) {
+          if (i === c.correct) cls += " correct";
+          else if (i === answered) cls += " wrong";
+        }
+        html += '<button class="' + cls + '" onclick="pickDiff(' + i + ')">' + o + '</button>';
+      });
+      if (answered !== undefined) {
+        var ok = answered === c.correct;
+        html += '<p class="feedback ' + (ok ? "ok" : "bad") + '">' + (ok ? "Correcto." : "No es correcto.") + '</p>';
+        html += '<p class="rationale">' + c.rationale + '</p>';
+        if (idx < DIFFERENTIAL_CASES.length - 1) {
+          html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+        } else {
+          html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de diagnóstico diferencial.</p>';
+        }
+      }
+      return html;
+    }
+  },
+  {
+    label: "7 · Evaluación",
+    render: function(st) {
+      var idx = st.quizIndex || 0;
+      if (idx >= QUESTIONS.length) {
+        var correct = 0;
+        QUESTIONS.forEach(function(qu, qi) { if (st.quizAnswers[qi] === qu.correct) correct++; });
+        var pct = Math.round((correct / QUESTIONS.length) * 100);
+        var passed = pct >= 80;
+        return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3>' +
+          '<div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:' + (passed ? "var(--teal-light)" : "var(--danger)") + ';">' + pct + '%</p>' +
+          '<p style="margin:0;">' + correct + ' de ' + QUESTIONS.length + ' correctas — ' + (passed ? "Aprobado (mínimo 80%)" : "No aprobado, se requiere 80% o más") + '</p></div>' +
+          (passed ? "" : '<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+      }
+      var qu = QUESTIONS[idx];
+      var answered = st.quizAnswers[idx];
+      var tagLabel = qu.tag === "gob" ? "GOBIERNO" : (qu.tag === "interno" ? "CODE CELLS® INTERNO" : "PUENTE");
+      var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3>' +
+        '<p class="subcounter">Reactivo ' + (idx + 1) + ' de ' + QUESTIONS.length + '</p>' +
+        '<span class="tag tag-' + qu.tag + '">' + tagLabel + '</span>' +
+        '<div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+      qu.opts.forEach(function(o, i) {
+        var cls = "opt";
+        if (answered !== undefined) {
+          if (i === qu.correct) cls += " correct";
+          else if (i === answered) cls += " wrong";
+        }
+        html += '<button class="' + cls + '" onclick="pickQuiz(' + i + ')">' + o + '</button>';
+      });
+      if (answered !== undefined) {
+        var ok = answered === qu.correct;
+        html += '<p class="feedback ' + (ok ? "ok" : "bad") + '">' + (ok ? "Correcto." : "Incorrecto — la respuesta correcta está marcada.") + '</p>';
+        html += '<button class="retry" onclick="nextQuizQuestion()">' + (idx === QUESTIONS.length - 1 ? "Ver resultado" : "Siguiente reactivo →") + '</button>';
+      }
+      return html;
+    }
+  },
+  {
+    label: "8 · Resumen",
+    render: function(st) {
+      var correct = 0;
+      var byTag = { gob: {c:0,t:0}, interno: {c:0,t:0}, puente: {c:0,t:0} };
+      QUESTIONS.forEach(function(qu, qi) {
+        byTag[qu.tag].t++;
+        if (st.quizAnswers[qi] === qu.correct) { correct++; byTag[qu.tag].c++; }
+      });
+      var pct = Math.round((correct / QUESTIONS.length) * 100) || 0;
+      var passed = pct >= 80;
+      return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+        '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+        '<li>El marco <b style="color:var(--teal-light);">gubernamental</b> (LGS, Reglamento de Trasplantes, NOM-253, COFEPRIS, CNTS, RVOE) no lo decide CODE CELLS® — se cumple, tal cual, como cualquier institución de salud en México.</li>' +
+        '<li>La <b style="color:var(--gold-light);">política administrativa interna</b> (convenio con Regene Global, niveles clínicos, Flujo A/B, plazos, NOVA) sí la define CODE CELLS®, y puede ajustarse internamente sin tocar ninguna ley.</li>' +
+        '<li>Los casos <b style="color:var(--purple);">puente</b> — como el RVOE frente a la certificación interna — son donde más se confunden ambos planos, y donde vale la pena detenerse a distinguir con cuidado.</li>' +
+        '</ul>' +
+        '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:' + (passed ? "var(--teal-light)" : "var(--danger)") + ';">Tu resultado: ' + pct + '% — ' + (passed ? "módulo aprobado" : "no aprobado, regresa a la celda 7 para reintentar") + '</p>' +
+        '<p style="margin:8px 0 0;font-size:12.5px;">Gobierno: ' + byTag.gob.c + '/' + byTag.gob.t + ' · CODE CELLS® interno: ' + byTag.interno.c + '/' + byTag.interno.t + ' · Puente: ' + byTag.puente.c + '/' + byTag.puente.t + '</p>' +
+        '<p style="margin:8px 0 0;">Siguiente módulo sugerido: Portal Médico.</p></div>';
+    }
+  }
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+
+function renderDots() {
+  var dots = document.getElementById("dots");
+  dots.innerHTML = "";
+  CELLS.forEach(function(c, i) {
+    var d = document.createElement("div");
+    d.className = "dot" + (i === state.current ? " active" : "");
+    dots.appendChild(d);
+  });
+}
+
+function renderStage() {
+  var stage = document.getElementById("stage");
+  stage.innerHTML = '<div class="cell active">' + CELLS[state.current].render(state) + '</div>';
+  document.getElementById("cellLabel").textContent = CELLS[state.current].label;
+  document.getElementById("backBtn").disabled = state.current === 0;
+
+  var nextBtn = document.getElementById("nextBtn");
+  var blocked = false;
+  if (state.current === 4) {
+    blocked = !(state.practiceIndex === PRACTICE_CASES.length - 1 && state.practiceAnswers[PRACTICE_CASES.length - 1] !== undefined);
+  } else if (state.current === 5) {
+    blocked = !(state.diffIndex === DIFFERENTIAL_CASES.length - 1 && state.diffAnswers[DIFFERENTIAL_CASES.length - 1] !== undefined);
+  } else if (state.current === 6) {
+    blocked = state.quizIndex < QUESTIONS.length;
+  }
+  nextBtn.disabled = blocked;
+  nextBtn.textContent = state.current === CELLS.length - 1 ? "Reiniciar módulo" : (blocked ? "Completa los casos para continuar" : "Siguiente →");
+  renderDots();
+}
+
+function pickPractice(i) {
+  var idx = state.practiceIndex;
+  if (state.practiceAnswers[idx] !== undefined) return;
+  state.practiceAnswers[idx] = i;
+  renderStage();
+}
+function nextPracticeCase() { state.practiceIndex++; renderStage(); }
+
+function pickDiff(i) {
+  var idx = state.diffIndex;
+  if (state.diffAnswers[idx] !== undefined) return;
+  state.diffAnswers[idx] = i;
+  renderStage();
+}
+function nextDiffCase() { state.diffIndex++; renderStage(); }
+
+function pickQuiz(i) {
+  var idx = state.quizIndex;
+  if (state.quizAnswers[idx] !== undefined) return;
+  state.quizAnswers[idx] = i;
+  renderStage();
+}
+function nextQuizQuestion() { state.quizIndex++; renderStage(); }
+function restartQuiz() { state.quizIndex = 0; state.quizAnswers = {}; renderStage(); }
+
+document.getElementById("backBtn").onclick = function() {
+  if (state.current > 0) { state.current--; renderStage(); }
+};
+document.getElementById("nextBtn").onclick = function() {
+  if (state.current < CELLS.length - 1) { state.current++; renderStage(); }
+  else { state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} }; renderStage(); }
+};
+
+renderStage();
+</script>
+</body>
+</html>

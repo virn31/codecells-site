@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capacitación CODE CELLS®</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0a;
+    --bg-2:      #111111;
+    --bg-3:      #1a1a1a;
+    --bg-4:      #242424;
+    --gold:      #C9A96E;
+    --gold-dim:  #8a7050;
+    --gold-pale: rgba(201,169,110,0.12);
+    --teal:      #12968a;
+    --teal-pale: rgba(18,150,138,0.12);
+    --cyan:      #00D4FF;
+    --text-1:    #f0ede8;
+    --text-2:    #9a9590;
+    --text-3:    #5a5550;
+    --border:    rgba(201,169,110,0.18);
+    --border-dim:rgba(255,255,255,0.06);
+    --green:     #1d9e75;
+    --green-pale:rgba(29,158,117,0.1);
+    --radius:    6px;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans:  'DM Sans', system-ui, sans-serif;
+    --font-mono:  'JetBrains Mono', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── LAYOUT ─── */
+  .layout {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--bg-2);
+    border-right: 0.5px solid var(--border-dim);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 1.25rem 1.25rem 1rem;
+    border-bottom: 0.5px solid var(--border-dim);
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text-3);
+    text-decoration: none;
+    margin-bottom: 1rem;
+    transition: color 0.2s;
+  }
+  .back-btn:hover { color: var(--gold); }
+
+  .sidebar-title {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--text-1);
+    line-height: 1.1;
+  }
+
+  .sidebar-sub {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-top: 4px;
+  }
+
+  /* Progreso global */
+  .progress-global {
+    margin: 0.75rem 1.25rem 0;
+    padding: 10px 12px;
+    background: var(--bg-3);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-3);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--bg-4);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* Módulos lista */
+  .modulos-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem 0;
+  }
+  .modulos-list::-webkit-scrollbar { width: 3px; }
+  .modulos-list::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 2px; }
+
+  /* Nivel header */
+  .nivel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 1.25rem 4px;
+    margin-top: 4px;
+  }
+
+  .nivel-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 0.5px solid;
+  }
+  .nivel-badge.n1 { color: var(--teal); border-color: rgba(18,150,138,0.3); background: var(--teal-pale); }
+  .nivel-badge.n2 { color: var(--gold); border-color: rgba(201,169,110,0.3); background: var(--gold-pale); }
+  .nivel-badge.n3 { color: var(--cyan); border-color: rgba(0,212,255,0.2); background: rgba(0,212,255,0.08); }
+  .nivel-badge.exam { color: var(--green); border-color: rgba(29,158,117,0.3); background: var(--green-pale); }
+
+  .nivel-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+    text-transform: uppercase;
+  }
+
+  /* Item de módulo */
+  .modulo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 1.25rem;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .modulo-item:hover { background: var(--bg-3); }
+  .modulo-item.active { background: var(--gold-pale); border-left-color: var(--gold); }
+  .modulo-item.completado { opacity: 0.75; }
+
+  .modulo-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-3);
+    min-width: 18px;
+    text-align: right;
+  }
+
+  .modulo-info { flex: 1; min-width: 0; }
+
+  .modulo-nombre {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .modulo-sub {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-3);
+    margin-top: 1px;
+  }
+
+  .modulo-status {
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  /* ─── MAIN: IFRAME ─── */
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .main-topbar {
+    height: 46px;
+    background: var(--bg-2);
+    border-bottom: 0.5px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    padding: 0 1.25rem;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .modulo-activo-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-2);
+    letter-spacing: 0.06em;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .btn-prev, .btn-next {
+    background: var(--bg-3);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    color: var(--text-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .btn-prev:hover, .btn-next:hover { background: var(--bg-4); color: var(--text-1); }
+  .btn-prev:disabled, .btn-next:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-completar {
+    background: var(--green-pale);
+    border: 0.5px solid rgba(29,158,117,0.3);
+    border-radius: var(--radius);
+    color: var(--green);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-completar:hover { background: rgba(29,158,117,0.18); }
+  .btn-completar.ya-completado {
+    background: var(--green-pale);
+    color: var(--green);
+    cursor: default;
+  }
+
+  .modulo-iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: var(--bg);
+  }
+
+  /* Pantalla de bienvenida */
+  .bienvenida {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .bienvenida-icon {
+    font-family: var(--font-serif);
+    font-size: 56px;
+    font-weight: 300;
+    color: var(--bg-3);
+    line-height: 1;
+  }
+
+  .bienvenida h2 {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    font-weight: 300;
+    color: var(--text-1);
+  }
+
+  .bienvenida p {
+    font-size: 13px;
+    color: var(--text-3);
+    max-width: 380px;
+    line-height: 1.7;
+  }
+
+  /* Stats de nivel */
+  .nivel-stats {
+    display: flex;
+    gap: 8px;
+    margin: 0.75rem 1.25rem 0;
+  }
+
+  .nivel-stat {
+    flex: 1;
+    background: var(--bg-3);
+    border: 0.5px solid var(--border-dim);
+    border-radius: var(--radius);
+    padding: 8px;
+    text-align: center;
+  }
+
+  .nivel-stat .num {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    color: var(--gold);
+    display: block;
+    line-height: 1;
+  }
+
+  .nivel-stat .lbl {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
+    display: block;
+  }
+
+  /* Certificado badge */
+  .cert-badge {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    border: 0.5px solid rgba(201,169,110,0.4);
+    background: var(--gold-pale);
+    color: var(--gold);
+  }
+  .cert-badge.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ─── SIDEBAR ─── -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <a class="back-btn" href="/portal-medico.html">← Volver al portal</a>
+      <div class="sidebar-title">Capacitación<br>CODE CELLS®</div>
+      <div class="sidebar-sub">Programa de certificación médica</div>
+    </div>
+
+    <!-- Stats globales -->
+    <div class="nivel-stats">
+      <div class="nivel-stat"><span class="num" id="stat-completados">0</span><span class="lbl">Completados</span></div>
+      <div class="nivel-stat"><span class="num" id="stat-total">10</span><span class="lbl">Total</span></div>
+      <div class="nivel-stat"><span class="num" id="stat-pct">0%</span><span class="lbl">Avance</span></div>
+    </div>
+
+    <!-- Barra de progreso global -->
+    <div class="progress-global">
+      <div class="progress-label">
+        <span>Progreso general</span>
+        <span id="progress-label-pct">0 / 10</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Lista de módulos -->
+    <div class="modulos-list" id="modulos-list">
+      <!-- NIVEL 1 -->
+      <div class="nivel-header">
+        <span class="nivel-badge n1">Nivel 1</span>
+        <span class="nivel-title">RESTORE™ — Básico</span>
+      </div>
+      <div class="modulo-item" data-id="1" data-file="modulo_marco_regulatorio.html" onclick="abrirModulo(1)">
+        <span class="modulo-num">01</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Marco Regulatorio</div>
+          <div class="modulo-sub">COFEPRIS · LGS · NOM-253</div>
+        </div>
+        <span class="modulo-status" id="status-1">○</span>
+      </div>
+      <div class="modulo-item" data-id="2" data-file="modulo_sueroterapia.html" onclick="abrirModulo(2)">
+        <span class="modulo-num">02</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Sueroterapia IV</div>
+          <div class="modulo-sub">16 protocolos · NAD+ · Vit C IV</div>
+        </div>
+        <span class="modulo-status" id="status-2">○</span>
+      </div>
+      <div class="modulo-item" data-id="3" data-file="modulo_homotoxicologia.html" onclick="abrirModulo(3)">
+        <span class="modulo-num">03</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Homotoxicología</div>
+          <div class="modulo-sub">Rubio Pharma · BHI · 6 grupos</div>
+        </div>
+        <span class="modulo-status" id="status-3">○</span>
+      </div>
+      <div class="modulo-item" data-id="4" data-file="modulo_farmacia.html" onclick="abrirModulo(4)">
+        <span class="modulo-num">04</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Farmacia e Inyectables</div>
+          <div class="modulo-sub">Catálogo CODE CELLS® · 225 productos</div>
+        </div>
+        <span class="modulo-status" id="status-4">○</span>
+      </div>
+      <div class="modulo-item" data-id="5" data-file="modulo_portal_medico.html" onclick="abrirModulo(5)">
+        <span class="modulo-num">05</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Portal Médico</div>
+          <div class="modulo-sub">Uso de la plataforma CODE CELLS®</div>
+        </div>
+        <span class="modulo-status" id="status-5">○</span>
+      </div>
+
+      <!-- NIVEL 2 -->
+      <div class="nivel-header" style="margin-top:8px;">
+        <span class="nivel-badge n2">Nivel 2</span>
+        <span class="nivel-title">ACTIVATE™ — Intermedio</span>
+      </div>
+      <div class="modulo-item" data-id="6" data-file="modulo_peptidos.html" onclick="abrirModulo(6)">
+        <span class="modulo-num">06</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Péptidos</div>
+          <div class="modulo-sub">ACTIVATE™ · BPC-157 · GHK-Cu</div>
+        </div>
+        <span class="modulo-status" id="status-6">○</span>
+      </div>
+      <div class="modulo-item" data-id="7" data-file="modulo_exosomas.html" onclick="abrirModulo(7)">
+        <span class="modulo-num">07</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Exosomas</div>
+          <div class="modulo-sub">GENESIS™ · Regene Global · Vías</div>
+        </div>
+        <span class="modulo-status" id="status-7">○</span>
+      </div>
+
+      <!-- NIVEL 3 -->
+      <div class="nivel-header" style="margin-top:8px;">
+        <span class="nivel-badge n3">Nivel 3</span>
+        <span class="nivel-title">GENESIS™ — Avanzado</span>
+      </div>
+      <div class="modulo-item" data-id="8" data-file="modulo_celulas_madre.html" onclick="abrirModulo(8)">
+        <span class="modulo-num">08</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Células Madre</div>
+          <div class="modulo-sub">MSC · NK · Biológicos · Dosis</div>
+        </div>
+        <span class="modulo-status" id="status-8">○</span>
+      </div>
+      <div class="modulo-item" data-id="9" data-file="modulo_dezawa.html" onclick="abrirModulo(9)">
+        <span class="modulo-num">09</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Protocolo DEZAWA™</div>
+          <div class="modulo-sub">MUSE Cells · MCI™ · Posicionamiento</div>
+        </div>
+        <span class="modulo-status" id="status-9">○</span>
+      </div>
+
+      <!-- EXAMEN -->
+      <div class="nivel-header" style="margin-top:8px;">
+        <span class="nivel-badge exam">Certificación</span>
+        <span class="nivel-title">Examen Integrador</span>
+      </div>
+      <div class="modulo-item" data-id="10" data-file="examen_niveles_clinicos.html" onclick="abrirModulo(10)">
+        <span class="modulo-num">⋆</span>
+        <div class="modulo-info">
+          <div class="modulo-nombre">Examen por Niveles</div>
+          <div class="modulo-sub">RESTORE™ / ACTIVATE™ / GENESIS™</div>
+        </div>
+        <span class="modulo-status" id="status-10">○</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── MAIN ─── -->
+  <div class="main-content" id="main-content">
+
+    <!-- Topbar del módulo -->
+    <div class="main-topbar" id="main-topbar" style="display:none;">
+      <button class="btn-prev" id="btn-prev" onclick="navegarModulo(-1)">← Anterior</button>
+      <span class="modulo-activo-label" id="modulo-activo-label">—</span>
+      <div class="cert-badge" id="cert-badge">✓ Completado</div>
+      <button class="btn-completar" id="btn-completar" onclick="marcarCompletado()">Marcar completado ✓</button>
+      <button class="btn-next" id="btn-next" onclick="navegarModulo(1)">Siguiente →</button>
+    </div>
+
+    <!-- Iframe del módulo -->
+    <iframe class="modulo-iframe" id="modulo-iframe" style="display:none;" title="Módulo de capacitación"></iframe>
+
+    <!-- Pantalla de bienvenida -->
+    <div class="bienvenida" id="bienvenida">
+      <div class="bienvenida-icon">CC</div>
+      <h2>Programa de Certificación Médica</h2>
+      <p>Selecciona un módulo del panel izquierdo para comenzar. Los módulos están organizados en 3 niveles clínicos: RESTORE™, ACTIVATE™ y GENESIS™.</p>
+      <p style="margin-top:0.5rem;font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.1em;">TU PROGRESO SE GUARDA AUTOMÁTICAMENTE</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── ESTADO ──────────────────────────────────────────────────────
+const STORAGE_KEY = 'cc_capacitacion_progreso';
+const TOTAL_MODULOS = 10;
+
+const MODULOS = {
+  1:  { nombre: 'Marco Regulatorio',      file: 'modulo_marco_regulatorio.html', nivel: 1 },
+  2:  { nombre: 'Sueroterapia IV',         file: 'modulo_sueroterapia.html',      nivel: 1 },
+  3:  { nombre: 'Homotoxicología',         file: 'modulo_homotoxicologia.html',   nivel: 1 },
+  4:  { nombre: 'Farmacia e Inyectables',  file: 'modulo_farmacia.html',          nivel: 1 },
+  5:  { nombre: 'Portal Médico',           file: 'modulo_portal_medico.html',     nivel: 1 },
+  6:  { nombre: 'Péptidos ACTIVATE™',      file: 'modulo_peptidos.html',          nivel: 2 },
+  7:  { nombre: 'Exosomas GENESIS™',       file: 'modulo_exosomas.html',          nivel: 2 },
+  8:  { nombre: 'Células Madre',           file: 'modulo_celulas_madre.html',     nivel: 3 },
+  9:  { nombre: 'Protocolo DEZAWA™',       file: 'modulo_dezawa.html',            nivel: 3 },
+  10: { nombre: 'Examen Integrador',       file: 'examen_niveles_clinicos.html',  nivel: 0 },
+};
+
+let moduloActual = null;
+
+// ─── PROGRESO ─────────────────────────────────────────────────────
+function cargarProgreso() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function guardarProgreso(progreso) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progreso));
+}
+
+function actualizarUI() {
+  const progreso = cargarProgreso();
+  const completados = Object.values(progreso).filter(Boolean).length;
+  const pct = Math.round((completados / TOTAL_MODULOS) * 100);
+
+  document.getElementById('stat-completados').textContent = completados;
+  document.getElementById('stat-total').textContent = TOTAL_MODULOS;
+  document.getElementById('stat-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label-pct').textContent = `${completados} / ${TOTAL_MODULOS}`;
+
+  // Actualizar iconos de cada módulo
+  for (let i = 1; i <= TOTAL_MODULOS; i++) {
+    const el = document.getElementById(`status-${i}`);
+    if (!el) continue;
+    if (progreso[i]) {
+      el.textContent = '✓';
+      el.style.color = '#1d9e75';
+      el.closest('.modulo-item').classList.add('completado');
+    } else {
+      el.textContent = '○';
+      el.style.color = '';
+      el.closest('.modulo-item').classList.remove('completado');
+    }
+  }
+}
+
+// ─── ABRIR MÓDULO ─────────────────────────────────────────────────
+function abrirModulo(id) {
+  moduloActual = id;
+  const modulo = MODULOS[id];
+  if (!modulo) return;
+
+  // Marcar activo en sidebar
+  document.querySelectorAll('.modulo-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.modulo-item[data-id="${id}"]`)?.classList.add('active');
+
+  // Mostrar iframe
+  document.getElementById('bienvenida').style.display = 'none';
+  document.getElementById('main-topbar').style.display = 'flex';
+  const iframe = document.getElementById('modulo-iframe');
+  iframe.style.display = 'block';
+  iframe.src = modulo.file;
+
+  // Actualizar topbar
+  document.getElementById('modulo-activo-label').textContent = `Módulo ${id === 10 ? '⋆' : String(id).padStart(2,'0')} — ${modulo.nombre}`;
+
+  // Estado del botón completar
+  const progreso = cargarProgreso();
+  const yaCompletado = progreso[id];
+  const btnCompletar = document.getElementById('btn-completar');
+  const certBadge = document.getElementById('cert-badge');
+
+  if (yaCompletado) {
+    btnCompletar.style.display = 'none';
+    certBadge.classList.add('visible');
+  } else {
+    btnCompletar.style.display = 'block';
+    certBadge.classList.remove('visible');
+  }
+
+  // Navegación prev/next
+  document.getElementById('btn-prev').disabled = id <= 1;
+  document.getElementById('btn-next').disabled = id >= TOTAL_MODULOS;
+}
+
+// ─── MARCAR COMPLETADO ────────────────────────────────────────────
+function marcarCompletado() {
+  if (!moduloActual) return;
+  const progreso = cargarProgreso();
+  progreso[moduloActual] = true;
+  guardarProgreso(progreso);
+  actualizarUI();
+
+  // Actualizar topbar
+  document.getElementById('btn-completar').style.display = 'none';
+  document.getElementById('cert-badge').classList.add('visible');
+
+  // Ir al siguiente automáticamente si no es el último
+  if (moduloActual < TOTAL_MODULOS) {
+    setTimeout(() => navegarModulo(1), 800);
+  }
+}
+
+// ─── NAVEGACIÓN ──────────────────────────────────────────────────
+function navegarModulo(dir) {
+  if (!moduloActual) return;
+  const siguiente = moduloActual + dir;
+  if (siguiente >= 1 && siguiente <= TOTAL_MODULOS) {
+    abrirModulo(siguiente);
+  }
+}
+
+// ─── INIT ────────────────────────────────────────────────────────
+actualizarUI();
+
+// Recuperar médico logueado del sessionStorage del portal
+try {
+  const sesion = JSON.parse(sessionStorage.getItem('cc_medico_session') || '{}');
+  const medico = sesion.medico;
+  if (medico) {
+    const nombre = medico['Nombre completo'] || medico['Nombre'] || '';
+    if (nombre) {
+      document.querySelector('.sidebar-sub').textContent = nombre;
+    }
+  }
+} catch {}
+</script>
+</body>
+</html>

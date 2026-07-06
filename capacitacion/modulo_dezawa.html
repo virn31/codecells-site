@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Protocolo DEZAWA — Posicionamiento y manejo con el paciente</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .steprow { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .stepchip { background:var(--surface); border-radius:8px; padding:8px 10px; font-size:11.5px; text-align:center; flex:1; min-width:80px; border-bottom:3px solid var(--teal-light); }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { caseText: "Un paciente de DEZAWA PROTOCOL™ pregunta directamente al médico si puede tomarse una foto de 'antes y después' para compartir en redes sociales.",
+    opts: ["Se anima activamente, es parte del posicionamiento de marca.", "El posicionamiento de Performance Sessions™ es de 'testigo silencioso': no se manejan antes/después ni antes/después visibles como parte de la narrativa pública del protocolo — se orienta la conversación hacia el enfoque de resultado, no de procedimiento visible.", "Se le indica que lo publique sin ninguna orientación adicional."], correct: 1,
+    rationale: "El framework Performance Sessions™ se basa en un enfoque documental de 'testigo silencioso' — sin procedimientos visibles ni antes/después — precisamente para proteger el posicionamiento premium y discreto de la marca." },
+  { caseText: "Un médico certifica a un nuevo paciente VIP en el protocolo y quiere explicarle, en sus propias palabras, qué tipo de lenguaje usar al hablar del tratamiento con otros.",
+    opts: ["Lenguaje médico técnico detallado, como en cualquier expediente clínico.", "Lenguaje orientado a resultados de la experiencia del paciente, evitando terminología médica explícita o descripciones de procedimiento, consistente con el registro de marca de lujo del protocolo.", "No hay ninguna recomendación de lenguaje, cada quien lo describe como quiera."], correct: 1,
+    rationale: "El protocolo usa un lenguaje orientado a resultados y experiencia, no terminología médica explícita — consistente con el registro de marcas de lujo con las que se posiciona, y evitando que el protocolo se perciba como un procedimiento médico común." },
+  { caseText: "Un influencer contratado bajo la estrategia de campaña pregunta si debe presentar el producto de forma explícitamente promocional en sus publicaciones.",
+    opts: ["Sí, entre más promocional y directo, mejor para la campaña.", "No: el rol del influencer es de 'testigo silencioso', y las publicaciones deben incluir la etiqueta de colaboración pagada exigida por la ley mexicana de protección al consumidor, sin presentar el protocolo como invitación abierta ni de venta directa.", "Puede omitir cualquier etiqueta si el influencer lo prefiere."], correct: 1,
+    rationale: "La estrategia de influencers de DEZAWA PROTOCOL™ es deliberadamente no promocional — el influencer actúa como testigo silencioso, y la etiqueta de colaboración pagada es un requisito legal, no opcional, bajo la normativa mexicana de protección al consumidor." },
+  { caseText: "Un paciente pregunta si el protocolo DEZAWA es 'como cualquier otro tratamiento estético que se anuncia abiertamente'.",
+    opts: ["Sí, se maneja exactamente igual que cualquier campaña estética abierta.", "No: es un producto de invitación (no aparece promocionado abiertamente), y esta característica de exclusividad es parte deliberada de su posicionamiento.", "Depende únicamente de la decisión de cada médico, sin ningún lineamiento de marca."], correct: 1,
+    rationale: "DEZAWA PROTOCOL™ está diseñado como producto de invitación —nunca promocionado abiertamente— y esa exclusividad es un elemento central, no incidental, de su estrategia de posicionamiento." },
+  { caseText: "Se está preparando el material del certificado DEZAWA PROTOCOL™ para un paciente que completó su programa, y el diseñador pregunta si puede resumir la cantidad de células aplicadas como dato principal del certificado.",
+    opts: ["Sí, la cantidad de células es el dato central del certificado.", "No: el banner del paciente reemplaza la cantidad de células por el nombre del paciente y su programa/nivel — es una decisión de diseño deliberada del formato del certificado.", "Se deja en blanco esa sección por completo."], correct: 1,
+    rationale: "El diseño del certificado reemplaza explícitamente la cantidad de células por el nombre del paciente y su programa/nivel en el banner — una decisión consistente con el enfoque de experiencia del paciente, no de detalle técnico del producto." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Un médico se pregunta si el enfoque 'testigo silencioso' de Performance Sessions™ significa que no se puede documentar nada del proceso, o si significa algo distinto.",
+    opts: ["Significa que no puede haber ningún tipo de registro documental del paciente en ningún medio.", "Significa que la documentación pública (redes, campañas) evita mostrar procedimientos visibles o antes/después explícitos — no es una prohibición de registro clínico interno, que sigue su propio estándar en el expediente."], correct: 1,
+    rationale: "Confundir el lineamiento de posicionamiento de marca (documentación pública) con el registro clínico interno (expediente del paciente) lleva a conclusiones equivocadas — son dos cosas distintas con reglas distintas." },
+  { caseText: "Un médico asume que como DEZAWA es 'solo por invitación', cualquier paciente puede pedir acceso directamente sin ningún filtro adicional.",
+    opts: ["Correcto, cualquier paciente que lo pida puede acceder de inmediato.", "Incorrecto: 'por invitación' implica un proceso de acceso con fases (desde la ambigüedad previa hasta la revelación posterior a la aplicación) que no equivale a acceso abierto a solicitud directa del paciente."], correct: 1,
+    rationale: "La naturaleza de invitación del protocolo es justamente lo opuesto a un acceso abierto por solicitud directa — confundir ambos conceptos rompe el posicionamiento de exclusividad que sostiene la estrategia comercial." },
+  { caseText: "Un influencer piensa que, al ser 'testigo silencioso' y no promocionar abiertamente, puede omitir la etiqueta de colaboración pagada en sus publicaciones para mantener la discreción de la campaña.",
+    opts: ["Correcto, la discreción de la campaña permite omitir la etiqueta legal.", "Incorrecto: la discreción del enfoque de campaña no exime del cumplimiento legal — la etiqueta de colaboración pagada es un requisito de la ley mexicana de protección al consumidor, independiente del tono de la publicación."], correct: 1,
+    rationale: "Confundir el estilo discreto de la campaña con una excepción al cumplimiento legal es un error serio — el requisito de etiquetado de colaboración pagada aplica sin importar cuán sutil sea el enfoque de contenido." }
+];
+
+var QUESTIONS = [
+  { q: "¿Qué enfoque documental caracteriza a Performance Sessions™?", opts: ["Antes y después explícitos en redes sociales", "'Testigo silencioso' — documental, sin procedimientos visibles ni antes/después", "Transmisión en vivo de cada sesión", "Publicación de datos clínicos detallados"], correct: 1 },
+  { q: "¿Qué tipo de lenguaje se usa al describir el protocolo con pacientes y en campañas?", opts: ["Terminología médica técnica explícita", "Lenguaje orientado a resultados y experiencia, evitando descripciones de procedimiento", "Lenguaje exclusivamente en inglés", "No hay ningún lineamiento de lenguaje"], correct: 1 },
+  { q: "¿Cómo se define el acceso al protocolo DEZAWA?", opts: ["Abierto, promocionado activamente en redes", "Por invitación — nunca promocionado abiertamente", "Solo por recomendación médica en hospitales públicos", "Accesible por cualquier paciente que lo solicite sin filtro"], correct: 1 },
+  { q: "¿Qué rol cumple un influencer dentro de la estrategia de campaña?", opts: ["Vendedor activo y explícito del producto", "Testigo silencioso, sin presentar el protocolo como invitación abierta o de venta directa", "Portavoz oficial de la clínica", "No participa en ninguna campaña"], correct: 1 },
+  { q: "¿Es opcional la etiqueta de colaboración pagada en publicaciones de influencers de la campaña?", opts: ["Sí, depende del estilo del influencer", "No, es un requisito legal bajo la normativa mexicana de protección al consumidor", "Solo es obligatoria si la publicación menciona precios", "Solo aplica a influencers extranjeros"], correct: 1 },
+  { q: "¿Qué reemplaza la cantidad de células en el banner del certificado del paciente?", opts: ["El precio pagado por el paciente", "El nombre del paciente y su programa/nivel", "El nombre del médico tratante únicamente", "No se reemplaza nada, se muestra la cantidad exacta"], correct: 1 },
+  { q: "¿El enfoque 'testigo silencioso' prohíbe el registro clínico interno del paciente en el expediente?", opts: ["Sí, no puede documentarse nada del proceso en ningún medio", "No: aplica a la documentación pública de marca (redes, campañas), no al registro clínico interno, que sigue su propio estándar", "Solo prohíbe fotografías, no notas escritas", "Solo aplica a pacientes VIP Nivel 2"], correct: 1 },
+  { q: "¿'Por invitación' equivale a acceso abierto a solicitud directa del paciente?", opts: ["Sí, cualquier paciente que lo pida puede acceder de inmediato", "No, implica un proceso de acceso con fases, no una solicitud abierta directa", "Solo aplica los primeros 10 pacientes del mes", "Depende únicamente del médico que lo atienda"], correct: 1 },
+  { q: "¿La discreción del enfoque de campaña exime del cumplimiento de la etiqueta legal de colaboración pagada?", opts: ["Sí, el tono discreto permite omitirla", "No, el cumplimiento legal aplica independientemente del tono de la publicación", "Solo se exime si el influencer tiene menos de 10,000 seguidores", "Solo aplica a publicaciones pagadas en efectivo"], correct: 1 },
+  { q: "¿Qué registro de marca (categoría de referencia) se usa para posicionar el protocolo frente al paciente?", opts: ["Marcas de consumo masivo y descuento", "Registro de marcas de lujo (ej. Loro Piana, La Mer, Four Seasons)", "Marcas exclusivamente deportivas", "No se usa ninguna referencia de marca"], correct: 1 },
+  { q: "¿Qué fase de la campaña ocurre antes de que el paciente aplique al protocolo?", opts: ["Revelación posterior a la aplicación", "Ambigüedad previa a la aplicación", "Publicación pública de resultados", "Ninguna, el acceso es inmediato"], correct: 1 },
+  { q: "¿Qué debe evitarse al hablar del protocolo con un paciente nuevo, según el registro de lenguaje del protocolo?", opts: ["Hablar de la experiencia y los resultados esperados", "Usar terminología médica explícita o describir el procedimiento en detalle técnico", "Explicar el proceso de invitación", "Mencionar el nombre del programa"], correct: 1 },
+  { q: "¿Qué se prioriza en el diseño de comunicación de Performance Sessions™?", opts: ["Mostrar el procedimiento médico paso a paso", "El enfoque documental discreto, sin mostrar procedimientos ni antes/después", "Comparaciones directas de precio frente a la competencia", "Testimonios explícitos con nombre completo del paciente"], correct: 1 },
+  { q: "¿Qué elemento NO debe faltar en las publicaciones de un influencer que participa en la campaña, por requisito legal?", opts: ["El precio exacto del protocolo", "La etiqueta de colaboración pagada (paid partnership)", "El nombre completo del médico tratante", "El logo de Regene Global"], correct: 1 },
+  { q: "¿Qué significa que DEZAWA PROTOCOL™ sea un 'producto de invitación'?", opts: ["Que se promociona activamente a cualquier interesado", "Que no aparece promocionado abiertamente y su acceso sigue un proceso específico, no una solicitud directa", "Que solo se ofrece a familiares de los socios", "Que cualquier paciente puede autoinscribirse en línea"], correct: 1 },
+  { q: "¿Qué tipo de fotografías o contenido visual es consistente con el enfoque de Performance Sessions™?", opts: ["Antes y después explícitos del procedimiento", "Contenido documental que no muestra el procedimiento médico ni comparaciones visuales directas", "Transmisiones en vivo del procedimiento", "Fotografías clínicas detalladas para redes sociales"], correct: 1 },
+  { q: "¿Qué distingue al lenguaje de este protocolo del lenguaje médico habitual?", opts: ["No hay ninguna diferencia, se usa el mismo lenguaje técnico", "Se orienta a resultados y experiencia del paciente, evitando terminología médica explícita", "Se usa exclusivamente lenguaje legal", "Se prohíbe cualquier tipo de comunicación con el paciente"], correct: 1 },
+  { q: "¿Qué error de razonamiento debe evitarse respecto al enfoque 'testigo silencioso'?", opts: ["Aplicarlo solo a la documentación pública de marca, como corresponde", "Extenderlo incorrectamente hasta prohibir el registro clínico interno del paciente en su expediente", "Explicarlo al paciente en términos generales", "Usarlo como guía para el lenguaje de campañas"], correct: 1 },
+  { q: "¿Qué rol cumple la certificación del médico frente al manejo correcto de este posicionamiento con el paciente?", opts: ["Ninguno, el posicionamiento de marca no se relaciona con la certificación clínica", "El médico certificado debe aplicar el registro de lenguaje y el enfoque de discreción del protocolo al hablar con sus pacientes, como parte de su rol", "Solo el equipo de marketing debe conocer este lineamiento", "Solo aplica a médicos de nivel Senior"], correct: 1 }
+];
+
+var CELLS = [
+  { label: "1 · Bienvenida", render: function() {
+    return '<div class="icon-badge">🎬</div><h3>Protocolo DEZAWA — Posicionamiento</h3>' +
+      '<p>DEZAWA PROTOCOL™ no se comunica como cualquier otro tratamiento: es un producto de invitación, con un lenguaje y un enfoque documental deliberadamente distintos. Este módulo asegura que cada médico maneje ese posicionamiento de forma consistente con el paciente.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás aplicar el lenguaje orientado a resultados frente al paciente, distinguir el lineamiento de marca (documentación pública) del registro clínico interno, y reconocer los requisitos legales de las campañas con influencers.</p></div>';
+  }},
+  { label: "2 · Contexto", render: function() {
+    return '<div class="icon-badge">💡</div><h3>¿Por qué importa esto?</h3>' +
+      '<p>El valor de DEZAWA PROTOCOL™ depende en gran parte de su exclusividad y discreción — un manejo descuidado del lenguaje o de la documentación pública puede erosionar ese posicionamiento.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+      '<p style="margin:0;">Confundir el lineamiento de discreción de marca con una excepción al registro clínico interno, o asumir que "por invitación" significa acceso abierto a cualquier paciente que lo solicite.</p></div>';
+  }},
+  { label: "3 · Concepto", render: function() {
+    return '<div class="icon-badge">📚</div><h3>Las piezas del posicionamiento</h3>' +
+      '<div class="steprow"><div class="stepchip">Testigo silencioso</div><div class="stepchip">Producto de invitación</div><div class="stepchip">Lenguaje de experiencia</div><div class="stepchip">Registro de lujo</div></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Testigo silencioso:</strong> enfoque documental sin procedimientos visibles ni antes/después — aplica a la documentación pública, no al expediente clínico interno. <strong style="color:#fff;">Producto de invitación:</strong> nunca promocionado abiertamente, con fases desde la ambigüedad previa hasta la revelación posterior a la aplicación. <strong style="color:#fff;">Lenguaje:</strong> orientado a resultados y experiencia, evitando terminología médica explícita. <strong style="color:#fff;">Registro de marca:</strong> posicionamiento de lujo (Loro Piana, La Mer, Four Seasons).</p></div>' +
+      '<p>Los influencers participan como testigos silenciosos, no como vendedores directos — y toda publicación pagada debe llevar la etiqueta de colaboración pagada exigida por ley, sin excepción por el tono discreto de la campaña.</p>';
+  }},
+  { label: "4 · Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Un paciente completó su programa DEZAWA y quiere compartirlo en redes sociales con foto de antes/después.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1 — orientar el lenguaje.</strong> Se sugiere hablar de la experiencia y los resultados sentidos, no de un procedimiento médico explícito.</p>' +
+      '<p><strong style="color:#fff;">Paso 2 — evitar antes/después visibles.</strong> El enfoque de testigo silencioso desaconseja ese formato en la comunicación pública de marca.</p>' +
+      '<p><strong style="color:#fff;">Paso 3 — separar de lo clínico.</strong> Esto no afecta el registro clínico interno del paciente, que sigue su propio estándar en el expediente, independiente de lo que el paciente decida compartir.</p>' +
+      '<p style="margin:0;"><strong style="color:#fff;">Conclusión:</strong> el lineamiento de marca guía la comunicación pública, no reemplaza ni limita el registro clínico.</p>';
+  }},
+  { label: "5 · Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "6 · Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos ideas compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "7 · Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "8 · Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>El enfoque "testigo silencioso" aplica a la documentación pública de marca, no al registro clínico interno.</li>' +
+      '<li>"Por invitación" significa un proceso de acceso con fases, no una solicitud abierta directa del paciente.</li>' +
+      '<li>La etiqueta legal de colaboración pagada es obligatoria en publicaciones de influencers, sin excepción por el tono discreto de la campaña.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, regresa a la celda 7 para reintentar")+'</p>' +
+      '<p style="margin:8px 0 0;">Siguiente módulo sugerido: Farmacia e inyectables (pendiente del catálogo real).</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===4) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===5) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===6) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>

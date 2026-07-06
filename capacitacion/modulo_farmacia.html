@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Farmacia e inyectables — Catálogo CODE CELLS®</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .brandrow { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .brandchip { background:var(--surface); border-radius:8px; padding:8px 10px; font-size:11.5px; text-align:center; flex:1; min-width:80px; border-bottom:3px solid var(--teal-light); }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { caseText: "Un paciente pregunta directamente cuánto le cuesta a la clínica (precio de mayoreo/proveedor) un suplemento Nutravia que está por comprar.",
+    opts: ["Se le informa el precio_code_cells (costo interno con descuento mayoreo), ya que el paciente lo pidió directamente.", "Se comunica únicamente el precio sugerido de venta al público — el precio_code_cells es información interna de costos de la clínica y no se revela al paciente.", "Se le da un promedio entre ambos precios."], correct: 1,
+    rationale: "El catálogo distingue precio_sugerido (público) de precio_code_cells (costo interno con 20% de descuento mayoreo). Solo el primero se comunica al paciente — el segundo es información de costos internos de la clínica, sin importar que el paciente lo solicite directamente." },
+  { caseText: "Un paciente con fatiga crónica y disfunción mitocondrial es candidato a soporte antihomotóxico específico. El médico busca el producto estrella que actúa como sustituto de Coenzima Compositum.",
+    opts: ["Cymeheel, indicado para soporte enzimático mitocondrial.", "Trameel S, indicado para inflamación articular.", "Ovarheel, indicado para soporte hormonal femenino."], correct: 0,
+    rationale: "Cymeheel está señalado en el catálogo como producto estrella de soporte enzimático mitocondrial y sustituto de Coenzima Compositum, de uso en todos los protocolos CODE ENERGY™." },
+  { caseText: "Un médico revisa qué producto debe iniciarse primero y suspenderse último en absolutamente todos los protocolos CODE CELLS®, según el catálogo.",
+    opts: ["Lymphomyosot, por su función de drenaje biológico universal.", "Engystol, por su función inmunomoduladora.", "Zeel T, por su función articular."], correct: 0,
+    rationale: "Lymphomyosot está descrito como el producto más universal del catálogo — drenaje biológico obligatorio en todos los protocolos, en tres formas (IV, IM, oral), el primero en iniciarse y el último en suspenderse." },
+  { caseText: "Un médico prescribe zinc y hierro oral al mismo paciente y los indica para tomarse juntos en la misma comida.",
+    opts: ["Es correcto, no hay ninguna interacción entre ambos minerales.", "Deben separarse por al menos 2 horas, ya que compiten por absorción intestinal según las incompatibilidades documentadas en el catálogo.", "Solo se separan si el paciente tiene síntomas digestivos."], correct: 1,
+    rationale: "El catálogo documenta explícitamente que zinc y hierro oral simultáneos deben separarse por 2 horas debido a que compiten por absorción — es una incompatibilidad conocida, no una precaución opcional." },
+  { caseText: "Un paciente en tratamiento con anticoagulantes orales es candidato a Berberine HCl como parte de un stack metabólico intermedio.",
+    opts: ["Se indica sin ninguna reserva, la berberina no tiene relación con anticoagulantes.", "Se debe verificar interacciones farmacológicas antes de prescribir, dado que la berberina tiene múltiples interacciones documentadas, incluyendo con anticoagulantes.", "Se suspende el anticoagulante para poder usar berberina."], correct: 1,
+    rationale: "El catálogo señala expresamente que la Berberina tiene múltiples interacciones farmacológicas y que deben verificarse antes de prescribir — incluida la combinación con anticoagulantes." },
+  { caseText: "Un paciente con artrosis está en tratamiento con Trameel S, y el médico se pregunta si debe agregar Zeel T o si sería una duplicidad innecesaria.",
+    opts: ["Son duplicados y no deben combinarse.", "Trameel S y Zeel T están documentados como inseparables en artrosis — se combinan siempre, no son alternativas entre sí.", "Zeel T solo se usa si Trameel S falla."], correct: 1,
+    rationale: "El catálogo indica explícitamente que Trameel S y Zeel T son inseparables en artrosis — el antiinflamatorio y el regenerador articular se prescriben siempre juntos, no como alternativas." },
+  { caseText: "Un médico arma el stack nutracéutico básico para un paciente nuevo en RESTORE™ y necesita confirmar qué productos lo componen según el catálogo.",
+    opts: ["Magnesium Glycinate, Ultra Omega 3, Vitamin C-Rex, Selenium y Z Max — el stack básico documentado para todos los protocolos de nivel Básico.", "Solo Ultra Omega 3, sin ningún otro componente.", "Creatina y Collagen Peptides, reservados para nivel Básico."], correct: 0,
+    rationale: "El stack básico documentado para todos los protocolos de nivel Básico incluye Magnesium Glycinate, Ultra Omega 3, Vitamin C-Rex, Selenium y Z Max — Creatina y Collagen Peptides corresponden al stack Avanzado, no al Básico." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Un médico ve en la lista de 'siempre compatibles' que Trameel S + Zeel T se combinan sin problema, y asume que zinc y hierro también pueden combinarse porque 'ambos son minerales/productos del mismo catálogo'.",
+    opts: ["Correcto, si un par de productos del catálogo es compatible, todos lo son por extensión.", "Incorrecto: cada combinación se documenta de forma independiente. Trameel S + Zeel T están en la lista de 'siempre compatibles'; zinc + hierro están explícitamente en la lista de 'incompatibilidades' y deben separarse 2 horas — no se puede generalizar de un par a otro."], correct: 1,
+    rationale: "Cada combinación tiene su propia documentación en el catálogo — asumir compatibilidad general por la existencia de una combinación compatible en otro par es un error de razonamiento que puede llevar a errores de prescripción reales." },
+  { caseText: "Un médico ve que la Berberina es sinérgica con Semaglutida (agonista GLP-1) para efecto metabólico, y asume que por ser 'igual de segura' con cualquier otro medicamento del paciente, no necesita revisar más interacciones.",
+    opts: ["Correcto, si es sinérgica con un medicamento, es segura con cualquier otro.", "Incorrecto: la Berberina es sinérgica con Semaglutida específicamente, pero el catálogo advierte por separado que tiene múltiples interacciones farmacológicas —incluidos anticoagulantes e inmunosupresores— que deben verificarse caso por caso, independientemente de la sinergia documentada con otro fármaco."], correct: 1,
+    rationale: "Una sinergia documentada con un medicamento específico no es evidencia de seguridad general — el catálogo señala advertencias de interacción específicas con otros fármacos que deben revisarse de forma independiente." },
+  { caseText: "Un médico confunde el precio_sugerido (público) con el precio_code_cells (costo interno con descuento mayoreo) al armar una cotización para un paciente, mostrando el segundo por error.",
+    opts: ["No hay ningún problema, ambos precios son información pública del catálogo.", "Es un error a corregir: precio_code_cells es información interna de costos y nunca debe mostrarse al paciente — solo el precio_sugerido es apropiado para comunicación con pacientes."], correct: 1,
+    rationale: "Confundir ambos precios no es un detalle menor — expone información de costos internos de la clínica que nunca debe ser visible para el paciente, independientemente de que ambos números aparezcan en el mismo documento de catálogo." }
+];
+
+var QUESTIONS = [
+  { q: "¿Cuáles son las cuatro marcas que integran el catálogo de farmacia de CODE CELLS®?", opts: ["Heel/BHI, KAL, Nutravia y Solaray", "Regene Global, KAL, Nutravia y Solaray", "Heel/BHI, Rubio Pharma, Xelle y Solaray", "KAL, Nutravia, Solaray y Anáhuac Mayab"], correct: 0 },
+  { q: "¿Qué precio del catálogo NUNCA debe mostrarse al paciente?", opts: ["El precio_sugerido de venta al público", "El precio_code_cells (costo interno con descuento mayoreo)", "Ambos precios son siempre visibles para el paciente", "No existe distinción de precios en el catálogo"], correct: 1 },
+  { q: "¿Cómo se determina el precio de los antihomotóxicos inyectables Heel, según la nota de precios del catálogo?", opts: ["Con el mismo 20% de descuento que KAL/Nutravia/Solaray", "Es el precio de mayoreo directo del catálogo del proveedor", "Se calcula multiplicando por 1.35 dos veces", "No tienen ningún precio definido"], correct: 1 },
+  { q: "¿Qué producto está señalado como sustituto de Coenzima Compositum y soporte enzimático mitocondrial?", opts: ["Cymeheel", "Trameel S", "Ovarheel", "Engystol"], correct: 0 },
+  { q: "¿Qué producto debe iniciarse primero y suspenderse último en TODOS los protocolos CODE CELLS®?", opts: ["Zeel T", "Lymphomyosot", "Supragland Suis", "Cuticom"], correct: 1 },
+  { q: "¿Qué par de productos está documentado como inseparable en artrosis?", opts: ["Trameel S + Zeel T", "Cymeheel + Ubicheel", "Ovarheel + Klimakt Heel", "Berberine + CoQ10"], correct: 0 },
+  { q: "¿Cuántas horas de separación se requieren entre zinc y hierro orales, según las incompatibilidades documentadas?", opts: ["30 minutos", "2 horas", "24 horas", "No requieren separación"], correct: 1 },
+  { q: "¿Qué combinación exige verificar interacciones farmacológicas antes de prescribir, según el catálogo?", opts: ["Berberina + anticoagulantes", "Trameel S + Zeel T", "Lymphomyosot + cualquier antihomotóxico", "Vitamina C + Collagen Peptides"], correct: 0 },
+  { q: "¿Con qué medicamento es sinérgica la Berberina para efecto metabólico, según el catálogo?", opts: ["Semaglutida", "Warfarina", "Metformina exclusivamente", "Levotiroxina"], correct: 0 },
+  { q: "¿Qué tríada de organopreparados Suis constituye el protocolo neuroendocrino de mayor impacto?", opts: ["Hypothasuis + Hyposuis + Supragland Suis", "Cartheel + Colosuis + Resuis", "Ovarheel + Tesheel C + Placom", "Cuticom + Cutsuis + Graphinjeel"], correct: 0 },
+  { q: "¿Cuál es el 'dúo hormonal masculino estándar' documentado en el catálogo?", opts: ["Tesheel C + Supragland Suis", "Ovarheel + Placinjeel Suis", "Cymeheel + Ubicheel", "Hepaheel + Chelccord"], correct: 0 },
+  { q: "¿Cuál es el 'dúo hormonal femenino estándar' documentado en el catálogo?", opts: ["Ovarheel + Placinjeel Suis", "Tesheel C + Selaccord", "Klimakt Heel + Zeel T", "Muskheel + Spascupreel"], correct: 0 },
+  { q: "¿Qué producto debe acompañar siempre a Collagen Peptides para máxima síntesis de colágeno?", opts: ["Vitamina C", "Zinc", "Magnesio", "Creatina"], correct: 0 },
+  { q: "¿Qué polimorfismo genético hace de Methyl Folate la primera línea frente al ácido fólico estándar?", opts: ["MTHFR", "G6PD", "APOE4", "BRCA1"], correct: 0 },
+  { q: "¿Qué condición contraindica la vitamina C en dosis altas, según el catálogo?", opts: ["Deficiencia de G6PD (riesgo de hemólisis)", "Hipotiroidismo", "Osteoporosis", "Ninguna, no tiene contraindicaciones"], correct: 0 },
+  { q: "¿Qué productos se agregan al stack Básico para construir el stack Avanzado?", opts: ["Creatina, Collagen Peptides, Berberine HCl, Night Blend y L-Carnitine (según necesidad clínica)", "Solo Vitamin C-Rex adicional", "Únicamente Z Max en dosis doble", "Ningún producto adicional, el stack Básico ya es el Avanzado"], correct: 0 },
+  { q: "¿Qué significa 'Precio CODE CELLS®' según la nota de precios del catálogo?", opts: ["El precio sugerido de venta al público sin ningún descuento", "El precio sugerido con 20% de descuento mayoreo, aplicable a KAL/Nutravia/Solaray", "El precio que paga el paciente final siempre", "Un precio fijo igual para todas las marcas del catálogo"], correct: 1 },
+  { q: "¿Qué producto del catálogo NO es estándar para uso adulto en CODE CELLS® (es un multivitamínico pediátrico)?", opts: ["Multisaurus", "Z Max", "B Complex", "Omega 3"], correct: 0 },
+  { q: "¿Qué mineral debe evitarse combinar simultáneamente con Selenium por competencia de absorción?", opts: ["Zinc", "Magnesio", "Vitamina C", "Colágeno"], correct: 0 },
+  { q: "¿Qué presentación de Omega 3 es la preferida en el stack básico por su mayor concentración EPA/DHA y certificación GOED?", opts: ["Ultra Omega 3 500mg EPA/250mg DHA (Nutravia)", "Omega 3 60 cápsulas (KAL) estándar", "Omega 3-6-9 Ultra (KAL)", "Omega 3 Fish Oil 180mg/120mg (Nutravia) de entrada"], correct: 0 }
+];
+
+var CELLS = [
+  { label: "1 · Bienvenida", render: function() {
+    return '<div class="icon-badge">💊</div><h3>Farmacia e inyectables</h3>' +
+      '<p>El catálogo de CODE CELLS® integra 225 productos de 4 marcas —Heel/BHI, KAL, Nutravia y Solaray. Este módulo asegura que cada médico navegue el catálogo correctamente, respete el manejo de precios, y conozca las combinaciones clave y las incompatibilidades documentadas.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás distinguir el precio interno del precio comunicable al paciente, ubicar los productos estrella de cada sistema CODE, y aplicar correctamente las combinaciones "siempre compatibles" y las incompatibilidades documentadas.</p></div>';
+  }},
+  { label: "2 · Contexto", render: function() {
+    return '<div class="icon-badge">💡</div><h3>¿Por qué importa esto?</h3>' +
+      '<p>El catálogo mezcla información clínica (indicaciones, combinaciones, interacciones) con información comercial sensible (precios internos) — un manejo descuidado de cualquiera de las dos tiene consecuencias reales.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+      '<p style="margin:0;">Revelar el precio_code_cells (costo interno con descuento mayoreo) al paciente en vez del precio_sugerido, o asumir que una combinación compatible documentada en un par de productos se extiende automáticamente a cualquier otro par del catálogo.</p></div>';
+  }},
+  { label: "3 · Concepto", render: function() {
+    return '<div class="icon-badge">📚</div><h3>Las piezas del catálogo</h3>' +
+      '<div class="brandrow"><div class="brandchip">Heel / BHI</div><div class="brandchip">KAL</div><div class="brandchip">Nutravia</div><div class="brandchip">Solaray</div></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Precio_sugerido:</strong> venta al público, comunicable al paciente. <strong style="color:#fff;">Precio_code_cells:</strong> costo interno con 20% de descuento mayoreo (KAL/Nutravia/Solaray) — nunca se muestra al paciente. Los antihomotóxicos Heel usan el precio de mayoreo directo del catálogo del proveedor.</p></div>' +
+      '<h3 style="font-size:16px;">Productos estrella por sistema</h3>' +
+      '<div class="card"><p style="margin:0;">Lymphomyosot (universal, drenaje), Cymeheel y Ubicheel (CODE ENERGY™ mitocondrial), Trameel S + Zeel T (inseparables en artrosis), Hypothasuis + Hyposuis + Supragland Suis (tríada neuroendocrina), Tesheel C + Supragland Suis (dúo masculino), Ovarheel + Placinjeel Suis (dúo femenino).</p></div>' +
+      '<h3 style="font-size:16px;">Incompatibilidades a recordar</h3>' +
+      '<div class="card"><p style="margin:0;">Zinc + Hierro (separar 2h), Calcio + Zinc (separar), Selenium + Zinc (separar), Berberina + anticoagulantes/inmunosupresores (verificar antes de prescribir), Vitamina C alta dosis + déficit G6PD (contraindicado).</p></div>';
+  }},
+  { label: "4 · Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Un paciente en CODE ENERGY™ pide conocer el "precio real" del CoQ10 Solaray que la clínica compra.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1 — identificar qué precio corresponde comunicar.</strong> Se distingue entre precio_sugerido (público) y precio_code_cells (costo interno).</p>' +
+      '<p><strong style="color:#fff;">Paso 2 — comunicar solo lo apropiado.</strong> Se informa el precio_sugerido, sin exponer el costo interno de la clínica.</p>' +
+      '<p><strong style="color:#fff;">Paso 3 — revisar interacciones si aplica.</strong> Si el paciente ya toma estatinas, se recuerda que CoQ10 es especialmente relevante porque las estatinas depletan CoQ10 endógeno — información clínica, no de precio.</p>' +
+      '<p style="margin:0;"><strong style="color:#fff;">Conclusión:</strong> información clínica e información de costos internos se manejan con reglas distintas y no deben mezclarse.</p>';
+  }},
+  { label: "5 · Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "6 · Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos reglas compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "7 · Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "8 · Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>El precio_code_cells es información interna de costos y nunca se comunica al paciente — solo el precio_sugerido.</li>' +
+      '<li>Las combinaciones "siempre compatibles" y las incompatibilidades están documentadas producto por producto — no se generalizan de un par a otro.</li>' +
+      '<li>Lymphomyosot es universal en todos los protocolos; Trameel S + Zeel T son inseparables en artrosis; la Berberina exige revisión de interacciones caso por caso.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, regresa a la celda 7 para reintentar")+'</p>' +
+      '<p style="margin:8px 0 0;">Con este módulo se completa el conjunto de capacitaciones construidas hasta ahora.</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===4) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===5) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===6) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>
