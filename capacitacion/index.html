@@ -1464,6 +1464,42 @@ try {
 
 actualizarUI();
 
+// ─── OCULTAR BOTÓN NOVA DENTRO DEL IFRAME ───────────────────────
+// Cuando el módulo carga dentro del iframe, inyectamos CSS para ocultar
+// el botón "Preguntar a NOVA" que redirige al portal
+document.getElementById('modal-iframe').addEventListener('load', function() {
+  try {
+    const iframeDoc = this.contentDocument || this.contentWindow.document;
+    if (!iframeDoc) return;
+    // Inyectar CSS que oculta cualquier botón con "Preguntar a NOVA" o que apunte al portal
+    const style = iframeDoc.createElement('style');
+    style.textContent = `
+      a[href*="portal-medico"],
+      a[href*="nova=1"],
+      button[onclick*="nova"],
+      .btn-nova-float,
+      .preguntar-nova,
+      [class*="nova-btn"],
+      [id*="nova-btn"] {
+        display: none !important;
+      }
+    `;
+    iframeDoc.head.appendChild(style);
+
+    // También buscar por texto del botón y ocultarlo
+    const allBtns = iframeDoc.querySelectorAll('a, button');
+    allBtns.forEach(el => {
+      const txt = el.textContent.trim().toLowerCase();
+      if (txt.includes('preguntar a nova') || txt.includes('preguntar nova') ||
+          (el.tagName === 'A' && el.href && el.href.includes('nova=1'))) {
+        el.style.display = 'none';
+      }
+    });
+  } catch(e) {
+    // Cross-origin — no aplica, los archivos están en el mismo dominio
+  }
+});
+
 // ─── NOVA CAPACITACIÓN ────────────────────────────────────────────
 let novaHistorial = [];
 
