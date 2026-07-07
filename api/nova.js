@@ -1,4 +1,4 @@
-// api/nova.js — CODE CELLS® · Copiloto Clínico NOVA
+// api/nova.js — CODE CELLS® · Copiloto Clínico NOVA · deploy
 // v3 — Carácter definitivo + conocimiento médico integrado + seguridad reforzada
 
 // ─── BASE DE CONOCIMIENTO MÉDICO ──────────────────────────────────
