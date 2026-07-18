@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CODE CELLS™ — The Biological Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400;1,9..144,500&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E1410;--bg-alt:#121810;
+  --surface:#1A211B;--surface-2:#202820;
+  --ink:#F2EFE6;--ink-muted:#A9B3A4;--ink-dim:#6E786C;
+  --line:rgba(242,239,230,0.12);--line-strong:rgba(242,239,230,0.22);
+  --c-energy:#E8A33D;--c-repair:#D4654A;--c-balance:#4FA8A0;
+  --c-neuro:#8B7FD4;--c-regen:#5FAE6E;
+  --font-display:"Fraunces",serif;
+  --font-title:"Syncopate",sans-serif;
+  --font-body:"IBM Plex Sans",sans-serif;
+  --font-mono:"IBM Plex Mono",monospace;
+  --ease:cubic-bezier(.16,.84,.44,1);
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:var(--font-body);font-weight:300;color:var(--ink);-webkit-font-smoothing:antialiased;}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+
+/* ── AMBIENT CELLS ──────────────────────────────── */
+.bg-cells{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+.bg-cells span{
+  position:absolute;border-radius:50%;filter:blur(70px);opacity:0.14;
+  animation:drift 50s ease-in-out infinite;
+}
+.bg-cells span:nth-child(1){width:38vw;height:38vw;background:var(--c-energy);top:-8%;left:-6%;animation-duration:52s;}
+.bg-cells span:nth-child(2){width:30vw;height:30vw;background:var(--c-neuro);top:20%;right:-10%;animation-duration:60s;animation-delay:-10s;}
+.bg-cells span:nth-child(3){width:34vw;height:34vw;background:var(--c-balance);bottom:-10%;left:18%;animation-duration:55s;animation-delay:-22s;}
+.bg-cells span:nth-child(4){width:24vw;height:24vw;background:var(--c-repair);bottom:8%;right:14%;animation-duration:46s;animation-delay:-6s;}
+.bg-cells span:nth-child(5){width:26vw;height:26vw;background:var(--c-regen);top:48%;left:42%;animation-duration:64s;animation-delay:-30s;}
+@keyframes drift{
+  0%,100%{transform:translate(0,0) scale(1);}
+  33%{transform:translate(4%,6%) scale(1.08);}
+  66%{transform:translate(-5%,-3%) scale(0.94);}
+}
+
+/* ── PROGRESS ───────────────────────────────────── */
+#prog{position:fixed;top:0;left:0;right:0;z-index:200;height:1.5px;background:var(--line);}
+#prog-fill{height:100%;background:linear-gradient(90deg,var(--c-balance),var(--c-energy));transition:width .6s var(--ease);width:0%;}
+
+/* ── ENTRY ──────────────────────────────────────── */
+#entry{
+  position:fixed;inset:0;z-index:100;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;
+  transition:opacity .9s var(--ease),visibility .9s;
+}
+#entry.hide{opacity:0;visibility:hidden;pointer-events:none;}
+
+#entry-bg{
+  position:absolute;inset:0;
+  background-image:var(--hero);
+  background-size:cover;background-position:center 35%;
+}
+#entry-ov{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(14,20,16,.45) 0%,rgba(14,20,16,.75) 55%,var(--bg) 100%);
+}
+#entry-inner{position:relative;z-index:2;padding:2rem;max-width:600px;}
+
+.entry-logo{ display:none; }
+
+.entry-eyebrow{
+  font-family:var(--font-mono);font-size:.68rem;
+  letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-dim);margin-bottom:1.2rem;
+}
+
+.entry-h1{
+  font-family:var(--font-title);font-weight:700;
+  font-size:clamp(1.6rem,4vw,2.8rem);line-height:1;
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:.5rem;
+}
+
+.entry-sub{
+  font-family:var(--font-display);font-style:italic;font-weight:300;
+  font-size:clamp(.95rem,2vw,1.3rem);color:var(--ink-muted);
+  margin-bottom:2.8rem;letter-spacing:.06em;
+}
+
+.voice-label{
+  font-family:var(--font-mono);font-size:.62rem;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-dim);margin-bottom:.8rem;
+}
+
+.voice-wrap{display:flex;gap:.7rem;justify-content:center;margin-bottom:2rem;}
+
+.vbtn{
+  font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid var(--line-strong);border-radius:100px;
+  padding:.7rem 1.4rem;color:var(--ink-muted);
+  transition:border-color .3s var(--ease),background .3s var(--ease),color .3s var(--ease);
+}
+.vbtn:hover{border-color:var(--ink-muted);}
+.vbtn.on{
+  border-color:var(--ink);background:var(--ink);color:var(--bg);
+}
+
+#btnStart{
+  font-family:var(--font-mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--ink);color:var(--bg);
+  padding:1rem 1.8rem;border-radius:100px;
+  transition:transform .35s var(--ease),background .35s var(--ease);
+  display:inline-flex;align-items:center;gap:.6rem;
+}
+#btnStart:hover{transform:translateY(-2px);background:#fff;}
+
+.entry-note{
+  margin-top:1.2rem;
+  font-family:var(--font-mono);font-size:.58rem;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);
+}
+
+/* ── SLIDES CONTAINER ───────────────────────────── */
+#slides{position:fixed;inset:0;z-index:1;}
+
+/* ── SLIDE ──────────────────────────────────────── */
+.slide{
+  position:absolute;inset:0;overflow:hidden;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .9s var(--ease),visibility .9s;
+}
+.slide.active{opacity:1;visibility:visible;pointer-events:all;}
+
+.s-bg{
+  position:absolute;inset:0;background-size:cover;background-position:center;
+  transform:scale(1.04);transition:transform 14s ease-out;
+}
+.slide.active .s-bg{transform:scale(1);}
+
+.s-ov{
+  position:absolute;inset:0;
+  background:linear-gradient(
+    180deg,rgba(14,20,16,.42) 0%,rgba(14,20,16,.22) 38%,
+    rgba(14,20,16,.55) 65%,rgba(14,20,16,.95) 100%
+  );
+}
+.s-ov2{
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(14,20,16,.62) 0%,transparent 44%,transparent 56%,rgba(14,20,16,.35) 100%);
+}
+
+/* topbar */
+/* brand watermark bottom-left */
+.s-brand{
+  position:absolute;bottom:clamp(5rem,12vh,8rem);left:clamp(1.5rem,4vw,3rem);
+  z-index:10;display:flex;align-items:center;gap:.5rem;opacity:.45;
+  transition:opacity .3s;
+}
+.s-brand:hover{opacity:.75;}
+.s-brand img{height:20px;width:auto;
+  filter:invert(1) sepia(1) saturate(1.5) hue-rotate(5deg) brightness(1.1);
+  mix-blend-mode:screen;}
+.s-brand span{
+  font-family:var(--font-mono);font-size:.55rem;
+  letter-spacing:.12em;color:var(--ink-dim);text-transform:uppercase;
+}
+
+/* content */
+.s-content{
+  position:relative;z-index:2;
+  width:100%;max-width:1080px;
+  padding:clamp(1.5rem,4vw,3rem);
+  padding-bottom:clamp(7rem,15vh,11rem);
+  margin:0 auto;height:100%;
+  display:flex;flex-direction:column;justify-content:flex-end;
+}
+.s-content.centered{
+  align-items:center;justify-content:center;text-align:center;
+  padding-bottom:clamp(7rem,15vh,11rem);
+}
+
+.s-eyebrow{
+  font-family:var(--font-mono);font-size:.6rem;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-dim);margin-bottom:1.1rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.s-eyebrow .accent{
+  color:var(--c-energy);font-size:.7rem;
+  font-weight:700;letter-spacing:.1em;
+}
+.s-eyebrow::before{
+  content:'';display:inline-block;width:18px;height:1px;
+  background:var(--c-energy);opacity:.6;flex-shrink:0;
+}
+
+.s-title{
+  font-family:var(--font-title);font-weight:700;
+  font-size:clamp(1.4rem,3vw,2.4rem);line-height:1.1;
+  letter-spacing:.06em;text-transform:uppercase;margin-bottom:1rem;
+}
+.s-title.hero{
+  font-size:clamp(1.6rem,3.8vw,2.8rem);letter-spacing:.08em;
+}
+.s-title em{
+  font-family:var(--font-display);font-style:italic;
+  font-weight:300;color:var(--ink-muted);
+  letter-spacing:-.01em;text-transform:none;font-size:.88em;
+}
+
+.s-subtitle{
+  font-family:var(--font-display);font-style:italic;font-weight:300;
+  font-size:clamp(1.1rem,2.2vw,1.5rem);color:var(--ink-muted);
+  margin-bottom:.9rem;letter-spacing:.04em;
+}
+
+.s-body{
+  color:var(--ink-muted);font-size:clamp(.9rem,1.35vw,1.02rem);
+  line-height:1.85;max-width:54ch;font-weight:300;
+}
+.s-content.centered .s-body{margin:0 auto;}
+
+.s-hero-logo{display:none;}
+
+.s-tags{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1rem;}
+.s-content.centered .s-tags{justify-content:center;}
+.s-tag{
+  font-family:var(--font-mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid var(--line-strong);border-radius:100px;
+  padding:.28rem .8rem;color:var(--ink-muted);
+  background:rgba(242,239,230,.04);
+}
+.s-tag.energy{border-color:rgba(232,163,61,.4);color:var(--c-energy);background:rgba(232,163,61,.06);}
+.s-tag.repair{border-color:rgba(212,101,74,.4);color:var(--c-repair);background:rgba(212,101,74,.06);}
+.s-tag.balance{border-color:rgba(79,168,160,.4);color:var(--c-balance);background:rgba(79,168,160,.06);}
+.s-tag.neuro{border-color:rgba(139,127,212,.4);color:var(--c-neuro);background:rgba(139,127,212,.06);}
+.s-tag.regen{border-color:rgba(95,174,110,.4);color:var(--c-regen);background:rgba(95,174,110,.06);}
+
+/* ── SLIDE NOVA NEBULOSA ─────────────────────────── */
+.nova-nebula-slide {
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;
+  padding:2rem;
+  z-index:2;
+}
+
+/* Nebulosa animada */
+.nebula {
+  position:absolute;inset:0;
+  overflow:hidden;
+  pointer-events:none;
+}
+.nebula-core {
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:600px;height:600px;
+  border-radius:50%;
+  background:radial-gradient(ellipse at center,
+    rgba(201,169,110,0.12) 0%,
+    rgba(79,168,160,0.08) 30%,
+    rgba(139,127,212,0.05) 60%,
+    transparent 75%
+  );
+  animation:nebula-pulse 4s ease-in-out infinite;
+}
+@keyframes nebula-pulse {
+  0%,100% { transform:translate(-50%,-50%) scale(1); opacity:0.7; }
+  50% { transform:translate(-50%,-50%) scale(1.15); opacity:1; }
+}
+
+.nebula-ring {
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  border:0.5px solid rgba(201,169,110,0.15);
+  border-radius:50%;
+  animation:ring-expand 3s ease-out infinite;
+}
+.nebula-ring:nth-child(2) { animation-delay:1s; }
+.nebula-ring:nth-child(3) { animation-delay:2s; }
+@keyframes ring-expand {
+  0% { width:100px;height:100px;opacity:0.8; }
+  100% { width:500px;height:500px;opacity:0; }
+}
+
+/* NOVA avatar holográfico */
+.nova-holo {
+  position:relative;
+  z-index:2;
+  width:110px;height:110px;
+  margin:0 auto 1.5rem;
+  animation:nova-appear 1.2s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes nova-appear {
+  from { transform:scale(0) rotate(-10deg); opacity:0; }
+  to   { transform:scale(1) rotate(0deg); opacity:1; }
+}
+
+.nova-holo-ring {
+  position:absolute;inset:-8px;
+  border-radius:50%;
+  border:1.5px solid var(--c-balance);
+  animation:holo-spin 6s linear infinite;
+  box-shadow:0 0 20px rgba(79,168,160,0.3), inset 0 0 20px rgba(79,168,160,0.1);
+}
+.nova-holo-ring-2 {
+  position:absolute;inset:-16px;
+  border-radius:50%;
+  border:0.5px solid rgba(201,169,110,0.3);
+  animation:holo-spin 10s linear infinite reverse;
+}
+@keyframes holo-spin {
+  to { transform:rotate(360deg); }
+}
+
+.nova-holo-face {
+  width:100%;height:100%;
+  border-radius:50%;
+  background:radial-gradient(ellipse at 40% 35%,
+    rgba(79,168,160,0.25),
+    rgba(14,20,16,0.95) 70%
+  );
+  border:1px solid rgba(79,168,160,0.4);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 32px rgba(79,168,160,0.2), 0 0 60px rgba(201,169,110,0.1);
+  font-family:var(--font-body);
+  font-size:11px;
+  letter-spacing:0.2em;
+  color:var(--c-balance);
+  overflow:hidden;
+}
+
+/* Partículas de la nebulosa */
+.nebula-particle {
+  position:absolute;
+  border-radius:50%;
+  animation:float-particle linear infinite;
+}
+@keyframes float-particle {
+  0% { transform:translateY(0) translateX(0); opacity:0; }
+  20% { opacity:1; }
+  80% { opacity:1; }
+  100% { transform:translateY(-200px) translateX(var(--dx)); opacity:0; }
+}
+
+/* Texto NOVA */
+.nova-slide-eyebrow {
+  font-family:var(--font-body);
+  font-size:11px;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:var(--c-balance);
+  margin-bottom:1rem;
+  animation:fade-up 0.8s 0.8s both;
+}
+
+.nova-slide-title {
+  font-family:var(--font-display);
+  font-size:clamp(32px,5vw,56px);
+  font-weight:300;
+  color:var(--ink);
+  line-height:1.1;
+  margin-bottom:1rem;
+  animation:fade-up 0.8s 1s both;
+}
+.nova-slide-title em { font-style:italic; color:var(--c-energy); }
+
+.nova-slide-body {
+  font-family:var(--font-body);
+  font-size:15px;
+  color:var(--ink-muted);
+  max-width:560px;
+  line-height:1.8;
+  margin:0 auto 2rem;
+  animation:fade-up 0.8s 1.2s both;
+}
+
+@keyframes fade-up {
+  from { transform:translateY(16px); opacity:0; }
+  to   { transform:translateY(0); opacity:1; }
+}
+
+/* Chat NOVA en slide */
+.nova-slide-chat {
+  width:100%;max-width:520px;
+  margin:0 auto;
+  background:rgba(14,20,16,0.85);
+  border:0.5px solid rgba(201,169,110,0.2);
+  border-radius:14px;
+  overflow:hidden;
+  animation:fade-up 0.8s 1.4s both;
+  backdrop-filter:blur(8px);
+}
+
+.nova-chat-hdr {
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;
+  background:rgba(26,33,27,0.9);
+  border-bottom:0.5px solid rgba(242,239,230,0.08);
+}
+.nova-chat-dot {
+  width:7px;height:7px;border-radius:50%;
+  background:var(--c-energy);
+  animation:pulse-n 2s ease-in-out infinite;
+}
+@keyframes pulse-n {
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:0.4;transform:scale(0.7);}
+}
+.nova-chat-name {
+  font-family:var(--font-body);font-size:11px;
+  letter-spacing:0.14em;color:var(--c-energy);font-weight:500;
+}
+.nova-chat-sub {
+  font-family:var(--font-body);font-size:9px;
+  color:var(--ink-dim);letter-spacing:0.1em;margin-left:2px;
+}
+
+.nova-msgs {
+  padding:16px;
+  display:flex;flex-direction:column;gap:10px;
+  min-height:120px;max-height:280px;
+  overflow-y:auto;
+}
+.nova-msgs::-webkit-scrollbar{width:2px;}
+.nova-msgs::-webkit-scrollbar-thumb{background:rgba(242,239,230,0.1);border-radius:2px;}
+
+.n-msg{display:flex;}
+.n-msg--n{justify-content:flex-start;}
+.n-msg--u{justify-content:flex-end;}
+.n-bubble{
+  max-width:84%;padding:10px 13px;border-radius:9px;
+  font-family:var(--font-body);font-size:13px;line-height:1.65;
+}
+.n-msg--n .n-bubble{
+  background:rgba(26,33,27,0.9);
+  border:0.5px solid rgba(242,239,230,0.08);
+  color:var(--ink);border-bottom-left-radius:2px;
+}
+.n-msg--u .n-bubble{
+  background:rgba(201,169,110,0.12);
+  border:0.5px solid rgba(201,169,110,0.2);
+  color:var(--ink);border-bottom-right-radius:2px;
+}
+.n-typing{display:flex;gap:4px;padding:10px 13px;align-items:center;}
+.n-typing span{
+  width:5px;height:5px;border-radius:50%;
+  background:rgba(201,169,110,0.5);
+  animation:ndot 1.2s ease-in-out infinite;
+}
+.n-typing span:nth-child(2){animation-delay:.2s;}
+.n-typing span:nth-child(3){animation-delay:.4s;}
+@keyframes ndot{
+  0%,60%,100%{transform:translateY(0);opacity:.4;}
+  30%{transform:translateY(-4px);opacity:1;}
+}
+
+.nova-input-area{
+  display:flex;gap:8px;
+  padding:12px 16px;
+  border-top:0.5px solid rgba(242,239,230,0.08);
+  background:rgba(26,33,27,0.9);
+}
+.nova-input-area input{
+  flex:1;background:rgba(242,239,230,0.04);
+  border:0.5px solid rgba(242,239,230,0.1);
+  border-radius:6px;
+  color:var(--ink) !important;
+  -webkit-text-fill-color:var(--ink) !important;
+  font-family:var(--font-body);font-size:13px;
+  padding:9px 12px;outline:none;
+  caret-color:var(--c-energy);
+  transition:border-color .2s;
+}
+.nova-input-area input:focus{border-color:rgba(201,169,110,0.35);}
+.nova-input-area input::placeholder{color:var(--ink-dim);}
+.nova-send-btn{
+  width:36px;height:36px;border-radius:6px;
+  background:var(--c-energy);border:none;
+  color:#06200F;font-size:15px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .2s;flex-shrink:0;
+}
+.nova-send-btn:hover{background:#f0b84a;}
+.nova-send-btn:disabled{background:rgba(232,163,61,0.3);cursor:not-allowed;}
+
+/* slide line divider */
+.s-line{
+  width:36px;height:1px;
+  background:linear-gradient(90deg,var(--c-energy),transparent);
+  margin:1.4rem 0;opacity:.7;
+}
+.s-content.centered .s-line{margin:1.4rem auto;}
+
+/* ── DOTS ───────────────────────────────────────── */
+#dots{
+  position:fixed;bottom:4.5rem;left:50%;transform:translateX(-50%);
+  z-index:50;display:flex;gap:.55rem;align-items:center;
+}
+.dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--line-strong);transition:all .4s var(--ease);cursor:pointer;
+}
+.dot.on{background:var(--ink);transform:scale(1.5);}
+.dot:hover{background:var(--ink-muted);}
+
+/* ── AUDIO BAR ──────────────────────────────────── */
+#abar{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  padding:.85rem clamp(1rem,4vw,2.5rem);
+  background:linear-gradient(180deg,transparent,rgba(14,20,16,.97));
+  display:flex;align-items:center;gap:1rem;
+  transition:opacity .5s;
+}
+#abar.off{opacity:0;pointer-events:none;}
+
+#ppBtn{
+  width:34px;height:34px;border-radius:50%;flex-shrink:0;
+  border:1px solid var(--line-strong);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:border-color .3s var(--ease),background .3s var(--ease);
+  background:rgba(242,239,230,.04);
+}
+#ppBtn:hover{border-color:var(--ink-muted);background:rgba(242,239,230,.08);}
+#ppBtn svg{width:12px;height:12px;fill:var(--ink-muted);}
+
+.a-track{
+  flex:1;height:1.5px;background:var(--line);
+  border-radius:2px;cursor:pointer;position:relative;overflow:hidden;
+}
+.a-fill{
+  position:absolute;left:0;top:0;height:100%;width:0%;
+  background:linear-gradient(90deg,var(--c-balance),var(--c-energy));
+  transition:width .25s linear;
+}
+
+#a-time{
+  font-family:var(--font-mono);font-size:.6rem;
+  color:var(--ink-dim);letter-spacing:.04em;flex-shrink:0;
+  min-width:32px;text-align:right;
+}
+
+#v-badge{
+  font-family:var(--font-mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-dim);border:1px solid var(--line);border-radius:100px;
+  padding:.24rem .7rem;cursor:pointer;flex-shrink:0;
+  transition:all .3s var(--ease);
+}
+#v-badge:hover{color:var(--ink-muted);border-color:var(--line-strong);}
+
+#skip-btn{
+  font-family:var(--font-mono);font-size:.6rem;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-dim);cursor:pointer;flex-shrink:0;
+  border-bottom:1px solid transparent;
+  transition:all .3s var(--ease);
+}
+#skip-btn:hover{color:var(--ink-muted);border-color:var(--line-strong);}
+
+/* ── NAV BUTTONS ────────────────────────────────── */
+#nav-prev{
+  position:fixed;left:clamp(.8rem,2.5vw,1.8rem);top:50%;transform:translateY(-50%);
+  z-index:50;width:40px;height:40px;border-radius:50%;
+  border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;background:rgba(14,20,16,.7);backdrop-filter:blur(6px);
+  transition:all .3s var(--ease);opacity:0;pointer-events:none;
+}
+#nav-prev.show{opacity:1;pointer-events:all;}
+#nav-prev:hover{border-color:var(--line-strong);background:var(--surface);}
+#nav-prev svg{width:14px;height:14px;stroke:var(--ink-muted);fill:none;stroke-width:1.5;}
+
+#btn-next{
+  position:fixed;right:clamp(.8rem,2.5vw,1.8rem);top:50%;transform:translateY(-50%);
+  z-index:50;
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;
+  border:1px solid var(--line-strong);border-radius:100px;
+  padding:.85rem 1.55rem;color:var(--ink-muted);
+  cursor:pointer;background:rgba(14,20,16,.8);backdrop-filter:blur(8px);
+  display:flex;align-items:center;gap:.55rem;
+  opacity:0;pointer-events:none;transition:all .4s var(--ease);
+}
+#btn-next.show{opacity:1;pointer-events:all;animation:glow-next 2.4s ease-in-out infinite;}
+#btn-next:hover{
+  border-color:var(--ink);color:var(--ink);
+  background:var(--surface);animation:none;
+  transform:translateY(-50%) translateX(-2px);
+}
+@keyframes glow-next{
+  0%,100%{box-shadow:0 0 0 0 rgba(242,239,230,0);}
+  50%{box-shadow:0 0 18px 2px rgba(242,239,230,.08);}
+}
+
+#btn-cta{
+  position:fixed;right:clamp(.8rem,2.5vw,1.8rem);top:50%;transform:translateY(-50%);
+  z-index:50;
+  font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+  background:#25D366;color:#06200F;
+  border-radius:100px;padding:1rem 1.7rem;font-weight:500;
+  display:none;align-items:center;gap:.6rem;cursor:pointer;
+  transition:transform .35s var(--ease),background .35s var(--ease);
+  box-shadow:0 0 32px rgba(37,211,102,.2);
+}
+#btn-cta.show{display:flex;animation:glow-next 2.4s ease-in-out infinite;}
+#btn-cta:hover{transform:translateY(-50%) translateY(-2px);background:#2FE077;animation:none;}
+#btn-cta svg{width:15px;height:15px;fill:#06200F;}
+
+#btn-capacitacion{
+  position:fixed;
+  bottom:calc(50% - 80px);
+  right:28px;
+  transform:translateY(50%);
+  display:none;
+  align-items:center;
+  gap:8px;
+  padding:14px 22px;
+  background:transparent;
+  border:1.5px solid #C9A96E;
+  border-radius:100px;
+  color:#C9A96E;
+  font-family:var(--font-body);
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:0.08em;
+  text-decoration:none;
+  cursor:pointer;
+  z-index:90;
+  transition:background .2s, color .2s, transform .2s;
+  white-space:nowrap;
+}
+#btn-capacitacion.show{display:flex;}
+#btn-capacitacion:hover{background:#C9A96E;color:#06200F;transform:translateY(50%) translateY(-2px);}
+#btn-capacitacion svg{width:15px;height:15px;fill:currentColor;}
+
+/* ── MUTE BUTTON ────────────────────────────────── */
+#muteBtn{
+  position:fixed;bottom:1rem;right:1.2rem;z-index:60;
+  width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;background:rgba(14,20,16,.7);backdrop-filter:blur(6px);
+  transition:all .3s var(--ease);opacity:0;pointer-events:none;
+}
+#muteBtn.show{opacity:.5;pointer-events:all;}
+#muteBtn:hover{opacity:1;border-color:var(--line-strong);}
+#muteBtn svg{width:13px;height:13px;color:var(--ink-muted);}
+
+/* ── MOBILE ─────────────────────────────────────── */
+@media(max-width:600px){
+  /* nav buttons */
+  #btn-next,#btn-cta{
+    right:.5rem;font-size:.58rem;padding:.6rem .9rem;
+    top:auto;bottom:5rem;transform:none;
+  }
+  #btn-next:hover,#btn-cta:hover{transform:none;}
+  #nav-prev{left:.5rem;top:auto;bottom:5rem;transform:none;}
+
+  /* title: smaller + wrap */
+  .s-title{font-size:clamp(1.1rem,5.5vw,1.8rem);letter-spacing:.04em;}
+  .s-title.hero{font-size:clamp(1.2rem,6vw,2rem);letter-spacing:.05em;}
+  .entry-h1{font-size:clamp(1.2rem,6vw,2rem);letter-spacing:.05em;}
+
+  /* content padding */
+  .s-content{padding:1rem;padding-bottom:9rem;}
+  .s-content.centered{padding-bottom:9rem;}
+
+  /* body text */
+  .s-body{font-size:.88rem;max-width:100%;line-height:1.65;}
+
+  /* audio bar */
+  #abar{gap:.6rem;padding:.7rem .9rem;}
+  #muteBtn{bottom:4.5rem;}
+
+  /* brand */
+  .s-brand{bottom:9rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ambient cell field -->
+<div class="bg-cells" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span>
+</div>
+
+<!-- progress -->
+<div id="prog"><div id="prog-fill"></div></div>
+
+<!-- ── ENTRY ─────────────────────────────────────── -->
+<div id="entry">
+  <div id="entry-bg"></div>
+  <div id="entry-ov"></div>
+  <div id="entry-inner">
+    <img class="entry-logo" id="e-logo" src="" alt="Code Cells">
+    <p class="entry-eyebrow">Medicina Cronodegenerativa · Uso exclusivo</p>
+    <h1 class="entry-h1">CODE CELLS™</h1>
+    <p class="entry-sub">The Biological Network</p>
+    <button id="btnStart" onclick="start()">
+      Iniciar experiencia &nbsp;→
+    </button>
+    <p class="entry-note">Las voces se alternan automáticamente en cada pantalla</p>
+  </div>
+</div>
+
+<!-- ── SLIDES ────────────────────────────────────── -->
+<div id="slides"></div>
+
+<!-- nav prev -->
+<div id="nav-prev" onclick="prevSlide()">
+  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+</div>
+
+<!-- nav next -->
+<button id="btn-next" onclick="nextSlide()">Continuar &nbsp;→</button>
+
+<!-- cta final -->
+<a id="btn-cta"
+   href="https://wa.me/526671264060?text=Hola%2C%20quiero%20saber%20m%C3%A1s%20sobre%20CODE%20CELLS%E2%84%A2%20y%20c%C3%B3mo%20colaborar"
+   target="_blank" rel="noopener">
+  <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.27-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.93 6.45 17.5 2 12.04 2zm5.84 13.91c-.25.7-1.25 1.32-1.93 1.42-.55.08-1.25.11-2.01-.13-.46-.15-1.06-.34-1.83-.67-3.22-1.39-5.32-4.62-5.48-4.84-.16-.22-1.31-1.74-1.31-3.32 0-1.58.83-2.36 1.12-2.68.3-.32.65-.4.87-.4.22 0 .43 0 .62.01.2.01.46-.08.72.55.27.65.91 2.24.99 2.4.08.16.13.35.03.57-.11.22-.16.35-.32.54-.16.19-.34.42-.49.56-.16.16-.33.33-.14.65.19.32.85 1.4 1.83 2.27 1.26 1.12 2.32 1.47 2.64 1.63.32.16.51.14.7-.08.19-.22.81-.94 1.03-1.27.22-.32.43-.27.73-.16.3.11 1.9.9 2.22 1.06.32.16.54.24.62.38.08.13.08.78-.17 1.48z"/></svg>
+  Iniciar conversación
+</a>
+
+<!-- btn capacitacion -->
+<a id="btn-capacitacion" href="/capacitacion/" target="_blank">
+  <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+  Portal de capacitación
+</a>
+
+<!-- dots -->
+<div id="dots"></div>
+
+<!-- audio bar -->
+<div id="abar" class="off">
+  <div id="ppBtn" onclick="toggleAudio()">
+    <svg id="i-play"  viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    <svg id="i-pause" viewBox="0 0 24 24" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+  </div>
+  <div class="a-track" onclick="seekAudio(event)"><div class="a-fill" id="a-fill"></div></div>
+  <div id="a-time">0:00</div>
+  <div id="skip-btn" onclick="skipAudio()">Saltar ›</div>
+</div>
+
+<audio id="player" preload="auto"></audio>
+<audio id="bgMusic" src="Helix.mp3" loop preload="auto"></audio>
+
+<!-- mute button -->
+<button id="muteBtn" onclick="toggleMute()" title="Música de fondo" aria-label="Silenciar música">
+  <svg id="iconSound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+  <svg id="iconMute"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+</button>
+
+<script>
+// ── PATHS — estructura real de carpetas ──
+const P = {
+  logo: 'images/codecells-logo.png',
+  bg0:  'logo_code_cells_dorado.png/00-cover.png',
+  bg1:  'hero.png/01-problema.png',
+  bg2:  'hero.png/02-filosofia.png',
+  bg3:  'hero.png/03-sistemas.png',
+  bg4:  'sistemas.png/04-proceso.png',
+  bg5:  'sistemas.png/05-medicos.png',
+  bg6:  'colaboracion.png/06-inversores.png',
+  bg7:  'colaboracion.png/07-red.png',
+  bg8:  'colaboracion.png/08-cierre.png',
+  bg9:  'colaboracion.png/08-cierre.png',
+};
+
+// ── SLIDES DATA ────────────────────────────────────
+const SLIDES=[
+  {
+    id:0,bg:P.bg0,centered:true,heroLogo:true,
+    eyebrow:'Medicina Cronodegenerativa',
+    title:'CODE CELLS™',titleClass:'hero',
+    subtitle:'The Biological Network',
+    body:'No envejeces de una sola forma. Cada persona sigue una ruta biológica distinta. Esta experiencia es para quienes quieren ser parte del cambio.',
+    tags:[],
+    ah:'audio/00-bienvenida-h.mp3',am:'audio/code-cells.mp3/00-bienvenida-m.mp3',cta:false
+  },
+  {
+    id:1,bg:P.bg1,
+    eyebrow:'01 · El problema',
+    title:'La medicina espera.\n<em>Nosotros no.</em>',
+    body:'La medicina tradicional interviene cuando la enfermedad ya es visible. CODE CELLS™ actúa donde la medicina convencional todavía no llega: en la pérdida funcional silenciosa.',
+    tags:[],
+    ah:'audio/code-cells.mp3/01-problema-h.mp3',am:'audio/code-cells.mp3/01-problema-m.mp3',cta:false
+  },
+  {
+    id:2,bg:P.bg2,
+    eyebrow:'02 · La filosofía',
+    title:'CODE = información.\n<em>CELLS = vida.</em>',
+    body:'Toda enfermedad ocurre cuando el lenguaje celular comienza a deteriorarse. CODE CELLS™ existe para restaurar ese lenguaje antes de que el deterioro se exprese como diagnóstico.',
+    tags:[],
+    ah:'audio/code-cells.mp3/02-filosofia-h.mp3',am:'audio/code-cells.mp3/02-filosofia-m.mp3',cta:false
+  },
+  {
+    id:3,bg:P.bg3,
+    eyebrow:'03 · La arquitectura biológica',
+    title:'Los <em>5 Sistemas</em>\nde CODE CELLS™',
+    body:'Cinco sistemas. Cinco rutas de deterioro. Identificar cuál falla primero es el punto de partida de todo protocolo.',
+    tags:[
+      {t:'⚡ CODE ENERGY™',c:'energy'},{t:'🔬 CODE REPAIR™',c:'repair'},
+      {t:'⚖️ CODE BALANCE™',c:'balance'},{t:'🧠 CODE NEURO™',c:'neuro'},
+      {t:'🧬 CODE REGEN™',c:'regen'}
+    ],
+    ah:'audio/code-cells.mp3/03-sistemas-h.mp3',am:'audio/code-cells.mp3/03-sistemas-m.mp3',cta:false
+  },
+  {
+    id:4,bg:P.bg4,
+    eyebrow:'04 · El proceso',
+    title:'Del mapa al\n<em>Continuum</em>',
+    body:'Evaluación cronodegenerativa → Mapa Biológico → Protocolo de optimización → Regenesis Continuum™ → CODE OS.\nCada paciente recibe una ruta única porque cada biología lo es.',
+    tags:[],
+    ah:'audio/code-cells.mp3/04-proceso-h.mp3',am:'audio/code-cells.mp3/04-proceso-m.mp3',cta:false
+  },
+  {
+    id:5,bg:P.bg5,
+    eyebrow:'05 · Para médicos',
+    title:'Una plataforma.\n<em>No una distribuidora.</em>',
+    body:'Protocolos clínicos validados. Capacitación continua. Biotecnología avanzada. Licencia de marca CODE CELLS® Partner Center. Red de referidos activa.',
+    tags:[{t:'CODE CELLS® Partner Center',c:''},{t:'Regene Global Alliance',c:''}],
+    ah:'audio/code-cells.mp3/05-medicos-h.mp3',am:'audio/code-cells.mp3/05-medicos-m.mp3',cta:false
+  },
+  {
+    id:6,bg:P.bg6,
+    eyebrow:'06 · Para inversionistas',
+    title:'El mercado más\n<em>grande del siglo.</em>',
+    body:'$25,000 millones anuales en medicina regenerativa y longevidad. Crecimiento de doble dígito. Latinoamérica prácticamente virgen. El modelo CODE CELLS™ ya está construido.',
+    tags:[{t:'Modelo escalable',c:''},{t:'Ingresos recurrentes',c:''},{t:'Bajo CAPEX',c:''}],
+    ah:'audio/code-cells.mp3/06-inversores-h.mp3',am:'audio/code-cells.mp3/06-inversores-m.mp3',cta:false
+  },
+  {
+    id:7,bg:P.bg7,
+    eyebrow:'07 · La visión',
+    title:'La primera red\n<em>latinoamericana.</em>',
+    body:'Culiacán → Guadalajara → CDMX → Monterrey → Colombia → Perú → Chile.\nUna marca. Una filosofía. Un estándar clínico unificado en toda la región.',
+    tags:[],
+    ah:'audio/code-cells.mp3/07-red-h.mp3',am:'audio/code-cells.mp3/07-red-m.mp3',cta:false
+  },
+  {
+    id:8,bg:P.bg8,centered:true,
+    eyebrow:'08 · El siguiente paso',
+    title:'The Biological\n<em>Network te espera.</em>',
+    body:'Hay un lugar en esta red para las personas correctas.\nPersonas con visión. Con propósito. Con disposición a transformar.',
+    tags:[],
+    ah:'audio/code-cells.mp3/08-cierre-h.mp3',am:'audio/code-cells.mp3/08-cierre-m.mp3',cta:true
+  },
+  {
+    id:9,bg:P.bg9,centered:true,nova:true,
+    eyebrow:'09 · Bienvenido a la red',
+    title:'',
+    body:'',
+    tags:[],
+    ah:'',am:'',cta:false
+  }
+];
+
+// ── STATE ──────────────────────────────────────────
+let cur=0, startV='h', skipTm=null;
+let audioPhase='h'; // 'h'=playing male, 'm'=playing female
+
+// ── PRELOAD (mitiga la carrera de autoplay en el primer clic) ──────
+const _preloaded = new Set();
+function preloadAudio(url){
+  if(!url || _preloaded.has(url)) return;
+  _preloaded.add(url);
+  try{ const a=new Audio(); a.preload='auto'; a.src=url; }catch(e){}
+}
+// Precargar la bienvenida (ambas voces) apenas carga la página,
+// antes de que el usuario dé clic en "Iniciar experiencia".
+preloadAudio(SLIDES[0].ah);
+preloadAudio(SLIDES[0].am);
+
+// ── RESUME GLOBAL (si el navegador bloquea play() sin gesto) ───────
+// Si Chrome bloquea un player.play() automático (por política de autoplay),
+// armamos un listener de clic global: el SIGUIENTE clic en cualquier parte
+// de la pantalla reintenta reproducir el audio pendiente.
+let _resumeArmed = false;
+function armPlayerResume(){
+  if(_resumeArmed) return;
+  _resumeArmed = true;
+  const resume = ()=>{
+    _resumeArmed = false;
+    if(player.paused && player.src){
+      player.play().catch(()=>{ armPlayerResume(); });
+    }
+  };
+  document.addEventListener('click', resume, {once:true});
+  document.addEventListener('keydown', resume, {once:true});
+}
+
+const player=document.getElementById('player');
+const progFill=document.getElementById('prog-fill');
+const aFill=document.getElementById('a-fill');
+const aTime=document.getElementById('a-time');
+const btnNext=document.getElementById('btn-next');
+const btnCta=document.getElementById('btn-cta');
+const btnCap=document.getElementById('btn-capacitacion');
+const navPrev=document.getElementById('nav-prev');
+const abar=document.getElementById('abar');
+
+// ── VOICE ──────────────────────────────────────────
+function updateVBadge(){ /* selector de voz retirado de la UI — no-op */ }
+
+function swapVoice(){
+  // skip current phase
+  player.pause();
+  clearTimeout(skipTm);
+  if(audioPhase==='h'){
+    // jump to female phase
+    audioPhase='m';
+    updateVBadge();
+    setPlayIcon(false);
+    clearTimeout(skipTm);
+    skipTm=setTimeout(()=>{
+      loadPhase(cur,'m');
+      player.play().catch(()=>{ clearTimeout(skipTm); skipTm=setTimeout(showContinue,1200); });
+      setPlayIcon(true);
+    }, 1500);
+  } else {
+    showContinue();
+  }
+}
+
+// ── BUILD ──────────────────────────────────────────
+function build(){
+  const cont=document.getElementById('slides');
+  const dotsEl=document.getElementById('dots');
+
+  // set entry assets
+  document.getElementById('entry-bg').style.setProperty('--hero','');
+  document.getElementById('entry-bg').style.backgroundImage=`url('${P.bg0}')`;
+  document.getElementById('e-logo').src=P.logo;
+
+  SLIDES.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='slide'+(i===0?' active':'');
+    el.dataset.id=s.id;
+
+    const cen=s.centered?'centered':'';
+
+    const tagsHtml=s.tags.map(tg=>`<span class="s-tag ${tg.c}">${tg.t}</span>`).join('');
+
+    el.innerHTML=`
+      <div class="s-bg" style="background-image:url('${s.bg}')"></div>
+      <div class="s-ov"></div>
+      <div class="s-ov2"></div>
+      <div class="s-brand">
+        <img src="${P.logo}" alt="Code Cells">
+        <span>Code Cells™</span>
+      </div>
+      <div class="s-content ${cen}">
+        ${s.heroLogo?`<img class="s-hero-logo" src="${P.logo}" alt="Code Cells">`:''}
+        <p class="s-eyebrow"><span class="accent">${(i+1).toString().padStart(2,'0')}</span> · ${s.eyebrow.split('·').pop().trim()}</p>
+        <h2 class="s-title ${s.titleClass||''}">${s.title.replace(/\n/g,'<br>')}</h2>
+        ${s.subtitle?`<p class="s-subtitle">${s.subtitle}</p>`:''}
+        <div class="s-line"></div>
+        <p class="s-body">${s.body.replace(/\n/g,'<br><br>')}</p>
+        ${tagsHtml?`<div class="s-tags">${tagsHtml}</div>`:''}
+      </div>`;
+
+    // Slide NOVA especial
+    if(s.nova) {
+      el.innerHTML = `
+        <div class="s-bg" style="background-image:url('${s.bg}');filter:brightness(0.3) saturate(0.5)"></div>
+        <div class="s-ov"></div>
+        <div class="s-brand"><img src="${P.logo}" alt="Code Cells"><span>Code Cells™</span></div>
+        <div class="nova-nebula-slide">
+          <div class="nebula">
+            <div class="nebula-core"></div>
+            <div class="nebula-ring"></div>
+            <div class="nebula-ring"></div>
+            <div class="nebula-ring"></div>
+          </div>
+          <div class="nova-holo" id="nova-holo">
+            <div class="nova-holo-ring-2"></div>
+            <div class="nova-holo-ring"></div>
+            <div class="nova-holo-face">NOVA</div>
+          </div>
+          <p class="nova-slide-eyebrow">Inteligencia Clínica CODE CELLS®</p>
+          <h2 class="nova-slide-title">Bienvenido a <em>The Biological Network.</em></h2>
+          <p class="nova-slide-body">Ha dado el primer paso hacia una práctica médica de otra dimensión. NOVA le acompañará desde este momento. Cuénteme sobre usted.</p>
+          <div class="nova-slide-chat">
+            <div class="nova-chat-hdr">
+              <div class="nova-chat-dot"></div>
+              <span class="nova-chat-name">NOVA</span>
+              <span class="nova-chat-sub">CODE CELLS® · En línea</span>
+            </div>
+            <div class="nova-msgs" id="nova-slide-msgs">
+              <div class="n-msg n-msg--n">
+                <div class="n-bubble">
+                  Felicitaciones por llegar hasta aquí.<br><br>
+                  The Biological Network no es para todos — es para quienes tienen visión y propósito.<br><br>
+                  Para continuar, ¿podría decirme su nombre y especialidad médica?
+                </div>
+              </div>
+            </div>
+            <div class="nova-input-area">
+              <input type="text" id="nova-slide-input" placeholder="Escribe tu respuesta…" autocomplete="off">
+              <button class="nova-send-btn" id="nova-slide-send">↑</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    cont.appendChild(el);
+
+    const dot=document.createElement('div');
+    dot.className='dot'+(i===0?' on':'');
+    dot.onclick=()=>gotoSlide(i);
+    dotsEl.appendChild(dot);
+  });
+}
+
+// ── NAVIGATION ────────────────────────────────────
+function gotoSlide(idx){
+  if(idx<0||idx>=SLIDES.length) return;
+  clearTimeout(skipTm);
+
+  document.querySelectorAll('.slide')[cur].classList.remove('active');
+  document.querySelectorAll('.dot')[cur].classList.remove('on');
+  cur=idx;
+  document.querySelectorAll('.slide')[cur].classList.add('active');
+  document.querySelectorAll('.dot')[cur].classList.add('on');
+
+  progFill.style.width=(cur/(SLIDES.length-1)*100)+'%';
+  navPrev.classList.toggle('show',cur>0);
+  btnNext.classList.remove('show');
+  btnCta.classList.remove('show');
+  btnCap.classList.remove('show');
+
+  updateVBadge();
+  loadAudio(cur);
+
+  // Guarantee: if both H+M fail, show continue after 6s (3s per voice)
+  skipTm=setTimeout(showContinue, 6000);
+
+  player.play()
+    .then(()=>{ /* playing — ended event handles H→M→Continue chain */ })
+    .catch(()=>{
+      // H failed immediately — try M
+      clearTimeout(skipTm);
+      audioPhase='m';
+      updateVBadge();
+      loadPhase(cur,'m');
+      player.play().catch(()=>{ skipTm=setTimeout(showContinue,1200); armPlayerResume(); });
+    });
+
+  setPlayIcon(true);
+}
+
+function nextSlide(){ if(cur<SLIDES.length-1) gotoSlide(cur+1); }
+function prevSlide(){ if(cur>0) gotoSlide(cur-1); }
+
+function showContinue(){
+  if(SLIDES[cur].cta) { btnCta.classList.add('show'); btnCap.classList.add('show'); }
+  else btnNext.classList.add('show');
+}
+
+// ── AUDIO ─────────────────────────────────────────
+function loadPhase(idx, phase){
+  const s=SLIDES[idx];
+  player.src = phase==='h' ? s.ah : s.am;
+  player.load();
+}
+function loadAudio(idx){
+  // En el slide 0 respetamos la voz elegida en la pantalla de entrada.
+  // En el resto, siempre se arranca en masculina y se encadena a femenina.
+  audioPhase = (idx===0) ? startV : 'h';
+  loadPhase(idx, audioPhase);
+  // Precargar el audio del siguiente slide para que esté listo al llegar.
+  const nxt = SLIDES[idx+1];
+  if(nxt){ preloadAudio(nxt.ah); preloadAudio(nxt.am); }
+}
+
+player.addEventListener('ended',()=>{
+  clearTimeout(skipTm);
+  if(audioPhase==='h'){
+    // Male finished → auto-play female
+    audioPhase='m';
+    updateVBadge();
+    setPlayIcon(false);
+    // 1.5s breath between voices
+    skipTm=setTimeout(()=>{
+      loadPhase(cur,'m');
+      player.play().catch(()=>{ clearTimeout(skipTm); skipTm=setTimeout(showContinue,1200); armPlayerResume(); });
+      setPlayIcon(true);
+    }, 1500);
+  } else {
+    // Female finished → show continue
+    setPlayIcon(false);
+    showContinue();
+  }
+});
+player.addEventListener('error',()=>{
+  clearTimeout(skipTm);
+  if(audioPhase==='h'){
+    // H failed → try M
+    audioPhase='m';
+    updateVBadge();
+    clearTimeout(skipTm);
+    skipTm=setTimeout(()=>{
+      loadPhase(cur,'m');
+      player.play().catch(()=>{ clearTimeout(skipTm); skipTm=setTimeout(showContinue,1200); armPlayerResume(); });
+      setPlayIcon(true);
+    }, 1500);
+  } else {
+    showContinue();
+  }
+});
+player.addEventListener('stalled',()=>{ clearTimeout(skipTm); skipTm=setTimeout(()=>{
+  if(audioPhase==='h'){ audioPhase='m'; updateVBadge(); loadPhase(cur,'m'); player.play().catch(()=>{ showContinue(); armPlayerResume(); }); }
+  else showContinue();
+},2500); });
+player.addEventListener('play', ()=>setPlayIcon(true));
+player.addEventListener('pause',()=>setPlayIcon(false));
+player.addEventListener('timeupdate',()=>{
+  if(!player.duration) return;
+  aFill.style.width=(player.currentTime/player.duration*100)+'%';
+  const rem=Math.max(0,player.duration-player.currentTime);
+  aTime.textContent=fmt(rem);
+});
+
+function toggleAudio(){ if(player.paused) player.play().catch(()=>{}); else player.pause(); }
+function skipAudio(){
+  player.pause();
+  clearTimeout(skipTm);
+  if(audioPhase==='h'){
+    // skip male → jump to female
+    audioPhase='m';
+    updateVBadge();
+    loadPhase(cur,'m');
+    player.play().catch(()=>{ skipTm=setTimeout(showContinue,1000); });
+  } else {
+    // skip female → show continue
+    showContinue();
+  }
+}
+function seekAudio(e){
+  if(!player.duration) return;
+  const r=e.currentTarget.getBoundingClientRect();
+  player.currentTime=((e.clientX-r.left)/r.width)*player.duration;
+}
+function setPlayIcon(p){
+  document.getElementById('i-play').style.display=p?'none':'block';
+  document.getElementById('i-pause').style.display=p?'block':'none';
+}
+function fmt(s){ const m=Math.floor(s/60),sec=Math.floor(s%60); return m+':'+(sec<10?'0':'')+sec; }
+
+// ── ENTRY ─────────────────────────────────────────
+function start(){
+  document.getElementById('entry').classList.add('hide');
+  abar.classList.remove('off');
+  startBgMusic();
+  gotoSlide(0);
+}
+
+// ── KEYBOARD ──────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('entry').classList.contains('hide')) return;
+  if(e.key==='ArrowRight') nextSlide();
+  if(e.key==='ArrowLeft')  prevSlide();
+  if(e.key===' '){ e.preventDefault(); toggleAudio(); }
+});
+
+// ── BACKGROUND MUSIC ──────────────────────────────
+const bgMusic = document.getElementById('bgMusic');
+const muteBtn = document.getElementById('muteBtn');
+let muted = false;
+
+bgMusic.volume = 0.18; // 18% — ambient
+
+function startBgMusic(){
+  muteBtn.classList.add('show');
+  bgMusic.volume = 0.10;
+  bgMusic.play().catch(()=>{
+    // file:// autoplay blocked — retry on next user interaction
+    const retry = ()=>{
+      bgMusic.play().catch(()=>{});
+      document.removeEventListener('click', retry);
+      document.removeEventListener('keydown', retry);
+    };
+    document.addEventListener('click',   retry, {once:true});
+    document.addEventListener('keydown', retry, {once:true});
+  });
+}
+
+function toggleMute(){
+  muted = !muted;
+  bgMusic.volume = muted ? 0 : 0.10;
+  document.getElementById('iconSound').style.display = muted ? 'none'  : 'block';
+  document.getElementById('iconMute').style.display  = muted ? 'block' : 'none';
+  muteBtn.style.opacity = muted ? '0.9' : '';
+}
+
+// Fade music volume while voice is speaking, restore on silence
+function fadeBgTo(vol, ms){
+  const step = (vol - bgMusic.volume) / (ms / 50);
+  const iv = setInterval(()=>{
+    if(muted){ clearInterval(iv); return; }
+    bgMusic.volume = Math.max(0, Math.min(0.18, bgMusic.volume + step));
+    if((step > 0 && bgMusic.volume >= vol) || (step < 0 && bgMusic.volume <= vol)){
+      bgMusic.volume = vol; clearInterval(iv);
+    }
+  }, 50);
+}
+
+// Lower music while voice plays, restore when voice ends
+player.addEventListener('play',  ()=> fadeBgTo(0.08,  800));
+player.addEventListener('pause', ()=> fadeBgTo(0.18, 1200));
+player.addEventListener('ended', ()=> fadeBgTo(0.18, 1200));
+
+// ── INIT ──────────────────────────────────────────
+build();
+
+// ── NOVA SLIDE CHAT ──────────────────────────────
+let novaSlideHistory = [];
+
+function initNovaSlide() {
+  const input = document.getElementById('nova-slide-input');
+  const send  = document.getElementById('nova-slide-send');
+  if (!input || !send) return;
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendNovaSlide(); }
+  });
+  send.addEventListener('click', sendNovaSlide);
+}
+
+function addNovaMsg(rol, texto) {
+  const msgs = document.getElementById('nova-slide-msgs');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = `n-msg n-msg--${rol === 'assistant' ? 'n' : 'u'}`;
+  const b = document.createElement('div');
+  b.className = 'n-bubble';
+  b.innerHTML = texto.split('\n').join('<br>');
+  div.appendChild(b);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showNovaTyping() {
+  const msgs = document.getElementById('nova-slide-msgs');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = 'n-msg n-msg--n';
+  div.id = 'nova-typing';
+  div.innerHTML = '<div class="n-bubble n-typing"><span></span><span></span><span></span></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function hideNovaTyping() { document.getElementById('nova-typing')?.remove(); }
+
+async function sendNovaSlide() {
+  const input = document.getElementById('nova-slide-input');
+  const send  = document.getElementById('nova-slide-send');
+  if (!input) return;
+  const texto = input.value.trim();
+  if (!texto) return;
+
+  input.value = '';
+  send.disabled = true;
+  addNovaMsg('user', texto);
+  novaSlideHistory.push({ role: 'user', content: texto });
+  showNovaTyping();
+
+  const SYSTEM = `Eres NOVA, el copiloto clínico de CODE CELLS®.
+Estás al final de la presentación "The Biological Network". El médico acaba de vivir toda la experiencia y está listo para dar el siguiente paso.
+
+Tu misión: captar sus datos de forma cálida y elegante, y al final invitarlos a completar su registro en la plataforma.
+
+Datos a captar uno a la vez:
+1. Nombre completo
+2. Especialidad médica  
+3. Ciudad donde ejerce
+4. Número de WhatsApp
+5. ¿Tiene código promocional? (si dice que sí, pedírselo; si no, continuar)
+
+Una vez que tengas todos los datos, diles:
+"Perfecto. Su solicitud está lista. Haga clic en el botón de abajo para completar su registro y comenzar sus primeros 30 días gratuitos en CODE CELLS®."
+Y muestra el botón de continuar.
+
+TONO: Mayo Clinic + Apple + Mercedes-Benz. Elegante, cálido, breve.
+Máximo 3-4 líneas por mensaje. Una sola pregunta a la vez.
+Nunca menciones a los fundadores por nombre.
+Responde siempre en español.
+
+Membresía: $500 MXN/mes. Primeros 30 días gratuitos.
+Si tiene código promocional válido, aplicarlo significa descuento o acceso gratuito extendido (le dices que el equipo lo verificará).`;
+
+  try {
+    const res = await fetch('https://codecells.mx/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: SYSTEM,
+        messages: novaSlideHistory,
+        max_tokens: 400
+      })
+    });
+    const data = await res.json();
+    hideNovaTyping();
+    const resp = data.content?.[0]?.text || 'Con gusto le apoyo. ¿Podría repetir?';
+    addNovaMsg('assistant', resp);
+    novaSlideHistory.push({ role: 'assistant', content: resp });
+
+    // Si NOVA ya completó captación, mostrar botón de continuar
+    if (resp.toLowerCase().includes('clic en el botón') || resp.toLowerCase().includes('completar su registro')) {
+      showContinueBtn();
+    }
+  } catch {
+    hideNovaTyping();
+    addNovaMsg('assistant', 'Disculpe la interrupción. Puede continuar en codecells.mx/unete.html');
+  } finally {
+    send.disabled = false;
+    input.focus();
+  }
+}
+
+function showContinueBtn() {
+  const msgs = document.getElementById('nova-slide-msgs');
+  if (!msgs || document.getElementById('nova-continue-btn')) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;justify-content:center;margin-top:8px;';
+  div.innerHTML = `<a id="nova-continue-btn"
+    href="https://codecells.mx/unete.html"
+    target="_blank"
+    style="display:inline-flex;align-items:center;gap:8px;
+           background:var(--c-energy);color:#06200F;
+           font-family:var(--font-body);font-size:13px;font-weight:600;
+           letter-spacing:0.06em;padding:12px 24px;border-radius:8px;
+           text-decoration:none;transition:background .2s;border:none;cursor:pointer;">
+    Completar mi registro →
+  </a>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// Inicializar NOVA slide cuando se navega a ella
+const _origGoto = gotoSlide;
+function gotoSlide(idx) {
+  _origGoto(idx);
+  if (idx === SLIDES.length - 1) {
+    setTimeout(initNovaSlide, 600);
+    // Generar partículas de nebulosa
+    spawnNebulaParticles();
+  }
+}
+
+function spawnNebulaParticles() {
+  const nebula = document.querySelector('.nova-nebula-slide .nebula');
+  if (!nebula) return;
+  const colors = ['#C9A96E','#4FA8A0','#8B7FD4','#E8A33D'];
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'nebula-particle';
+    const size = Math.random() * 4 + 1;
+    const x = 20 + Math.random() * 60; // % horizontal
+    const delay = Math.random() * 4;
+    const dur = 3 + Math.random() * 4;
+    const dx = (Math.random() - 0.5) * 100;
+    p.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${x}%;bottom:10%;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      opacity:0;
+      --dx:${dx}px;
+      animation-duration:${dur}s;
+      animation-delay:${delay}s;
+    `;
+    nebula.appendChild(p);
+  }
+}
+
+</script>
+</body>
+</html>
