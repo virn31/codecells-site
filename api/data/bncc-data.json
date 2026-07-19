@@ -1,0 +1,4377 @@
+{
+  "version": "BNCC v1.0 — PRODUCCION",
+  "ingredientes": [
+    {
+      "id": "ING000001",
+      "nombre": "Tortilla de maiz",
+      "categoria": "Guarnicion",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Tortilla de maiz"
+      ],
+      "nutrimentos": {
+        "kcal": 218,
+        "proteina_g": 5.7,
+        "carbohidratos_g": 45.2,
+        "fibra_g": 4.8,
+        "grasa_g": 2.1,
+        "sodio_mg": 15,
+        "potasio_mg": 187
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 3.01
+      },
+      "indice_glucemico": 50,
+      "carga_glucemica": 22.6,
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Sindrome Metabolico",
+        "Resistencia a la Insulina"
+      ],
+      "evitar_en": [
+        "ERC 4",
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000001",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000002",
+      "nombre": "Frijol negro cocido",
+      "categoria": "Guarnicion",
+      "subcategoria": "Leguminosas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Frijol negro cocido"
+      ],
+      "nutrimentos": {
+        "kcal": 132,
+        "proteina_g": 8.9,
+        "carbohidratos_g": 23.7,
+        "fibra_g": 8.7,
+        "grasa_g": 0.5,
+        "sodio_mg": 2,
+        "potasio_mg": 355
+      },
+      "smae": {
+        "grupo": "Leguminosas",
+        "raciones_por_100g": 1.58
+      },
+      "indice_glucemico": 30,
+      "carga_glucemica": 7.1,
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Dislipidemia",
+        "Sindrome Metabolico",
+        "Obesidad"
+      ],
+      "evitar_en": [
+        "ERC 3",
+        "ERC 4",
+        "ERC 5",
+        "Gota"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000002",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000003",
+      "nombre": "Pechuga de pollo cocida sin piel",
+      "categoria": "Pollo",
+      "subcategoria": "AOA muy magra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Pechuga de pollo cocida sin piel"
+      ],
+      "nutrimentos": {
+        "kcal": 165,
+        "proteina_g": 31.0,
+        "carbohidratos_g": 0.0,
+        "fibra_g": 0.0,
+        "grasa_g": 3.6,
+        "sodio_mg": 74,
+        "potasio_mg": 256
+      },
+      "smae": {
+        "grupo": "Alimentos de origen animal",
+        "raciones_por_100g": 4.43
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [
+        "Obesidad",
+        "Sarcopenia",
+        "Postquirurgico",
+        "Diabetes Tipo 2"
+      ],
+      "evitar_en": [
+        "Gota"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000003",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000004",
+      "nombre": "Huevo entero cocido",
+      "categoria": "Huevos",
+      "subcategoria": "AOA moderada grasa",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Huevo entero cocido"
+      ],
+      "nutrimentos": {
+        "kcal": 155,
+        "proteina_g": 12.6,
+        "carbohidratos_g": 1.1,
+        "fibra_g": 0.0,
+        "grasa_g": 10.6,
+        "sodio_mg": 124,
+        "potasio_mg": 126
+      },
+      "smae": {
+        "grupo": "Alimentos de origen animal",
+        "raciones_por_100g": 1.8
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [
+        "Sarcopenia",
+        "Postquirurgico",
+        "Embarazo"
+      ],
+      "evitar_en": [
+        "Dislipidemia"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000004",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000005",
+      "nombre": "Arroz blanco cocido",
+      "categoria": "Guarnicion",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Arroz blanco cocido"
+      ],
+      "nutrimentos": {
+        "kcal": 130,
+        "proteina_g": 2.7,
+        "carbohidratos_g": 28.2,
+        "fibra_g": 0.4,
+        "grasa_g": 0.3,
+        "sodio_mg": 1,
+        "potasio_mg": 35
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 1.88
+      },
+      "indice_glucemico": 73,
+      "carga_glucemica": 20.6,
+      "apto_para": [
+        "ERC 3",
+        "ERC 4",
+        "ERC 5"
+      ],
+      "evitar_en": [
+        "Diabetes Tipo 2",
+        "Prediabetes",
+        "Resistencia a la Insulina"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000005",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000006",
+      "nombre": "Aguacate",
+      "categoria": "Guarnicion",
+      "subcategoria": "Grasas con proteina moderada",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Aguacate"
+      ],
+      "nutrimentos": {
+        "kcal": 160,
+        "proteina_g": 2.0,
+        "carbohidratos_g": 8.5,
+        "fibra_g": 6.7,
+        "grasa_g": 14.7,
+        "sodio_mg": 7,
+        "potasio_mg": 485
+      },
+      "smae": {
+        "grupo": "Grasas",
+        "raciones_por_100g": 2.94
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 1.3,
+      "apto_para": [
+        "Dislipidemia",
+        "Hipertrigliceridemia",
+        "Sindrome Metabolico"
+      ],
+      "evitar_en": [
+        "ERC 4",
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000006",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000007",
+      "nombre": "Jitomate",
+      "categoria": "Ensalada",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Jitomate"
+      ],
+      "nutrimentos": {
+        "kcal": 18,
+        "proteina_g": 0.9,
+        "carbohidratos_g": 3.9,
+        "fibra_g": 1.2,
+        "grasa_g": 0.2,
+        "sodio_mg": 5,
+        "potasio_mg": 237
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0.78
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.6,
+      "apto_para": [
+        "Hipertension",
+        "Obesidad"
+      ],
+      "evitar_en": [
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000007",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000008",
+      "nombre": "Nopal cocido",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Nopal cocido"
+      ],
+      "nutrimentos": {
+        "kcal": 16,
+        "proteina_g": 1.4,
+        "carbohidratos_g": 3.3,
+        "fibra_g": 2.2,
+        "grasa_g": 0.1,
+        "sodio_mg": 20,
+        "potasio_mg": 296
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0.66
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.5,
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Prediabetes",
+        "Resistencia a la Insulina",
+        "Obesidad"
+      ],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000008",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000009",
+      "nombre": "Papa cocida con cascara",
+      "categoria": "Guarnicion",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Papa cocida con cascara"
+      ],
+      "nutrimentos": {
+        "kcal": 87,
+        "proteina_g": 1.9,
+        "carbohidratos_g": 20.1,
+        "fibra_g": 1.8,
+        "grasa_g": 0.1,
+        "sodio_mg": 6,
+        "potasio_mg": 379
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 1.34
+      },
+      "indice_glucemico": 78,
+      "carga_glucemica": 15.7,
+      "apto_para": [],
+      "evitar_en": [
+        "Diabetes Tipo 2",
+        "ERC 3",
+        "ERC 4",
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000009",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000010",
+      "nombre": "Camote cocido",
+      "categoria": "Guarnicion",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Camote cocido"
+      ],
+      "nutrimentos": {
+        "kcal": 90,
+        "proteina_g": 2.0,
+        "carbohidratos_g": 20.7,
+        "fibra_g": 3.3,
+        "grasa_g": 0.1,
+        "sodio_mg": 36,
+        "potasio_mg": 337
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 1.38
+      },
+      "indice_glucemico": 63,
+      "carga_glucemica": 13.0,
+      "apto_para": [
+        "Anemia"
+      ],
+      "evitar_en": [
+        "ERC 3",
+        "ERC 4",
+        "ERC 5",
+        "Diabetes Tipo 2"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000010",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000011",
+      "nombre": "Platano",
+      "categoria": "Postre Saludable",
+      "subcategoria": "Frutas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Platano"
+      ],
+      "nutrimentos": {
+        "kcal": 89,
+        "proteina_g": 1.1,
+        "carbohidratos_g": 22.8,
+        "fibra_g": 2.6,
+        "grasa_g": 0.3,
+        "sodio_mg": 1,
+        "potasio_mg": 358
+      },
+      "smae": {
+        "grupo": "Frutas",
+        "raciones_por_100g": 1.52
+      },
+      "indice_glucemico": 51,
+      "carga_glucemica": 11.6,
+      "apto_para": [
+        "Sarcopenia",
+        "Embarazo"
+      ],
+      "evitar_en": [
+        "ERC 3",
+        "ERC 4",
+        "ERC 5",
+        "Diabetes Tipo 2"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000011",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000012",
+      "nombre": "Manzana con cascara",
+      "categoria": "Postre Saludable",
+      "subcategoria": "Frutas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Manzana con cascara"
+      ],
+      "nutrimentos": {
+        "kcal": 52,
+        "proteina_g": 0.3,
+        "carbohidratos_g": 13.8,
+        "fibra_g": 2.4,
+        "grasa_g": 0.2,
+        "sodio_mg": 1,
+        "potasio_mg": 107
+      },
+      "smae": {
+        "grupo": "Frutas",
+        "raciones_por_100g": 0.92
+      },
+      "indice_glucemico": 36,
+      "carga_glucemica": 5.0,
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Sindrome Metabolico"
+      ],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000012",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000013",
+      "nombre": "Papaya",
+      "categoria": "Postre Saludable",
+      "subcategoria": "Frutas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Papaya"
+      ],
+      "nutrimentos": {
+        "kcal": 43,
+        "proteina_g": 0.5,
+        "carbohidratos_g": 10.8,
+        "fibra_g": 1.7,
+        "grasa_g": 0.3,
+        "sodio_mg": 8,
+        "potasio_mg": 182
+      },
+      "smae": {
+        "grupo": "Frutas",
+        "raciones_por_100g": 0.72
+      },
+      "indice_glucemico": 59,
+      "carga_glucemica": 6.4,
+      "apto_para": [
+        "Sindrome Metabolico"
+      ],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000013",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000014",
+      "nombre": "Avena cocida en agua",
+      "categoria": "Desayuno",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Avena cocida en agua"
+      ],
+      "nutrimentos": {
+        "kcal": 71,
+        "proteina_g": 2.5,
+        "carbohidratos_g": 12.0,
+        "fibra_g": 1.7,
+        "grasa_g": 1.5,
+        "sodio_mg": 4,
+        "potasio_mg": 61
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 0.8
+      },
+      "indice_glucemico": 55,
+      "carga_glucemica": 6.6,
+      "apto_para": [
+        "Dislipidemia",
+        "Diabetes Tipo 2",
+        "Hipertrigliceridemia"
+      ],
+      "evitar_en": [
+        "ERC 4",
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000014",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000015",
+      "nombre": "Leche descremada",
+      "categoria": "Bebida",
+      "subcategoria": "Lacteos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Leche descremada"
+      ],
+      "nutrimentos": {
+        "kcal": 34,
+        "proteina_g": 3.4,
+        "carbohidratos_g": 5.0,
+        "fibra_g": 0.0,
+        "grasa_g": 0.1,
+        "sodio_mg": 42,
+        "potasio_mg": 156
+      },
+      "smae": {
+        "grupo": "Leche",
+        "raciones_por_100g": 0.42
+      },
+      "indice_glucemico": 32,
+      "carga_glucemica": 1.6,
+      "apto_para": [
+        "Obesidad",
+        "Sarcopenia"
+      ],
+      "evitar_en": [
+        "ERC 4",
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000015",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000016",
+      "nombre": "Yogur natural bajo en grasa",
+      "categoria": "Colacion Matutina",
+      "subcategoria": "Lacteos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Yogur natural bajo en grasa"
+      ],
+      "nutrimentos": {
+        "kcal": 63,
+        "proteina_g": 5.3,
+        "carbohidratos_g": 7.0,
+        "fibra_g": 0.0,
+        "grasa_g": 1.6,
+        "sodio_mg": 70,
+        "potasio_mg": 234
+      },
+      "smae": {
+        "grupo": "Leche",
+        "raciones_por_100g": 0.66
+      },
+      "indice_glucemico": 35,
+      "carga_glucemica": 2.5,
+      "apto_para": [
+        "Sindrome Metabolico",
+        "Obesidad"
+      ],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000016",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000017",
+      "nombre": "Queso panela",
+      "categoria": "Colacion Vespertina",
+      "subcategoria": "AOA moderada grasa",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Queso panela"
+      ],
+      "nutrimentos": {
+        "kcal": 264,
+        "proteina_g": 18.0,
+        "carbohidratos_g": 3.0,
+        "fibra_g": 0.0,
+        "grasa_g": 20.0,
+        "sodio_mg": 380,
+        "potasio_mg": 95
+      },
+      "smae": {
+        "grupo": "Alimentos de origen animal",
+        "raciones_por_100g": 2.57
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [
+        "Sarcopenia",
+        "Embarazo"
+      ],
+      "evitar_en": [
+        "Hipertension",
+        "ERC 3",
+        "ERC 4",
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000017",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000018",
+      "nombre": "Atun en agua escurrido",
+      "categoria": "Pescado",
+      "subcategoria": "AOA muy magra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Atun en agua escurrido"
+      ],
+      "nutrimentos": {
+        "kcal": 116,
+        "proteina_g": 25.5,
+        "carbohidratos_g": 0.0,
+        "fibra_g": 0.0,
+        "grasa_g": 0.8,
+        "sodio_mg": 247,
+        "potasio_mg": 237
+      },
+      "smae": {
+        "grupo": "Alimentos de origen animal",
+        "raciones_por_100g": 3.64
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [
+        "Obesidad",
+        "Sarcopenia",
+        "Postquirurgico"
+      ],
+      "evitar_en": [
+        "Embarazo"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000018",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000019",
+      "nombre": "Almendras",
+      "categoria": "Snack",
+      "subcategoria": "Grasas con proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Almendras"
+      ],
+      "nutrimentos": {
+        "kcal": 579,
+        "proteina_g": 21.2,
+        "carbohidratos_g": 21.6,
+        "fibra_g": 12.5,
+        "grasa_g": 49.9,
+        "sodio_mg": 1,
+        "potasio_mg": 733
+      },
+      "smae": {
+        "grupo": "Grasas",
+        "raciones_por_100g": 9.98
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 3.2,
+      "apto_para": [
+        "Dislipidemia",
+        "Sindrome Metabolico"
+      ],
+      "evitar_en": [
+        "ERC 3",
+        "ERC 4",
+        "ERC 5"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000019",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000020",
+      "nombre": "Aceite de oliva",
+      "categoria": "Guarnicion",
+      "subcategoria": "Grasas sin proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Aceite de oliva"
+      ],
+      "nutrimentos": {
+        "kcal": 884,
+        "proteina_g": 0.0,
+        "carbohidratos_g": 0.0,
+        "fibra_g": 0.0,
+        "grasa_g": 100.0,
+        "sodio_mg": 2,
+        "potasio_mg": 1
+      },
+      "smae": {
+        "grupo": "Grasas",
+        "raciones_por_100g": 20.0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [
+        "Dislipidemia",
+        "Sindrome Metabolico"
+      ],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000020",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000021",
+      "nombre": "Chile poblano",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Chile poblano"
+      ],
+      "nutrimentos": {
+        "kcal": 27,
+        "proteina_g": 1.3,
+        "carbohidratos_g": 5.3,
+        "fibra_g": 1.8,
+        "grasa_g": 0.2,
+        "sodio_mg": 3,
+        "potasio_mg": 251
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 1.06
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.8,
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Obesidad"
+      ],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000021",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000022",
+      "nombre": "Calabacita cocida",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Calabacita cocida"
+      ],
+      "nutrimentos": {
+        "kcal": 17,
+        "proteina_g": 1.2,
+        "carbohidratos_g": 3.1,
+        "fibra_g": 1.0,
+        "grasa_g": 0.3,
+        "sodio_mg": 3,
+        "potasio_mg": 261
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0.62
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.5,
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Obesidad",
+        "ERC 1",
+        "ERC 2"
+      ],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000022",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000023",
+      "nombre": "Cebolla blanca",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Cebolla blanca"
+      ],
+      "nutrimentos": {
+        "kcal": 40,
+        "proteina_g": 1.1,
+        "carbohidratos_g": 9.3,
+        "fibra_g": 1.7,
+        "grasa_g": 0.1,
+        "sodio_mg": 4,
+        "potasio_mg": 146
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 1.86
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 1.4,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000023",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000024",
+      "nombre": "Chile serrano",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Chile serrano"
+      ],
+      "nutrimentos": {
+        "kcal": 32,
+        "proteina_g": 1.7,
+        "carbohidratos_g": 6.7,
+        "fibra_g": 3.7,
+        "grasa_g": 0.4,
+        "sodio_mg": 10,
+        "potasio_mg": 305
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 1.34
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 1.0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000024",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000025",
+      "nombre": "Cilantro",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Cilantro"
+      ],
+      "nutrimentos": {
+        "kcal": 23,
+        "proteina_g": 2.1,
+        "carbohidratos_g": 3.7,
+        "fibra_g": 2.8,
+        "grasa_g": 0.5,
+        "sodio_mg": 46,
+        "potasio_mg": 521
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0.74
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.6,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000025",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000026",
+      "nombre": "Sal",
+      "categoria": "Guarnicion",
+      "subcategoria": "Condimentos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Sal"
+      ],
+      "nutrimentos": {
+        "kcal": 0,
+        "proteina_g": 0.0,
+        "carbohidratos_g": 0.0,
+        "fibra_g": 0.0,
+        "grasa_g": 0.0,
+        "sodio_mg": 38758,
+        "potasio_mg": 8
+      },
+      "smae": {
+        "grupo": "Condimentos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [
+        "Hipertension"
+      ],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000026",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000027",
+      "nombre": "Espinaca",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Espinaca"
+      ],
+      "nutrimentos": {
+        "kcal": 23,
+        "proteina_g": 2.9,
+        "carbohidratos_g": 3.6,
+        "fibra_g": 2.2,
+        "grasa_g": 0.4,
+        "sodio_mg": 79,
+        "potasio_mg": 558
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.5,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000027",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000028",
+      "nombre": "Canela",
+      "categoria": "Guarnicion",
+      "subcategoria": "Condimentos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Canela"
+      ],
+      "nutrimentos": {
+        "kcal": 247,
+        "proteina_g": 4.0,
+        "carbohidratos_g": 80.6,
+        "fibra_g": 53.1,
+        "grasa_g": 1.2,
+        "sodio_mg": 10,
+        "potasio_mg": 431
+      },
+      "smae": {
+        "grupo": "Condimentos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000028",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000029",
+      "nombre": "Nuez (Juglans regia)",
+      "categoria": "Snack",
+      "subcategoria": "Grasas con proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Nuez"
+      ],
+      "nutrimentos": {
+        "kcal": 654,
+        "proteina_g": 15.2,
+        "carbohidratos_g": 13.7,
+        "fibra_g": 6.7,
+        "grasa_g": 65.2,
+        "sodio_mg": 2,
+        "potasio_mg": 441
+      },
+      "smae": {
+        "grupo": "Grasas con proteina",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 2.1,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000029",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Nuez"
+    },
+    {
+      "id": "ING000030",
+      "nombre": "Avena cruda",
+      "categoria": "Desayuno",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Avena cruda"
+      ],
+      "nutrimentos": {
+        "kcal": 389,
+        "proteina_g": 16.9,
+        "carbohidratos_g": 66.3,
+        "fibra_g": 10.6,
+        "grasa_g": 6.9,
+        "sodio_mg": 2,
+        "potasio_mg": 429
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 55,
+      "carga_glucemica": 36.5,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000030",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000031",
+      "nombre": "Totopo de maíz horneado",
+      "categoria": "Snack",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Totopo horneado"
+      ],
+      "nutrimentos": {
+        "kcal": 410,
+        "proteina_g": 8.0,
+        "carbohidratos_g": 74.0,
+        "fibra_g": 6.0,
+        "grasa_g": 8.0,
+        "sodio_mg": 280,
+        "potasio_mg": 200
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 63,
+      "carga_glucemica": 46.6,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000031",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Totopo horneado"
+    },
+    {
+      "id": "ING000032",
+      "nombre": "Salsa verde cocida",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Salsa verde"
+      ],
+      "nutrimentos": {
+        "kcal": 29,
+        "proteina_g": 1.2,
+        "carbohidratos_g": 5.7,
+        "fibra_g": 1.5,
+        "grasa_g": 0.5,
+        "sodio_mg": 220,
+        "potasio_mg": 260
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.9,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000032",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Salsa verde"
+    },
+    {
+      "id": "ING000033",
+      "nombre": "Crema reducida en grasa",
+      "categoria": "Guarnicion",
+      "subcategoria": "Lacteos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Crema light"
+      ],
+      "nutrimentos": {
+        "kcal": 180,
+        "proteina_g": 2.5,
+        "carbohidratos_g": 4.0,
+        "fibra_g": 0.0,
+        "grasa_g": 17.0,
+        "sodio_mg": 60,
+        "potasio_mg": 110
+      },
+      "smae": {
+        "grupo": "Lacteos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000033",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Crema light"
+    },
+    {
+      "id": "ING000034",
+      "nombre": "Pan integral",
+      "categoria": "Guarnicion",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Pan integral"
+      ],
+      "nutrimentos": {
+        "kcal": 247,
+        "proteina_g": 13.0,
+        "carbohidratos_g": 41.0,
+        "fibra_g": 7.0,
+        "grasa_g": 3.4,
+        "sodio_mg": 400,
+        "potasio_mg": 250
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 51,
+      "carga_glucemica": 20.9,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000034",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000035",
+      "nombre": "Frijoles bayos cocidos",
+      "categoria": "Guarnicion",
+      "subcategoria": "Leguminosas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Frijoles bayos"
+      ],
+      "nutrimentos": {
+        "kcal": 143,
+        "proteina_g": 9.0,
+        "carbohidratos_g": 26.0,
+        "fibra_g": 9.0,
+        "grasa_g": 0.7,
+        "sodio_mg": 1,
+        "potasio_mg": 436
+      },
+      "smae": {
+        "grupo": "Leguminosas",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 30,
+      "carga_glucemica": 7.8,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000035",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Frijoles bayos"
+    },
+    {
+      "id": "ING000036",
+      "nombre": "Pico de gallo",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Pico de gallo"
+      ],
+      "nutrimentos": {
+        "kcal": 25,
+        "proteina_g": 1.0,
+        "carbohidratos_g": 5.5,
+        "fibra_g": 1.5,
+        "grasa_g": 0.2,
+        "sodio_mg": 60,
+        "potasio_mg": 200
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.8,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000036",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000037",
+      "nombre": "Queso fresco",
+      "categoria": "Guarnicion",
+      "subcategoria": "AOA moderada grasa",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Queso fresco"
+      ],
+      "nutrimentos": {
+        "kcal": 253,
+        "proteina_g": 17.5,
+        "carbohidratos_g": 3.0,
+        "fibra_g": 0.0,
+        "grasa_g": 19.0,
+        "sodio_mg": 350,
+        "potasio_mg": 90
+      },
+      "smae": {
+        "grupo": "AOA moderada grasa",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000037",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000038",
+      "nombre": "Clara de huevo",
+      "categoria": "Huevos",
+      "subcategoria": "AOA muy magra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Clara de huevo"
+      ],
+      "nutrimentos": {
+        "kcal": 52,
+        "proteina_g": 10.9,
+        "carbohidratos_g": 0.7,
+        "fibra_g": 0.0,
+        "grasa_g": 0.2,
+        "sodio_mg": 166,
+        "potasio_mg": 163
+      },
+      "smae": {
+        "grupo": "AOA muy magra",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000038",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000039",
+      "nombre": "Tortilla integral",
+      "categoria": "Guarnicion",
+      "subcategoria": "Cereales y tuberculos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Tortilla integral"
+      ],
+      "nutrimentos": {
+        "kcal": 250,
+        "proteina_g": 8.0,
+        "carbohidratos_g": 44.0,
+        "fibra_g": 6.0,
+        "grasa_g": 5.0,
+        "sodio_mg": 380,
+        "potasio_mg": 150
+      },
+      "smae": {
+        "grupo": "Cereales y tuberculos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 45,
+      "carga_glucemica": 19.8,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000039",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000040",
+      "nombre": "Lechuga",
+      "categoria": "Ensalada",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Lechuga"
+      ],
+      "nutrimentos": {
+        "kcal": 15,
+        "proteina_g": 1.4,
+        "carbohidratos_g": 2.9,
+        "fibra_g": 1.3,
+        "grasa_g": 0.2,
+        "sodio_mg": 28,
+        "potasio_mg": 194
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.4,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000040",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000041",
+      "nombre": "Yogur griego natural",
+      "categoria": "Colacion Matutina",
+      "subcategoria": "Lacteos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Yogur griego natural"
+      ],
+      "nutrimentos": {
+        "kcal": 97,
+        "proteina_g": 9.0,
+        "carbohidratos_g": 3.6,
+        "fibra_g": 0.0,
+        "grasa_g": 0.4,
+        "sodio_mg": 36,
+        "potasio_mg": 141
+      },
+      "smae": {
+        "grupo": "Lacteos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 11,
+      "carga_glucemica": 0.4,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000041",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000042",
+      "nombre": "Fresas",
+      "categoria": "Postre Saludable",
+      "subcategoria": "Frutas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Fresas"
+      ],
+      "nutrimentos": {
+        "kcal": 32,
+        "proteina_g": 0.7,
+        "carbohidratos_g": 7.7,
+        "fibra_g": 2.0,
+        "grasa_g": 0.3,
+        "sodio_mg": 1,
+        "potasio_mg": 153
+      },
+      "smae": {
+        "grupo": "Frutas",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 40,
+      "carga_glucemica": 3.1,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000042",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000043",
+      "nombre": "Arandanos",
+      "categoria": "Postre Saludable",
+      "subcategoria": "Frutas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Arandanos"
+      ],
+      "nutrimentos": {
+        "kcal": 57,
+        "proteina_g": 0.7,
+        "carbohidratos_g": 14.5,
+        "fibra_g": 2.4,
+        "grasa_g": 0.3,
+        "sodio_mg": 1,
+        "potasio_mg": 77
+      },
+      "smae": {
+        "grupo": "Frutas",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 53,
+      "carga_glucemica": 7.7,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000043",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000044",
+      "nombre": "Chia",
+      "categoria": "Snack",
+      "subcategoria": "Grasas con proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Chia"
+      ],
+      "nutrimentos": {
+        "kcal": 486,
+        "proteina_g": 16.5,
+        "carbohidratos_g": 42.1,
+        "fibra_g": 34.4,
+        "grasa_g": 30.7,
+        "sodio_mg": 16,
+        "potasio_mg": 407
+      },
+      "smae": {
+        "grupo": "Grasas con proteina",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 1,
+      "carga_glucemica": 0.4,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000044",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000045",
+      "nombre": "Proteína de suero de leche (Whey Protein)",
+      "categoria": "Snack",
+      "subcategoria": "AOA muy magra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Proteina de suero"
+      ],
+      "nutrimentos": {
+        "kcal": 375,
+        "proteina_g": 80.0,
+        "carbohidratos_g": 8.0,
+        "fibra_g": 1.0,
+        "grasa_g": 1.5,
+        "sodio_mg": 300,
+        "potasio_mg": 300
+      },
+      "smae": {
+        "grupo": "AOA muy magra",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000045",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Proteina de suero"
+    },
+    {
+      "id": "ING000046",
+      "nombre": "Champinon",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Champinon"
+      ],
+      "nutrimentos": {
+        "kcal": 22,
+        "proteina_g": 3.1,
+        "carbohidratos_g": 3.3,
+        "fibra_g": 1.0,
+        "grasa_g": 0.3,
+        "sodio_mg": 5,
+        "potasio_mg": 318
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.5,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000046",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000047",
+      "nombre": "Salsa roja cocida",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Salsa roja"
+      ],
+      "nutrimentos": {
+        "kcal": 30,
+        "proteina_g": 1.1,
+        "carbohidratos_g": 6.0,
+        "fibra_g": 1.3,
+        "grasa_g": 0.3,
+        "sodio_mg": 230,
+        "potasio_mg": 250
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.9,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000047",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Salsa roja"
+    },
+    {
+      "id": "ING000048",
+      "nombre": "Pera",
+      "categoria": "Postre Saludable",
+      "subcategoria": "Frutas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Pera"
+      ],
+      "nutrimentos": {
+        "kcal": 57,
+        "proteina_g": 0.4,
+        "carbohidratos_g": 15.2,
+        "fibra_g": 3.1,
+        "grasa_g": 0.1,
+        "sodio_mg": 1,
+        "potasio_mg": 116
+      },
+      "smae": {
+        "grupo": "Frutas",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 38,
+      "carga_glucemica": 5.8,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000048",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000049",
+      "nombre": "Pepino",
+      "categoria": "Snack",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Pepino"
+      ],
+      "nutrimentos": {
+        "kcal": 15,
+        "proteina_g": 0.7,
+        "carbohidratos_g": 3.6,
+        "fibra_g": 0.5,
+        "grasa_g": 0.1,
+        "sodio_mg": 2,
+        "potasio_mg": 147
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.5,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000049",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000050",
+      "nombre": "Jugo de limon",
+      "categoria": "Guarnicion",
+      "subcategoria": "Condimentos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Jugo de limon"
+      ],
+      "nutrimentos": {
+        "kcal": 22,
+        "proteina_g": 0.4,
+        "carbohidratos_g": 7.0,
+        "fibra_g": 0.4,
+        "grasa_g": 0.2,
+        "sodio_mg": 2,
+        "potasio_mg": 102
+      },
+      "smae": {
+        "grupo": "Condimentos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 1.1,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000050",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000051",
+      "nombre": "Chile en polvo sin azúcar añadida",
+      "categoria": "Guarnicion",
+      "subcategoria": "Condimentos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Chile en polvo"
+      ],
+      "nutrimentos": {
+        "kcal": 282,
+        "proteina_g": 13.5,
+        "carbohidratos_g": 49.7,
+        "fibra_g": 34.8,
+        "grasa_g": 14.3,
+        "sodio_mg": 2001,
+        "potasio_mg": 1950
+      },
+      "smae": {
+        "grupo": "Condimentos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000051",
+      "estado_validacion": "Validado",
+      "nombre_anterior": "Chile en polvo"
+    },
+    {
+      "id": "ING000052",
+      "nombre": "Jicama",
+      "categoria": "Snack",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Jicama"
+      ],
+      "nutrimentos": {
+        "kcal": 38,
+        "proteina_g": 0.7,
+        "carbohidratos_g": 8.8,
+        "fibra_g": 4.9,
+        "grasa_g": 0.1,
+        "sodio_mg": 4,
+        "potasio_mg": 150
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 1.3,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000052",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000053",
+      "nombre": "Zanahoria baby",
+      "categoria": "Snack",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Zanahoria baby"
+      ],
+      "nutrimentos": {
+        "kcal": 35,
+        "proteina_g": 0.6,
+        "carbohidratos_g": 8.2,
+        "fibra_g": 2.9,
+        "grasa_g": 0.1,
+        "sodio_mg": 58,
+        "potasio_mg": 237
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 35,
+      "carga_glucemica": 2.9,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000053",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000054",
+      "nombre": "Gelatina sin azucar preparada",
+      "categoria": "Postre Saludable",
+      "subcategoria": "Postres",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Gelatina sin azucar preparada"
+      ],
+      "nutrimentos": {
+        "kcal": 8,
+        "proteina_g": 1.5,
+        "carbohidratos_g": 0.0,
+        "fibra_g": 0.0,
+        "grasa_g": 0.0,
+        "sodio_mg": 45,
+        "potasio_mg": 5
+      },
+      "smae": {
+        "grupo": "Postres",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "id_anterior": "MX000054",
+      "estado_validacion": "Validado"
+    },
+    {
+      "id": "ING000055",
+      "nombre": "Bistec de res magro",
+      "categoria": "Res",
+      "subcategoria": "AOA magra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Bistec de res magro"
+      ],
+      "nutrimentos": {
+        "kcal": 183,
+        "proteina_g": 27.0,
+        "carbohidratos_g": 0.0,
+        "fibra_g": 0.0,
+        "grasa_g": 7.5,
+        "sodio_mg": 60,
+        "potasio_mg": 370
+      },
+      "smae": {
+        "grupo": "AOA magra",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Validado",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Animal",
+      "vegetariano": false,
+      "vegano": false
+    },
+    {
+      "id": "ING000056",
+      "nombre": "Filete de pescado blanco",
+      "categoria": "Pescado",
+      "subcategoria": "AOA muy magra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Filete de pescado blanco"
+      ],
+      "nutrimentos": {
+        "kcal": 128,
+        "proteina_g": 26.0,
+        "carbohidratos_g": 0.0,
+        "fibra_g": 0.0,
+        "grasa_g": 2.7,
+        "sodio_mg": 56,
+        "potasio_mg": 380
+      },
+      "smae": {
+        "grupo": "AOA muy magra",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Validado",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Animal",
+      "vegetariano": false,
+      "vegano": false
+    },
+    {
+      "id": "ING000057",
+      "nombre": "Ajo",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Ajo"
+      ],
+      "nutrimentos": {
+        "kcal": 149,
+        "proteina_g": 6.4,
+        "carbohidratos_g": 33.1,
+        "fibra_g": 2.1,
+        "grasa_g": 0.5,
+        "sodio_mg": 17,
+        "potasio_mg": 401
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 30,
+      "carga_glucemica": 9.9,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Validado",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Vegetal",
+      "vegetariano": true,
+      "vegano": true
+    },
+    {
+      "id": "ING000058",
+      "nombre": "Limon",
+      "categoria": "Guarnicion",
+      "subcategoria": "Frutas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Limon"
+      ],
+      "nutrimentos": {
+        "kcal": 30,
+        "proteina_g": 0.7,
+        "carbohidratos_g": 10.5,
+        "fibra_g": 2.8,
+        "grasa_g": 0.2,
+        "sodio_mg": 2,
+        "potasio_mg": 102
+      },
+      "smae": {
+        "grupo": "Frutas",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 20,
+      "carga_glucemica": 2.1,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Validado",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Vegetal",
+      "vegetariano": true,
+      "vegano": true
+    },
+    {
+      "id": "ING000059",
+      "nombre": "Pimienta negra",
+      "categoria": "Guarnicion",
+      "subcategoria": "Condimentos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Pimienta negra"
+      ],
+      "nutrimentos": {
+        "kcal": 251,
+        "proteina_g": 10.4,
+        "carbohidratos_g": 63.9,
+        "fibra_g": 25.3,
+        "grasa_g": 3.3,
+        "sodio_mg": 20,
+        "potasio_mg": 1329
+      },
+      "smae": {
+        "grupo": "Condimentos",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 0,
+      "carga_glucemica": 0,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Validado",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Vegetal",
+      "vegetariano": true,
+      "vegano": true
+    },
+    {
+      "id": "ING000060",
+      "nombre": "Salsa de tomate",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Salsa de tomate"
+      ],
+      "nutrimentos": {
+        "kcal": 24,
+        "proteina_g": 1.2,
+        "carbohidratos_g": 4.6,
+        "fibra_g": 1.2,
+        "grasa_g": 0.2,
+        "sodio_mg": 400,
+        "potasio_mg": 280
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.7,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Pendiente",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Vegetal",
+      "vegetariano": true,
+      "vegano": true
+    },
+    {
+      "id": "ING000061",
+      "nombre": "Lechuga romana",
+      "categoria": "Ensalada",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Lechuga romana"
+      ],
+      "nutrimentos": {
+        "kcal": 17,
+        "proteina_g": 1.2,
+        "carbohidratos_g": 3.3,
+        "fibra_g": 2.1,
+        "grasa_g": 0.3,
+        "sodio_mg": 8,
+        "potasio_mg": 247
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.5,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Validado",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Vegetal",
+      "vegetariano": true,
+      "vegano": true
+    },
+    {
+      "id": "ING000062",
+      "nombre": "Col blanca",
+      "categoria": "Guarnicion",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "cantidad": 100,
+        "unidad": "g"
+      },
+      "ingredientes": [
+        "Col blanca"
+      ],
+      "nutrimentos": {
+        "kcal": 25,
+        "proteina_g": 1.3,
+        "carbohidratos_g": 5.8,
+        "fibra_g": 2.5,
+        "grasa_g": 0.1,
+        "sodio_mg": 18,
+        "potasio_mg": 170
+      },
+      "smae": {
+        "grupo": "Verduras",
+        "raciones_por_100g": 0
+      },
+      "indice_glucemico": 15,
+      "carga_glucemica": 0.9,
+      "apto_para": [],
+      "evitar_en": [],
+      "objetivos": [],
+      "tags": [
+        "fuente:USDA_FDC"
+      ],
+      "estado_validacion": "Validado",
+      "tiempo_preparacion": 0,
+      "costo": "",
+      "meal_prep": true,
+      "popularidad": 0,
+      "origen": "Vegetal",
+      "vegetariano": true,
+      "vegano": true
+    }
+  ],
+  "platillos": [
+    {
+      "id": "DES000001",
+      "nombre": "Huevos a la Mexicana",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en proteína",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 272
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo entero"
+        },
+        {
+          "id": "ING000007",
+          "gramos": 60,
+          "_nombre_ref": "Jitomate"
+        },
+        {
+          "id": "ING000023",
+          "gramos": 30,
+          "_nombre_ref": "Cebolla blanca"
+        },
+        {
+          "id": "ING000024",
+          "gramos": 10,
+          "_nombre_ref": "Chile serrano"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla de maíz"
+        },
+        {
+          "id": "ING000025",
+          "gramos": 5,
+          "_nombre_ref": "Cilantro"
+        },
+        {
+          "id": "ING000026",
+          "gramos": 2,
+          "_nombre_ref": "Sal"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 357.1,
+        "proteina_g": 17.2,
+        "carbohidratos_g": 34.2,
+        "grasas_g": 17.1,
+        "fibra_g": 4.6
+      },
+      "smae": {
+        "AOA": 2.5,
+        "Verduras": 1.2,
+        "Cereales": 3,
+        "Grasas": 1
+      },
+      "apto_para": [
+        "Obesidad",
+        "Sindrome Metabolico",
+        "Hipertension"
+      ],
+      "evitar_en": [
+        "Alergia al huevo",
+        "Diabetes Tipo 2 (ajustar porcion de tortilla)"
+      ],
+      "objetivos": [
+        "Saciedad",
+        "Desayuno alto en proteina"
+      ],
+      "tiempo_preparacion_min": 15,
+      "costo": "Bajo",
+      "meal_prep": true,
+      "id_anterior": "MX000001",
+      "estado": "duplicado",
+      "remapeado": true
+    },
+    {
+      "id": "DES000005",
+      "nombre": "Huevos con Nopales",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en fibra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 305
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo"
+        },
+        {
+          "id": "ING000008",
+          "gramos": 120,
+          "_nombre_ref": "Nopal"
+        },
+        {
+          "id": "ING000023",
+          "gramos": 20,
+          "_nombre_ref": "Cebolla"
+        },
+        {
+          "id": "ING000007",
+          "gramos": 40,
+          "_nombre_ref": "Jitomate"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla de maíz"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 364.4,
+        "proteina_g": 18.3,
+        "carbohidratos_g": 35.6,
+        "grasas_g": 17.1,
+        "fibra_g": 6.3
+      },
+      "smae": {
+        "AOA": 1.5,
+        "Verduras": 1.8,
+        "Cereales": 3,
+        "Grasas": 1
+      },
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Obesidad",
+        "Hipertension",
+        "Higado Graso",
+        "Sindrome Metabolico"
+      ],
+      "evitar_en": [
+        "Alergia al huevo"
+      ],
+      "objetivos": [
+        "Control glucemico",
+        "Alto en fibra"
+      ],
+      "tiempo_preparacion_min": 15,
+      "costo": "Bajo",
+      "meal_prep": true,
+      "id_anterior": "MX000002",
+      "estado": "duplicado",
+      "remapeado": true
+    },
+    {
+      "id": "DES000101",
+      "nombre": "Omelette de Espinaca y Panela",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en proteína",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 280
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo"
+        },
+        {
+          "id": "ING000027",
+          "gramos": 80,
+          "_nombre_ref": "Espinaca"
+        },
+        {
+          "id": "ING000017",
+          "gramos": 60,
+          "_nombre_ref": "Queso panela"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 30,
+          "_nombre_ref": "Tortilla"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 441.4,
+        "proteina_g": 27.4,
+        "carbohidratos_g": 19.3,
+        "grasas_g": 28.6,
+        "fibra_g": 3.2
+      },
+      "smae": {
+        "AOA": 3.5,
+        "Verduras": 0.7,
+        "Grasas": 1
+      },
+      "apto_para": [
+        "Obesidad",
+        "Hipertension",
+        "Sarcopenia"
+      ],
+      "evitar_en": [
+        "Alergia al huevo",
+        "ERC 3",
+        "ERC 4",
+        "ERC 5 (por sodio del queso)"
+      ],
+      "objetivos": [
+        "Alto en proteina",
+        "Bajo en carbohidrato"
+      ],
+      "tiempo_preparacion_min": 12,
+      "costo": "Medio",
+      "meal_prep": true,
+      "id_anterior": "MX000003",
+      "estado": "variante_real",
+      "remapeado": true
+    },
+    {
+      "id": "DES000016",
+      "nombre": "Avena con Canela",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en fibra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 320
+      },
+      "ingredientes": [
+        {
+          "id": "ING000030",
+          "gramos": 60,
+          "_nombre_ref": "Avena"
+        },
+        {
+          "id": "ING000015",
+          "gramos": 240,
+          "_nombre_ref": "Leche descremada"
+        },
+        {
+          "id": "ING000028",
+          "gramos": 3,
+          "_nombre_ref": "Canela"
+        },
+        {
+          "id": "ING000029",
+          "gramos": 15,
+          "_nombre_ref": "Nuez"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 420.5,
+        "proteina_g": 20.7,
+        "carbohidratos_g": 56.3,
+        "grasas_g": 14.2,
+        "fibra_g": 9.0
+      },
+      "smae": {
+        "Cereales": 3.8,
+        "Leche": 2.0,
+        "Grasas": 1
+      },
+      "apto_para": [
+        "Dislipidemia",
+        "Higado Graso"
+      ],
+      "evitar_en": [
+        "Diabetes Tipo 2 (ajustar porcion, es alto en carbohidrato)"
+      ],
+      "objetivos": [
+        "Alto en fibra",
+        "Antiinflamatorio"
+      ],
+      "tiempo_preparacion_min": 10,
+      "costo": "Bajo",
+      "meal_prep": true,
+      "id_anterior_MX": "MX000004"
+    },
+    {
+      "id": "DES000102",
+      "nombre": "Chilaquiles Verdes Saludables con Pollo",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en proteína",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 350
+      },
+      "ingredientes": [
+        {
+          "id": "ING000031",
+          "gramos": 60,
+          "_nombre_ref": "Totopo horneado"
+        },
+        {
+          "id": "ING000003",
+          "gramos": 100,
+          "_nombre_ref": "Pechuga de pollo"
+        },
+        {
+          "id": "ING000032",
+          "gramos": 80,
+          "_nombre_ref": "Salsa verde"
+        },
+        {
+          "id": "ING000017",
+          "gramos": 30,
+          "_nombre_ref": "Queso panela"
+        },
+        {
+          "id": "ING000033",
+          "gramos": 15,
+          "_nombre_ref": "Crema light"
+        },
+        {
+          "id": "ING000023",
+          "gramos": 20,
+          "_nombre_ref": "Cebolla"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 548.4,
+        "proteina_g": 42.8,
+        "carbohidratos_g": 52.3,
+        "grasas_g": 17.4,
+        "fibra_g": 5.1
+      },
+      "smae": {
+        "AOA": 4,
+        "Cereales": 3.8,
+        "Verduras": 1,
+        "Grasas": 1
+      },
+      "apto_para": [
+        "Sindrome Metabolico"
+      ],
+      "evitar_en": [
+        "Diabetes Tipo 2 (alto en carbohidrato, ajustar porcion de totopo)",
+        "Higado Graso (revisar por queso+crema)",
+        "Hipertension (sodio de salsa+queso)"
+      ],
+      "objetivos": [
+        "Alto en proteina"
+      ],
+      "tiempo_preparacion_min": 20,
+      "costo": "Medio",
+      "meal_prep": true,
+      "id_anterior": "MX000005",
+      "estado": "variante_real",
+      "remapeado": true,
+      "nombre_anterior": "Chilaquiles Verdes Light con Pollo"
+    },
+    {
+      "id": "DES000028",
+      "nombre": "Molletes Integrales con Frijoles",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en fibra",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 280
+      },
+      "ingredientes": [
+        {
+          "id": "ING000034",
+          "gramos": 70,
+          "_nombre_ref": "Pan integral"
+        },
+        {
+          "id": "ING000035",
+          "gramos": 80,
+          "_nombre_ref": "Frijoles bayos"
+        },
+        {
+          "id": "ING000017",
+          "gramos": 50,
+          "_nombre_ref": "Queso panela"
+        },
+        {
+          "id": "ING000036",
+          "gramos": 50,
+          "_nombre_ref": "Pico de gallo"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 431.8,
+        "proteina_g": 25.8,
+        "carbohidratos_g": 53.8,
+        "grasas_g": 13.0,
+        "fibra_g": 12.8
+      },
+      "apto_para": [
+        "Obesidad",
+        "Prediabetes",
+        "Diabetes Tipo 2",
+        "Dislipidemia"
+      ],
+      "objetivos": [
+        "Saciedad",
+        "Control glucemico",
+        "Perdida de peso"
+      ],
+      "meal_prep": true,
+      "id_anterior_MX": "MX000006"
+    },
+    {
+      "id": "DES000103",
+      "nombre": "Enfrijoladas Saludables con Pollo",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 340
+      },
+      "ingredientes": [
+        {
+          "id": "ING000001",
+          "gramos": 90,
+          "_nombre_ref": "Tortilla de maíz"
+        },
+        {
+          "id": "ING000002",
+          "gramos": 120,
+          "_nombre_ref": "Frijoles negros"
+        },
+        {
+          "id": "ING000003",
+          "gramos": 90,
+          "_nombre_ref": "Pechuga de pollo"
+        },
+        {
+          "id": "ING000037",
+          "gramos": 25,
+          "_nombre_ref": "Queso fresco"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 566.4,
+        "proteina_g": 48.1,
+        "carbohidratos_g": 69.9,
+        "grasas_g": 10.5,
+        "fibra_g": 14.8
+      },
+      "apto_para": [
+        "Diabetes",
+        "Obesidad",
+        "Higado Graso"
+      ],
+      "objetivos": [],
+      "meal_prep": true,
+      "id_anterior": "MX000007",
+      "estado": "variante_real",
+      "remapeado": true,
+      "nombre_anterior": "Enfrijoladas Light con Pollo"
+    },
+    {
+      "id": "DES000057",
+      "nombre": "Hot Cakes de Avena",
+      "categoria": "Desayuno",
+      "subcategoria": "Alto en proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 260
+      },
+      "ingredientes": [
+        {
+          "id": "ING000030",
+          "gramos": 60,
+          "_nombre_ref": "Avena"
+        },
+        {
+          "id": "ING000038",
+          "gramos": 120,
+          "_nombre_ref": "Clara de huevo"
+        },
+        {
+          "id": "ING000028",
+          "gramos": 2,
+          "_nombre_ref": "Canela"
+        },
+        {
+          "id": "ING000011",
+          "gramos": 50,
+          "_nombre_ref": "Plátano"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 345.2,
+        "proteina_g": 23.8,
+        "carbohidratos_g": 53.6,
+        "grasas_g": 4.6,
+        "fibra_g": 8.7
+      },
+      "apto_para": [
+        "Obesidad",
+        "Deporte",
+        "Prediabetes"
+      ],
+      "objetivos": [],
+      "meal_prep": true,
+      "id_anterior_MX": "MX000008"
+    },
+    {
+      "id": "DES000052",
+      "nombre": "Burrito Integral de Pollo",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 310
+      },
+      "ingredientes": [
+        {
+          "id": "ING000039",
+          "gramos": 70,
+          "_nombre_ref": "Tortilla integral"
+        },
+        {
+          "id": "ING000003",
+          "gramos": 100,
+          "_nombre_ref": "Pechuga de pollo"
+        },
+        {
+          "id": "ING000040",
+          "gramos": 30,
+          "_nombre_ref": "Lechuga"
+        },
+        {
+          "id": "ING000007",
+          "gramos": 40,
+          "_nombre_ref": "Jitomate"
+        },
+        {
+          "id": "ING000006",
+          "gramos": 40,
+          "_nombre_ref": "Aguacate"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 415.7,
+        "proteina_g": 38.2,
+        "carbohidratos_g": 36.6,
+        "grasas_g": 13.1,
+        "fibra_g": 7.7
+      },
+      "apto_para": [
+        "Obesidad",
+        "Hipertension",
+        "Sindrome Metabolico"
+      ],
+      "meal_prep": true,
+      "id_anterior": "MX000009",
+      "estado": "duplicado",
+      "remapeado": true
+    },
+    {
+      "id": "DES000029",
+      "nombre": "Quesadillas de Panela",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 250
+      },
+      "ingredientes": [
+        {
+          "id": "ING000001",
+          "gramos": 90,
+          "_nombre_ref": "Tortilla de maíz"
+        },
+        {
+          "id": "ING000017",
+          "gramos": 80,
+          "_nombre_ref": "Queso panela"
+        },
+        {
+          "id": "ING000036",
+          "gramos": 40,
+          "_nombre_ref": "Salsa mexicana"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 417.4,
+        "proteina_g": 19.9,
+        "carbohidratos_g": 45.3,
+        "grasas_g": 18.0,
+        "fibra_g": 4.9
+      },
+      "apto_para": [
+        "Vegetariano",
+        "Obesidad",
+        "Prediabetes"
+      ],
+      "meal_prep": true,
+      "id_anterior_MX": "MX000010"
+    },
+    {
+      "id": "DES000104",
+      "nombre": "Tacos de Huevo con Frijoles",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 320
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo entero cocido"
+        },
+        {
+          "id": "ING000035",
+          "gramos": 80,
+          "_nombre_ref": "Frijoles bayos cocidos"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 90,
+          "_nombre_ref": "Tortilla de maiz"
+        },
+        {
+          "id": "ING000047",
+          "gramos": 30,
+          "_nombre_ref": "Salsa roja cocida"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 474.6,
+        "proteina_g": 25.3,
+        "carbohidratos_g": 64.4,
+        "grasas_g": 13.1,
+        "fibra_g": 11.9
+      },
+      "apto_para": [
+        "Diabetes Tipo 2",
+        "Obesidad",
+        "Hipertension"
+      ],
+      "meal_prep": true,
+      "id_anterior": "MX000011",
+      "estado": "variante_real",
+      "remapeado": true
+    },
+    {
+      "id": "DES000105",
+      "nombre": "Yogur Griego con Frutos Rojos",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 260
+      },
+      "ingredientes": [
+        {
+          "id": "ING000041",
+          "gramos": 200,
+          "_nombre_ref": "Yogur griego natural"
+        },
+        {
+          "id": "ING000042",
+          "gramos": 60,
+          "_nombre_ref": "Fresas"
+        },
+        {
+          "id": "ING000043",
+          "gramos": 30,
+          "_nombre_ref": "Arándanos"
+        },
+        {
+          "id": "ING000044",
+          "gramos": 10,
+          "_nombre_ref": "Chía"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 278.9,
+        "proteina_g": 20.3,
+        "carbohidratos_g": 20.4,
+        "grasas_g": 4.1,
+        "fibra_g": 5.4
+      },
+      "apto_para": [
+        "Diabetes",
+        "Obesidad",
+        "Dislipidemia"
+      ],
+      "meal_prep": true,
+      "id_anterior": "MX000012",
+      "estado": "variante_real",
+      "remapeado": true
+    },
+    {
+      "id": "DES000106",
+      "nombre": "Licuado de Proteína de Suero con Fruta",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 420
+      },
+      "ingredientes": [
+        {
+          "id": "ING000015",
+          "gramos": 250,
+          "_nombre_ref": "Leche descremada"
+        },
+        {
+          "id": "ING000045",
+          "gramos": 30,
+          "_nombre_ref": "Proteína de suero"
+        },
+        {
+          "id": "ING000030",
+          "gramos": 30,
+          "_nombre_ref": "Avena"
+        },
+        {
+          "id": "ING000011",
+          "gramos": 60,
+          "_nombre_ref": "Plátano"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 367.6,
+        "proteina_g": 38.2,
+        "carbohidratos_g": 48.5,
+        "grasas_g": 2.9,
+        "fibra_g": 5.0
+      },
+      "apto_para": [
+        "Sarcopenia",
+        "Deporte",
+        "Postquirurgico"
+      ],
+      "meal_prep": true,
+      "id_anterior": "MX000013",
+      "estado": "variante_real",
+      "remapeado": true,
+      "nombre_anterior": "Licuado Alto en Proteína"
+    },
+    {
+      "id": "DES000107",
+      "nombre": "Tostadas de Aguacate con Huevo",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 240
+      },
+      "ingredientes": [
+        {
+          "id": "ING000034",
+          "gramos": 60,
+          "_nombre_ref": "Pan integral"
+        },
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo"
+        },
+        {
+          "id": "ING000006",
+          "gramos": 50,
+          "_nombre_ref": "Aguacate"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 383.2,
+        "proteina_g": 21.4,
+        "carbohidratos_g": 29.9,
+        "grasas_g": 20.0,
+        "fibra_g": 7.6
+      },
+      "apto_para": [
+        "Mediterranea",
+        "Hipertension",
+        "Dislipidemia"
+      ],
+      "meal_prep": true,
+      "id_anterior": "MX000014",
+      "estado": "variante_real",
+      "remapeado": true
+    },
+    {
+      "id": "DES000012",
+      "nombre": "Omelette de Champiñones",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 285
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo"
+        },
+        {
+          "id": "ING000046",
+          "gramos": 120,
+          "_nombre_ref": "Champiñón"
+        },
+        {
+          "id": "ING000017",
+          "gramos": 40,
+          "_nombre_ref": "Queso panela"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 462.0,
+        "proteina_g": 26.9,
+        "carbohidratos_g": 33.4,
+        "grasas_g": 25.2,
+        "fibra_g": 4.1
+      },
+      "apto_para": [
+        "Obesidad",
+        "Diabetes",
+        "Hipertension",
+        "Higado Graso"
+      ],
+      "meal_prep": true,
+      "id_anterior_MX": "MX000015"
+    },
+    {
+      "id": "DES000006",
+      "nombre": "Huevos Divorciados Light",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 315
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla de maíz"
+        },
+        {
+          "id": "ING000047",
+          "gramos": 40,
+          "_nombre_ref": "Salsa roja"
+        },
+        {
+          "id": "ING000032",
+          "gramos": 40,
+          "_nombre_ref": "Salsa verde"
+        },
+        {
+          "id": "ING000035",
+          "gramos": 60,
+          "_nombre_ref": "Frijoles bayos"
+        },
+        {
+          "id": "ING000023",
+          "gramos": 15,
+          "_nombre_ref": "Cebolla"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 401.2,
+        "proteina_g": 22.5,
+        "carbohidratos_g": 49.9,
+        "grasas_g": 12.6,
+        "fibra_g": 9.7
+      },
+      "apto_para": [
+        "Obesidad",
+        "Diabetes",
+        "Hipertension"
+      ],
+      "meal_prep": true,
+      "id_anterior_MX": "MX000016"
+    },
+    {
+      "id": "DES000008",
+      "nombre": "Huevos con Calabacitas",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 290
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo"
+        },
+        {
+          "id": "ING000022",
+          "gramos": 120,
+          "_nombre_ref": "Calabacita"
+        },
+        {
+          "id": "ING000023",
+          "gramos": 20,
+          "_nombre_ref": "Cebolla"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 358.4,
+        "proteina_g": 17.7,
+        "carbohidratos_g": 33.8,
+        "grasas_g": 17.2,
+        "fibra_g": 4.4
+      },
+      "apto_para": [
+        "Diabetes",
+        "Obesidad",
+        "Higado Graso"
+      ],
+      "meal_prep": true,
+      "id_anterior_MX": "MX000017"
+    },
+    {
+      "id": "DES000004",
+      "nombre": "Huevos con Champiñones",
+      "categoria": "Desayuno",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 300
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo"
+        },
+        {
+          "id": "ING000046",
+          "gramos": 120,
+          "_nombre_ref": "Champiñón"
+        },
+        {
+          "id": "ING000023",
+          "gramos": 20,
+          "_nombre_ref": "Cebolla"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 364.4,
+        "proteina_g": 20.0,
+        "carbohidratos_g": 34.0,
+        "grasas_g": 17.2,
+        "fibra_g": 4.4
+      },
+      "apto_para": [],
+      "meal_prep": true,
+      "id_anterior_MX": "MX000018"
+    },
+    {
+      "id": "COL000017",
+      "nombre": "Yogur Griego Natural",
+      "categoria": "Colación",
+      "subcategoria": "Lacteos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 200
+      },
+      "ingredientes": [
+        {
+          "id": "ING000041",
+          "gramos": 200,
+          "_nombre_ref": "Yogur griego natural sin azúcar"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 194.0,
+        "proteina_g": 18.0,
+        "carbohidratos_g": 7.2,
+        "grasas_g": 0.8,
+        "fibra_g": 0.0
+      },
+      "meal_prep": true,
+      "id_anterior_MX": "MX000021"
+    },
+    {
+      "id": "COL000051",
+      "nombre": "Manzana con Almendras",
+      "categoria": "Colación",
+      "subcategoria": "Fruta y Oleaginosas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 170
+      },
+      "ingredientes": [
+        {
+          "id": "ING000012",
+          "gramos": 150,
+          "_nombre_ref": "Manzana roja"
+        },
+        {
+          "id": "ING000019",
+          "gramos": 20,
+          "_nombre_ref": "Almendras naturales"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 193.8,
+        "proteina_g": 4.7,
+        "carbohidratos_g": 25.0,
+        "grasas_g": 10.3,
+        "fibra_g": 6.1
+      },
+      "meal_prep": true,
+      "id_anterior": "MX000022",
+      "estado": "variante_real",
+      "remapeado": true
+    },
+    {
+      "id": "COL000052",
+      "nombre": "Pera con Nuez",
+      "categoria": "Colación",
+      "subcategoria": "Fruta y Oleaginosas",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 170
+      },
+      "ingredientes": [
+        {
+          "id": "ING000048",
+          "gramos": 150,
+          "_nombre_ref": "Pera"
+        },
+        {
+          "id": "ING000029",
+          "gramos": 20,
+          "_nombre_ref": "Nuez"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 216.3,
+        "proteina_g": 3.6,
+        "carbohidratos_g": 25.5,
+        "grasas_g": 13.2,
+        "fibra_g": 6.0
+      },
+      "meal_prep": true,
+      "id_anterior": "MX000023",
+      "estado": "variante_real",
+      "remapeado": true
+    },
+    {
+      "id": "COL000033",
+      "nombre": "Pepino con Limón y Chile",
+      "categoria": "Colación",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 220
+      },
+      "ingredientes": [
+        {
+          "id": "ING000049",
+          "gramos": 200,
+          "_nombre_ref": "Pepino"
+        },
+        {
+          "id": "ING000050",
+          "gramos": 15,
+          "_nombre_ref": "Jugo de limon"
+        },
+        {
+          "id": "ING000051",
+          "gramos": 3,
+          "_nombre_ref": "Chile en polvo"
+        },
+        {
+          "id": "ING000026",
+          "gramos": 2,
+          "_nombre_ref": "Sal"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 41.8,
+        "proteina_g": 1.9,
+        "carbohidratos_g": 9.7,
+        "grasas_g": 0.7,
+        "fibra_g": 2.1
+      },
+      "meal_prep": true,
+      "id_anterior": "MX000024",
+      "estado": "duplicado",
+      "remapeado": true
+    },
+    {
+      "id": "COL000034",
+      "nombre": "Jícama con Chile",
+      "categoria": "Colación",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 220
+      },
+      "ingredientes": [
+        {
+          "id": "ING000052",
+          "gramos": 200,
+          "_nombre_ref": "Jicama"
+        },
+        {
+          "id": "ING000050",
+          "gramos": 15,
+          "_nombre_ref": "Jugo de limon"
+        },
+        {
+          "id": "ING000051",
+          "gramos": 3,
+          "_nombre_ref": "Chile en polvo"
+        },
+        {
+          "id": "ING000026",
+          "gramos": 2,
+          "_nombre_ref": "Sal"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 87.8,
+        "proteina_g": 1.9,
+        "carbohidratos_g": 20.1,
+        "grasas_g": 0.7,
+        "fibra_g": 10.9
+      },
+      "meal_prep": true,
+      "id_anterior": "MX000025",
+      "estado": "duplicado",
+      "remapeado": true
+    },
+    {
+      "id": "COL000035",
+      "nombre": "Zanahoria Baby",
+      "categoria": "Colación",
+      "subcategoria": "Verduras",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 150
+      },
+      "ingredientes": [
+        {
+          "id": "ING000053",
+          "gramos": 150,
+          "_nombre_ref": "Zanahoria baby"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 52.5,
+        "proteina_g": 0.9,
+        "carbohidratos_g": 12.3,
+        "grasas_g": 0.2,
+        "fibra_g": 4.3
+      },
+      "meal_prep": true,
+      "id_anterior": "MX000026",
+      "estado": "duplicado",
+      "remapeado": true
+    },
+    {
+      "id": "COL000053",
+      "nombre": "Gelatina sin azúcar preparada",
+      "categoria": "Colación",
+      "subcategoria": "Postre Saludable",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 180
+      },
+      "ingredientes": [
+        {
+          "id": "ING000054",
+          "gramos": 180,
+          "_nombre_ref": "Gelatina sin azucar preparada"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 14.4,
+        "proteina_g": 2.7,
+        "carbohidratos_g": 0.0,
+        "grasas_g": 0.0,
+        "fibra_g": 0.0
+      },
+      "meal_prep": true,
+      "id_anterior": "MX000027",
+      "estado": "variante_real",
+      "remapeado": true,
+      "nombre_anterior": "Gelatina Light"
+    },
+    {
+      "id": "COL000019",
+      "nombre": "Queso Panela",
+      "categoria": "Colación",
+      "subcategoria": "Lacteos",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 80
+      },
+      "ingredientes": [
+        {
+          "id": "ING000017",
+          "gramos": 80,
+          "_nombre_ref": "Queso panela"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 211.2,
+        "proteina_g": 14.4,
+        "carbohidratos_g": 2.4,
+        "grasas_g": 16.0,
+        "fibra_g": 0.0
+      },
+      "meal_prep": true,
+      "id_anterior_MX": "MX000028"
+    },
+    {
+      "id": "COL000047",
+      "nombre": "Huevo Cocido",
+      "categoria": "Colación",
+      "subcategoria": "Proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 100
+      },
+      "ingredientes": [
+        {
+          "id": "ING000004",
+          "gramos": 100,
+          "_nombre_ref": "Huevo entero cocido"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 155.0,
+        "proteina_g": 12.6,
+        "carbohidratos_g": 1.1,
+        "grasas_g": 10.6,
+        "fibra_g": 0.0
+      },
+      "meal_prep": true,
+      "id_anterior_MX": "MX000029"
+    },
+    {
+      "id": "COL000046",
+      "nombre": "Atún en Agua",
+      "categoria": "Colación",
+      "subcategoria": "Proteina",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 colacion",
+        "peso_total_g": 120
+      },
+      "ingredientes": [
+        {
+          "id": "ING000018",
+          "gramos": 120,
+          "_nombre_ref": "Atun en agua escurrido"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 139.2,
+        "proteina_g": 30.6,
+        "carbohidratos_g": 0.0,
+        "grasas_g": 1.0,
+        "fibra_g": 0.0
+      },
+      "meal_prep": true,
+      "id_anterior_MX": "MX000030"
+    },
+    {
+      "id": "COM000001",
+      "nombre": "Pechuga de pollo a la plancha",
+      "categoria": "Comida",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 177
+      },
+      "ingredientes": [
+        {
+          "id": "ING000003",
+          "gramos": 150,
+          "_nombre_ref": "Pechuga de pollo sin piel"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000057",
+          "gramos": 5,
+          "_nombre_ref": "Ajo"
+        },
+        {
+          "id": "ING000058",
+          "gramos": 15,
+          "_nombre_ref": "Limón"
+        },
+        {
+          "id": "ING000059",
+          "gramos": 1,
+          "_nombre_ref": "Pimienta negra"
+        },
+        {
+          "id": "ING000026",
+          "gramos": 1,
+          "_nombre_ref": "Sal"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 306.2,
+        "proteina_g": 47.0,
+        "carbohidratos_g": 3.9,
+        "grasas_g": 10.5,
+        "fibra_g": 0.8
+      },
+      "meal_prep": true
+    },
+    {
+      "id": "COM000011",
+      "nombre": "Carne asada",
+      "categoria": "Comida",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 177
+      },
+      "ingredientes": [
+        {
+          "id": "ING000055",
+          "gramos": 150,
+          "_nombre_ref": "Bistec de res magro"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000058",
+          "gramos": 15,
+          "_nombre_ref": "Limón"
+        },
+        {
+          "id": "ING000057",
+          "gramos": 5,
+          "_nombre_ref": "Ajo"
+        },
+        {
+          "id": "ING000059",
+          "gramos": 1,
+          "_nombre_ref": "Pimienta negra"
+        },
+        {
+          "id": "ING000026",
+          "gramos": 1,
+          "_nombre_ref": "Sal"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 333.2,
+        "proteina_g": 41.0,
+        "carbohidratos_g": 3.9,
+        "grasas_g": 16.3,
+        "fibra_g": 0.8
+      },
+      "meal_prep": true
+    },
+    {
+      "id": "COM000026",
+      "nombre": "Filete de pescado al limón",
+      "categoria": "Comida",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 202
+      },
+      "ingredientes": [
+        {
+          "id": "ING000056",
+          "gramos": 170,
+          "_nombre_ref": "Filete de pescado blanco"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000058",
+          "gramos": 20,
+          "_nombre_ref": "Limón"
+        },
+        {
+          "id": "ING000057",
+          "gramos": 5,
+          "_nombre_ref": "Ajo"
+        },
+        {
+          "id": "ING000059",
+          "gramos": 1,
+          "_nombre_ref": "Pimienta negra"
+        },
+        {
+          "id": "ING000026",
+          "gramos": 1,
+          "_nombre_ref": "Sal"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 277.8,
+        "proteina_g": 44.8,
+        "carbohidratos_g": 4.4,
+        "grasas_g": 9.7,
+        "fibra_g": 0.9
+      },
+      "meal_prep": true
+    },
+    {
+      "id": "COM000040",
+      "nombre": "Chile poblano relleno de queso panela",
+      "categoria": "Comida",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 307
+      },
+      "ingredientes": [
+        {
+          "id": "ING000021",
+          "gramos": 140,
+          "_nombre_ref": "Chile poblano"
+        },
+        {
+          "id": "ING000017",
+          "gramos": 80,
+          "_nombre_ref": "Queso panela"
+        },
+        {
+          "id": "ING000060",
+          "gramos": 80,
+          "_nombre_ref": "Salsa de tomate"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000059",
+          "gramos": 1,
+          "_nombre_ref": "Pimienta negra"
+        },
+        {
+          "id": "ING000026",
+          "gramos": 1,
+          "_nombre_ref": "Sal"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 314.9,
+        "proteina_g": 17.3,
+        "carbohidratos_g": 14.1,
+        "grasas_g": 21.5,
+        "fibra_g": 3.7
+      },
+      "meal_prep": true
+    },
+    {
+      "id": "CEN000001",
+      "nombre": "Ensalada de pollo",
+      "categoria": "Cena",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 340
+      },
+      "ingredientes": [
+        {
+          "id": "ING000003",
+          "gramos": 120,
+          "_nombre_ref": "Pechuga de pollo sin piel"
+        },
+        {
+          "id": "ING000061",
+          "gramos": 80,
+          "_nombre_ref": "Lechuga romana"
+        },
+        {
+          "id": "ING000007",
+          "gramos": 60,
+          "_nombre_ref": "Jitomate"
+        },
+        {
+          "id": "ING000049",
+          "gramos": 60,
+          "_nombre_ref": "Pepino"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        },
+        {
+          "id": "ING000058",
+          "gramos": 15,
+          "_nombre_ref": "Limón"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 280.1,
+        "proteina_g": 39.2,
+        "carbohidratos_g": 8.7,
+        "grasas_g": 9.8,
+        "fibra_g": 3.1
+      },
+      "meal_prep": true
+    },
+    {
+      "id": "CEN000013",
+      "nombre": "Tacos de pescado",
+      "categoria": "Cena",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 280
+      },
+      "ingredientes": [
+        {
+          "id": "ING000056",
+          "gramos": 120,
+          "_nombre_ref": "Filete de pescado blanco"
+        },
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla de maiz"
+        },
+        {
+          "id": "ING000062",
+          "gramos": 40,
+          "_nombre_ref": "Col blanca"
+        },
+        {
+          "id": "ING000058",
+          "gramos": 15,
+          "_nombre_ref": "Limón"
+        },
+        {
+          "id": "ING000036",
+          "gramos": 40,
+          "_nombre_ref": "Pico de gallo"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 353.1,
+        "proteina_g": 35.6,
+        "carbohidratos_g": 33.2,
+        "grasas_g": 9.7,
+        "fibra_g": 4.9
+      },
+      "meal_prep": true
+    },
+    {
+      "id": "CEN000009",
+      "nombre": "Quesadilla de espinaca",
+      "categoria": "Cena",
+      "cocina": "Mexicana",
+      "porcion": {
+        "descripcion": "1 plato",
+        "peso_total_g": 185
+      },
+      "ingredientes": [
+        {
+          "id": "ING000001",
+          "gramos": 60,
+          "_nombre_ref": "Tortilla de maiz"
+        },
+        {
+          "id": "ING000017",
+          "gramos": 70,
+          "_nombre_ref": "Queso panela"
+        },
+        {
+          "id": "ING000027",
+          "gramos": 50,
+          "_nombre_ref": "Espinaca"
+        },
+        {
+          "id": "ING000020",
+          "gramos": 5,
+          "_nombre_ref": "Aceite de oliva"
+        }
+      ],
+      "nutrimentos": {
+        "energia_kcal": 371.3,
+        "proteina_g": 17.5,
+        "carbohidratos_g": 31.0,
+        "grasas_g": 20.5,
+        "fibra_g": 4.0
+      },
+      "meal_prep": true
+    }
+  ],
+  "ambiguedades_pendientes": [],
+  "fecha_cierre_auditoria": "2026-07-19",
+  "alias": {
+    "Pechuga de pollo sin piel": "Pechuga de pollo cocida sin piel"
+  }
+}
