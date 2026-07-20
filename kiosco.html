@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Kiosco de Consultorio — CODE CELLS®</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --black-2: #111111;
+    --black-3: #1a1a1a;
+    --black-4: #242424;
+    --gold: #C9A96E;
+    --gold-dim: #8a7050;
+    --gold-pale: rgba(201,169,110,0.12);
+    --gold-pale2: rgba(201,169,110,0.06);
+    --cyan: #00D4FF;
+    --cyan-pale: rgba(0,212,255,0.10);
+    --text-1: #f0ede8;
+    --text-2: #9a9590;
+    --text-3: #5a5550;
+    --border: rgba(201,169,110,0.18);
+    --border-dim: rgba(255,255,255,0.06);
+    --radius: 10px;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--black) url('assets/nebula-nova.jpg') center/cover fixed no-repeat; color: var(--text-1);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; background: rgba(10,10,10,0.82); z-index: 0; pointer-events: none;
+  }
+  .pantalla { position: relative; z-index: 1; }
+  .pantalla {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; min-height: 100dvh; padding: 32px; text-align: center;
+    overflow-y: auto;
+  }
+  .pantalla.activa { display: flex; }
+
+  .logo-block { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 40px; }
+  .logo-glyph { font-family: var(--font-serif); font-size: 15px; letter-spacing: 0.35em; color: var(--gold); font-weight: 300; }
+  .logo-name { font-family: var(--font-serif); font-size: 34px; font-weight: 300; letter-spacing: 0.02em; }
+  .logo-name b { font-weight: 600; color: var(--gold); }
+
+  .btn-grande {
+    background: var(--gold); color: var(--black); border: none;
+    font-family: var(--font-sans); font-weight: 700; font-size: 18px;
+    padding: 22px 44px; border-radius: 40px; cursor: pointer;
+    min-width: 260px; min-height: 64px;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .btn-grande:active { transform: scale(0.96); }
+  .btn-grande:disabled { opacity: 0.4; }
+  .btn-secundario {
+    background: none; color: var(--text-2); border: 1px solid var(--border-dim);
+    font-family: var(--font-sans); font-size: 15px; padding: 16px 32px; border-radius: 40px;
+    cursor: pointer; min-height: 52px;
+  }
+  .hint { color: var(--text-3); font-size: 13px; margin-top: 24px; font-family: var(--font-mono); letter-spacing: 0.04em; }
+
+  input.kiosco-input {
+    background: var(--black-3); border: 1px solid var(--border-dim); border-radius: var(--radius);
+    color: var(--text-1); font-size: 24px; font-family: var(--font-mono);
+    padding: 18px 24px; text-align: center; width: 320px; max-width: 90vw;
+    letter-spacing: 0.08em;
+  }
+  input.kiosco-input:focus { outline: none; border-color: var(--gold); }
+  .campo-error { color: #E2574B; font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+  .paciente-header { margin-bottom: 32px; }
+  .paciente-nombre { font-family: var(--font-serif); font-size: 32px; font-weight: 400; }
+  .paciente-codigo { font-family: var(--font-mono); font-size: 12px; color: var(--gold); letter-spacing: 0.1em; margin-top: 4px; }
+
+  .menu-opciones { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 420px; }
+  .opcion-card {
+    display: flex; align-items: center; gap: 18px;
+    background: var(--black-2); border: 1px solid var(--border-dim); border-radius: 16px;
+    padding: 22px 26px; cursor: pointer; text-align: left;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .opcion-card:active { background: var(--black-3); }
+  .opcion-card.done { border-color: rgba(95,174,110,0.4); }
+  .opcion-icono { font-size: 32px; flex-shrink: 0; }
+  .opcion-texto h3 { margin: 0 0 3px; font-size: 17px; font-weight: 500; }
+  .opcion-texto p { margin: 0; font-size: 12.5px; color: var(--text-3); }
+  .opcion-check { margin-left: auto; color: #5FAE6E; font-size: 20px; }
+
+  /* Wizard de preguntas */
+  .wizard-progreso { font-family: var(--font-mono); font-size: 11px; color: var(--gold); letter-spacing: 0.12em; margin-bottom: 18px; }
+  .wizard-pregunta { font-family: var(--font-serif); font-size: 26px; font-weight: 400; max-width: 560px; margin-bottom: 28px; line-height: 1.35; }
+  .wizard-input { width: 100%; max-width: 520px; }
+  textarea.kiosco-textarea {
+    background: var(--black-3); border: 1px solid var(--border-dim); border-radius: var(--radius);
+    color: var(--text-1); font-size: 18px; font-family: var(--font-sans);
+    padding: 18px; width: 100%; max-width: 520px; min-height: 120px; resize: vertical;
+  }
+  textarea.kiosco-textarea:focus { outline: none; border-color: var(--gold); }
+  .wizard-chips { display: flex; flex-wrap: wrap; gap: 10px; max-width: 560px; justify-content: center; margin-bottom: 8px; }
+  .wizard-chip {
+    border: 1px solid var(--border-dim); border-radius: 30px; padding: 14px 22px;
+    font-size: 15px; cursor: pointer; color: var(--text-2); background: var(--black-2);
+  }
+  .wizard-chip.sel { border-color: var(--gold); color: var(--gold); background: var(--gold-pale2); }
+  .wizard-nav { display: flex; gap: 14px; margin-top: 32px; }
+
+  .vitales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; max-width: 480px; margin-bottom: 28px; }
+  .vitales-campo label { display: block; font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .vitales-campo input {
+    width: 100%; background: var(--black-3); border: 1px solid var(--border-dim); border-radius: var(--radius);
+    color: var(--text-1); font-size: 22px; font-family: var(--font-mono); padding: 14px; text-align: center;
+  }
+  .vitales-campo input:focus { outline: none; border-color: var(--gold); }
+
+  .loader { width: 20px; height: 20px; border: 2px solid rgba(0,0,0,0.25); border-top-color: var(--black); border-radius: 50%; animation: girar 0.7s linear infinite; display: inline-block; vertical-align: middle; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+
+  .toast-kiosco {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--black-3); border: 1px solid var(--border); border-radius: 30px;
+    padding: 14px 28px; font-size: 14px; opacity: 0; transition: all 0.3s ease; pointer-events: none;
+  }
+  .toast-kiosco.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast-kiosco.error { border-color: rgba(226,87,75,0.5); color: #E2574B; }
+  .toast-kiosco.success { border-color: rgba(95,174,110,0.5); color: #5FAE6E; }
+</style>
+</head>
+<body>
+
+<!-- Pantalla 0: Inactivo -->
+<div class="pantalla activa" id="p-inactivo">
+  <div class="logo-block">
+    <div class="logo-glyph">CODE CELLS®</div>
+    <div class="logo-name">Kiosco de <b>Consultorio</b></div>
+  </div>
+  <button class="btn-grande" onclick="iniciarKiosco()">Toca para comenzar</button>
+  <audio id="musica-fondo" src="assets/helix-in-gold.mp3" loop preload="none"></audio>
+  <div class="hint">Uso exclusivo en consultorio — asistido por personal CODE CELLS®</div>
+</div>
+
+<!-- Pantalla 1: Verificación de personal -->
+<div class="pantalla" id="p-staff">
+  <div class="logo-block"><div class="logo-glyph">PASO 1 DE 2</div></div>
+  <p style="font-size:17px;color:var(--text-2);max-width:400px;margin-bottom:24px;">Personal CODE CELLS®: ingresa tu código para iniciar la sesión</p>
+  <input class="kiosco-input" id="input-staff-codigo" placeholder="CCMED-XXXXXX" autocomplete="off" maxlength="14">
+  <div class="campo-error" id="error-staff"></div>
+  <div class="wizard-nav">
+    <button class="btn-secundario" onclick="irA('p-inactivo')">Cancelar</button>
+    <button class="btn-grande" id="btn-verificar-staff" onclick="verificarStaff()">Continuar</button>
+  </div>
+</div>
+
+<!-- Pantalla 2: Identificar paciente -->
+<div class="pantalla" id="p-paciente">
+  <div class="logo-block"><div class="logo-glyph">PASO 2 DE 2</div></div>
+  <p style="font-size:17px;color:var(--text-2);max-width:400px;margin-bottom:24px;">¿El paciente ya tiene código, o es su primera vez?</p>
+  <input class="kiosco-input" id="input-paciente-codigo" placeholder="CC-PAC-XXXXXX (si ya tiene)" autocomplete="off" maxlength="14">
+  <div class="campo-error" id="error-paciente"></div>
+  <div class="wizard-nav">
+    <button class="btn-secundario" onclick="irA('p-staff')">Atrás</button>
+    <button class="btn-grande" id="btn-verificar-paciente" onclick="verificarPaciente()">Continuar</button>
+  </div>
+  <button class="btn-secundario" style="margin-top:20px;" onclick="irA('p-paciente-nuevo')">Es su primera vez — registrar</button>
+</div>
+
+<!-- Pantalla 2b: Registrar paciente nuevo -->
+<div class="pantalla" id="p-paciente-nuevo">
+  <div class="logo-block"><div class="logo-glyph">PACIENTE NUEVO</div></div>
+  <p style="font-size:17px;color:var(--text-2);max-width:400px;margin-bottom:24px;">Nombre completo del paciente</p>
+  <input class="kiosco-input" id="input-nuevo-nombre" placeholder="Nombre completo" autocomplete="off" style="font-size:18px;text-transform:none;">
+  <div class="campo-error" id="error-paciente-nuevo"></div>
+  <div class="wizard-nav">
+    <button class="btn-secundario" onclick="irA('p-paciente')">Atrás</button>
+    <button class="btn-grande" id="btn-registrar-nuevo" onclick="registrarPacienteNuevo()">Registrar y continuar</button>
+  </div>
+</div>
+
+<!-- Pantalla 3: Menú de la sesión -->
+<div class="pantalla" id="p-menu">
+  <div class="paciente-header">
+    <div class="paciente-nombre" id="menu-nombre-paciente">—</div>
+    <div class="paciente-codigo" id="menu-codigo-paciente">—</div>
+  </div>
+  <div class="menu-opciones">
+    <div class="opcion-card" id="card-vitales" onclick="irA('p-vitales')">
+      <div class="opcion-icono">🩺</div>
+      <div class="opcion-texto"><h3>Signos vitales</h3><p>Peso, talla, presión — lo captura el personal</p></div>
+      <div class="opcion-check" id="check-vitales" style="display:none;">✓</div>
+    </div>
+    <div class="opcion-card" id="card-historia" onclick="irA('p-historia-0')">
+      <div class="opcion-icono">📋</div>
+      <div class="opcion-texto"><h3>Historia clínica</h3><p>El paciente responde directo, paso a paso</p></div>
+      <div class="opcion-check" id="check-historia" style="display:none;">✓</div>
+    </div>
+    <div class="opcion-card" id="card-test" onclick="abrirTest()">
+      <div class="opcion-icono">🧬</div>
+      <div class="opcion-texto"><h3>Test biológico</h3><p>Evaluación de los 5 sistemas CODE</p></div>
+      <div class="opcion-check" id="check-test" style="display:none;">✓</div>
+    </div>
+  </div>
+  <button class="btn-secundario" style="margin-top:32px;" onclick="finalizarSesion()">Terminar sesión</button>
+</div>
+
+<!-- Pantalla 4: Signos vitales -->
+<div class="pantalla" id="p-vitales">
+  <div class="wizard-progreso">SIGNOS VITALES</div>
+  <div class="wizard-pregunta">Captura los datos del paciente</div>
+  <div class="vitales-grid">
+    <div class="vitales-campo"><label>Peso (kg)</label><input type="number" step="0.1" id="v-peso"></div>
+    <div class="vitales-campo"><label>Talla (cm)</label><input type="number" id="v-talla"></div>
+    <div class="vitales-campo"><label>Presión arterial</label><input type="text" id="v-presion" placeholder="120/80"></div>
+    <div class="vitales-campo"><label>Temperatura (°C)</label><input type="number" step="0.1" id="v-temp"></div>
+    <div class="vitales-campo"><label>Frec. cardiaca (lpm)</label><input type="number" id="v-fc"></div>
+    <div class="vitales-campo"><label>Frec. respiratoria</label><input type="number" id="v-fr"></div>
+  </div>
+  <div class="wizard-nav">
+    <button class="btn-secundario" onclick="irA('p-menu')">Cancelar</button>
+    <button class="btn-grande" id="btn-guardar-vitales" onclick="guardarVitales()">Guardar</button>
+  </div>
+</div>
+
+<!-- Pantalla 5+: Historia clínica (wizard dinámico, un contenedor reutilizado) -->
+<div class="pantalla" id="p-historia-wizard">
+  <div class="wizard-progreso" id="hist-progreso">PREGUNTA 1 DE 8</div>
+  <div class="wizard-pregunta" id="hist-pregunta">—</div>
+  <div class="wizard-input" id="hist-input-area"></div>
+  <div class="wizard-nav">
+    <button class="btn-secundario" id="btn-hist-atras" onclick="historiaAtras()">Atrás</button>
+    <button class="btn-grande" id="btn-hist-siguiente" onclick="historiaSiguiente()">Siguiente</button>
+  </div>
+</div>
+
+<!-- Pantalla 6: Fin de sesión -->
+<div class="pantalla" id="p-fin">
+  <div class="logo-block">
+    <div class="logo-glyph">✓</div>
+    <div class="logo-name">Gracias</div>
+  </div>
+  <p style="font-size:16px;color:var(--text-2);max-width:380px;margin-bottom:28px;">Tu información quedó guardada de forma segura. Escanea el código para acceder a tu app personal, donde puedes ver tu progreso y hablar con NOVA cuando quieras. Cuando termines, entrega el tablet al personal.</p>
+  <div id="qr-vinculacion" style="background:#fff;padding:16px;border-radius:16px;"></div>
+  <div class="paciente-codigo" style="margin-top:16px;font-size:14px;" id="fin-codigo-texto">—</div>
+  <button class="btn-grande" style="margin-top:32px;" onclick="reiniciarKiosco()">Cerrar sesión</button>
+</div>
+
+<div class="toast-kiosco" id="toast"></div>
+
+<script>
+// ─── ESTADO DE LA SESIÓN (vive solo en memoria — nunca en localStorage) ──
+let sesion = { staffCodigo: null, pacienteCodigo: null, pacienteRecordId: null, pacienteNombre: null };
+
+function iniciarKiosco() {
+  const musica = document.getElementById('musica-fondo');
+  musica.volume = 0.28;
+  musica.play().catch(function(){});
+  irA('p-staff');
+}
+
+function irA(idPantalla) {
+  document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
+  document.getElementById(idPantalla).classList.add('activa');
+}
+
+function toast(msg, tipo) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast-kiosco show ' + (tipo || '');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ─── REGISTRAR PACIENTE NUEVO ────────────────────────────────────
+async function registrarPacienteNuevo() {
+  const nombre = document.getElementById('input-nuevo-nombre').value.trim();
+  const err = document.getElementById('error-paciente-nuevo');
+  err.textContent = '';
+  if (!nombre || nombre.length < 3) { err.textContent = 'Escribe el nombre completo del paciente.'; return; }
+
+  const btn = document.getElementById('btn-registrar-nuevo');
+  btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'kiosco_crear_paciente', staffCodigo: sesion.staffCodigo, nombreCompleto: nombre }),
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Error registrando al paciente.'; return; }
+
+    sesion.pacienteCodigo = data.codigo;
+    sesion.pacienteRecordId = data.recordId;
+    sesion.pacienteNombre = data.nombre;
+
+    document.getElementById('menu-nombre-paciente').textContent = sesion.pacienteNombre;
+    document.getElementById('menu-codigo-paciente').textContent = sesion.pacienteCodigo + ' (nuevo)';
+    ['check-vitales','check-historia','check-test'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('done'));
+    document.getElementById('input-nuevo-nombre').value = '';
+    toast('Paciente registrado: ' + data.codigo, 'success');
+    irA('p-menu');
+  } catch (e) {
+    err.textContent = 'Error de conexión. Intenta de nuevo.';
+  } finally {
+    btn.disabled = false; btn.innerHTML = 'Registrar y continuar';
+  }
+}
+
+// ─── PASO 1: verificar personal ─────────────────────────────────
+async function verificarStaff() {
+  const codigo = document.getElementById('input-staff-codigo').value.trim().toUpperCase();
+  const err = document.getElementById('error-staff');
+  err.textContent = '';
+  if (!/^CCMED-[A-Z0-9]{4,8}$/.test(codigo)) { err.textContent = 'Código inválido. Formato: CCMED-XXXXXX'; return; }
+
+  const btn = document.getElementById('btn-verificar-staff');
+  btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
+  try {
+    const res = await fetch(`/api/airtable?tabla=medicos&filterByFormula=${encodeURIComponent(`{Código de médico}="${codigo}"`)}`);
+    const data = await res.json();
+    if (!data.records || data.records.length === 0) { err.textContent = 'Código no encontrado.'; return; }
+    sesion.staffCodigo = codigo;
+    document.getElementById('input-paciente-codigo').value = '';
+    document.getElementById('error-paciente').textContent = '';
+    irA('p-paciente');
+  } catch (e) {
+    err.textContent = 'Error de conexión. Intenta de nuevo.';
+  } finally {
+    btn.disabled = false; btn.innerHTML = 'Continuar';
+  }
+}
+
+// ─── PASO 2: verificar paciente ──────────────────────────────────
+async function verificarPaciente() {
+  const codigo = document.getElementById('input-paciente-codigo').value.trim().toUpperCase();
+  const err = document.getElementById('error-paciente');
+  err.textContent = '';
+  if (!/^CC-PAC-[0-9]{4,8}$/.test(codigo)) { err.textContent = 'Código inválido. Formato: CC-PAC-XXXXXX'; return; }
+
+  const btn = document.getElementById('btn-verificar-paciente');
+  btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
+  try {
+    const res = await fetch(`/api/airtable?tabla=pacientes&filterByFormula=${encodeURIComponent(`{Código de paciente}="${codigo}"`)}`);
+    const data = await res.json();
+    if (!data.records || data.records.length === 0) { err.textContent = 'Paciente no encontrado. Verifica el código.'; return; }
+    const rec = data.records[0];
+    sesion.pacienteCodigo = codigo;
+    sesion.pacienteRecordId = rec.id;
+    sesion.pacienteNombre = rec.fields['Nombre completo'] || 'Paciente';
+
+    document.getElementById('menu-nombre-paciente').textContent = sesion.pacienteNombre;
+    document.getElementById('menu-codigo-paciente').textContent = sesion.pacienteCodigo;
+    ['check-vitales','check-historia','check-test'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('done'));
+    irA('p-menu');
+  } catch (e) {
+    err.textContent = 'Error de conexión. Intenta de nuevo.';
+  } finally {
+    btn.disabled = false; btn.innerHTML = 'Continuar';
+  }
+}
+
+// ─── SIGNOS VITALES ───────────────────────────────────────────────
+async function guardarVitales() {
+  const btn = document.getElementById('btn-guardar-vitales');
+  btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'kiosco_guardar_signos',
+        pacienteRecordId: sesion.pacienteRecordId,
+        staffCodigo: sesion.staffCodigo,
+        peso: parseFloat(document.getElementById('v-peso').value) || null,
+        talla: parseFloat(document.getElementById('v-talla').value) || null,
+        presion: document.getElementById('v-presion').value || null,
+        temperatura: parseFloat(document.getElementById('v-temp').value) || null,
+        frecuenciaCardiaca: parseInt(document.getElementById('v-fc').value) || null,
+        frecuenciaRespiratoria: parseInt(document.getElementById('v-fr').value) || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Error guardando signos vitales.', 'error'); return; }
+    document.getElementById('check-vitales').style.display = 'block';
+    document.getElementById('card-vitales').classList.add('done');
+    toast('Signos vitales guardados ✓', 'success');
+    irA('p-menu');
+  } catch (e) {
+    toast('Error de conexión.', 'error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = 'Guardar';
+  }
+}
+
+// ─── HISTORIA CLÍNICA — wizard guiado, el paciente responde solo ──
+const preguntasHistoria = [
+  { id: 'motivo', texto: '¿Cuál es el motivo principal de tu consulta hoy?', tipo: 'texto' },
+  { id: 'ahf', texto: '¿Alguien en tu familia directa (papás, hermanos) ha tenido diabetes, hipertensión, cáncer o problemas del corazón?', tipo: 'texto', hint: 'Ej. "Mi papá tiene diabetes, mi mamá hipertensión"' },
+  { id: 'alimentacion', texto: '¿Cómo describirías tu alimentación en un día normal?', tipo: 'texto' },
+  { id: 'tabaco', texto: '¿Fumas actualmente?', tipo: 'chips', opciones: ['No, nunca', 'Antes, ya no', 'Sí, ocasional', 'Sí, diario'] },
+  { id: 'alcohol', texto: '¿Consumes alcohol?', tipo: 'chips', opciones: ['No', 'Rara vez', 'Socialmente', 'Frecuente'] },
+  { id: 'actividad', texto: '¿Qué tan seguido haces ejercicio?', tipo: 'chips', opciones: ['Nunca', '1-2 veces/semana', '3-4 veces/semana', 'Todos los días'] },
+  { id: 'medicamentos', texto: '¿Tomas algún medicamento actualmente? Escribe cuáles, o "ninguno".', tipo: 'texto' },
+  { id: 'alergias', texto: '¿Tienes alguna alergia (medicamentos, alimentos, otra)? Escribe cuáles, o "ninguna".', tipo: 'texto' },
+];
+let historiaIdx = 0;
+let historiaRespuestas = {};
+
+function renderPreguntaHistoria() {
+  const p = preguntasHistoria[historiaIdx];
+  document.getElementById('hist-progreso').textContent = `PREGUNTA ${historiaIdx + 1} DE ${preguntasHistoria.length}`;
+  document.getElementById('hist-pregunta').textContent = p.texto;
+  const area = document.getElementById('hist-input-area');
+  area.innerHTML = '';
+
+  if (p.tipo === 'texto') {
+    const ta = document.createElement('textarea');
+    ta.className = 'kiosco-textarea';
+    ta.id = 'hist-campo-actual';
+    ta.placeholder = p.hint || 'Escribe tu respuesta aquí…';
+    ta.value = historiaRespuestas[p.id] || '';
+    area.appendChild(ta);
+  } else if (p.tipo === 'chips') {
+    const cont = document.createElement('div');
+    cont.className = 'wizard-chips';
+    p.opciones.forEach(op => {
+      const chip = document.createElement('div');
+      chip.className = 'wizard-chip' + (historiaRespuestas[p.id] === op ? ' sel' : '');
+      chip.textContent = op;
+      chip.onclick = () => { historiaRespuestas[p.id] = op; renderPreguntaHistoria(); };
+      cont.appendChild(chip);
+    });
+    area.appendChild(cont);
+  }
+  document.getElementById('btn-hist-atras').style.visibility = historiaIdx === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-hist-siguiente').textContent = historiaIdx === preguntasHistoria.length - 1 ? 'Terminar' : 'Siguiente';
+}
+
+function irAHistoriaInicio() { historiaIdx = 0; historiaRespuestas = {}; irA('p-historia-wizard'); renderPreguntaHistoria(); }
+// Sobrescribimos el onclick del card para usar el init real:
+document.getElementById('card-historia').onclick = irAHistoriaInicio;
+
+function historiaAtras() {
+  guardarCampoActual();
+  if (historiaIdx > 0) { historiaIdx--; renderPreguntaHistoria(); }
+}
+
+async function historiaSiguiente() {
+  guardarCampoActual();
+  if (historiaIdx < preguntasHistoria.length - 1) {
+    historiaIdx++;
+    renderPreguntaHistoria();
+  } else {
+    await guardarHistoriaClinica();
+  }
+}
+
+function guardarCampoActual() {
+  const p = preguntasHistoria[historiaIdx];
+  if (p.tipo === 'texto') {
+    const campo = document.getElementById('hist-campo-actual');
+    if (campo) historiaRespuestas[p.id] = campo.value;
+  }
+}
+
+async function guardarHistoriaClinica() {
+  const btn = document.getElementById('btn-hist-siguiente');
+  btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'kiosco_guardar_historia',
+        pacienteRecordId: sesion.pacienteRecordId,
+        pacienteCodigo: sesion.pacienteCodigo,
+        staffCodigo: sesion.staffCodigo,
+        respuestas: historiaRespuestas,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Error guardando historia clínica.', 'error'); return; }
+    document.getElementById('check-historia').style.display = 'block';
+    document.getElementById('card-historia').classList.add('done');
+    toast('Historia clínica guardada ✓', 'success');
+    irA('p-menu');
+  } catch (e) {
+    toast('Error de conexión.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Terminar';
+  }
+}
+
+// ─── TEST BIOLÓGICO — reutiliza el flujo público existente ────────
+function abrirTest() {
+  document.getElementById('check-test').style.display = 'block';
+  document.getElementById('card-test').classList.add('done');
+  window.open(`/?openTest=1&src=kiosco&pac=${encodeURIComponent(sesion.pacienteCodigo)}`, '_blank');
+}
+
+// ─── FIN DE SESIÓN ────────────────────────────────────────────────
+function finalizarSesion() {
+  const urlApp = `https://codecells.mx/mi-nivel.html?codigo=${encodeURIComponent(sesion.pacienteCodigo)}`;
+  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(urlApp)}`;
+  document.getElementById('qr-vinculacion').innerHTML = `<img src="${qrImgUrl}" width="280" height="280" alt="Código QR de acceso a tu app">`;
+  document.getElementById('fin-codigo-texto').textContent = `Tu código: ${sesion.pacienteCodigo}`;
+  irA('p-fin');
+}
+
+function reiniciarKiosco() {
+  sesion = { staffCodigo: null, pacienteCodigo: null, pacienteRecordId: null, pacienteNombre: null };
+  historiaIdx = 0; historiaRespuestas = {};
+  document.getElementById('input-staff-codigo').value = '';
+  document.getElementById('input-paciente-codigo').value = '';
+  document.getElementById('input-nuevo-nombre').value = '';
+  irA('p-inactivo');
+}
+</script>
+</body>
+</html>
