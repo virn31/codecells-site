@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Bienvenido a CODE CELLS®</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a; --black-2: #111111; --black-3: #1a1a1a;
+    --gold: #C9A96E; --gold-pale: rgba(201,169,110,0.12); --gold-pale2: rgba(201,169,110,0.06);
+    --text-1: #f0ede8; --text-2: #9a9590; --text-3: #5a5550;
+    --border: rgba(201,169,110,0.18); --border-dim: rgba(255,255,255,0.06);
+    --radius: 12px;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--black) url('assets/nebula-nova.jpg') center/cover fixed no-repeat;
+    color: var(--text-1); font-family: var(--font-sans); -webkit-tap-highlight-color: transparent;
+  }
+  body::before { content: ''; position: fixed; inset: 0; background: rgba(10,10,10,0.85); z-index: 0; pointer-events: none; }
+  .pantalla {
+    position: relative; z-index: 1; display: none; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; min-height: 100dvh; padding: 32px; text-align: center; overflow-y: auto;
+  }
+  .pantalla.activa { display: flex; }
+
+  .logo-glyph { font-family: var(--font-serif); font-size: 15px; letter-spacing: 0.35em; color: var(--gold); font-weight: 300; margin-bottom: 40px; }
+  .titulo { font-family: var(--font-serif); font-size: 30px; font-weight: 300; margin: 0 0 14px; max-width: 420px; }
+  .subtitulo { font-size: 15px; color: var(--text-2); max-width: 380px; line-height: 1.6; margin-bottom: 32px; }
+
+  .kiosco-input {
+    width: 100%; max-width: 380px; background: var(--black-3); border: 1px solid var(--border-dim);
+    border-radius: var(--radius); color: var(--text-1); font-family: var(--font-sans); font-size: 17px;
+    padding: 16px 18px; text-align: center; outline: none; margin-bottom: 12px;
+  }
+  .kiosco-input:focus { border-color: var(--gold); }
+
+  .btn-grande {
+    background: var(--gold); color: var(--black); border: none; border-radius: 30px;
+    font-family: var(--font-sans); font-weight: 700; font-size: 17px; padding: 16px 40px;
+    cursor: pointer; margin-top: 12px; width: 100%; max-width: 380px;
+  }
+  .btn-grande:disabled { opacity: 0.5; }
+
+  .campo-error { color: #e2574b; font-size: 13px; min-height: 18px; margin-top: 6px; }
+  .loader { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(0,0,0,0.25); border-top-color: var(--black); border-radius: 50%; animation: girar 0.8s linear infinite; vertical-align: middle; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+
+  .codigo-final { font-family: var(--font-mono); font-size: 22px; color: var(--gold); letter-spacing: 0.05em; margin: 18px 0; }
+</style>
+</head>
+<body>
+
+<!-- Pantalla: formulario -->
+<div class="pantalla activa" id="p-form">
+  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="titulo">Bienvenido — vamos a registrarte</div>
+  <div class="subtitulo">Solo necesitamos tu nombre completo para crear tu expediente. Tu médico ya está enterado de este registro.</div>
+  <input type="text" class="kiosco-input" id="input-nombre" placeholder="Nombre completo" autocomplete="off">
+  <input type="tel" class="kiosco-input" id="input-telefono" placeholder="WhatsApp (opcional)" autocomplete="off">
+  <div class="campo-error" id="error-form"></div>
+  <button class="btn-grande" id="btn-registrar">Crear mi expediente</button>
+</div>
+
+<!-- Pantalla: enlace inválido -->
+<div class="pantalla" id="p-invalido">
+  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="titulo">Este enlace no es válido</div>
+  <div class="subtitulo">Pide a tu médico que te comparta el link de registro nuevamente.</div>
+</div>
+
+<!-- Pantalla: éxito -->
+<div class="pantalla" id="p-exito">
+  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="titulo">Listo, <span id="exito-nombre"></span></div>
+  <div class="subtitulo">Tu expediente ya está creado. Te estamos llevando a tu página personal…</div>
+  <div class="codigo-final" id="exito-codigo"></div>
+</div>
+
+<script>
+var tokenRegistro = null;
+
+function irA(id) {
+  document.querySelectorAll('.pantalla').forEach(function(p){ p.classList.remove('activa'); });
+  document.getElementById(id).classList.add('activa');
+}
+
+function init() {
+  var params = new URLSearchParams(window.location.search);
+  tokenRegistro = params.get('token');
+  if (!tokenRegistro || !/^REG-[A-Z0-9]{6,20}$/.test(tokenRegistro)) {
+    irA('p-invalido');
+    return;
+  }
+}
+
+document.getElementById('btn-registrar').addEventListener('click', async function() {
+  var nombre = document.getElementById('input-nombre').value.trim();
+  var telefono = document.getElementById('input-telefono').value.trim();
+  var errEl = document.getElementById('error-form');
+  var btn = this;
+  errEl.textContent = '';
+
+  if (!nombre || nombre.length < 3 || nombre.indexOf(' ') === -1) {
+    errEl.textContent = 'Escribe tu nombre completo.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loader"></span>';
+
+  try {
+    var res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'kiosco_crear_paciente',
+        regToken: tokenRegistro,
+        nombreCompleto: nombre,
+        telefono: telefono || undefined,
+      }),
+    });
+    var data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      errEl.textContent = data.error || 'No pudimos crear tu expediente. Intenta de nuevo.';
+      btn.disabled = false;
+      btn.textContent = 'Crear mi expediente';
+      return;
+    }
+
+    document.getElementById('exito-nombre').textContent = nombre.split(' ')[0];
+    document.getElementById('exito-codigo').textContent = data.codigo;
+    irA('p-exito');
+
+    setTimeout(function() {
+      window.location.href = 'mi-nivel.html?codigo=' + encodeURIComponent(data.codigo);
+    }, 2200);
+
+  } catch (err) {
+    errEl.textContent = 'Error de conexión. Intenta de nuevo.';
+    btn.disabled = false;
+    btn.textContent = 'Crear mi expediente';
+  }
+});
+
+init();
+</script>
+</body>
+</html>
