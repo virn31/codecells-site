@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Exosomas — GENESIS™ (edición ampliada)</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  h4 { margin:20px 0 8px; font-size:13.5px; font-weight:700; color:var(--gold-light); letter-spacing:0.03em; text-transform:uppercase; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .phase-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .phase-chip { background:var(--surface); border-radius:8px; padding:8px 10px; font-size:11.5px; text-align:center; flex:1; min-width:80px; border-bottom:3px solid var(--teal-light); }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { caseText: "Un médico recibe un vial de exosomas (RGCD042417) de Regene Global y necesita decidir cómo almacenarlo antes de la sesión programada para el día siguiente.",
+    opts: ["Puede dejarse a temperatura ambiente sin problema durante ese tiempo.", "Debe respetarse la cadena de frío indicada por el proveedor desde la recepción hasta el momento de aplicación, sin excepciones por conveniencia de horario.", "Solo importa la temperatura durante el transporte, no durante el almacenamiento previo a la aplicación."], correct: 1,
+    rationale: "Los exosomas son un producto biológico sensible a la temperatura; romper la cadena de frío en cualquier punto —recepción, almacenamiento o previo a la aplicación— compromete su integridad y la seguridad/eficacia del producto aplicado." },
+  { caseText: "Antes de aplicar exosomas a un paciente nuevo, el médico revisa el expediente y no encuentra registro de consentimiento informado específico para este biológico.",
+    opts: ["Se puede proceder, el consentimiento general de la clínica ya cubre cualquier terapéutica.", "Debe obtenerse consentimiento informado específico para el uso de exosomas antes de proceder, dado que es un producto de nivel Avanzado (GENESIS™) con requisitos propios.", "El consentimiento solo es necesario si el paciente lo solicita expresamente."], correct: 1,
+    rationale: "Los biológicos de nivel Avanzado (GENESIS™), como los exosomas, requieren su propio consentimiento informado específico, dado su naturaleza y el marco regulatorio aplicable — no basta un consentimiento general de la clínica." },
+  { caseText: "Un médico certificado en nivel Intermedio (ACTIVATE™) quiere aplicar exosomas a un paciente sin haber completado la certificación de nivel Avanzado.",
+    opts: ["Puede hacerlo, los exosomas no requieren certificación adicional específica.", "Debe seguir el flujo correspondiente del sistema de certificación (completar el nivel Avanzado, o Flujo B en caso justificado) antes de aplicar exosomas de forma rutinaria.", "Solo se requiere autorización verbal de un socio para proceder."], correct: 1,
+    rationale: "Los exosomas corresponden al nivel GENESIS™ (Avanzado) dentro del sistema de certificación clínica — su aplicación rutinaria exige la certificación correspondiente o el Flujo B en un caso clínicamente justificado." },
+  { caseText: "Tras la aplicación de exosomas, el paciente presenta enrojecimiento leve y transitorio en el sitio de aplicación, que resuelve en menos de 24 horas sin otros síntomas.",
+    opts: ["Se documenta como evento local esperable y se continúa el seguimiento habitual.", "Se suspende de forma permanente cualquier tratamiento biológico futuro en ese paciente.", "Se considera un fracaso terapéutico que invalida el protocolo completo."], correct: 0,
+    rationale: "Un enrojecimiento leve y transitorio en el sitio de aplicación, sin progresión ni síntomas sistémicos, es un evento local esperable dentro del rango normal — se documenta y se sigue, sin necesidad de suspender el tratamiento de forma permanente." },
+  { caseText: "Se recibe un lote de exosomas y, al revisar el registro de trazabilidad, el médico nota que el código de lote no coincide con la documentación del proveedor.",
+    opts: ["Se aplica de todas formas, la discrepancia probablemente es un error administrativo sin importancia.", "Se debe detener el uso de ese lote hasta aclarar la discrepancia de trazabilidad con Regene Global antes de aplicar el producto.", "Solo se reporta después de aplicarlo, para no retrasar la sesión del paciente."], correct: 1,
+    rationale: "La trazabilidad de un biológico es un elemento de seguridad no negociable — cualquier discrepancia en el código de lote debe aclararse antes de aplicar el producto, nunca después." },
+  { caseText: "Paciente con VIH activo, candidato a exosomas para soporte de reparación tisular e inmunomodulación.",
+    opts: ["Monodosis única, sin necesidad de repetir.", "1 aplicación mensual durante 6 meses — la actividad de la enfermedad determina una frecuencia más intensiva que en un paciente estable.", "Cada 6 meses, igual que cualquier paciente VIH+."], correct: 1,
+    rationale: "El VIH activo requiere una frecuencia mensual durante 6 meses — muy distinta del esquema para un paciente VIH+ estable e indetectable, donde basta con cada 6 meses." },
+  { caseText: "Paciente VIH+ clínicamente estable e indetectable, sin actividad de la enfermedad, candidato a exosomas.",
+    opts: ["1 aplicación mensual durante 6 meses, igual que en VIH activo.", "1 aplicación cada 6 meses.", "No es candidato bajo ninguna circunstancia."], correct: 1,
+    rationale: "Un paciente VIH+ estable e indetectable se maneja con una frecuencia mucho más espaciada (cada 6 meses) — aplicar el esquema intensivo de VIH activo sería sobretratamiento." },
+  { caseText: "Un médico calcula la dosis de exosomas para un paciente multiplicando 1 millón de unidades por kg de peso, 'igual que se hace con MSC placentarias'.",
+    opts: ["Correcto, todos los biológicos de GENESIS™ se dosifican por peso corporal.", "Incorrecto: los exosomas se dosifican por número de viales según la severidad del caso, no por peso corporal — ese criterio es específico de MSC/MUSE, no se traslada automáticamente a exosomas.", "Los exosomas no tienen ningún criterio de dosificación documentado."], correct: 1,
+    rationale: "Cada biológico tiene su propia lógica de dosificación — MSC/MUSE se dosifican por peso o por severidad según la vía; los exosomas se dosifican por número de viales según severidad del caso, nunca por peso corporal." },
+  { caseText: "Paciente con tendinopatía crónica y desgaste de cartílago articular es candidato a manejo regenerativo. El médico considera si los exosomas deben aplicarse solos o si tiene sentido combinarlos con otro biológico.",
+    opts: ["Los exosomas nunca pueden combinarse con otros biológicos.", "Los exosomas pueden combinarse con MSC o MUSE específicamente en reparación osteoarticular (cartílago, tendinopatías, inflamación articular) — es una combinación documentada, no una improvisación.", "Solo se pueden aplicar exosomas por vía tópica en este contexto."], correct: 1,
+    rationale: "La combinación de exosomas con MSC/MUSE está documentada específicamente para procesos de reparación osteoarticular — cartílago, tendinopatías e inflamación articular — no es una mezcla arbitraria de productos." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Dos pacientes presentan reacciones tras la aplicación de exosomas. Paciente A: enrojecimiento leve y transitorio en el sitio, resuelve en 24 horas. Paciente B: induración progresiva, dolor creciente y fiebre en las 48 horas posteriores.",
+    opts: ["Ambos son reacciones locales esperables y se manejan igual, con observación.", "Son cuadros distintos: A es un evento local esperable que se documenta y sigue; B sugiere un proceso infeccioso o inflamatorio significativo que exige evaluación médica activa, no solo observación."], correct: 1,
+    rationale: "Confundir un evento local leve con un cuadro progresivo con fiebre e induración creciente retrasa una evaluación necesaria — el segundo patrón no es 'lo mismo pero más fuerte', es una señal de alarma distinta." },
+  { caseText: "Un médico se pregunta si, al certificarse en ACTIVATE™ (Intermedio), automáticamente queda habilitado para aplicar exosomas, ya que 'ya maneja inyectables'.",
+    opts: ["Sí, cualquier certificación de manejo de inyectables habilita el uso de biológicos de nivel Avanzado.", "No: el acceso a biológicos como los exosomas corresponde específicamente al nivel GENESIS™ (Avanzado) del sistema de certificación — manejar otro tipo de inyectable (péptidos) no habilita automáticamente este nivel."], correct: 1,
+    rationale: "Es un error frecuente asumir que la familiaridad técnica con inyectables en general habilita cualquier nivel — el sistema de certificación define el acceso por nivel específico (Básico/Intermedio/Avanzado), no por tipo de habilidad técnica genérica." },
+  { caseText: "Ante una discrepancia en el código de lote de un vial de exosomas, un médico considera si puede aplicarlo de todas formas 'porque visualmente el producto se ve normal'.",
+    opts: ["Sí, la apariencia visual del producto es suficiente para confirmar su integridad.", "No: la trazabilidad documental (código de lote) es un requisito de seguridad independiente de la apariencia visual del producto, y cualquier discrepancia debe aclararse antes de usarlo."], correct: 1,
+    rationale: "La apariencia visual no sustituye la verificación de trazabilidad — son dos criterios distintos de seguridad, y uno no compensa la falta del otro." },
+  { caseText: "Un médico ve a dos pacientes VIH+ candidatos a exosomas y asume que ambos deben recibir la misma frecuencia de aplicación, ya que comparten el mismo diagnóstico de base. Paciente A: VIH activo. Paciente B: VIH+ estable e indetectable.",
+    opts: ["Correcto, el mismo diagnóstico de base implica la misma frecuencia de aplicación.", "Incorrecto: la actividad de la enfermedad, no solo el diagnóstico, determina la frecuencia — VIH activo requiere 1 aplicación mensual x 6 meses; VIH+ estable requiere solo cada 6 meses. Tratarlos igual sería sobretratar al paciente estable o subtratar al activo."], correct: 1,
+    rationale: "El mismo diagnóstico de base (VIH) puede requerir esquemas completamente distintos según la actividad de la enfermedad — es un error de razonamiento común asumir que 'mismo diagnóstico' equivale a 'mismo protocolo'." },
+  { caseText: "Un médico traslada el criterio de dosificación de MSC placentarias (1 millón por kg de peso) a los exosomas, asumiendo que 'todos los biológicos de GENESIS™ se calculan igual'.",
+    opts: ["Correcto, el peso corporal es el criterio universal para dosificar cualquier biológico.", "Incorrecto: los exosomas se dosifican por número de viales según severidad del caso, no por peso — cada biológico tiene su propia lógica de dosificación documentada, y no debe asumirse un criterio compartido sin verificarlo."], correct: 1,
+    rationale: "Pertenecer al mismo nivel clínico (GENESIS™) no implica compartir la misma lógica de dosificación — MSC/MUSE usan peso o severidad según vía; exosomas usan severidad en viales; NK usa monodosis fija. Cada uno se verifica por separado." }
+];
+
+var QUESTIONS = [
+  { q: "¿Qué característica del manejo de exosomas es no negociable desde la recepción hasta la aplicación?", opts: ["El horario de la cita", "La cadena de frío", "El color del empaque", "El idioma del etiquetado"], correct: 1 },
+  { q: "¿Qué debe obtenerse antes de aplicar exosomas a un paciente, además del consentimiento general de la clínica?", opts: ["Nada adicional es necesario", "Consentimiento informado específico para el uso de este biológico de nivel Avanzado", "Solo una firma de recepción de factura", "Autorización notarial"], correct: 1 },
+  { q: "¿Qué nivel del sistema de certificación clínica habilita el uso rutinario de exosomas?", opts: ["Básico (RESTORE™)", "Intermedio (ACTIVATE™)", "Avanzado (GENESIS™)", "Ningún nivel, aplica a todos por igual"], correct: 2 },
+  { q: "Ante enrojecimiento leve y transitorio en el sitio de aplicación, sin otros síntomas, ¿qué se recomienda?", opts: ["Suspender de forma permanente todo tratamiento biológico futuro", "Documentar como evento local esperable y continuar el seguimiento habitual", "Declarar fracaso terapéutico del protocolo completo", "Ignorar sin registrar nada"], correct: 1 },
+  { q: "¿GENESIS™ excluye la sueroterapia y los péptidos de niveles anteriores?", opts: ["Sí, los excluye por completo", "No, se construye sobre RESTORE™ y ACTIVATE™, incorporando biológicos como capa adicional", "Solo se puede aplicar exosomas de forma aislada", "Depende del clima"], correct: 1 },
+  { q: "Ante una discrepancia entre el código de lote recibido y la documentación del proveedor, ¿qué se debe hacer?", opts: ["Aplicar el producto de todas formas", "Detener el uso de ese lote hasta aclarar la discrepancia con Regene Global", "Reportarlo después de aplicarlo al paciente", "Ignorarlo si el producto se ve normal"], correct: 1 },
+  { q: "¿Qué distingue a un enrojecimiento leve transitorio de una induración progresiva con fiebre tras la aplicación?", opts: ["No hay diferencia clínica relevante", "El primero es un evento local esperable; el segundo sugiere un proceso infeccioso/inflamatorio que exige evaluación médica activa", "Ambos requieren suspender el tratamiento de forma permanente", "El segundo siempre se resuelve espontáneamente sin intervención"], correct: 1 },
+  { q: "¿Estar certificado en ACTIVATE™ habilita automáticamente el uso de exosomas?", opts: ["Sí, por manejar ya otro tipo de inyectable", "No, el acceso a biológicos corresponde específicamente al nivel GENESIS™", "Solo si el médico lo solicita verbalmente", "Depende de la antigüedad del médico en la red"], correct: 1 },
+  { q: "¿La apariencia visual normal de un vial de exosomas sustituye la verificación de trazabilidad documental?", opts: ["Sí, si se ve bien es suficiente", "No, son dos criterios de seguridad independientes; ambos deben cumplirse", "Solo aplica la apariencia visual en biológicos importados", "La trazabilidad solo importa para efectos fiscales"], correct: 1 },
+  { q: "¿Qué código identifica a los exosomas en el catálogo de biológicos de Regene Global usado en CODE CELLS®?", opts: ["RGCD042414", "RGCD042417", "RGCD042419", "MCI™"], correct: 1 },
+  { q: "¿Cómo se determina la dosis de exosomas por sesión?", opts: ["Por kilogramo de peso del paciente, igual que MSC", "Por número de viales, según la severidad del caso", "Siempre es una monodosis fija", "Se calcula por superficie corporal total"], correct: 1 },
+  { q: "¿Qué vías de aplicación son posibles para los exosomas?", opts: ["Únicamente intravenosa", "IM, IV, SC, intralesional e intraarticular", "Únicamente vía oral", "Únicamente intraarticular"], correct: 1 },
+  { q: "¿Con qué frecuencia se aplican exosomas en un paciente con VIH activo?", opts: ["Una vez al mes durante 6 meses", "Una vez cada 6 meses", "Una sola aplicación de por vida", "Cada 2 semanas de forma indefinida"], correct: 0 },
+  { q: "¿Con qué frecuencia se aplican exosomas en un paciente VIH+ clínicamente estable e indetectable?", opts: ["Una vez al mes durante 6 meses", "Cada 6 meses", "Cada 2 meses", "No se indican exosomas en este perfil"], correct: 1 },
+  { q: "¿Qué mecanismo permite a los exosomas actuar como mensajeros entre células?", opts: ["Transportan proteínas, lípidos y ácidos nucleicos de una célula donante a una receptora, cambiando su comportamiento", "Se dividen directamente para formar nuevo tejido", "Actúan exclusivamente como antiinflamatorios tópicos", "No tienen actividad de señalización celular"], correct: 0 },
+  { q: "¿Qué tipo celular activan los exosomas durante la cicatrización, estimulando colágeno y elastina?", opts: ["Fibroblastos", "Hepatocitos", "Osteoclastos", "Adipocitos"], correct: 0 },
+  { q: "¿Qué rol cumplen los exosomas en la respuesta inmunitaria?", opts: ["Transportan moléculas que contribuyen o suprimen la inflamación, ayudando a regular la respuesta inmune", "No tienen ninguna relación con el sistema inmune", "Bloquean por completo cualquier respuesta inflamatoria", "Solo actúan sobre el sistema nervioso"], correct: 0 },
+  { q: "¿En qué contexto clínico se combinan exosomas con MSC o MUSE?", opts: ["Procesos específicos de reparación osteoarticular: regeneración de cartílago, tendinopatías, inflamación articular", "Nunca se combinan entre sí", "Únicamente en protocolos oncológicos", "Solo en pacientes pediátricos"], correct: 0 },
+  { q: "¿El criterio de dosificación por peso corporal (usado en MSC) se traslada automáticamente a los exosomas?", opts: ["Sí, todos los biológicos de GENESIS™ comparten el mismo criterio de dosificación", "No, cada biológico tiene su propia lógica de dosificación — los exosomas se dosifican por severidad en viales, no por peso", "Solo se traslada en pacientes pediátricos", "Solo se traslada si el paciente pesa más de 70kg"], correct: 1 },
+  { q: "¿Qué elemento de seguridad debe verificarse siempre al recibir un lote de biológico, independientemente de su apariencia?", opts: ["El color de la caja", "El código de lote y su coincidencia con la documentación del proveedor", "La marca del transportista", "El idioma de la etiqueta"], correct: 1 },
+  { q: "¿Qué acción es correcta si un médico de nivel Intermedio quiere aplicar exosomas de forma rutinaria sin certificación Avanzada?", opts: ["Aplicar sin más trámite", "Completar la certificación GENESIS™ correspondiente, o usar el Flujo B en un caso clínicamente justificado", "Pedir permiso verbal a un compañero médico", "No es necesario ningún paso adicional si el paciente insiste"], correct: 1 },
+  { q: "¿Qué implica romper la cadena de frío en cualquier punto del manejo de exosomas?", opts: ["No tiene ningún efecto relevante", "Compromete la integridad del producto y la seguridad/eficacia de la aplicación", "Solo afecta la apariencia del vial", "Se puede compensar aumentando la dosis"], correct: 1 },
+  { q: "¿Qué se prioriza ante fiebre e induración progresiva en el sitio de aplicación de un biológico?", opts: ["Esperar unos días más antes de hacer cualquier cosa", "Evaluación médica activa, dado que sugiere un proceso infeccioso o inflamatorio significativo", "Aplicar hielo local y no reportar el evento", "Aumentar la siguiente dosis para 'reforzar' el tratamiento"], correct: 1 },
+  { q: "¿Qué documento es indispensable antes de aplicar cualquier biológico de nivel Avanzado a un paciente?", opts: ["Ninguno adicional al consentimiento general", "Consentimiento informado específico para ese biológico", "Solo la factura de compra del producto", "Un certificado de nacionalidad del paciente"], correct: 1 },
+  { q: "¿Qué principio guía la decisión de aplicar o no un lote con discrepancia de trazabilidad?", opts: ["La conveniencia de horario del paciente", "La seguridad del producto prevalece sobre la conveniencia operativa — se detiene el uso hasta aclarar", "El costo del lote ya pagado", "La opinión del paciente sobre el aspecto del producto"], correct: 1 }
+];
+
+var CELLS = [
+  { label: "1 · Bienvenida", render: function() {
+    return '<div class="icon-badge">🧫</div><h3>Exosomas — GENESIS™</h3>' +
+      '<p>Los exosomas son el primer biológico de Regene Global que se incorpora en GENESIS™, el nivel Avanzado. Este módulo cubre el mecanismo completo, la dosificación real por severidad, las vías de aplicación, y lo que distingue el manejo de un biológico frente a cualquier otra terapéutica: cadena de frío, trazabilidad y consentimiento específico.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás explicar el mecanismo de acción de los exosomas, aplicar la dosificación correcta según severidad (no por peso), seleccionar la vía adecuada, cumplir cadena de frío/trazabilidad/consentimiento, y distinguir eventos locales esperables de señales de alarma.</p></div>';
+  }},
+  { label: "2 · Contexto", render: function() {
+    return '<div class="icon-badge">💡</div><h3>¿Por qué importa esto?</h3>' +
+      '<p>Un biológico como los exosomas no se comporta como un medicamento de anaquel: su integridad depende de una cadena de frío ininterrumpida y de trazabilidad documental exacta desde el proveedor hasta el paciente — y su dosis no se calcula como la de otros biológicos del mismo nivel.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+      '<p style="margin:0;">Asumir que la certificación en un nivel anterior habilita automáticamente el uso de biológicos, aplicar un producto pese a una discrepancia de trazabilidad porque "se ve normal", o trasladar el criterio de dosificación por peso de MSC a los exosomas sin verificarlo.</p></div>';
+  }},
+  { label: "3 · Concepto", render: function() {
+    return '<div class="icon-badge">📚</div><h3>De ACTIVATE™ a GENESIS™</h3>' +
+      '<div class="phase-row"><div class="phase-chip">Sueroterapia + Antihomotox.</div><div class="phase-chip">+ Péptidos</div><div class="phase-chip">+ Biológicos (Exosomas)</div></div>' +
+      '<p>GENESIS™ incorpora biológicos de Regene Global (código RGCD042417 para exosomas) sobre las capas ya presentes en RESTORE™ y ACTIVATE™, y requiere certificación clínica de nivel Avanzado.</p>' +
+
+      '<h4>Mecanismo de acción</h4>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Comunicación intercelular:</strong> transportan proteínas, lípidos y ácidos nucleicos de una célula donante a una receptora, cambiando su comportamiento. <strong style="color:#fff;">Regeneración:</strong> activan fibroblastos, estimulando colágeno y elastina en la cicatrización. <strong style="color:#fff;">Inmunológico:</strong> transportan moléculas pro y antiinflamatorias, regulando la respuesta inmune.</p></div>' +
+
+      '<h4>Dosificación y vías reales</h4>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Dosis:</strong> por número de viales, según severidad del caso — <strong style="color:var(--danger);">no por peso corporal</strong> (a diferencia de MSC/MUSE). <strong style="color:#fff;">Vías:</strong> IM, IV, SC, intralesional, intraarticular. <strong style="color:#fff;">Combinación:</strong> pueden aplicarse junto con MSC o MUSE específicamente en reparación osteoarticular (cartílago, tendinopatías, inflamación articular).</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">VIH activo:</strong> 1 aplicación mensual durante 6 meses. <strong style="color:#fff;">VIH+ estable/indetectable:</strong> 1 aplicación cada 6 meses — la actividad de la enfermedad, no solo el diagnóstico, determina la frecuencia.</p></div>' +
+
+      '<h4>Los dos requisitos no negociables</h4>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Cadena de frío</strong> — ininterrumpida desde recepción hasta aplicación. <strong style="color:#fff;">Trazabilidad</strong> — el código de lote debe coincidir con la documentación del proveedor; cualquier discrepancia detiene el uso hasta aclararse.</p></div>' +
+
+      '<h4>Evento local esperable vs. señal de alarma</h4>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Esperable:</strong> enrojecimiento leve y transitorio, resuelve en 24h. <strong style="color:#fff;">Alarma:</strong> induración progresiva, dolor creciente y fiebre — sugiere proceso infeccioso/inflamatorio y exige evaluación activa.</p></div>';
+  }},
+  { label: "4 · Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Paciente con tendinopatía crónica y desgaste articular, VIH+ estable e indetectable, candidato a exosomas.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1 — dosis por severidad, no por peso.</strong> Se calcula el número de viales según la severidad del cuadro articular, no según el peso del paciente.</p>' +
+      '<p><strong style="color:#fff;">Paso 2 — considerar combinación osteoarticular.</strong> Dado el objetivo de reparación de cartílago/tendinopatía, se evalúa combinar con MSC o MUSE, ya que esta combinación está documentada para este tipo de caso.</p>' +
+      '<p><strong style="color:#fff;">Paso 3 — ajustar frecuencia por el VIH, no por la articulación.</strong> Al ser VIH+ estable e indetectable, la frecuencia relacionada con ese eje es cada 6 meses — muy distinta de un caso de VIH activo (mensual x6 meses).</p>' +
+      '<p><strong style="color:#fff;">Paso 4 — verificar cadena de frío, trazabilidad y consentimiento.</strong> Estos tres requisitos aplican sin importar la indicación específica del caso.</p>' +
+      '<p style="margin:0;"><strong style="color:#fff;">Conclusión:</strong> la dosis depende de la severidad articular, la frecuencia depende de la actividad del VIH, y la combinación con otro biológico depende del objetivo de reparación — tres decisiones independientes, no una sola regla genérica.</p>';
+  }},
+  { label: "5 · Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica clínica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "6 · Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos criterios compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "7 · Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "8 · Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>Los exosomas se dosifican por número de viales según severidad — nunca por peso corporal, a diferencia de MSC/MUSE.</li>' +
+      '<li>La frecuencia en VIH depende de la actividad de la enfermedad (activo: mensual x6 meses; estable: cada 6 meses), no solo del diagnóstico.</li>' +
+      '<li>Cadena de frío y trazabilidad son requisitos no negociables en el manejo de exosomas.</li>' +
+      '<li>El acceso a biológicos corresponde específicamente al nivel GENESIS™ — no lo habilita la certificación de un nivel anterior.</li>' +
+      '<li>Distinguir un evento local esperable de una señal de alarma (fiebre, induración progresiva) es la habilidad clínica central de este módulo.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, regresa a la celda 7 para reintentar")+'</p>' +
+      '<p style="margin:8px 0 0;">Siguiente módulo sugerido: Células madre — MSC placentarias, NK y MUSE.</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===4) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===5) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===6) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>
