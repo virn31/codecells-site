@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Homotoxicología — Fundamento y manejo clínico completo</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  h4 { margin:20px 0 8px; font-size:13.5px; font-weight:700; color:var(--gold-light); letter-spacing:0.03em; text-transform:uppercase; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .fundcard { background:var(--surface); border-left:3px solid var(--gold-light); border-radius:8px; padding:12px 14px; margin-bottom:8px; }
+  .fundcard .fname { font-weight:700; color:#fff; font-size:13.5px; margin-bottom:5px; }
+  .fundcard .ftext { font-size:12.5px; color:var(--text-secondary); line-height:1.6; }
+  .protocard { background:var(--surface); border-left:3px solid var(--teal-light); border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+  .protocard .pname { font-weight:700; color:#fff; font-size:13.5px; margin-bottom:4px; }
+  .protocard .pcomp { font-size:12.5px; color:var(--text-secondary); margin-bottom:4px; }
+  .protocard .pmeta { font-size:11px; color:var(--teal-light); font-family:monospace; margin-bottom:4px; }
+  .protocard .pwarn { font-size:11.5px; color:var(--danger); }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { caseText: "Un médico revisa Trameel S® y nota que se comercializa con un nombre de una sola palabra, en una potencia fija combinando varios componentes homeopáticos clásicos.",
+    opts: ["Es un ejemplo del grupo A, subgrupo 'Especialidades' — asociaciones a dosis fijas con nombre comercial de un solo vocablo.", "Es un organopreparado-\"suis\" del grupo F.", "Es un nosode del grupo E."], correct: 0,
+    rationale: "Las 'Especialidades' son asociaciones a dosis fijas de sustancias homeopáticas, cada una generalmente en una sola potencia, con nombre comercial de un solo vocablo (Engystol®, Lymphomyosot®, Trameel S®, Zeel T®, etc.)." },
+  { caseText: "Un médico compara Lymphomyosot® (disponible en gotas y solución inyectable) con Angio-Heel® (disponible solo en solución inyectable), y ambos combinan varios componentes homeopáticos en acordes de potencias.",
+    opts: ["Ambos son del mismo subgrupo, la diferencia de presentación es irrelevante.", "Lymphomyosot® es un Homaccord (gotas y solución inyectable); Angio-Heel® es un Injeel mixto (solo solución inyectable) — la forma de presentación distingue a ambos subgrupos.", "Ambos son organopreparados-\"suis\"."], correct: 1,
+    rationale: "Los Homaccord se presentan en gotas y solución inyectable; los Injeel mixtos, aunque también son asociaciones de componentes en acordes de potencias, solo se presentan en solución inyectable — la presentación es justamente lo que distingue ambos subgrupos." },
+  { caseText: "Un médico atiende a un paciente nuevo del que no conoce su capacidad reactiva a los medicamentos homeopáticos, y debe elegir entre Injeel simple e Injeel forte.",
+    opts: ["Inicia con Injeel forte, ya que siempre es la opción más segura.", "Inicia con Injeel simple, ya que sus efectos estimulantes son más suaves y no hay que temer reacciones iniciales intensas cuando se desconoce la reactividad del paciente.", "La elección es indiferente en cualquier caso."], correct: 1,
+    rationale: "Cuando no se conoce con exactitud la capacidad reactiva del paciente, se recomienda comenzar con Injeel simple, ya que sus efectos son comparativamente más suaves y no generan reacciones iniciales intensas." },
+  { caseText: "Un paciente sin sensibilidad especial conocida presenta una enfermedad aguda y requiere tratamiento inmediato.",
+    opts: ["Se inicia con Injeel forte (potencia más baja), pasando a Injeel simple cuando la mejoría sea manifiesta.", "Se inicia siempre con Injeel simple en cualquier caso agudo.", "Las enfermedades agudas no se tratan con acordes de potencias."], correct: 0,
+    rationale: "En enfermedades agudas, salvo que se trate de un paciente especialmente sensible, se utilizan al comienzo potencias más bajas (Injeel forte), pasando a Injeel simple cuando la mejoría ya es manifiesta." },
+  { caseText: "Un médico va a aplicar Cymeheel®, Disheel® o Ubicheel® y considera la vía intravenosa como primera opción sin más consideración.",
+    opts: ["Se procede sin ninguna precaución adicional, son medicamentos homeopáticos y no representan ningún riesgo.", "Se recomienda no aplicar estos tres medicamentos por vía intravenosa a menos que se tenga mucha experiencia, ya que pueden dar lugar a reacciones iniciales muy intensas o graves.", "Están formalmente prohibidos por cualquier vía."], correct: 1,
+    rationale: "El compendio señala explícitamente que, a no ser que se tenga mucha experiencia en homeopatía, no se recomienda la inyección intravenosa de Cymeheel®, Disheel® y Ubicheel®, dado que pueden dar lugar a reacciones iniciales muy intensas o graves." },
+  { caseText: "Un médico considera aplicar Proinum® por vía intravenosa como parte de un protocolo combinado.",
+    opts: ["Proinum® es el único medicamento del compendio con la inyección intravenosa formalmente contraindicada.", "Puede aplicarse por cualquier vía sin ninguna restricción especial.", "Solo se contraindica la vía intravenosa en menores de edad."], correct: 0,
+    rationale: "El compendio señala explícitamente que Proinum® es el único medicamento en que está contraindicada la inyección intravenosa." },
+  { caseText: "Un paciente presenta una enfermedad aguda de especial gravedad y el médico debe decidir la frecuencia inicial de dosificación oral.",
+    opts: ["Se inicia con 1 comprimido o 10 gotas cada 15 minutos, durante 2 horas como máximo, reduciendo la frecuencia conforme mejora hasta llegar a 3-6 tomas al día.", "Se inicia directamente con la dosis de mantenimiento crónico (3 veces al día) sin ajuste inicial.", "Se aplica una dosis única y se reevalúa en una semana."], correct: 0,
+    rationale: "En casos agudos de especial gravedad, puede iniciarse con 1 comprimido o 10 gotas cada 15 minutos durante un máximo de 2 horas, reduciendo la frecuencia progresivamente hasta la dosificación habitual de 3-6 tomas al día." },
+  { caseText: "Un paciente con una enfermedad crónica estable requiere tratamiento de mantenimiento a largo plazo, tanto oral como inyectable.",
+    opts: ["Oral: 1 comprimido o 10 gotas 3 veces al día. Inyectable: 1-3 veces por semana.", "Oral e inyectable se dosifican igual: 3 veces al día en ambos casos.", "En crónico, la vía inyectable se aplica diariamente sin excepción."], correct: 0,
+    rationale: "En el tratamiento a largo plazo de enfermedades crónicas, la dosis oral habitual es 1 comprimido o 10 gotas 3 veces al día, mientras que las soluciones inyectables se aplican de 1 a 3 veces por semana." },
+  { caseText: "Un niño de 4 años requiere tratamiento agudo con un medicamento Heel en gotas.",
+    opts: ["Se le administra la dosis de adulto ajustada a la mitad.", "Según la tabla pediátrica (1-6 años): 6 gotas cada ½-1 hora, como máximo 10 veces al día en casos agudos.", "Las gotas están contraindicadas en menores de 6 años bajo cualquier circunstancia."], correct: 1,
+    rationale: "La tabla de dosificación pediátrica para gotas en el grupo de 1-6 años indica 6 gotas cada ½-1 hora en casos agudos, hasta un máximo de 10 veces al día — una dosificación específica por grupo de edad, no un simple ajuste proporcional de la dosis adulta." },
+  { caseText: "Un paciente ex-alcohólico con antecedente de daño hepático requiere tratamiento homeopático y el médico considera prescribir gotas.",
+    opts: ["Se prescriben sin ninguna consideración adicional, las gotas homeopáticas no contienen ningún excipiente relevante.", "Se prescriben con discreción, ya que las gotas se fabrican con una mezcla hidroalcohólica y la ingesta de pequeñas cantidades de alcohol podría ocasionar problemas en pacientes hepáticos o ex alcohólicos — podría considerarse una forma de administración alternativa.", "Están formalmente prohibidas en cualquier paciente con antecedente hepático."], correct: 1,
+    rationale: "El compendio advierte que las gotas se fabrican conforme a la HAB con una mezcla hidroalcohólica, y recomienda prescribirlas con discreción en pacientes en los que la ingesta de alcohol, aunque sea en pequeñas cantidades, pudiera ocasionar problemas — como hepatópatas o ex alcohólicos." },
+  { caseText: "Un adulto mayor polimedicado (varios fármacos convencionales simultáneos) requiere apoyo antihomotóxico, y el médico debe decidir qué grupos tienen mayor utilidad en este contexto específico.",
+    opts: ["Los grupos C (alopáticos homeopatizados) y D (catalizadores intermediarios) son los de mayor interés aquí — C por su utilidad en contextos de patología iatrogénica por medicación múltiple, y D por su acción de apoyo metabólico en cadenas bloqueadas o lentificadas.", "Solo el grupo A (compuestos) tiene alguna utilidad en pacientes polimedicados.", "La polimedicación no cambia en nada la selección de grupo de antihomotóxicos."], correct: 0,
+    rationale: "El grupo C se describe específicamente como útil en patología iatrogénica derivada de medicación múltiple, y el grupo D apoya procesos metabólicos y de respiración celular en contextos crónicos o degenerativos — ambos cobran especial relevancia docente frente a un paciente polimedicado, más allá de simplemente elegir un compuesto del grupo A por default." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Un médico observa que, durante el tratamiento antihomotóxico de un paciente con una dermatosis crónica, aparece una reactivación temporal de síntomas catarrales o febriles, y no sabe si esto representa una mejoría o un empeoramiento.",
+    opts: ["Siempre representa un empeoramiento del cuadro y debe suspenderse el tratamiento de inmediato.", "Puede representar una vicariación regresiva: el desplazamiento de la enfermedad hacia fases más reversibles y humorales (como un proceso catarral o febril) durante la curación — un signo favorable dentro del modelo homotoxicológico, no necesariamente un empeoramiento."], correct: 1,
+    rationale: "Distinguir la vicariación regresiva (favorable, hacia fases humorales reversibles) de una verdadera progresión de la enfermedad (hacia fases celulares irreversibles) es central en el razonamiento homotoxicológico — confundir ambas puede llevar a suspender un tratamiento que en realidad está funcionando." },
+  { caseText: "Un médico debe decidir entre Injeel simple e Injeel forte para dos pacientes distintos: Paciente A cursa una enfermedad crónica de larga evolución. Paciente B cursa una enfermedad aguda y no es especialmente sensible.",
+    opts: ["Ambos deben recibir el mismo tipo de acorde de potencias, ya que la elección no depende del contexto clínico.", "Son elecciones distintas: en crónico se prefiere iniciar con Injeel simple (potencias altas); en agudo (sin sensibilidad especial) se inicia con Injeel forte (potencias más bajas), pasando a Injeel simple cuando la mejoría sea manifiesta."], correct: 1,
+    rationale: "La elección entre Injeel simple y forte no es arbitraria: depende de si la enfermedad es aguda o crónica, y de la sensibilidad conocida o desconocida del paciente — tratarlos igual ignora un criterio central de la prescripción homotoxicológica." },
+  { caseText: "Un médico confunde un nosode con un organopreparado-\"suis\", asumiendo que ambos son 'medicamentos de fondo' intercambiables porque ninguno actúa directamente contra un agente patógeno específico.",
+    opts: ["Correcto, ambos grupos son intercambiables porque comparten ese mecanismo indirecto.", "Incorrecto: los nosodes se usan según la similitud con un antecedente infeccioso (una vez superada la fase aguda), mientras que los organopreparados-\"suis\" se usan como terapia de estimulación específica de un órgano, típicamente tras un tratamiento previo con el compuesto homeopático indicado — su lógica de uso y su origen (patológico vs. porcino sano) son distintos."], correct: 1,
+    rationale: "Ambos grupos (E y F) no actúan directamente contra el agente causal, pero su lógica de selección es distinta: los nosodes se eligen por similitud anamnésica-etiológica con una infección previa; los organopreparados-\"suis\" se eligen por el órgano específico a estimular, tras el tratamiento de base." },
+  { caseText: "Un médico debe elegir la vía de administración para un paciente con un cuadro agudo severo, frente a otro paciente con una enfermedad crónica ya tratada sin mejoría satisfactoria con gotas.",
+    opts: ["En ambos casos se prefiere la vía oral, ya que actúa igual de rápido que la parenteral.", "Se prefiere la vía parenteral (IV) en el caso agudo severo, por su acción más rápida; y también se considera la vía parenteral en el crónico que no mejora con gotas — la vía oral se reserva para sintomatología de menor gravedad o como mantenimiento tras iniciar con inyectables."], correct: 1,
+    rationale: "El compendio recomienda vía oral para el tratamiento inicial de síntomas de menor gravedad, y vía parenteral cuando el cuadro es muy agudo o cuando el tratamiento oral crónico no produce mejoría satisfactoria — no es una preferencia arbitraria entre vías." },
+  { caseText: "Un médico, siguiendo un enfoque convencional, indica un antipirético para 'eliminar' la fiebre de un paciente con un proceso infeccioso leve, sin considerar el principio central de la terapia antihomotóxica.",
+    opts: ["Es consistente con la homotoxicología, ya que cualquier síntoma debe eliminarse cuanto antes.", "Es contrario al principio central de la homotoxicología: la fiebre y la inflamación no son siempre signos negativos, sirven para detoxicar y eliminar homotoxinas — la terapia antihomotóxica busca modular esas reacciones defensivas, no suprimirlas."], correct: 1,
+    rationale: "Suprimir sistemáticamente reacciones defensivas como la fiebre contradice el principio fundacional de Reckeweg: la enfermedad es una reacción biológica de defensa con un significado favorable, y el tratamiento debe modular esa reacción, no inhibirla — aunque el compendio reconoce que hay casos donde el sufrimiento intenso justifica recurrir a medios de tipo supresivo." }
+];
+
+var QUESTIONS = [
+  { q: "¿Quién fundó la homotoxicología?", opts: ["Dr. Hans-Heinrich Reckeweg", "Dr. Samuel Hahnemann", "Dr. Otto Warburg", "Dra. Ana Aslan"], correct: 0 },
+  { q: "¿En qué año fundó Reckeweg el laboratorio Heel?", opts: ["1936", "1948", "1905", "1985"], correct: 0 },
+  { q: "¿En qué años desarrolló Reckeweg la doctrina de la homotoxicología?", opts: ["1948-1949", "1955-1956", "1924-1930", "1936-1937"], correct: 0 },
+  { q: "¿De qué frase proviene el nombre \"Heel\"?", opts: ["\"Herba Est Ex Luce\"", "\"Similia Similibus Curentur\"", "\"Vis Medicatrix Naturae\"", "\"Primum Non Nocere\""], correct: 0 },
+  { q: "¿Cómo define la homotoxicología a la enfermedad?", opts: ["Como la manifestación de reacciones de defensa del organismo ante homotoxinas, con un significado biológico favorable", "Como un proceso exclusivamente destructivo sin ningún valor biológico", "Como una falla aleatoria sin relación con mecanismos de defensa", "Como el resultado exclusivo de agentes infecciosos externos"], correct: 0 },
+  { q: "Según la homotoxicología, ¿qué actitud terapéutica corresponde frente a la inflamación y la fiebre?", opts: ["Modular la reacción defensiva, no inhibirla, ya que sirve para detoxicar y eliminar homotoxinas", "Suprimir siempre estos síntomas de inmediato sin excepción", "Ignorarlas por completo, no tienen relevancia clínica", "Solo tratarlas si superan los 40°C"], correct: 0 },
+  { q: "¿Cuántos grupos de medicamentos antihomotóxicos existen, según el compendio (A-F)?", opts: ["4", "6", "8", "10"], correct: 1 },
+  { q: "¿Cuáles son los 4 subgrupos del grupo A (medicamentos compuestos)?", opts: ["Especialidades, Homaccord, Injeel mixtos y Compositum", "Nosodes, Suis, Catalizadores y Alopáticos", "Simples, Dobles, Triples y Cuádruples", "Agudos, Crónicos, Preventivos y de Mantenimiento"], correct: 0 },
+  { q: "¿Qué caracteriza a las \"Especialidades\" del grupo A?", opts: ["Asociaciones a dosis fijas, generalmente en una sola potencia, con nombre comercial de un solo vocablo", "Se presentan exclusivamente en solución inyectable con nombre en latín", "Solo existen como organopreparados porcinos", "Requieren siempre prescripción de al menos 3 componentes distintos"], correct: 0 },
+  { q: "¿En qué formas de administración se presentan los Homaccord?", opts: ["Gotas y solución inyectable", "Únicamente comprimidos", "Únicamente supositorios", "Únicamente spray nasal"], correct: 0 },
+  { q: "¿En qué forma de administración se presentan exclusivamente los Injeel mixtos?", opts: ["Solución inyectable", "Gotas orales únicamente", "Comprimidos únicamente", "Pomada tópica únicamente"], correct: 0 },
+  { q: "¿A qué grupo corresponden los medicamentos homeopáticos clásicos usados según la ley de similitud?", opts: ["Grupo B", "Grupo D", "Grupo F", "Grupo A"], correct: 0 },
+  { q: "¿A qué grupo corresponden los organopreparados obtenidos de cerdos sanos?", opts: ["Grupo F (organopreparados-\"suis\")", "Grupo E (Nosodes)", "Grupo C (alopáticos homeopatizados)", "Grupo A (compuestos)"], correct: 0 },
+  { q: "¿A qué grupo corresponden los preparados obtenidos de tejidos o productos patológicos, o de microorganismos?", opts: ["Grupo E (Nosodes)", "Grupo D (catalizadores intermediarios)", "Grupo F (organopreparados-\"suis\")", "Grupo B (simples o unitarios)"], correct: 0 },
+  { q: "¿Qué grupo tiene especial utilidad en patología iatrogénica derivada de medicación múltiple?", opts: ["Grupo C (alopáticos homeopatizados)", "Grupo F (organopreparados-\"suis\")", "Grupo A (compuestos)", "Grupo E (Nosodes)"], correct: 0 },
+  { q: "¿Qué grupo actúa a nivel de la respiración celular y el ciclo del ácido cítrico?", opts: ["Grupo D (catalizadores intermediarios)", "Grupo B (simples o unitarios)", "Grupo E (Nosodes)", "Grupo A (compuestos)"], correct: 0 },
+  { q: "¿Qué es un \"acorde de potencias\"?", opts: ["Una mezcla a partes iguales de potencias bajas, medias y altas de un mismo medicamento", "Una combinación de dos medicamentos distintos en una sola potencia", "Un método exclusivo de administración intravenosa", "Un tipo de organopreparado porcino"], correct: 0 },
+  { q: "¿Cuándo se recomienda iniciar con Injeel simple?", opts: ["Cuando no se conoce la capacidad reactiva del paciente, o en enfermedades crónicas", "Únicamente en pacientes pediátricos", "Solo cuando el paciente ya tiene mejoría manifiesta", "Nunca, se reserva exclusivamente para mantenimiento"], correct: 0 },
+  { q: "¿Cuándo se recomienda iniciar con Injeel forte?", opts: ["En enfermedades agudas, salvo que el paciente sea especialmente sensible", "Únicamente en enfermedades crónicas de más de 10 años de evolución", "Nunca se usa en la práctica clínica actual", "Solo en organopreparados-\"suis\""], correct: 0 },
+  { q: "¿Qué medicamento tiene contraindicada formalmente la inyección intravenosa?", opts: ["Proinum®", "Lymphomyosot®", "Traumeel S®", "Zeel T®"], correct: 0 },
+  { q: "¿Qué medicamentos requieren precaución especial por vía IV, por el riesgo de reacciones iniciales intensas o graves?", opts: ["Cymeheel®, Disheel® y Ubicheel®", "Traumeel S® y Zeel T® exclusivamente", "Todos los organopreparados sin excepción", "Únicamente los nosodes"], correct: 0 },
+  { q: "¿Cuál es la dosificación inicial recomendada en una enfermedad aguda de especial gravedad?", opts: ["1 comprimido o 10 gotas cada 15 minutos, durante 2 horas como máximo", "1 comprimido cada 24 horas de forma fija", "10 gotas una sola vez por semana", "No se recomienda ningún ajuste inicial en agudo"], correct: 0 },
+  { q: "¿Cuál es la dosificación habitual por vía oral en el tratamiento crónico a largo plazo?", opts: ["1 comprimido o 10 gotas, 3 veces al día", "1 comprimido cada 3 días", "10 gotas una vez al mes", "5 comprimidos al día de forma fija"], correct: 0 },
+  { q: "¿Cuál es la frecuencia habitual de los inyectables en tratamiento crónico o de mantenimiento?", opts: ["1 a 3 veces por semana", "Diariamente sin excepción", "Una vez al año", "Cada 6 meses"], correct: 0 },
+  { q: "Según los estudios citados en el compendio, ¿qué vía de administración actúa más rápido?", opts: ["Intravenosa", "Oral en gotas", "Intramuscular", "Subcutánea en zonas no reflejas"], correct: 0 },
+  { q: "¿Qué vía de administración, aunque de acción más lenta, proporciona un efecto más duradero según el compendio?", opts: ["Intramuscular", "Intravenosa", "Intradérmica en mesoterapia", "Subcutánea en puntos de acupuntura"], correct: 0 },
+  { q: "¿Qué precaución debe tenerse con las gotas Heel, fabricadas con mezcla hidroalcohólica?", opts: ["Prescribirlas con discreción en pacientes hepáticos o alcohólicos/ex alcohólicos", "Están completamente contraindicadas en cualquier paciente adulto", "Solo pueden usarse en pacientes pediátricos", "No requieren ninguna precaución en ningún caso"], correct: 0 },
+  { q: "¿Los comprimidos Heel están contraindicados en pacientes con diabetes mellitus?", opts: ["No están contraindicados; en casos que exigen control estricto se calculan 0.025 UP (unidades pan) por comprimido de 300mg", "Sí, están formalmente contraindicados en cualquier grado de diabetes", "Solo se permiten en diabetes tipo 1", "Solo se permiten si el paciente usa insulina"], correct: 0 },
+  { q: "¿Cómo deben tomarse los comprimidos Heel?", opts: ["Disolviéndolos lentamente en la boca, preferentemente bajo la lengua, sin masticar ni tragar", "Masticándolos completamente antes de tragar", "Disueltos únicamente en bebidas calientes", "Solo por vía rectal en supositorio"], correct: 0 },
+  { q: "¿Qué concepto describe el desplazamiento de la enfermedad hacia fases más reversibles (humorales) durante el proceso de curación?", opts: ["Vicariación regresiva", "Fase de neoplasia", "Desdiferenciación celular", "Corte biológico irreversible"], correct: 0 }
+];
+
+var CELLS = [
+  { label: "1 · Bienvenida", render: function() {
+    return '<div class="icon-badge">🌿</div><h3>Homotoxicología — Fundamento y manejo clínico</h3>' +
+      '<p>La homotoxicología no es "dar homeopáticos" — es un modelo médico completo, desarrollado por el Dr. Hans-Heinrich Reckeweg, sobre la enfermedad como reacción defensiva del organismo. Este módulo cubre su teoría y las reglas reales de prescripción del Compendio CHII.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás explicar el fundamento teórico de la homotoxicología, identificar los 6 grupos de medicamentos antihomotóxicos (A-F), elegir correctamente entre Injeel simple y forte, y aplicar las reglas de dosificación, vía y advertencias documentadas.</p></div>' +
+      '<div class="card" style="border-left:3px solid var(--gold-light);"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Lo que este módulo NO cubre — y dónde encontrarlo</p>' +
+      '<p style="margin:0;">Este módulo te da el marco teórico y las reglas generales de prescripción — no el listado remedio-por-síntoma (qué antihomotóxico específico corresponde a cada motivo de consulta). Esa capa —el Índice Terapéutico y la Materia Médica completos del Compendio— está integrada en <strong style="color:#fff;">NOVA</strong>. Cuando tengas un paciente con un motivo de consulta específico, pregúntale a NOVA directamente (botón inferior derecho) y te dará el remedio indicado con su fundamento.</p></div>';
+  }},
+  { label: "2 · Contexto", render: function() {
+    return '<div class="icon-badge">💡</div><h3>¿Por qué importa esto?</h3>' +
+      '<p>Tratar todos los preparados antihomotóxicos como si fueran intercambiables —mismo criterio de dosis, misma vía, sin distinguir el grupo al que pertenecen— ignora una lógica de prescripción que Reckeweg construyó con reglas específicas por categoría.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+      '<p style="margin:0;">Confundir una reactivación temporal de síntomas (vicariación regresiva, favorable) con un empeoramiento real, o elegir Injeel simple/forte sin considerar si la enfermedad es aguda o crónica y la sensibilidad del paciente.</p></div>';
+  }},
+  { label: "3 · Concepto", render: function() {
+    return '<div class="icon-badge">📚</div><h3>Fundamento teórico</h3>' +
+      '<div class="fundcard"><div class="fname">Reckeweg y el origen de la homotoxicología</div><div class="ftext">Dr. Hans-Heinrich Gustav Dietrich Reckeweg (1905-1985), nacido en Herford, Westfalia. Estudió medicina 1924-1930 en Würzburg, Münster, Berlín y Bonn. Fundó el laboratorio Heel en 1936 (nombre de la frase "Herba Est Ex Luce"). Entre 1948-1949 desarrolló la doctrina de la homotoxicología; en 1955 publicó su obra central "Homotoxines and Homotoxicoses".</div></div>' +
+      '<div class="fundcard"><div class="fname">Homotoxinas y enfermedad</div><div class="ftext">La enfermedad es la manifestación de las reacciones de defensa que el organismo activa para proteger su integridad ante la agresión de homotoxinas — tiene, por tanto, un significado biológico favorable. La inflamación y la fiebre no son siempre negativas: sirven para detoxicar y eliminar homotoxinas. La intervención terapéutica debe modular, no inhibir, estas reacciones defensivas.</div></div>' +
+      '<div class="fundcard"><div class="fname">Vicariación regresiva y fases celulares</div><div class="ftext">Durante la curación, la enfermedad puede desplazarse (vicariación regresiva) hacia fases más reversibles y humorales; en sentido contrario, puede progresar hacia fases celulares (impregnación, degeneración, neoplasia/desdiferenciación) de mayor irreversibilidad. El sistema de la gran defensa (mesénquima) es la base biológica de este movimiento.</div></div>' +
+
+      '<h4>Los 6 grupos de medicamentos antihomotóxicos (A-F)</h4>' +
+      '<div class="protocard"><div class="pname">A · Medicamentos compuestos</div><div class="pcomp">Los de prescripción más frecuente. 4 subgrupos: <strong style="color:#fff;">Especialidades</strong> (dosis fija, una potencia, nombre de un vocablo: Engystol®, Lymphomyosot®, Trameel S®, Zeel T®), <strong style="color:#fff;">Homaccord</strong> (acordes de potencias, sufijo "Homaccord®", gotas y solución inyectable), <strong style="color:#fff;">Injeel mixtos</strong> (2+ componentes, solo solución inyectable, prefijo/sufijo "Injeel"), <strong style="color:#fff;">Compositum</strong> (mezclas más complejas, inyectable y/o gotas).</div></div>' +
+      '<div class="protocard"><div class="pname">B · Homeopáticos simples o unitarios</div><div class="pcomp">Elección por ley de similitud (cuadro patogenético = cuadro clínico del paciente). Se presentan en acordes de potencias: Injeel e Injeel forte.</div></div>' +
+      '<div class="protocard"><div class="pname">C · Alopáticos homeopatizados</div><div class="pcomp">Antibióticos y antipiréticos homeopatizados. Útiles en patología iatrogénica (multimorbilidad por medicación múltiple).</div></div>' +
+      '<div class="protocard"><div class="pname">D · Catalizadores intermediarios</div><div class="pcomp">Actúan en la respiración celular y el ciclo del ácido cítrico. Reparan defectos en cadenas metabólicas bloqueadas — útiles en afecciones crónicas y degenerativas.</div></div>' +
+      '<div class="protocard"><div class="pname">E · Nosodes</div><div class="pcomp">Obtenidos de tejidos/productos patológicos o microorganismos (sin riesgo infeccioso). Se eligen por similitud anamnésica-etiológica, tras superar la fase aguda de una infección previa.</div></div>' +
+      '<div class="protocard"><div class="pname">F · Organopreparados-"suis"</div><div class="pcomp">De cerdos sanos. Acción regenerante/vitalizante a nivel celular — terapia de estimulación específica de un órgano, típicamente tras el tratamiento de base con el compuesto homeopático indicado.</div></div>' +
+
+      '<h4>Elección de diluciones: Injeel simple vs. forte</h4>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Injeel simple</strong> (potencias altas): reactividad desconocida, o enfermedades crónicas — efectos más suaves, sin reacciones iniciales intensas. <strong style="color:#fff;">Injeel forte</strong> (potencias más bajas): enfermedades agudas en pacientes sin sensibilidad especial — se pasa a Injeel simple cuando la mejoría es manifiesta.</p></div>' +
+
+      '<h4>Dosificación: aguda vs. crónica</h4>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Aguda grave:</strong> 1 comp./10 gotas cada 15 min, máx. 2h, reduciendo hasta 3-6 tomas/día; inyectables hasta 3x/día. <strong style="color:#fff;">Crónica/mantenimiento:</strong> oral 1 comp./10 gotas 3x/día; inyectable 1-3x/semana. Por grupo: homeopáticos clásicos 1-3x/semana (agudo 1-3x/día); alopáticos homeopatizados, catalizadores y organopreparados 1-2x/semana; nosodes 1-3x/semana.</p></div>' +
+
+      '<h4>Vías de administración</h4>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">IV:</strong> más rápida, bajo control médico, mejores resultados en agudo — vigilar siempre por posible reacción alérgica. <strong style="color:#fff;">IM:</strong> más lenta pero efecto más duradero. <strong style="color:#fff;">SC:</strong> rápida en zonas dolorosas/puntos de acupuntura. <strong style="color:#fff;">ID:</strong> mesoterapia/homeosiniatría.</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--danger);">Proinum®</strong> — única contraindicación formal de vía IV. <strong style="color:var(--danger);">Cymeheel®, Disheel®, Ubicheel®</strong> — evitar IV sin experiencia, riesgo de reacciones iniciales intensas.</p></div>' +
+
+      '<h4>Advertencias generales</h4>' +
+      '<div class="card"><p style="margin:0;">Gotas (mezcla hidroalcohólica): discreción en hepatópatas/ex alcohólicos. Comprimidos (lactosa): precaución en intolerancia; no contraindicados en diabetes (0.025 UP por comprimido de 300mg si se requiere control estricto). Administración sublingual: disolver lentamente, no masticar ni tragar.</p></div>' +
+
+      '<h4>Antes de prescribir: 4 preguntas de razonamiento clínico</h4>' +
+      '<div class="card"><p style="margin:0;">' +
+        '<strong style="color:#fff;">1) ¿Es un cuadro agudo o crónico?</strong> Determina el tipo de acorde, la vía y la frecuencia inicial.<br>' +
+        '<strong style="color:#fff;">2) ¿Conozco la reactividad del paciente?</strong> Sensibilidad previa, tolerancia, historia de reacciones — decide entre Injeel simple o forte.<br>' +
+        '<strong style="color:#fff;">3) ¿Cuál es el objetivo terapéutico?</strong> Modulación sintomática, apoyo orgánico, recuperación o mantenimiento — evita usar un preparado sin finalidad clara.<br>' +
+        '<strong style="color:#fff;">4) ¿Hay datos de alarma?</strong> Si los hay, no se trata con homotoxicología — se prioriza la valoración médica convencional.' +
+      '</p></div>' +
+
+      '<h4 style="color:var(--danger);">Banderas rojas — cuándo NO tratar con homotoxicología</h4>' +
+      '<div class="card" style="border-left:3px solid var(--danger);"><p style="margin:0;">Fiebre alta persistente, deshidratación, dolor severo, déficit neurológico, sangrado o deterioro clínico rápido. Ante cualquiera de estos datos de alarma, la prioridad es la evaluación médica convencional — no debe retrasarse por iniciar o continuar un tratamiento antihomotóxico.</p></div>' +
+
+      '<h4>¿Qué remedio para qué motivo de consulta?</h4>' +
+      '<div class="card" style="border-left:3px solid var(--gold-light);"><p style="margin:0;">Este módulo te da el marco (grupos A-F, diluciones, dosis, vías). La elección remedio-por-síntoma específico (ej. "¿qué compuesto para cervicobraquialgia?", "¿qué organopreparado para insuficiencia hepática funcional?") vive en el Índice Terapéutico y la Materia Médica del Compendio, integrados en <strong style="color:#fff;">NOVA</strong>. Pregúntale directamente ante cada motivo de consulta real.</p></div>';
+  }},
+  { label: "4 · Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+      '<h4>Algoritmo general de decisión en consulta</h4>' +
+      '<div class="card"><p style="margin:0;">' +
+        '<strong style="color:#fff;">1.</strong> ¿Cuál es el problema clínico principal? → Definir diagnóstico, gravedad y objetivo de tratamiento.<br>' +
+        '<strong style="color:#fff;">2.</strong> ¿Es agudo o crónico? → Elegir la lógica de inicio y la forma farmacéutica.<br>' +
+        '<strong style="color:#fff;">3.</strong> ¿Conozco la sensibilidad del paciente? → Escoger Injeel simple o forte y ajustar intensidad.<br>' +
+        '<strong style="color:#fff;">4.</strong> ¿Qué grupo corresponde? → Ubicar el medicamento en A, B, C, D, E o F.<br>' +
+        '<strong style="color:#fff;">5.</strong> ¿Cuál es la vía y frecuencia inicial? → Definir un esquema realista y fácil de seguir.<br>' +
+        '<strong style="color:#fff;">6.</strong> ¿Cómo voy a reevaluar? → Decidir cuándo esperar, cuándo ajustar y cuándo derivar.' +
+      '</p></div>' +
+      '<p>Aplicado a un caso real:</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Paciente nuevo, sin historial previo de tratamiento homeopático, presenta un cuadro crónico de años de evolución.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1 — consultar a NOVA por el remedio específico.</strong> Antes de elegir grupo y dilución, se le pregunta a NOVA algo como: "Paciente con [motivo de consulta específico], ¿qué antihomotóxico compuesto corresponde según el Índice Terapéutico?" — NOVA responde con el remedio indicado y su fundamento en la Materia Médica.</p>' +
+      '<p><strong style="color:#fff;">Paso 2 — identificar el grupo correcto.</strong> Con el remedio ya identificado por NOVA, se ubica en qué grupo cae (A-F) y si conviene complementar con un organopreparado-"suis" (grupo F) para el órgano afectado.</p>' +
+      '<p><strong style="color:#fff;">Paso 3 — elegir la dilución.</strong> Como no se conoce la reactividad del paciente y el cuadro es crónico, se inicia con Injeel simple — potencias altas, efecto más suave, sin riesgo de reacciones iniciales intensas.</p>' +
+      '<p><strong style="color:#fff;">Paso 4 — definir vía y frecuencia.</strong> Se inicia por vía oral (comprimidos o gotas, 3 veces al día) como tratamiento de mantenimiento; si no hay mejoría satisfactoria, se considera la vía parenteral (1-3 veces por semana).</p>' +
+      '<p><strong style="color:#fff;">Paso 5 — interpretar la evolución.</strong> Si aparece una reactivación temporal de síntomas catarrales, se interpreta como posible vicariación regresiva (favorable) antes de asumir un empeoramiento y suspender el tratamiento.</p>' +
+      '<p style="margin:0;"><strong style="color:#fff;">Conclusión:</strong> NOVA resuelve el "qué remedio" por síntoma; este módulo te da el "cómo" —grupo, dilución, vía, frecuencia— una vez que ya sabes cuál es.</p>';
+  }},
+  { label: "5 · Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica clínica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "6 · Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos ideas compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "7 · Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "8 · Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>La homotoxicología entiende la enfermedad como reacción defensiva ante homotoxinas — el tratamiento modula, no suprime, esa reacción.</li>' +
+      '<li>Los 6 grupos (A-F) tienen reglas propias de dosificación, vía y elección — no son intercambiables.</li>' +
+      '<li>Injeel simple/forte se elige según reactividad del paciente y si el cuadro es agudo o crónico.</li>' +
+      '<li>Proinum® (contraindicación IV) y Cymeheel®/Disheel®/Ubicheel® (precaución IV) son las excepciones de vía que hay que recordar siempre.</li>' +
+      '<li><strong style="color:var(--gold-light);">Este módulo no reemplaza el Índice Terapéutico completo:</strong> para "qué remedio específico ante qué motivo de consulta", consulta a NOVA en cada caso real — tiene el Compendio completo integrado.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, regresa a la celda 7 para reintentar")+'</p>' +
+      '<p style="margin:8px 0 0;">Este módulo complementa directamente el de Sueroterapia, ya que varios antihomotóxicos (Traumeel S®, Lymphomyosot®, Zeel T®, etc.) son la base compartida entre ambos.</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===4) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===5) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===6) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>
