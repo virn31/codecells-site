@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Péptidos — ACTIVATE™ (16 fichas completas)</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185; --purple: #b79ae0;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:680px; }
+  .dots { display:flex; gap:6px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; max-width:600px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--surface); transition:background .3s; flex-shrink:0; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:460px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:56px; height:56px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:18px; font-size:26px; }
+  h3 { margin:0 0 12px; font-size:20px; font-weight:600; color:#fff; }
+  h4 { margin:20px 0 8px; font-size:13.5px; font-weight:700; color:var(--gold-light); letter-spacing:0.03em; text-transform:uppercase; }
+  p { font-size:14.5px; line-height:1.7; color:var(--text-secondary); margin:0 0 12px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .two-col { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .colcard { flex:1; min-width:230px; background:var(--surface); border-radius:var(--radius); padding:14px 16px; }
+  .colcard.aprob { border-top:3px solid var(--teal-light); }
+  .colcard.inv { border-top:3px solid var(--purple); }
+  .colcard.var { border-top:3px solid var(--gold); }
+  .colcard h4 { margin:0 0 8px; font-size:12.5px; }
+  .colcard.aprob h4 { color:var(--teal-light); }
+  .colcard.inv h4 { color:var(--purple); }
+  .colcard.var h4 { color:var(--gold-light); }
+  .colcard ul { margin:0; padding-left:16px; font-size:12px; color:var(--text-secondary); }
+  .colcard li { margin-bottom:5px; }
+
+  .tag { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+         padding:3px 9px; border-radius:20px; margin-bottom:12px; border:1px solid; }
+  .tag-aprobado { color:var(--teal-light); border-color:rgba(79,209,192,0.5); background:rgba(79,209,192,0.08); }
+  .tag-investigacion { color:var(--purple); border-color:rgba(183,154,224,0.5); background:rgba(183,154,224,0.08); }
+  .tag-variable { color:var(--gold-light); border-color:rgba(200,160,80,0.5); background:rgba(200,160,80,0.08); }
+
+  .fieldrow { margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--surface); }
+  .fieldrow:last-child { border-bottom:none; }
+  .flabel { font-size:10.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--teal-light); margin-bottom:3px; }
+  .fvalue { font-size:13.5px; color:var(--text); line-height:1.6; }
+  .fvalue ul { margin:4px 0 0 16px; padding:0; }
+  .fvalue li { margin-bottom:3px; }
+  .metagrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .metabox { background:var(--surface); border-radius:8px; padding:8px 10px; font-size:12px; }
+  .metabox .mlabel { color:var(--text-secondary); font-size:10px; text-transform:uppercase; letter-spacing:0.04em; }
+  .metabox .mval { color:#fff; font-weight:600; margin-top:2px; }
+  .stars { color:var(--gold-light); letter-spacing:1px; }
+  .autoeval { background:rgba(183,154,224,0.08); border:1px solid rgba(183,154,224,0.3); border-radius:10px; padding:10px 14px; font-size:12.5px; color:var(--text-secondary); }
+
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:11px; color:var(--text-secondary); letter-spacing:0.03em; text-transform:uppercase; text-align:center; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var MOLECULES = [
+  { n:1, nombre:"Semaglutida", tag:"aprobado", categoria:"GLP-1", dificultad:"Básico", evidencia:5,
+    objetivo:"Reconocer su papel en diabetes tipo 2 y control de peso.",
+    palabrasClave:"saciedad, glucosa, peso, GLP-1, semanal.",
+    estadoRegulatorio:"Aprobada en varias indicaciones según país.",
+    queEs:"Agonista del receptor GLP-1 que mejora el control glucémico y reduce el apetito.",
+    historia:"Se desarrolló a partir de la biología de las incretinas y se optimizó para mayor duración de acción.",
+    origen:"Sintética, análogo peptídico.",
+    comoFunciona:"Aumenta la saciedad, enlentece el vaciamiento gástrico y mejora la secreción de insulina dependiente de glucosa.",
+    cuandoPensar:"Pacientes con obesidad, sobrepeso o diabetes tipo 2 cuando sea apropiado.",
+    beneficios:["Reducción de peso.","Mejor control glucémico.","Menos apetito."],
+    presentaciones:"Pluma o solución inyectable.",
+    preparacion:"Frecuentemente viene lista para usar.",
+    via:"Subcutánea.",
+    frecuencia:"Semanal en la mayoría de presentaciones.",
+    efectosAdversos:"Náusea, plenitud, vómito, diarrea, estreñimiento.",
+    contraindicaciones:"Antecedente personal/familiar de carcinoma medular de tiroides, MEN2, hipersensibilidad.",
+    perlas:"Titular lentamente, anticipar efectos gastrointestinales y revisar metas de peso y glucosa.",
+    resumen:"GLP-1 de alto uso clínico para control metabólico y peso.",
+    bibliografia:"Ficha técnica oficial y revisiones clínicas.",
+    autoeval:["¿Cuál es su vía más habitual?","¿Qué receptor activa?"] },
+
+  { n:2, nombre:"Liraglutida", tag:"aprobado", categoria:"GLP-1", dificultad:"Básico", evidencia:5,
+    objetivo:"Reconocer su uso en diabetes y obesidad.",
+    palabrasClave:"GLP-1, diario, saciedad, diabetes, obesidad.",
+    estadoRegulatorio:"Aprobada en varias indicaciones según país.",
+    queEs:"Análogo de GLP-1 de administración diaria.",
+    historia:"Se desarrolló para mejorar el control glucémico con un perfil de acción prolongado.",
+    origen:"Sintética.",
+    comoFunciona:"Disminuye el apetito y mejora la respuesta glucémica dependiente de la comida.",
+    cuandoPensar:"Diabetes tipo 2 y manejo de peso en escenarios aprobados.",
+    beneficios:["Saciedad.","Control glucémico.","Pérdida de peso."],
+    presentaciones:"Pluma inyectable.",
+    preparacion:"Generalmente lista para usar.",
+    via:"Subcutánea.",
+    frecuencia:"Diaria.",
+    efectosAdversos:"Náusea y molestias gastrointestinales.",
+    contraindicaciones:"Hipersensibilidad y precauciones tiroideas específicas.",
+    perlas:"Útil cuando se prefiere una titulación diaria y hay amplia experiencia clínica con ella.",
+    resumen:"GLP-1 diario con sólida experiencia en metabolismo.",
+    bibliografia:"Ficha técnica oficial y estudios comparativos.",
+    autoeval:["¿Su frecuencia es diaria o semanal?","¿Qué efecto comparte con otros GLP-1?"] },
+
+  { n:3, nombre:"Tirzepatida", tag:"aprobado", categoria:"GIP/GLP-1", dificultad:"Básico", evidencia:5,
+    objetivo:"Entender por qué combina control de glucosa con pérdida de peso.",
+    palabrasClave:"dual, GIP, GLP-1, peso, semanal.",
+    estadoRegulatorio:"Aprobación según país e indicación.",
+    queEs:"Agonista dual de GIP y GLP-1.",
+    historia:"Diseñada para potenciar el efecto metabólico de dos vías incretínicas.",
+    origen:"Sintética.",
+    comoFunciona:"Mejora la secreción de insulina dependiente de glucosa, reduce el apetito y favorece la pérdida de peso.",
+    cuandoPensar:"Obesidad o diabetes tipo 2 cuando la regulación lo permite.",
+    beneficios:["Peso.","Glucosa.","Saciedad."],
+    presentaciones:"Inyectable tipo pluma.",
+    preparacion:"Usualmente lista para usar.",
+    via:"Subcutánea.",
+    frecuencia:"Semanal.",
+    efectosAdversos:"Náusea, vómito, diarrea, estreñimiento.",
+    contraindicaciones:"Hipersensibilidad y precauciones de clase.",
+    perlas:"La titulación lenta mejora la tolerancia gastrointestinal.",
+    resumen:"Uno de los fármacos con mayor impacto metabólico reciente.",
+    bibliografia:"Estudios de fase avanzada y material regulatorio.",
+    autoeval:["¿Qué dos receptores activa?","¿Cuál es su vía usual?"] },
+
+  { n:4, nombre:"Retatrutida", tag:"investigacion", categoria:"Triple agonista", dificultad:"Básico", evidencia:4,
+    objetivo:"Reconocerla como molécula en investigación para obesidad.",
+    palabrasClave:"investigación, triple agonista, peso, GIP, GLP-1.",
+    estadoRegulatorio:"Investigación.",
+    queEs:"Péptido con actividad sobre GIP, GLP-1 y glucagón.",
+    historia:"Nació para explorar un control metabólico más potente en obesidad.",
+    origen:"Sintética.",
+    comoFunciona:"Actúa sobre rutas incretínicas y del metabolismo energético para reducir peso y mejorar el control metabólico.",
+    cuandoPensar:"Cuando se revisa literatura de investigación en obesidad.",
+    beneficios:["Potencial reducción de peso.","Impacto metabólico."],
+    presentaciones:"Viales de investigación.",
+    preparacion:"Según proveedor y formato experimental.",
+    via:"Subcutánea.",
+    frecuencia:"Semanal en estudios.",
+    efectosAdversos:"Gastrointestinales, dependientes de dosis.",
+    contraindicaciones:"Las propias de compuestos en investigación y precauciones de clase.",
+    perlas:"No debe presentarse como terapia estándar fuera de investigación.",
+    resumen:"Triple agonista prometedor, todavía en investigación clínica.",
+    bibliografia:"Ensayos fase 2 y publicaciones revisadas por pares.",
+    autoeval:["¿Es un fármaco aprobado de uso amplio?","¿Qué tres rutas modula?"] },
+
+  { n:5, nombre:"NAD+", tag:"variable", categoria:"Metabolismo/antienvejecimiento", dificultad:"Básico", evidencia:3,
+    objetivo:"Entender su papel como cofactor metabólico.",
+    palabrasClave:"cofactor, energía, metabolismo, longevidad, redox.",
+    estadoRegulatorio:"Uso según formulación y marco local.",
+    queEs:"Cofactor redox endógeno fundamental para procesos de energía celular.",
+    historia:"Su interés clínico creció por el envejecimiento, el metabolismo y la salud mitocondrial.",
+    origen:"Molécula endógena natural; su uso exógeno depende del producto.",
+    comoFunciona:"Participa en reacciones de óxido-reducción, reparación celular y metabolismo energético.",
+    cuandoPensar:"Contextos de apoyo metabólico, fatiga o programas de longevidad.",
+    beneficios:["Soporte energético.","Apoyo redox.","Interés en longevidad."],
+    presentaciones:"Cápsulas, viales o soluciones según proveedor.",
+    preparacion:"Depende de la formulación; algunas presentaciones se usan directas y otras requieren manejo según fabricante.",
+    via:"Oral, SC o IV según producto.",
+    frecuencia:"Variable por formulación e indicación.",
+    efectosAdversos:"Molestia local, intolerancia GI o síntomas inespecíficos según vía.",
+    contraindicaciones:"Hipersensibilidad y precaución en pacientes complejos o polimedicados.",
+    perlas:"La gran heterogeneidad de productos obliga a revisar pureza y formulación.",
+    resumen:"Cofactor metabólico central con uso variable y regulatorio heterogéneo.",
+    bibliografia:"Revisiones sobre metabolismo, envejecimiento y formulaciones comerciales.",
+    autoeval:["¿Es una molécula endógena o sintética?","¿Qué procesos celulares apoya?"],
+    nota:"Dosis y esquemas exactos de NAD+ ya cubiertos en el módulo de Sueroterapia — aquí solo se cubre el concepto." },
+
+  { n:6, nombre:"BPC-157", tag:"investigacion", categoria:"Reparación/intestinal", dificultad:"Básico", evidencia:3,
+    objetivo:"Reconocer su perfil como péptido de reparación de investigación.",
+    palabrasClave:"reparación, intestino, tendón, colágeno, investigación.",
+    estadoRegulatorio:"Investigación.",
+    queEs:"Pentadecapéptido sintético de investigación derivado de una secuencia protectora gástrica.",
+    historia:"Surgió de líneas de investigación relacionadas con protección gastrointestinal y regeneración tisular.",
+    origen:"Sintético, inspirado en una secuencia biológica protectora.",
+    comoFunciona:"Se estudia por su posible efecto sobre angiogénesis, reparación de tejidos y protección de mucosa.",
+    cuandoPensar:"Contextos de investigación sobre lesiones de tejidos blandos, intestino o recuperación.",
+    beneficios:["Recuperación tisular.","Interés gastrointestinal.","Estudio en tendones y ligamentos."],
+    presentaciones:"Viales de investigación.",
+    preparacion:"Frecuente en viales liofilizados; el manejo depende del fabricante y del entorno de investigación.",
+    via:"Principalmente SC; otras vías dependen del contexto experimental.",
+    frecuencia:"Variable y no estandarizada.",
+    efectosAdversos:"Molestia local, enrojecimiento o efectos inespecíficos reportados en investigación.",
+    contraindicaciones:"Embarazo, lactancia, hipersensibilidad y uso fuera del marco regulatorio local.",
+    perlas:"Presentarlo siempre como compuesto de investigación; no como terapia consolidada.",
+    resumen:"Péptido experimental enfocado en reparación y mucosa gastrointestinal.",
+    bibliografia:"Revisiones mecanísticas y artículos de investigación.",
+    autoeval:["¿Es un péptido aprobado para uso humano general?","¿Qué dos sistemas se estudian más?"] },
+
+  { n:7, nombre:"Epitalon", tag:"investigacion", categoria:"Anti-aging", dificultad:"Básico", evidencia:2,
+    objetivo:"Ubicarlo en longevidad y cronobiología.",
+    palabrasClave:"longevidad, telómeros, pineal, sueño, investigación.",
+    estadoRegulatorio:"Investigación.",
+    queEs:"Tetrapéptido sintético asociado a líneas de investigación sobre envejecimiento y regulación biológica.",
+    historia:"Deriva del interés por moléculas relacionadas con la glándula pineal y la edad biológica.",
+    origen:"Sintética.",
+    comoFunciona:"Se estudia por posibles efectos sobre la telomerasa, ritmos circadianos y regulación celular.",
+    cuandoPensar:"En contextos de longevidad, sueño o medicina de investigación.",
+    beneficios:["Interés en telómeros.","Regulación circadiana.","Enfoque anti-aging."],
+    presentaciones:"Viales de investigación.",
+    preparacion:"Usualmente liofilizado; manejar conforme al proveedor.",
+    via:"SC en protocolos experimentales.",
+    frecuencia:"Variable y no estandarizada.",
+    efectosAdversos:"Datos limitados; precaución por falta de robustez clínica.",
+    contraindicaciones:"Uso fuera de investigación, hipersensibilidad y embarazo/lactancia.",
+    perlas:"Explicarlo como molécula de investigación, no como terapia validada.",
+    resumen:"Péptido experimental asociado a longevidad y cronobiología.",
+    bibliografia:"Revisiones y literatura de investigación.",
+    autoeval:["¿Está aprobado como terapia estándar?","¿Con qué procesos se le relaciona?"] },
+
+  { n:8, nombre:"GHK-Cu", tag:"variable", categoria:"Piel/cabello", dificultad:"Básico", evidencia:3,
+    objetivo:"Reconocer su utilidad en piel y cabello.",
+    palabrasClave:"cobre, colágeno, regeneración, piel, cabello.",
+    estadoRegulatorio:"Cosmético/investigación.",
+    queEs:"Tripéptido complejo con cobre estudiado por su papel en regeneración cutánea.",
+    historia:"Ganó interés por sus asociaciones con reparación dérmica, colágeno y envejecimiento saludable.",
+    origen:"Natural/sintético según la formulación; el complejo GHK-Cu se usa en productos tópicos y de investigación.",
+    comoFunciona:"Se le atribuyen efectos sobre la matriz extracelular, cicatrización y señalización regenerativa.",
+    cuandoPensar:"En cuidado de piel, cuero cabelludo y programas estéticos/regenerativos.",
+    beneficios:["Soporte dérmico.","Interés en cabello.","Regeneración cutánea."],
+    presentaciones:"Sérums, cremas, viales o productos de investigación.",
+    preparacion:"Puede venir lista para uso tópico o como vial liofilizado según formulación.",
+    via:"Tópica; en investigación también SC o microneedling.",
+    frecuencia:"Variable por producto y objetivo.",
+    efectosAdversos:"Irritación local o enrojecimiento.",
+    contraindicaciones:"Hipersensibilidad, piel lesionada y uso no regulado.",
+    perlas:"Su uso es más sólido como tópico que como esquema inyectable.",
+    resumen:"Péptido de cobre orientado a piel, cabello y regeneración.",
+    bibliografia:"Revisiones de investigación y guías de tópicos.",
+    autoeval:["¿Se usa más por vía tópica o inyectable?","¿Con qué tejidos se asocia más?"] },
+
+  { n:9, nombre:"PT-141 (Bremelanotida)", tag:"aprobado", categoria:"Sexualidad", dificultad:"Básico", evidencia:3,
+    objetivo:"Entender su papel en el deseo sexual.",
+    palabrasClave:"deseo sexual, melanocortina, SC, función sexual.",
+    estadoRegulatorio:"Aprobado en algunas indicaciones según país.",
+    queEs:"Agonista melanocortínico utilizado para el deseo sexual en contextos aprobados.",
+    historia:"Derivado del interés por moléculas relacionadas con la señalización melanocortínica y la función sexual.",
+    origen:"Sintética.",
+    comoFunciona:"Modula circuitos centrales vinculados al deseo sexual.",
+    cuandoPensar:"En trastornos del deseo sexual cuando existe indicación formal o referencia especializada.",
+    beneficios:["Deseo sexual.","Posible mejoría de función sexual en indicación aprobada."],
+    presentaciones:"Inyectable.",
+    preparacion:"Según la presentación comercial.",
+    via:"Subcutánea.",
+    frecuencia:"Variable según etiqueta local.",
+    efectosAdversos:"Náusea, cefalea, rubor, efectos vasomotores.",
+    contraindicaciones:"Hipersensibilidad y precaución cardiovascular según indicación.",
+    perlas:"Diferenciar entre el producto aprobado y los usos extrapolados.",
+    resumen:"Molécula de sexualidad con uso regulado en algunos países.",
+    bibliografia:"Monografías regulatorias y ficha del producto donde exista.",
+    autoeval:["¿Su acción principal es periférica o central?","¿A qué sistema receptor se asocia?"] },
+
+  { n:10, nombre:"Thymosin Alpha-1", tag:"variable", categoria:"Inmunología", dificultad:"Básico", evidencia:3,
+    objetivo:"Identificarlo como inmunomodulador.",
+    palabrasClave:"inmunidad, timo, modulación inmune, SC, apoyo.",
+    estadoRegulatorio:"Uso específico según país.",
+    queEs:"Péptido inmunomodulador vinculado a la función de linfocitos T.",
+    historia:"Surgió del interés por el timo y el soporte de respuestas inmunes adecuadas.",
+    origen:"Sintético.",
+    comoFunciona:"Modula la respuesta inmune y puede apoyar la coordinación de la inmunidad adaptativa.",
+    cuandoPensar:"Contextos de inmunomodulación, vigilancia inmune o soporte clínico selectivo.",
+    beneficios:["Apoyo inmunológico.","Modulación de la respuesta inmune."],
+    presentaciones:"Viales o formulaciones inyectables.",
+    preparacion:"Depende del producto; suele requerir manejo conforme al fabricante.",
+    via:"Subcutánea.",
+    frecuencia:"Variable según indicación autorizada.",
+    efectosAdversos:"Reacciones locales y síntomas leves inespecíficos.",
+    contraindicaciones:"Hipersensibilidad y contexto inmunológico complejo.",
+    perlas:"La indicación real depende del país y del marco de registro.",
+    resumen:"Péptido inmunomodulador con utilidad selectiva.",
+    bibliografia:"Ficha regulatoria local y revisiones inmunológicas.",
+    autoeval:["¿Qué sistema modula?","¿Se usa para inmunidad o para peso?"] },
+
+  { n:11, nombre:"Glutatión", tag:"variable", categoria:"Antioxidante", dificultad:"Básico", evidencia:3,
+    objetivo:"Reconocerlo como antioxidante central.",
+    palabrasClave:"antioxidante, redox, IV, estrés oxidativo, soporte.",
+    estadoRegulatorio:"Uso clínico variable.",
+    queEs:"Tripéptido endógeno clave en defensa antioxidante y equilibrio redox.",
+    historia:"Su uso exógeno se difundió por el interés en el estrés oxidativo, el hígado y el bienestar general.",
+    origen:"Endógeno; disponible como formulación exógena.",
+    comoFunciona:"Participa en la neutralización de radicales libres y el mantenimiento del balance oxidativo.",
+    cuandoPensar:"Pacientes con interés en soporte antioxidante o contextos seleccionados.",
+    beneficios:["Apoyo redox.","Estrés oxidativo.","Uso frecuente en programas de bienestar."],
+    presentaciones:"Viales o soluciones según proveedor.",
+    preparacion:"Puede venir listo o en polvo; depende del producto.",
+    via:"IV o SC.",
+    frecuencia:"Variable y dependiente del protocolo.",
+    efectosAdversos:"Reacciones locales, molestias leves o intolerancia inespecífica.",
+    contraindicaciones:"Hipersensibilidad y contexto clínico complejo.",
+    perlas:"Revisar siempre formulación, pureza y objetivo terapéutico.",
+    resumen:"Antioxidante central con uso clínico variable.",
+    bibliografia:"Revisiones de estrés oxidativo y formulaciones inyectables.",
+    autoeval:["¿Es un tripéptido o un hexapéptido?","¿Qué balance celular apoya?"],
+    nota:"Dosis y esquemas exactos de Glutatión ya cubiertos en el módulo de Sueroterapia (incluyendo el esquema adyuvante a quimioterapia)." },
+
+  { n:12, nombre:"CJC-1295", tag:"investigacion", categoria:"Hormona de crecimiento", dificultad:"Básico", evidencia:2,
+    objetivo:"Identificarlo como secretagogo de GH.",
+    palabrasClave:"GH, secretagogo, investigación, SC, eje somatotrópico.",
+    estadoRegulatorio:"Investigación.",
+    queEs:"Péptido diseñado para estimular la liberación de hormona de crecimiento.",
+    historia:"Se desarrolló para explorar pulsos de GH más sostenidos que otros secretagogos.",
+    origen:"Sintético.",
+    comoFunciona:"Actúa a nivel del eje somatotrópico para promover la liberación de GH.",
+    cuandoPensar:"En contextos de investigación sobre GH, recuperación o composición corporal.",
+    beneficios:["Estimulación de GH.","Interés en recuperación y composición corporal."],
+    presentaciones:"Viales de investigación.",
+    preparacion:"Frecuente en vial liofilizado; manejo según proveedor.",
+    via:"Subcutánea.",
+    frecuencia:"Variable según protocolo experimental.",
+    efectosAdversos:"Reacciones locales y efectos relacionados con GH si se sobreusa.",
+    contraindicaciones:"Uso oncológico activo, embarazo/lactancia y uso fuera de investigación.",
+    perlas:"Diferenciar la versión sin DAC de la de acción prolongada.",
+    resumen:"Secretagogo de GH usado en investigación.",
+    bibliografia:"Estudios de eje GH y documentación de investigación.",
+    autoeval:["¿Qué eje estimula?","¿Es una terapia aprobada de uso general?"] },
+
+  { n:13, nombre:"CJC-1295 DAC", tag:"investigacion", categoria:"Hormona de crecimiento", dificultad:"Básico", evidencia:2,
+    objetivo:"Reconocer la versión de acción prolongada.",
+    palabrasClave:"DAC, prolongado, GH, investigación, SC.",
+    estadoRegulatorio:"Investigación.",
+    queEs:"Variante de CJC-1295 diseñada para prolongar su permanencia en circulación.",
+    historia:"La modificación DAC se incorporó para extender la duración de acción.",
+    origen:"Sintético.",
+    comoFunciona:"Favorece una señal más prolongada sobre la liberación de GH.",
+    cuandoPensar:"Investigaciones de composición corporal o recuperación prolongada.",
+    beneficios:["Señal más sostenida de GH.","Uso experimental en protocolos de investigación."],
+    presentaciones:"Vial liofilizado.",
+    preparacion:"Manejo según fabricante.",
+    via:"Subcutánea.",
+    frecuencia:"Variable, dependiente de protocolo.",
+    efectosAdversos:"Reacciones locales y efectos asociados a GH.",
+    contraindicaciones:"Uso fuera de investigación y precaución oncológica.",
+    perlas:"El \"DAC\" implica mayor duración, no mayor seguridad.",
+    resumen:"Variante prolongada de CJC-1295 en investigación.",
+    bibliografia:"Estudios de farmacocinética y materiales de investigación.",
+    autoeval:["¿Qué significa DAC?","¿Su acción es más breve o más prolongada?"] },
+
+  { n:14, nombre:"Ipamorelin", tag:"investigacion", categoria:"Hormona de crecimiento", dificultad:"Básico", evidencia:2,
+    objetivo:"Ubicarlo como secretagogo selectivo de GH.",
+    palabrasClave:"GH, selectivo, investigación, SC, recuperación.",
+    estadoRegulatorio:"Investigación.",
+    queEs:"Péptido sintético usado para estimular GH de forma relativamente selectiva.",
+    historia:"Se desarrolló dentro de la familia de secretagogos de GH con interés en selectividad.",
+    origen:"Sintético.",
+    comoFunciona:"Estimula la liberación de GH a través del eje somatotrópico.",
+    cuandoPensar:"Investigaciones sobre recuperación, composición corporal o sueño asociado al eje GH.",
+    beneficios:["Estimulación de GH.","Perfil selectivo en investigación."],
+    presentaciones:"Viales de investigación.",
+    preparacion:"Liofilizado, manejo según proveedor.",
+    via:"Subcutánea.",
+    frecuencia:"Variable por protocolo.",
+    efectosAdversos:"Reacciones locales y malestar inespecífico.",
+    contraindicaciones:"Embarazo, lactancia, cáncer activo y uso fuera de investigación.",
+    perlas:"Se valora por su perfil selectivo, no por aprobación clínica amplia.",
+    resumen:"Secretagogo de GH muy usado en investigación experimental.",
+    bibliografia:"Revisiones de secretagogos de GH.",
+    autoeval:["¿A qué eje apunta?","¿Tiene aprobación general para uso humano?"] },
+
+  { n:15, nombre:"Sermorelin", tag:"investigacion", categoria:"Hormona de crecimiento", dificultad:"Básico", evidencia:2,
+    objetivo:"Entender su relación con GHRH y GH.",
+    palabrasClave:"GHRH, GH, investigación, SC, sueño.",
+    estadoRegulatorio:"Investigación.",
+    queEs:"Análogo de hormona liberadora de GH.",
+    historia:"Surgió como herramienta para estudiar la fisiología de la secreción de GH.",
+    origen:"Sintético.",
+    comoFunciona:"Estimula la hipófisis para liberar hormona de crecimiento.",
+    cuandoPensar:"Contextos de investigación del eje somatotrópico.",
+    beneficios:["Estimulación fisiológica de GH.","Interés en recuperación y eje hormonal."],
+    presentaciones:"Vial liofilizado.",
+    preparacion:"Dependiente del fabricante.",
+    via:"Subcutánea.",
+    frecuencia:"Variable y no estandarizada.",
+    efectosAdversos:"Reacciones locales y molestias inespecíficas.",
+    contraindicaciones:"Uso fuera de investigación, embarazo/lactancia y neoplasias activas.",
+    perlas:"Se explica mejor como análogo de GHRH que como \"booster\" genérico.",
+    resumen:"Análogo de GHRH en investigación clínica.",
+    bibliografia:"Estudios del eje GH y revisión de secretagogos.",
+    autoeval:["¿Mimética GHRH o GH directa?","¿Cuál es su vía habitual?"] },
+
+  { n:16, nombre:"Tesamorelin", tag:"aprobado", categoria:"Hormona de crecimiento", dificultad:"Básico", evidencia:4,
+    objetivo:"Reconocer su indicación sobre grasa visceral.",
+    palabrasClave:"grasa visceral, VIH, GH, SC diaria, lípidos.",
+    estadoRegulatorio:"Aprobada en indicación específica.",
+    queEs:"Análogo de GHRH con uso conocido en lipodistrofia asociada a VIH.",
+    historia:"Se desarrolló para abordar la acumulación de grasa visceral en una población específica.",
+    origen:"Sintético.",
+    comoFunciona:"Estimula GH y ayuda a reducir la grasa visceral en el contexto aprobado.",
+    cuandoPensar:"Pacientes con indicación específica y evaluación médica adecuada.",
+    beneficios:["Reducción de grasa visceral.","Uso específico en lipodistrofia VIH."],
+    presentaciones:"Vial o solución inyectable.",
+    preparacion:"Sigue la presentación comercial.",
+    via:"Subcutánea diaria.",
+    frecuencia:"Diaria en su indicación aprobada.",
+    efectosAdversos:"Reacciones locales, molestias abdominales o de tolerancia según ficha.",
+    contraindicaciones:"Las descritas en su ficha técnica y uso fuera de indicación.",
+    perlas:"Es el secretagogo de GH con indicación clínica más clara dentro del grupo.",
+    resumen:"Análogo de GHRH con indicación específica en grasa visceral asociada a VIH.",
+    bibliografia:"Ficha técnica oficial y estudios pivotales.",
+    autoeval:["¿Su indicación es general o específica?","¿Cuál es su frecuencia habitual?"] }
+];
+
+var PRACTICE_CASES = [
+  { tag: "aprobado", caseText: "Paciente con diabetes tipo 2 sin control adecuado, candidato a manejo con un péptido GLP-1.",
+    opts: ["Semaglutida o Liraglutida son opciones razonables — son agonistas GLP-1 con indicación aprobada en diabetes tipo 2 y manejo de peso.", "Se indica Retatrutida porque \"es más nueva y más potente\".", "Ningún péptido tiene indicación aprobada para diabetes tipo 2."], correct: 0,
+    rationale: "Semaglutida y Liraglutida son agonistas GLP-1 con aprobación reconocida en diabetes tipo 2 y control de peso." },
+  { tag: "investigacion", caseText: "Un paciente pide Retatrutida \"porque leyó que es mejor que los GLP-1 tradicionales\".",
+    opts: ["Se indica de inmediato porque el paciente ya la conoce.", "Se le explica que Retatrutida es un triple agonista todavía en investigación clínica — no debe presentarse como terapia estándar.", "Se sustituye automáticamente cualquier GLP-1 aprobado por Retatrutida."], correct: 1,
+    rationale: "Retatrutida sigue en investigación clínica — presentarla como equivalente a un fármaco aprobado sin esa aclaración es un error de comunicación." },
+  { tag: "aprobado", caseText: "Paciente con antecedente personal o familiar de carcinoma medular de tiroides o síndrome MEN2, candidato a un agonista GLP-1.",
+    opts: ["Se indica sin reservas.", "Está contraindicado: es una contraindicación reconocida para esta clase de fármacos.", "Solo se contraindica si el antecedente es materno."], correct: 1,
+    rationale: "El antecedente de carcinoma medular de tiroides o MEN2 es una contraindicación documentada de clase para los agonistas GLP-1." },
+  { tag: "investigacion", caseText: "Paciente con tendinopatía crónica pide específicamente BPC-157.",
+    opts: ["Se aplica de inmediato como tratamiento estándar.", "Se explica que es un péptido de investigación — se puede considerar solo con consentimiento reforzado y transparencia total.", "Se rechaza cualquier conversación sobre el tema."], correct: 1,
+    rationale: "BPC-157 sigue siendo un compuesto de investigación — nunca debe presentarse como terapia consolidada." },
+  { tag: "aprobado", caseText: "Paciente con lipodistrofia asociada a VIH y acumulación de grasa visceral.",
+    opts: ["Tesamorelin es la opción con indicación aprobada específicamente para este contexto.", "Cualquier secretagogo de GH sirve igual, todos tienen la misma aprobación.", "Ningún secretagogo de GH tiene indicación aprobada."], correct: 0,
+    rationale: "Tesamorelin tiene indicación aprobada en reducción de grasa visceral en lipodistrofia VIH; el resto son de investigación." },
+  { tag: "investigacion", caseText: "Un médico asume que CJC-1295 DAC es \"más seguro\" que CJC-1295 simple.",
+    opts: ["Correcto, la modificación DAC siempre implica mayor seguridad.", "Incorrecto: DAC prolonga la duración de acción, no mejora el perfil de seguridad.", "DAC significa que ya está aprobado para uso clínico general."], correct: 1,
+    rationale: "\"DAC\" implica mayor duración de acción, no mayor seguridad — ambas siguen siendo de investigación." },
+  { tag: "investigacion", caseText: "Paciente con cáncer activo pide un secretagogo de GH de investigación para \"mejorar composición corporal\".",
+    opts: ["Se indica sin reservas.", "Está contraindicado: el cáncer activo es contraindicación documentada para estos péptidos.", "Solo se contraindica si el cáncer es hormonodependiente."], correct: 1,
+    rationale: "El cáncer activo contraindica CJC-1295, CJC-1295 DAC, Ipamorelin y Sermorelin." },
+  { tag: "investigacion", caseText: "Paciente busca GHK-Cu y pregunta si es mejor en crema o inyectado.",
+    opts: ["El uso inyectable tiene la misma solidez de evidencia que el tópico.", "El uso tópico tiene un respaldo más sólido que el esquema inyectable, más experimental.", "Solo existe en presentación inyectable."], correct: 1,
+    rationale: "GHK-Cu tiene mejor respaldo tópico que inyectable." },
+  { tag: "aprobado", caseText: "Paciente con trastorno de deseo sexual hipoactivo, candidata a PT-141.",
+    opts: ["PT-141 tiene aprobación en indicaciones específicas — se indica dentro de ese marco.", "PT-141 es exclusivamente de investigación.", "Se indica sin distinguir uso aprobado de extrapolado."], correct: 0,
+    rationale: "PT-141 tiene aprobación en indicaciones específicas de deseo sexual según el país." },
+  { tag: "variable", caseText: "Paciente pregunta por Thymosin Alpha-1 para \"reforzar el sistema inmune en general\".",
+    opts: ["Se indica como \"booster inmune\" general.", "Se explica que su indicación real depende del país y del marco de registro — no es un reforzador genérico.", "Se indica solo en mayores de 60 años."], correct: 1,
+    rationale: "Thymosin Alpha-1 no debe presentarse como un booster inmune genérico." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { tag: "aprobado", caseText: "Un médico asume que Semaglutida y Tirzepatida son \"exactamente lo mismo, ambas son GLP-1\".",
+    opts: ["Correcto, se eligen indistintamente.", "Incorrecto: Tirzepatida es un agonista dual GIP/GLP-1 — mecanismos relacionados pero no idénticos."], correct: 1,
+    rationale: "Tirzepatida añade actividad sobre GIP — no son intercambiables sin criterio clínico." },
+  { tag: "investigacion", caseText: "Un médico asume que la única diferencia entre CJC-1295 y CJC-1295 DAC es cuál \"es mejor\".",
+    opts: ["Correcto, uno es una versión mejorada del otro en todo sentido.", "Incorrecto: la diferencia real es la duración de acción, no la seguridad ni el estatus regulatorio — ambos siguen siendo de investigación."], correct: 1,
+    rationale: "Confundir \"más duración\" con \"más aprobado\" es un error de razonamiento." },
+  { tag: "aprobado", caseText: "Un médico agrupa a Tesamorelin junto con Sermorelin e Ipamorelin como \"básicamente lo mismo\".",
+    opts: ["Correcto, comparten el mismo estatus regulatorio.", "Incorrecto: Tesamorelin tiene indicación aprobada; Sermorelin e Ipamorelin siguen en investigación — el eje compartido no implica el mismo estatus."], correct: 1,
+    rationale: "Compartir mecanismo no equivale a compartir estatus regulatorio." },
+  { tag: "variable", caseText: "Un médico asume que el respaldo tópico de GHK-Cu se traslada automáticamente a su forma inyectable.",
+    opts: ["Correcto, el respaldo se traslada igual entre vías.", "Incorrecto: el tópico está mejor establecido; el inyectable es más experimental — la vía cambia el nivel de evidencia."], correct: 1,
+    rationale: "La vía de administración cambia el nivel de evidencia disponible para la misma molécula." }
+];
+
+var QUESTIONS = [
+  { q: "¿A qué categoría pertenece la Semaglutida?", opts: ["GLP-1", "Triple agonista", "Secretagogo de GH", "Inmunomodulador"], correct: 0 },
+  { q: "¿Cuál es la frecuencia habitual de la Liraglutida?", opts: ["Diaria", "Semanal", "Mensual", "Cada 15 días"], correct: 0 },
+  { q: "¿Qué receptores activa la Tirzepatida?", opts: ["GIP y GLP-1", "Solo GLP-1", "Solo melanocortina", "Solo GHRH"], correct: 0 },
+  { q: "¿Cuál es el estado regulatorio de la Retatrutida?", opts: ["Investigación", "Aprobada en todas las indicaciones", "Retirada del mercado", "Aprobada solo pediátrica"], correct: 0 },
+  { q: "¿Qué es el NAD+?", opts: ["Un cofactor redox endógeno fundamental en energía celular", "Un agonista GLP-1", "Un antiinflamatorio tópico", "Un inmunomodulador"], correct: 0 },
+  { q: "¿Qué es el BPC-157?", opts: ["Un pentadecapéptido sintético de investigación derivado de una secuencia protectora gástrica", "Un secretagogo de GH aprobado", "Un antioxidante endógeno", "Un agonista melanocortínico"], correct: 0 },
+  { q: "¿Con qué procesos se asocia principalmente Epitalon?", opts: ["Telómeros y ritmos circadianos", "Control glucémico", "Reparación tendinosa", "Inmunomodulación"], correct: 0 },
+  { q: "¿Qué vía de administración tiene mayor solidez de evidencia para GHK-Cu?", opts: ["Tópica", "Intravenosa", "Intramuscular", "Intraarticular"], correct: 0 },
+  { q: "¿Qué es PT-141 (Bremelanotida)?", opts: ["Un agonista melanocortínico para deseo sexual, aprobado en indicaciones específicas", "Un secretagogo de GH", "Un péptido antioxidante", "Un inmunomodulador"], correct: 0 },
+  { q: "¿Qué es Thymosin Alpha-1?", opts: ["Un inmunomodulador vinculado a linfocitos T, con uso específico según el país", "Un agonista GLP-1", "Un secretagogo de GH aprobado universalmente", "Un antioxidante tópico"], correct: 0 },
+  { q: "¿Qué tipo de péptido es el Glutatión?", opts: ["Un tripéptido endógeno antioxidante", "Un hexapéptido sintético", "Un agonista GLP-1", "Un secretagogo de GH"], correct: 0 },
+  { q: "¿Qué significa la modificación \"DAC\" en CJC-1295 DAC?", opts: ["Mayor duración de acción, no mayor seguridad", "Aprobación clínica automática", "Vía de administración oral", "Que ya no requiere consentimiento informado"], correct: 0 },
+  { q: "¿Cuál es el perfil descrito de Ipamorelin frente a otros secretagogos de GH?", opts: ["Relativamente selectivo", "El único aprobado del grupo", "De uso exclusivamente tópico", "Contraindicado en cualquier paciente"], correct: 0 },
+  { q: "¿Cómo se describe mejor a Sermorelin?", opts: ["Como análogo de GHRH, no como \"booster\" genérico", "Como agonista GLP-1", "Como antioxidante endógeno", "Como inmunomodulador aprobado"], correct: 0 },
+  { q: "¿Qué distingue a Tesamorelin de Sermorelin e Ipamorelin?", opts: ["Tiene indicación clínica aprobada (grasa visceral en lipodistrofia VIH); los otros son de investigación", "No hay ninguna diferencia regulatoria", "Tesamorelin es de investigación y los otros están aprobados", "Solo se diferencian en el precio"], correct: 0 },
+  { q: "¿Qué contraindicación de clase comparten los agonistas GLP-1 (Semaglutida, Liraglutida, Tirzepatida)?", opts: ["Antecedente personal/familiar de carcinoma medular de tiroides o MEN2", "Antecedente de migraña ocasional", "Uso previo de vitaminas", "Ser mayor de 40 años"], correct: 0 },
+  { q: "¿Qué contraindicación comparten los secretagogos de GH en investigación (CJC-1295, CJC-1295 DAC, Ipamorelin, Sermorelin)?", opts: ["Uso oncológico activo, embarazo y lactancia", "Ninguna, son seguros en cualquier paciente", "Solo se contraindican en menores de 18 años", "Solo se contraindican combinados con vitamina D"], correct: 0 },
+  { q: "¿Qué principio general aplica a cualquier péptido de investigación frente a un paciente?", opts: ["Debe presentarse siempre como compuesto de investigación, nunca como terapia consolidada, con consentimiento reforzado", "Se puede presentar como terapia estándar si el paciente insiste", "No requiere ningún consentimiento adicional", "Solo se documenta si hay un evento adverso"], correct: 0 },
+  { q: "¿Dónde se cubre en detalle la dosificación exacta de NAD+ y Glutatión dentro de la capacitación de CODE CELLS®?", opts: ["En el módulo de Sueroterapia", "En este mismo módulo, con tablas de dosis exactas", "En ningún módulo", "Solo en el módulo de Farmacia"], correct: 0 },
+  { q: "¿Qué antecedente clínico exige mayor cautela reforzada antes de indicar péptidos con efecto proliferativo o regenerativo?", opts: ["Antecedente oncológico activo", "Antecedente de alergia estacional leve", "Uso previo de suplementos vitamínicos orales", "Ser mayor de 40 años sin otra condición"], correct: 0 }
+];
+
+function tagLabelOf(tag) {
+  return tag === "aprobado" ? "APROBADO" : (tag === "investigacion" ? "INVESTIGACIÓN" : "USO VARIABLE");
+}
+
+function renderMoleculeCell(m) {
+  var stars = '';
+  for (var i = 0; i < 5; i++) stars += (i < m.evidencia ? String.fromCharCode(9733) : String.fromCharCode(9734));
+  var html = '<div class="icon-badge">' + String.fromCodePoint(0x1F48A) + '</div>';
+  html += '<span class="tag tag-' + m.tag + '">' + tagLabelOf(m.tag) + '</span>';
+  html += '<h3>' + m.n + '. ' + m.nombre + '</h3>';
+  html += '<div class="metagrid">';
+  html += '<div class="metabox"><div class="mlabel">Categoría</div><div class="mval">' + m.categoria + '</div></div>';
+  html += '<div class="metabox"><div class="mlabel">Dificultad</div><div class="mval">' + m.dificultad + '</div></div>';
+  html += '<div class="metabox"><div class="mlabel">Nivel de evidencia</div><div class="mval stars">' + stars + '</div></div>';
+  html += '<div class="metabox"><div class="mlabel">Estado regulatorio</div><div class="mval">' + m.estadoRegulatorio + '</div></div>';
+  html += '</div>';
+  if (m.nota) html += '<div class="card" style="border-left:3px solid var(--gold-light);"><p style="margin:0;">' + m.nota + '</p></div>';
+
+  var fields = [
+    ["Objetivo de aprendizaje", m.objetivo],
+    ["Palabras clave", m.palabrasClave],
+    ["Que es", m.queEs],
+    ["Historia breve", m.historia],
+    ["Origen", m.origen],
+    ["Como funciona", m.comoFunciona],
+    ["Cuando pensar en esta molecula", m.cuandoPensar]
+  ];
+  fields.forEach(function(f) {
+    html += '<div class="fieldrow"><div class="flabel">' + f[0] + '</div><div class="fvalue">' + f[1] + '</div></div>';
+  });
+  html += '<div class="fieldrow"><div class="flabel">Beneficios principales</div><div class="fvalue"><ul>' + m.beneficios.map(function(b){return '<li>'+b+'</li>';}).join('') + '</ul></div></div>';
+
+  var fields2 = [
+    ["Presentaciones habituales", m.presentaciones],
+    ["Conceptos generales de preparacion", m.preparacion],
+    ["Via de administracion", m.via],
+    ["Frecuencia habitual", m.frecuencia],
+    ["Efectos adversos frecuentes", m.efectosAdversos],
+    ["Contraindicaciones principales", m.contraindicaciones],
+    ["Perlas clinicas", m.perlas],
+    ["Resumen rapido", m.resumen],
+    ["Bibliografia especifica", m.bibliografia]
+  ];
+  fields2.forEach(function(f) {
+    html += '<div class="fieldrow"><div class="flabel">' + f[0] + '</div><div class="fvalue">' + f[1] + '</div></div>';
+  });
+
+  html += '<div class="autoeval"><b style="color:#fff;">Autoevaluacion:</b><br>1) ' + m.autoeval[0] + '<br>2) ' + m.autoeval[1] + '</div>';
+  return html;
+}
+
+var CELLS = [
+  { label: "1 . Bienvenida", render: function() {
+    return '<div class="icon-badge">' + String.fromCodePoint(0x1F9EC) + '</div><h3>Peptidos - ACTIVATE(tm)</h3>' +
+      '<p>ACTIVATE(tm) es el nivel Intermedio: construye sobre RESTORE(tm) anadiendo peptidos. Este modulo cubre las 16 moleculas de referencia, cada una con su ficha completa: mecanismo, presentacion, via, efectos adversos, contraindicaciones y estatus regulatorio.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este modulo</p>' +
+      '<p style="margin:0;">Podras identificar cada peptido de uso en ACTIVATE(tm) con su ficha completa, distinguir su estatus regulatorio (aprobado / investigacion / uso variable), reconocer sus contraindicaciones especificas, y comunicar ese estatus con transparencia al paciente.</p></div>';
+  }},
+  { label: "2 . Contexto", render: function() {
+    return '<div class="icon-badge">' + String.fromCodePoint(0x1F4A1) + '</div><h3>Por que importa esta distincion?</h3>' +
+      '<p>No todos los peptidos que se usan en la practica regenerativa tienen el mismo respaldo. Confundir un compuesto de investigacion con un farmaco aprobado es un error de comunicacion con consecuencias reales.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Error frecuente</p>' +
+      '<p style="margin:0;">Asumir que "mismo eje" o "mismo mecanismo" implica "mismo estatus regulatorio" (ej. Tesamorelin vs. Sermorelin), o que una modificacion tecnica (como "DAC") implica mayor seguridad en vez de solo mayor duracion.</p></div>';
+  }},
+  { label: "3 . Concepto", render: function() {
+    return '<div class="icon-badge">' + String.fromCodePoint(0x1F4DA) + '</div><h3>Tres categorias regulatorias</h3>' +
+      '<div class="two-col">' +
+        '<div class="colcard aprob"><h4>Aprobado</h4><ul><li>Semaglutida</li><li>Liraglutida</li><li>Tirzepatida</li><li>PT-141</li><li>Tesamorelin</li></ul></div>' +
+        '<div class="colcard var"><h4>Uso variable</h4><ul><li>NAD+</li><li>GHK-Cu</li><li>Thymosin Alpha-1</li><li>Glutation</li></ul></div>' +
+        '<div class="colcard inv"><h4>Investigacion</h4><ul><li>Retatrutida</li><li>BPC-157</li><li>Epitalon</li><li>CJC-1295 / DAC</li><li>Ipamorelin</li><li>Sermorelin</li></ul></div>' +
+      '</div>' +
+      '<p>Las siguientes 16 celdas te dan la ficha completa de cada molecula, con el mismo formato para todas.</p>';
+  }}
+];
+
+MOLECULES.forEach(function(m) {
+  CELLS.push({ label: m.n + " . " + m.nombre, render: function() { return renderMoleculeCell(m); } });
+});
+
+var IDX_PRACTICA = CELLS.length + 1;
+var IDX_DIFF = IDX_PRACTICA + 1;
+var IDX_EVAL = IDX_DIFF + 1;
+
+CELLS.push({ label: "Ejemplo guiado", render: function() {
+  return '<div class="icon-badge">' + String.fromCodePoint(0x1FA7A) + '</div><h3>Ejemplo guiado</h3>' +
+    '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Un paciente sin antecedentes relevantes pide Epitalon y CJC-1295 "para verse y sentirse mas joven", sin ninguna justificacion clinica adicional.</p></div>' +
+    '<p><strong style="color:#fff;">Paso 1 - separar demanda de indicacion.</strong> La solicitud del paciente es informacion relevante, no un criterio clinico por si sola.</p>' +
+    '<p><strong style="color:#fff;">Paso 2 - nombrar el estatus regulatorio con honestidad.</strong> Ambos son compuestos de investigacion.</p>' +
+    '<p><strong style="color:#fff;">Paso 3 - historia clinica dirigida.</strong> El cancer activo contraindica los secretagogos de GH.</p>' +
+    '<p><strong style="color:#fff;">Paso 4 - consentimiento reforzado si se procede.</strong> Se documenta el estatus de investigacion explicitamente.</p>' +
+    '<p style="margin:0;"><strong style="color:#fff;">Conclusion:</strong> el criterio clinico y la transparencia regulatoria determinan la indicacion.</p>';
+}});
+
+CELLS.push({ label: "Practica", render: function(st) {
+  var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+  var html = '<div class="icon-badge">' + String.fromCodePoint(0x270F) + '</div><h3>Practica clinica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><span class="tag tag-'+c.tag+'">'+tagLabelOf(c.tag)+'</span><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+  c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+  if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+    if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso -></button>';
+    else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de practica.</p>'; }
+  return html;
+}});
+
+CELLS.push({ label: "Diagnostico diferencial", render: function(st) {
+  var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+  var html = '<div class="icon-badge">' + String.fromCodePoint(0x1F50D) + '</div><h3>Cuando dos moleculas se confunden</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><span class="tag tag-'+c.tag+'">'+tagLabelOf(c.tag)+'</span><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+  c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+  if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+    if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso -></button>';
+    else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnostico diferencial.</p>'; }
+  return html;
+}});
+
+CELLS.push({ label: "Evaluacion", render: function(st) {
+  var idx = st.quizIndex || 0;
+  if (idx >= QUESTIONS.length) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+    return '<div class="icon-badge">' + String.fromCodePoint(0x2705) + '</div><h3>Resultado de la evaluacion</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas - '+(passed?"Aprobado (minimo 80%)":"No aprobado, se requiere 80% o mas")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluacion completa</button>');
+  }
+  var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+  var html = '<div class="icon-badge">' + String.fromCodePoint(0x2705) + '</div><h3>Evaluacion - 20 reactivos</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+  qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+  if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto - la respuesta correcta esta marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo ->")+'</button>'; }
+  return html;
+}});
+
+CELLS.push({ label: "Resumen", render: function(st) {
+  var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+  var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+  return '<div class="icon-badge">' + String.fromCodePoint(0x1F3C1) + '</div><h3>Resumen y siguiente paso</h3>' +
+    '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+    '<li>16 moleculas cubiertas con ficha completa: 5 aprobadas, 4 de uso variable, 7 de investigacion.</li>' +
+    '<li>Compartir mecanismo o eje fisiologico no implica compartir estatus regulatorio.</li>' +
+    '<li>Todo compuesto de investigacion exige transparencia explicita y consentimiento reforzado.</li>' +
+    '</ul>' +
+    '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% - '+(passed?"modulo aprobado":"no aprobado, regresa a la evaluacion para reintentar")+'</p>' +
+    '<p style="margin:8px 0 0;">Siguiente modulo sugerido: Exosomas (GENESIS(tm)).</p></div>';
+}});
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===IDX_PRACTICA) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===IDX_DIFF) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===IDX_EVAL) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar modulo" : (blocked?"Completa los casos para continuar":"Siguiente ->");
+  renderDots();
+  stage.scrollTop = 0;
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>
