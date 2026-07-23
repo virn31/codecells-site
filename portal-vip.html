@@ -431,6 +431,7 @@
 
   /* ─── Arranque ─── */
   var record = null; // registro Airtable actual (cargado o refrescado)
+  var pacientesVipCache = []; // lista completa cuando entra un médico maestro
   var isDemoMode = false; // true cuando se entra por ?demo=1 — evita escrituras reales a Airtable
   var pinBuffer = '';
   var pinStage = null; // 'crear' | 'confirmar' (durante activación)
@@ -487,6 +488,23 @@
       return;
     }
 
+    if(codigoDirecto && /^CCMED-/i.test(codigoDirecto)){
+      renderLoading();
+      var codigoMedicoLimpio = codigoDirecto.replace(/"/g,'');
+      fetch('/api/airtable?tabla=medicos&filterByFormula=' + encodeURIComponent('{Código de médico}="' + codigoMedicoLimpio + '"'))
+        .then(function(r){ return r.json(); })
+        .then(function(medData){
+          var medico = medData.records && medData.records[0];
+          if(!medico || medico.fields['Ver todos los pacientes'] !== true){
+            return renderInvalid('codigo_no_encontrado');
+          }
+          return fetch('/api/airtable?tabla=pacientes_vip&sort[0][field]=Nombre&sort[0][direction]=asc&maxRecords=200')
+            .then(function(r){ return r.json(); })
+            .then(function(data){ renderListaMaestra(data.records || []); });
+        }).catch(function(){ renderInvalid('error'); });
+      return;
+    }
+
     if(codigoDirecto){
       renderLoading();
       atList('{Código DZW}="' + codigoDirecto.replace(/"/g,'') + '"').then(function(data){
@@ -522,6 +540,38 @@
         '<div class="eyebrow"><span class="dot"></span>CODE CELLS® VIP</div>' +
         '<div class="card"><h1>' + m[0] + '</h1><p class="lede">' + m[1] + '</p></div>' +
       '</div>';
+  }
+
+  function renderListaMaestra(pacientes){
+    var filas = pacientes.map(function(p){
+      var nombre = p.fields['Nombre'] || 'Sin nombre';
+      var codigo = p.fields['Código DZW'] || '';
+      var protocolo = p.fields['Protocolo'] || 'Sin protocolo';
+      return '<div class="sys-row" style="cursor:pointer;" data-record-id="' + p.id + '">' +
+          '<div class="sys-mid">' +
+            '<div class="sys-name" style="text-transform:none;letter-spacing:0;font-size:0.92rem;color:var(--ink);">' + nombre + '</div>' +
+            '<div class="ring-subtext" style="text-align:left;margin-top:2px;">' + codigo + ' · ' + protocolo + '</div>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+
+    app.innerHTML =
+      '<div class="wrap">' +
+        '<div class="eyebrow"><span class="dot"></span>CODE CELLS® VIP — Modo médico</div>' +
+        '<div class="card">' +
+          '<h1 style="margin-bottom:0.4rem;">Pacientes VIP</h1>' +
+          '<p class="lede">' + pacientes.length + ' paciente(s). Toca uno para entrar a su portal.</p>' +
+          (pacientes.length ? filas : '<p class="lede">Aún no hay pacientes VIP registrados.</p>') +
+        '</div>' +
+      '</div>';
+
+    pacientesVipCache = pacientes;
+    Array.prototype.forEach.call(app.querySelectorAll('[data-record-id]'), function(el){
+      el.addEventListener('click', function(){
+        var rec = pacientesVipCache.find(function(p){ return p.id === el.getAttribute('data-record-id'); });
+        if(rec){ record = rec; renderDashboard(); }
+      });
+    });
   }
 
   function renderSinCuenta(){
