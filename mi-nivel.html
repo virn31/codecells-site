@@ -118,6 +118,12 @@
     </div>
   </div>
 
+  <!-- Pantalla: lista de pacientes (modo médico maestro) -->
+  <div class="pantalla" id="p-lista-medico">
+    <div class="seccion-label">Pacientes registrados</div>
+    <div id="lista-medico-pacientes"></div>
+  </div>
+
   <!-- Pantalla: principal -->
   <div class="pantalla" id="p-principal">
     <div class="card-paciente">
@@ -243,6 +249,11 @@ function init() {
   var params = new URLSearchParams(window.location.search);
   pacienteCodigo = params.get('codigo');
 
+  if (pacienteCodigo && /^CCMED-/i.test(pacienteCodigo)) {
+    cargarListaMedico(pacienteCodigo);
+    return;
+  }
+
   if (pacienteCodigo && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCodigo)) {
     // Llegó por liga con código válido — se guarda para futuras aperturas
     // desde el ícono instalado (que abren /mi-nivel.html sin parámetros).
@@ -259,6 +270,50 @@ function init() {
     return;
   }
   cargarPaciente();
+}
+
+function cargarListaMedico(codigoMedico) {
+  irA('p-cargando');
+  fetch('/api/airtable?tabla=medicos&filterByFormula=' + encodeURIComponent('{Código de médico}="' + codigoMedico.replace(/"/g,'') + '"'))
+    .then(function(r){ return r.json(); })
+    .then(function(medData){
+      var medico = medData.records && medData.records[0];
+      if (!medico || medico.fields['Ver todos los pacientes'] !== true) {
+        document.getElementById('error-texto').textContent = 'Código no reconocido para modo médico.';
+        irA('p-error');
+        return;
+      }
+      return fetch('/api/airtable?tabla=pacientes&sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=200')
+        .then(function(r){ return r.json(); })
+        .then(function(data){ renderListaMedico(data.records || []); });
+    })
+    .catch(function(){
+      document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';
+      irA('p-error');
+    });
+}
+
+function renderListaMedico(pacientes) {
+  var lista = document.getElementById('lista-medico-pacientes');
+  lista.innerHTML = '';
+  if (!pacientes.length) {
+    lista.innerHTML = '<p style="color:var(--text-3);font-size:13px;">Aún no hay pacientes registrados.</p>';
+  }
+  pacientes.forEach(function(p) {
+    var f = p.fields;
+    var fila = document.createElement('div');
+    fila.className = 'card-paciente';
+    fila.style.cursor = 'pointer';
+    fila.style.marginBottom = '10px';
+    fila.innerHTML =
+      '<div class="paciente-nombre" style="font-size:17px;">' + (f['Nombre completo'] || 'Sin nombre') + '</div>' +
+      '<div class="paciente-codigo">' + (f['Código de paciente'] || '') + (f['Protocolo actual'] ? ' · ' + f['Protocolo actual'] : '') + '</div>';
+    fila.addEventListener('click', function(){
+      window.location.href = 'mi-nivel.html?codigo=' + (f['Código de paciente'] || '');
+    });
+    lista.appendChild(fila);
+  });
+  irA('p-lista-medico');
 }
 
 function cargarPaciente() {
