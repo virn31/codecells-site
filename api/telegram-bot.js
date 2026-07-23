@@ -18,6 +18,8 @@ module.exports.config = { maxDuration: 60 };
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
 const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
 const DEDUPE_TABLE_ID = 'tblehEMlnMhPNVEBq';
+const HILOS_TABLE_ID = 'tblTW5X6f2UkuUFPT';
+const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 
 const CAMPO_CODIGO = 'Código de médico';
@@ -47,6 +49,45 @@ async function vincularChatId(recordId, chatId) {
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: { [CAMPO_CHAT_ID]: String(chatId) } }),
   });
+}
+
+/**
+ * Busca un hilo paciente↔alerta por message_id + chat_id del médico.
+ * Devuelve null si no existe o si ya fue respondido.
+ */
+async function buscarHiloPaciente(chatId, replyToMessageId) {
+  const formula = `AND({Message ID} = "${replyToMessageId}", {Chat ID Médico} = "${chatId}", {Respondido} = FALSE())`;
+  return airtableGet(HILOS_TABLE_ID, formula);
+}
+
+/**
+ * Guarda la respuesta del médico en el expediente del paciente (para que NOVA
+ * se la entregue en la próxima conversación) y marca el hilo como respondido.
+ */
+async function entregarRespuestaAlPaciente(hilo, textoRespuesta) {
+  const pacienteId = hilo.fields['Paciente']?.[0];
+  if (!pacienteId) return null;
+
+  const pacUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PACIENTES_TABLE_ID}/${pacienteId}`;
+  const pacRes = await fetch(pacUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  const pacData = await pacRes.json();
+  const previa = pacData.fields?.['Respuesta médico pendiente'] || '';
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  const nuevaRespuesta = (previa ? previa + '\n' : '') + `[${fechaHoy}] ${textoRespuesta.trim()}`;
+
+  await fetch(pacUrl, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { 'Respuesta médico pendiente': nuevaRespuesta } }),
+  });
+
+  await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HILOS_TABLE_ID}/${hilo.id}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { 'Respondido': true } }),
+  });
+
+  return pacData.fields?.['Nombre completo'] || 'el paciente';
 }
 
 /**
@@ -143,6 +184,21 @@ module.exports = async (req, res) => {
         'Este bot es exclusivo para médicos de la Red CODE CELLS®. Si aún no vinculaste tu cuenta, envíame tu código CCMED-XXXXXX.'
       );
       return res.status(200).json({ ok: true });
+    }
+
+    // Médico vinculado y el mensaje no es un comando de vinculación:
+    // primero revisar si es una RESPUESTA (reply de Telegram) a una alerta
+    // de paciente — en ese caso, entregar la respuesta y NO generar plan.
+    if (message.reply_to_message) {
+      const hilo = await buscarHiloPaciente(chatId, message.reply_to_message.message_id);
+      if (hilo) {
+        const nombrePaciente = await entregarRespuestaAlPaciente(hilo, texto);
+        await sendTelegramMessage(
+          chatId,
+          `Respuesta enviada. Se le mostrará a ${nombrePaciente} en su próxima conversación con NOVA.`
+        );
+        return res.status(200).json({ ok: true });
+      }
     }
 
     // Médico vinculado: se trata como solicitud de plan nutricional.
