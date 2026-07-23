@@ -2391,7 +2391,9 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, es
             `Paciente: ${nombrePaciente || pacienteCode}${ciudadPaciente ? ` (${ciudadPaciente})` : ''}\n` +
             `Motivo: ${accion.solicitud_motivo || '(sin motivo especificado)'}\n` +
             `Prioridad: ${esVipReal ? 'Alta' : 'Normal'}\n\n` +
-            `Revisa el Portal Médico o contacta al paciente para confirmar.`,
+            `Responde este mensaje (Reply) en Telegram para confirmarle la cita directo al paciente — NOVA le entrega tu respuesta en su próxima conversación. También puedes revisar el Portal Médico.`,
+          pacienteRecordId: pacRecordId,
+          preguntaPaciente: ultimoMensajePaciente || accion.solicitud_motivo || 'Solicitud de cita',
           AIRTABLE_TOKEN,
         });
       } catch (err) {
