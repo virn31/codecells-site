@@ -2851,8 +2851,8 @@ async function cargarPacientes() {
 
   try {
     let formula, url;
-    if (medicoActual.id === 'demo') {
-      // Demo: sin filtro
+    if (medicoActual.id === 'demo' || medicoActual['Ver todos los pacientes'] === true) {
+      // Demo, o médico maestro (Ver todos los pacientes activo): sin filtro.
       url = '?sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100';
     } else {
       // ARRAYJOIN() sobre un campo de registros vinculados devuelve el valor del
