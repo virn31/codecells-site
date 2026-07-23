@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mi CODE CELLS® — Portal Paciente</title>
+<link rel="manifest" href="/manifest-paciente.json">
+<meta name="theme-color" content="#0E1410">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -82,6 +87,10 @@
 
   .error-msg { color: #E2574B; font-size: 14px; }
   .btn-reintentar { margin-top: 8px; background: none; border: 1px solid var(--border-dim); color: var(--text-2); border-radius: 20px; padding: 10px 20px; cursor: pointer; }
+
+  .install-banner { background: var(--gold-pale2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; }
+  .install-banner p { flex: 1; font-size: 13px; color: var(--text-1); line-height: 1.5; margin: 0; }
+  .install-banner button { background: var(--gold); color: var(--black); border: none; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -89,8 +98,9 @@
 <button class="btn-musica" id="btn-musica" onclick="toggleMusica()">🔇</button>
 <audio id="musica-fondo" src="assets/helix-in-gold.mp3" loop preload="none"></audio>
 
-<div class="wrap">
+  <div class="wrap">
   <div class="logo-glyph">CODE CELLS®</div>
+  <div id="install-banner-slot"></div>
 
   <!-- Pantalla: cargando -->
   <div class="pantalla activa" id="p-cargando">
@@ -152,6 +162,64 @@
 var pacienteCodigo = null;
 var pacienteRecord = null;
 var esVip = false;
+var STORAGE_KEY_CODIGO = 'ccpac_codigo';
+
+/* ─── Service worker + instalación como app ─── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw-paciente.js').catch(function(){});
+}
+var deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  renderInstallBanner();
+});
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+function renderInstallBanner(){
+  var slot = document.getElementById('install-banner-slot');
+  if (!slot || isStandalone()) return;
+  if (localStorage.getItem('ccpac_install_dismissed') === '1') return;
+
+  if (deferredInstallPrompt) {
+    slot.innerHTML =
+      '<div class="install-banner">' +
+        '<p>Instala CODE CELLS® en tu pantalla de inicio — acceso directo a NOVA, sin buscar la liga.</p>' +
+        '<button type="button" id="btn-install">Instalar</button>' +
+      '</div>';
+    document.getElementById('btn-install').addEventListener('click', function(){
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.finally(function(){
+        deferredInstallPrompt = null;
+        slot.innerHTML = '';
+      });
+    });
+  } else if (isIOS()) {
+    slot.innerHTML =
+      '<div class="install-banner">' +
+        '<p>Instala esta app: toca el ícono de compartir <strong>⬆</strong> y elige "Agregar a pantalla de inicio".</p>' +
+        '<button type="button" id="btn-dismiss-install">Entendido</button>' +
+      '</div>';
+    document.getElementById('btn-dismiss-install').addEventListener('click', function(){
+      localStorage.setItem('ccpac_install_dismissed', '1');
+      slot.innerHTML = '';
+    });
+  } else {
+    slot.innerHTML =
+      '<div class="install-banner">' +
+        '<p>Instala esta app: toca los tres puntos <strong>⋮</strong> arriba a la derecha del navegador y elige "Instalar app" o "Agregar a pantalla de inicio".</p>' +
+        '<button type="button" id="btn-dismiss-install">Entendido</button>' +
+      '</div>';
+    document.getElementById('btn-dismiss-install').addEventListener('click', function(){
+      localStorage.setItem('ccpac_install_dismissed', '1');
+      slot.innerHTML = '';
+    });
+  }
+}
 
 function toggleMusica() {
   const musica = document.getElementById('musica-fondo');
@@ -174,6 +242,17 @@ function irA(id) {
 function init() {
   var params = new URLSearchParams(window.location.search);
   pacienteCodigo = params.get('codigo');
+
+  if (pacienteCodigo && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCodigo)) {
+    // Llegó por liga con código válido — se guarda para futuras aperturas
+    // desde el ícono instalado (que abren /mi-nivel.html sin parámetros).
+    try { localStorage.setItem(STORAGE_KEY_CODIGO, pacienteCodigo); } catch(e) {}
+  } else {
+    // Sin código en la URL (típico al abrir desde el ícono instalado) —
+    // usar el que se guardó la primera vez que entró por su liga real.
+    try { pacienteCodigo = localStorage.getItem(STORAGE_KEY_CODIGO); } catch(e) { pacienteCodigo = null; }
+  }
+
   if (!pacienteCodigo || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCodigo)) {
     document.getElementById('error-texto').textContent = 'Enlace incompleto o inválido — verifica el código con tu médico.';
     irA('p-error');
@@ -217,6 +296,7 @@ function cargarPaciente() {
       renderSugerencias();
       mensajeBienvenida();
       irA('p-principal');
+      renderInstallBanner();
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';
