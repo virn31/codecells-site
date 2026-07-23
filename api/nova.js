@@ -2268,25 +2268,95 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, es
   const tareas = [];
 
   if (accion.crear_solicitud_cita) {
-    tareas.push(fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_SOLICITUDES_CITA}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        typecast: true,
-        records: [{
-          fields: {
-            'Fecha solicitud': new Date().toISOString(),
-            'Paciente': [pacRecordId],
-            'Médico asignado': pacMedicoLink || [],
-            'Tipo': accion.solicitud_tipo || 'Consulta presencial',
-            'Motivo': accion.solicitud_motivo || '(sin motivo especificado)',
-            'Estado': 'Pendiente',
-            'Prioridad': esVipReal ? 'Alta' : 'Normal',
-            'Canal preferido': accion.solicitud_tipo === 'Video llamada' ? 'Video llamada' : 'WhatsApp',
-          },
-        }],
-      }),
-    }).then(r => { if (!r.ok) r.text().then(t => console.error('[nova] error creando SOLICITUDES_CITA:', t)); }));
+    tareas.push((async () => {
+      try {
+        // Traer ciudad y nombre del paciente — necesarios para el matching por
+        // proximidad (si aún no tiene médico asignado) y para el mensaje de alerta.
+        const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_PACIENTES}/${pacRecordId}`, {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        });
+        const pacData = await pacRes.json();
+        const ciudadPaciente = (pacData.fields?.['Ciudad'] || '').trim();
+        const nombrePaciente = pacData.fields?.['Nombre completo'] || pacienteCode;
+
+        let medicoAsignadoId = (pacMedicoLink && pacMedicoLink[0]) || null;
+
+        // Si el paciente aún no tiene médico principal, buscar el médico activo
+        // más cercano por ciudad (match simple de texto, no geodistancia real).
+        if (!medicoAsignadoId && ciudadPaciente) {
+          const medListRes = await fetch(
+            `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}?filterByFormula=${encodeURIComponent('{Activo}=1')}`,
+            { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
+          );
+          const medListData = await medListRes.json();
+          const medicosActivos = medListData.records || [];
+          const ciudadPacienteLower = ciudadPaciente.toLowerCase();
+
+          const matchExacto = medicosActivos.find(
+            m => (m.fields['Ciudad'] || '').trim().toLowerCase() === ciudadPacienteLower
+          );
+          const matchParcial = medicosActivos.find(m => {
+            const ciudadMedico = (m.fields['Ciudad'] || '').trim().toLowerCase();
+            return ciudadMedico && (ciudadMedico.includes(ciudadPacienteLower) || ciudadPacienteLower.includes(ciudadMedico));
+          });
+          const medicoMatch = matchExacto || matchParcial;
+          if (medicoMatch) medicoAsignadoId = medicoMatch.id;
+        }
+
+        const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_SOLICITUDES_CITA}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            typecast: true,
+            records: [{
+              fields: {
+                'Fecha solicitud': new Date().toISOString(),
+                'Paciente': [pacRecordId],
+                'Médico asignado': medicoAsignadoId ? [medicoAsignadoId] : [],
+                'Tipo': accion.solicitud_tipo || 'Consulta presencial',
+                'Motivo': accion.solicitud_motivo || '(sin motivo especificado)',
+                'Estado': 'Pendiente',
+                'Prioridad': esVipReal ? 'Alta' : 'Normal',
+                'Canal preferido': accion.solicitud_tipo === 'Video llamada' ? 'Video llamada' : 'WhatsApp',
+              },
+            }],
+          }),
+        });
+        if (!createRes.ok) {
+          console.error('[nova] error creando SOLICITUDES_CITA:', await createRes.text());
+          return;
+        }
+
+        // Alerta por Telegram al médico asignado (si ya vinculó su cuenta).
+        if (medicoAsignadoId) {
+          const medRecRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}/${medicoAsignadoId}`, {
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          });
+          const medRecData = await medRecRes.json();
+          const codigoMedico = medRecData.fields?.['Código de médico'];
+
+          if (codigoMedico) {
+            const mensajeAlerta =
+              `Nueva solicitud de consulta CODE CELLS®\n\n` +
+              `Paciente: ${nombrePaciente}${ciudadPaciente ? ` (${ciudadPaciente})` : ''}\n` +
+              `Motivo: ${accion.solicitud_motivo || '(sin motivo especificado)'}\n` +
+              `Prioridad: ${esVipReal ? 'Alta' : 'Normal'}\n\n` +
+              `Revisa el Portal Médico o contacta al paciente para confirmar.`;
+
+            fetch('https://www.codecells.mx/api/telegram-alert', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-internal-secret': process.env.INTERNAL_ALERT_SECRET,
+              },
+              body: JSON.stringify({ codigoMedico, mensaje: mensajeAlerta }),
+            }).catch(err => console.error('[nova] error enviando alerta Telegram:', err.message));
+          }
+        }
+      } catch (err) {
+        console.error('[nova] error en flujo crear_solicitud_cita:', err.message);
+      }
+    })());
   }
 
   if (esVipReal && accion.crear_recordatorio) {
