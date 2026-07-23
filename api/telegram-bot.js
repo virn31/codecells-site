@@ -146,7 +146,7 @@ module.exports = async (req, res) => {
         chatId,
         'Hola, soy el bot de notificaciones y apoyo clínico de CODE CELLS® Red Médica.\n\n' +
           'Para vincular tu cuenta, envíame tu código de médico (formato CCMED-XXXXXX).\n\n' +
-          'Una vez vinculado, puedes escribirme los datos de un paciente (peso, talla, IMC, diagnósticos, medicamentos, labs, etc.) y te genero un plan nutricional de 7 días listo para copiar y reenviar.'
+          'Una vez vinculado, escribe "plan" seguido de los datos de un paciente (peso, talla, IMC, diagnósticos, medicamentos, labs, etc.) y te genero un plan nutricional de 7 días listo para copiar y reenviar.'
       );
       return res.status(200).json({ ok: true });
     }
@@ -170,7 +170,7 @@ module.exports = async (req, res) => {
       const nombre = medico.fields[CAMPO_NOMBRE] || 'Doctor(a)';
       await sendTelegramMessage(
         chatId,
-        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS® (certificaciones, recordatorios del Diplomado, avisos de NOVA).\n\nTambién puedes escribirme los datos de un paciente cuando quieras generar un plan nutricional.`
+        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS® (certificaciones, recordatorios del Diplomado, avisos de NOVA).\n\nPara generar un plan nutricional, escribe "plan" seguido de los datos del paciente.`
       );
       return res.status(200).json({ ok: true });
     }
@@ -201,11 +201,26 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Médico vinculado: se trata como solicitud de plan nutricional.
+    // Médico vinculado: solo se genera plan nutricional si el mensaje empieza
+    // explícitamente con "plan" o "/plan" — así cualquier otro mensaje suyo
+    // (confirmar una cita, comentarios, etc.) no se confunde con esto.
+    const esComandoPlan = /^\/?plan\b/i.test(texto);
+
+    if (!esComandoPlan) {
+      await sendTelegramMessage(
+        chatId,
+        'Recibido. Si quieres generar un plan nutricional, escribe "plan" seguido de los datos del paciente (peso, talla, diagnósticos, etc.).\n\n' +
+          'Si me estás respondiendo algo de una alerta de paciente, usa la función "Responder" (mantén presionado el mensaje de la alerta y elige Responder) para que le llegue directo.'
+      );
+      return res.status(200).json({ ok: true });
+    }
+
+    const textoParaPlan = texto.replace(/^\/?plan\b\s*/i, '').trim();
+
     await sendTelegramMessage(chatId, 'Generando el plan, un momento...');
 
     try {
-      const plan = await generarPlanNutricional(texto);
+      const plan = await generarPlanNutricional(textoParaPlan);
 
       const nombreMedico = medicoVinculado.fields[CAMPO_NOMBRE] || '';
       const cedulaMedico = medicoVinculado.fields[CAMPO_CEDULA] || '';
