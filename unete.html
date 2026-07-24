@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Únete a la Red CODE CELLS®</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1410; --surface:#161D18; --line:rgba(255,255,255,0.08); --line-strong:rgba(255,255,255,0.14);
+    --gold:#C9A24B; --gold-line:rgba(201,162,75,0.35); --gold-soft:rgba(201,162,75,0.14);
+    --ink:#F2EFE9; --ink-muted:#9a9590; --ink-dim:rgba(242,239,233,0.55);
+    --font-display:'Fraunces',serif; --font-sans:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+    --ease:cubic-bezier(.4,0,.2,1);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-sans); min-height:100vh; }
+  .wrap{ max-width:640px; margin:0 auto; padding:28px 20px 40px; }
+  .logo-glyph{ font-family:var(--font-display); font-size:13px; letter-spacing:0.3em; color:var(--gold); font-weight:300; text-align:center; margin-bottom:26px; }
+  .eyebrow{ font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.12em; color:var(--gold); text-transform:uppercase; display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--gold); display:inline-block; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:22px 20px; margin-bottom:20px; }
+  h1{ font-family:var(--font-display); font-weight:500; font-size:1.7rem; margin:0 0 10px; line-height:1.25; }
+  .lede{ color:var(--ink-dim); font-size:0.92rem; line-height:1.55; margin:0 0 16px; }
+  ul.beneficios{ list-style:none; margin:0 0 4px; padding:0; }
+  ul.beneficios li{ font-size:0.88rem; color:var(--ink-dim); padding:8px 0 8px 24px; position:relative; border-top:1px solid var(--line); }
+  ul.beneficios li:first-child{ border-top:none; }
+  ul.beneficios li::before{ content:'✦'; position:absolute; left:0; top:8px; color:var(--gold); font-size:0.75rem; }
+
+  .nova-card{ background:var(--surface); border:1px solid var(--gold-line); border-radius:16px; padding:16px; display:flex; flex-direction:column; height:60vh; min-height:420px; }
+  .nova-head{ font-family:var(--font-display); font-size:1.05rem; color:var(--gold); margin-bottom:10px; }
+  .nova-msgs{ flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px; }
+  .nova-msg{ max-width:85%; padding:10px 13px; border-radius:12px; font-size:0.88rem; line-height:1.5; white-space:pre-wrap; }
+  .nova-msg--nova{ align-self:flex-start; background:var(--bg); border:1px solid var(--line-strong); border-bottom-left-radius:3px; }
+  .nova-msg--user{ align-self:flex-end; background:var(--gold-soft); border:1px solid var(--gold-line); border-bottom-right-radius:3px; }
+  .nova-typing{ align-self:flex-start; padding:10px 13px; color:var(--ink-dim); font-size:0.85rem; }
+  .nova-input-row{ display:flex; gap:8px; margin-top:10px; }
+  .nova-input-row input{ flex:1; background:var(--bg); border:1px solid var(--line-strong); border-radius:10px; padding:11px 13px; color:var(--ink); font-family:var(--font-sans); font-size:0.9rem; }
+  .nova-input-row input:focus{ outline:none; border-color:var(--gold-line); }
+  .nova-input-row button{ background:var(--gold); color:#151a16; border:none; border-radius:10px; width:44px; font-size:1.1rem; cursor:pointer; }
+  .footnote{ text-align:center; color:var(--ink-dim); font-size:0.72rem; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo-glyph">CODE CELLS®</div>
+
+  <div class="eyebrow"><span class="dot"></span>Red Médica CODE CELLS®</div>
+  <div class="card">
+    <h1>Únete a la Red CODE CELLS®</h1>
+    <p class="lede">Medicina regenerativa de vanguardia, respaldada por Regene Global, con capacitación y certificación incluida. Platica con NOVA para conocer los detalles y dejar tu solicitud.</p>
+    <ul class="beneficios">
+      <li>Acceso a biológicos regenerativos de Regene Global (MUSE Cells, Exosomas)</li>
+      <li>Certificación y capacitación clínica incluida (RESTORE™ / ACTIVATE™ / GENESIS™)</li>
+      <li>Portal Médico: expediente clínico, protocolos, y apoyo de NOVA</li>
+      <li>Respaldo institucional COFEPRIS vía convenio con Regene Global</li>
+    </ul>
+  </div>
+
+  <div class="nova-card">
+    <div class="nova-head">NOVA</div>
+    <div class="nova-msgs" id="nova-msgs"></div>
+    <div class="nova-input-row">
+      <input type="text" id="nova-input" placeholder="Escribe tu mensaje…" autocomplete="off">
+      <button type="button" id="nova-send">↑</button>
+    </div>
+  </div>
+
+  <p class="footnote">Tu solicitud será revisada por el equipo CODE CELLS® — te contactaremos con tu acceso una vez aprobada.</p>
+</div>
+
+<script>
+  var NOVA_ENDPOINT = '/api/nova';
+  var NOVA_MODEL = 'claude-sonnet-5';
+  var novaHistory = [];
+  var novaIsLoading = false;
+
+  var SYSTEM_PROMPT = `Eres NOVA, la asistente de CODE CELLS® encargada de recibir solicitudes de médicos interesados en afiliarse a la Red Médica CODE CELLS®.
+
+CONTEXTO PARA RESPONDER PREGUNTAS (si el médico pregunta):
+- CODE CELLS® opera bajo respaldo institucional COFEPRIS en convenio con Regene Global.
+- Ofrece biológicos regenerativos de vanguardia (MUSE Cells, Exosomas).
+- Todo médico afiliado recibe capacitación y certificación clínica (niveles RESTORE™, ACTIVATE™, GENESIS™) antes o durante su afiliación.
+- Acceso al Portal Médico: expediente clínico digital, protocolos por sistema, y apoyo de NOVA para consultas clínicas y planes nutricionales.
+- Modelo de membresía con cuota mensual — los detalles finos de costos los da el equipo directamente, no los inventes.
+
+TU TAREA:
+1. Si el médico pregunta algo, respóndele con el contexto de arriba, cálido y profesional (nunca inventes cifras de costos).
+2. En algún punto natural de la plática (no de entrada, no interrogues de golpe), ve capturando estos datos conversacionalmente: nombre completo, especialidad, cédula profesional, ciudad donde ejerce, WhatsApp, y correo electrónico.
+3. En cuanto tengas los 6 datos confirmados por él mismo, agrega al FINAL de tu respuesta, en su propia línea, exactamente esto (nunca lo menciones ni lo expliques, es invisible para él):
+[[SOLICITUD:{"nombre":"...","especialidad":"...","cedula":"...","ciudad":"...","whatsapp":"...","email":"..."}]]
+Hazlo UNA sola vez, solo cuando ya tengas los seis datos.
+4. Después de eso, dile con calidez que su solicitud ya quedó registrada y que el equipo la revisará para darle acceso pronto.
+
+ESTILO: español, profesional, cálido, sin sonar a formulario. Nunca prometas aprobación automática — la decisión final es del equipo.`;
+
+  function renderNovaMessage(text, from){
+    var el = document.createElement('div');
+    el.className = 'nova-msg nova-msg--' + from;
+    el.textContent = text;
+    document.getElementById('nova-msgs').appendChild(el);
+    el.scrollIntoView({ behavior:'smooth', block:'end' });
+  }
+  function novaShowTyping(){
+    var el = document.createElement('div');
+    el.className = 'nova-typing';
+    el.id = 'nova-typing-indicator';
+    el.textContent = 'NOVA está escribiendo…';
+    document.getElementById('nova-msgs').appendChild(el);
+    el.scrollIntoView({ behavior:'smooth', block:'end' });
+  }
+  function novaHideTyping(){
+    var el = document.getElementById('nova-typing-indicator');
+    if(el) el.remove();
+  }
+
+  function guardarSolicitud(datos){
+    fetch('/api/nueva-solicitud-medico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    }).catch(function(){ /* no bloquear la conversación por un error de guardado */ });
+  }
+
+  function novaRespond(){
+    if(novaIsLoading) return;
+    novaIsLoading = true;
+    var btn = document.getElementById('nova-send'); if(btn) btn.disabled = true;
+    novaShowTyping();
+
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
+
+    fetch(NOVA_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: SYSTEM_PROMPT, messages: novaHistory }),
+      signal: controller.signal
+    }).then(function(r){ clearTimeout(timeoutId); return r.json(); })
+    .then(function(data){
+      novaHideTyping();
+      var reply = (data.content && data.content[0] && data.content[0].text) || 'Hubo un problema al conectar con NOVA. Intenta de nuevo.';
+
+      var match = reply.match(/\[\[SOLICITUD:(\{.*?\})\]\]/);
+      if(match){
+        reply = reply.replace(match[0], '').trim();
+        try {
+          var datos = JSON.parse(match[1]);
+          guardarSolicitud(datos);
+        } catch(e) { /* marcador mal formado, se ignora */ }
+      }
+
+      novaHistory.push({ role:'assistant', content: reply });
+      renderNovaMessage(reply, 'nova');
+    }).catch(function(err){
+      clearTimeout(timeoutId);
+      novaHideTyping();
+      var msg = (err && err.name === 'AbortError')
+        ? 'Tu conexión está muy lenta ahorita — inténtalo de nuevo cuando tengas mejor señal.'
+        : 'Hubo un problema de conexión. Intenta de nuevo.';
+      renderNovaMessage(msg, 'nova');
+    }).finally(function(){
+      novaIsLoading = false;
+      var b = document.getElementById('nova-send'); var i = document.getElementById('nova-input');
+      if(b) b.disabled = false; if(i) i.focus();
+    });
+  }
+
+  function novaSend(){
+    var input = document.getElementById('nova-input');
+    var text = input.value.trim();
+    if(!text || novaIsLoading) return;
+    input.value = '';
+    novaHistory.push({ role:'user', content: text });
+    renderNovaMessage(text, 'user');
+    novaRespond();
+  }
+
+  document.getElementById('nova-send').addEventListener('click', novaSend);
+  document.getElementById('nova-input').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); novaSend(); }
+  });
+
+  // Mensaje de bienvenida
+  var bienvenida = 'Hola, soy NOVA. Qué gusto que quieras conocer más sobre la Red CODE CELLS®. Puedo contarte cómo funciona la afiliación, o si ya te interesa, vamos armando tu solicitud — ¿cómo te llamas?';
+  novaHistory.push({ role:'assistant', content: bienvenida });
+  renderNovaMessage(bienvenida, 'nova');
+</script>
+</body>
+</html>
