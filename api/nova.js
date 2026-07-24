@@ -2213,7 +2213,7 @@ module.exports = async function handler(req, res) {
 function buildHerramientaFichaConsulta() {
   return {
     name: 'rellenar_ficha_consulta',
-    description: 'Úsala SOLO cuando el médico dicte o describa datos clínicos de un paciente que está atendiendo ahora, con intención de llenar la ficha de consulta (edad, diagnóstico, signos vitales, motivo, plan). No la uses para preguntas generales, de protocolos o consultas que no describen a un paciente concreto. Mantén "mensaje" y todos los campos breves y concretos — nunca redactes documentos largos dentro de esta herramienta; si el médico pide algo más extenso además del dictado, dilo en una frase corta dentro de "mensaje" y ya. PROHIBIDO usar esta herramienta para planes nutricionales — un plan nutricional (aunque sea largo) SIEMPRE se responde en texto normal, sin llamar a ninguna herramienta, nunca dentro de "mensaje" ni de ningún campo de aquí.',
+    description: 'Úsala SOLO cuando el médico dicte o describa datos clínicos de un paciente que está atendiendo ahora, con intención de llenar la ficha de consulta (edad, diagnóstico, signos vitales, motivo, plan, antecedentes). No la uses para preguntas generales, de protocolos o consultas que no describen a un paciente concreto. Mantén "mensaje" y todos los campos breves y concretos — nunca redactes documentos largos dentro de esta herramienta; si el médico pide algo más extenso además del dictado, dilo en una frase corta dentro de "mensaje" y ya. PROHIBIDO usar esta herramienta para planes nutricionales — un plan nutricional (aunque sea largo) SIEMPRE se responde en texto normal, sin llamar a ninguna herramienta, nunca dentro de "mensaje" ni de ningún campo de aquí. CRÍTICO: antecedentes heredofamiliares (lo que tienen los papás/hermanos/familiares) van SOLO en antecedentes_heredofamiliares, nunca se mezclan con lo que el paciente mismo tiene.',
     input_schema: {
       type: 'object',
       properties: {
@@ -2225,6 +2225,10 @@ function buildHerramientaFichaConsulta() {
         talla: { type: 'number', description: 'Talla en cm, si se mencionó.' },
         presion: { type: 'string', description: "Formato 'sistólica/diastólica', ej. '130/85'." },
         temperatura: { type: 'number', description: 'Temperatura en °C, si se mencionó.' },
+        frecuencia_cardiaca: { type: 'number', description: 'Frecuencia cardiaca en lpm, si se mencionó.' },
+        frecuencia_respiratoria: { type: 'number', description: 'Frecuencia respiratoria en rpm, si se mencionó.' },
+        saturacion_oxigeno: { type: 'number', description: 'Saturación de oxígeno en %, si se mencionó.' },
+        circunferencia_cintura: { type: 'number', description: 'Circunferencia de cintura en cm, si se mencionó.' },
         motivo_consulta: { type: 'string' },
         exploracion_fisica: { type: 'string' },
         diagnostico: {
@@ -2232,7 +2236,16 @@ function buildHerramientaFichaConsulta() {
           description: 'Diagnóstico, con código CIE-10 solo si lo puedes inferir con confianza razonable; si no estás seguro del código exacto, escribe solo el diagnóstico en texto y dilo en el mensaje para que el médico lo confirme.',
         },
         plan_terapeutico: { type: 'string' },
-        notas_internas: { type: 'string' },
+        notas_internas: { type: 'string', description: 'Cualquier dato adicional que no tenga campo propio (ej. grupo sanguíneo, escolaridad).' },
+        antecedentes_heredofamiliares: { type: 'string', description: 'SOLO lo que tienen padres/hermanos/familiares — nunca del paciente mismo.' },
+        antecedentes_personales_patologicos: { type: 'string', description: 'Enfermedades que el paciente mismo tiene o ha tenido (ej. hipertensión, hipotiroidismo), con tratamiento si se mencionó.' },
+        antecedentes_quirurgicos: { type: 'string' },
+        antecedentes_ginecoobstetricos: { type: 'string', description: 'Menarca, ciclos, FUM, IVSA, método anticonceptivo, fórmula obstétrica (G_P_C_A_V_), etc.' },
+        medicamentos_actuales: { type: 'string' },
+        alergias: { type: 'string' },
+        habitos_estilo_vida: { type: 'string', description: 'Actividad física, sueño, hidratación, alimentación — todo junto en texto libre.' },
+        estado_civil: { type: 'string' },
+        ocupacion: { type: 'string' },
         campos_faltantes: {
           type: 'array',
           items: { type: 'string' },
