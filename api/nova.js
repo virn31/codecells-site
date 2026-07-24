@@ -1720,11 +1720,13 @@ module.exports = async function handler(req, res) {
     if (messages.length > 100) {
       return res.status(400).json({ error: 'Historial demasiado largo.' });
     }
+    const esMedicoPreliminar = typeof medicoCode === 'string' && /^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode);
+    const limiteCaracteres = esMedicoPreliminar ? 12000 : 4000;
     for (const m of messages) {
       if (!['user','assistant'].includes(m.role)) {
         return res.status(400).json({ error: 'Role inválido.' });
       }
-      if (typeof m.content !== 'string' || m.content.length > 4000) {
+      if (typeof m.content !== 'string' || m.content.length > limiteCaracteres) {
         return res.status(400).json({ error: 'Contenido inválido.' });
       }
     }
