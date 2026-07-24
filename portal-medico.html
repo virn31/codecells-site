@@ -2083,7 +2083,10 @@
 
           <!-- Tab: Consultas previas -->
           <div class="tab-pane" id="tab-consultas">
-            <div class="section-label">Historial de consultas</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <div class="section-label" style="margin-bottom:0;" id="consultas-label">Historial de consultas (tuyas)</div>
+              <button class="btn-secondary" id="btn-toggle-interconsultas" style="font-size:10px;padding:5px 12px;">⇄ Ver interconsultas</button>
+            </div>
             <div class="timeline" id="timeline-consultas">
               <div class="loading-row"><span class="loader"></span></div>
             </div>
@@ -3458,16 +3461,26 @@ function renderHistoriaDemo() {
 }
 
 // ─── CONSULTAS PREVIAS ────────────────────────────────────────────
-async function cargarConsultas(pacId) {
+let viendoInterconsultas = false;
+let pacIdActualConsultas = null;
+
+async function cargarConsultas(pacId, soloMias = true) {
+  pacIdActualConsultas = pacId;
   const tl = document.getElementById('timeline-consultas');
   tl.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
 
   try {
-    const formula = encodeURIComponent(`{Código de paciente ref}="${pacId}"`);
-    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${formula}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=desc&maxRecords=20`);
+    let formula = `{Código de paciente ref}="${pacId}"`;
+    const miCodigo = medicoActual['Código de médico'] || medicoActual['codigo'];
+    if (soloMias && miCodigo) {
+      formula = `AND({Código de paciente ref}="${pacId}", {Código de médico ref}="${miCodigo}")`;
+    }
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=desc&maxRecords=30`);
 
     if (!data.records || data.records.length === 0) {
-      tl.innerHTML = demoConsultas();
+      tl.innerHTML = soloMias
+        ? '<div class="data-cell"><div class="val">Aún no tienes consultas registradas para este paciente. Toca "Ver interconsultas" para ver el manejo de otros médicos.</div></div>'
+        : demoConsultas();
       return;
     }
 
@@ -3478,6 +3491,7 @@ async function cargarConsultas(pacId) {
           <div class="tl-date">${formatDate(f['Fecha de consulta'])}</div>
           <div class="tl-content">
             <div class="tl-title">${f['Tipo de consulta'] || 'Consulta'} — Sesión ${f['Número de sesión'] || '—'}</div>
+            ${!soloMias ? `<div class="tl-note" style="color:var(--gold);font-weight:600;">${f['Médico'] || f['Código de médico ref'] || 'Médico'}</div>` : ''}
             <div class="tl-note">${f['Motivo de consulta'] || f['Notas internas'] || '—'}</div>
           </div>
           <span class="tag tag-${(f['Estado del protocolo']||'').toLowerCase() === 'completado' ? 'cyan' : 'gold'}" style="font-size:9px;">${f['Estado del protocolo'] || '—'}</span>
@@ -3489,6 +3503,17 @@ async function cargarConsultas(pacId) {
     tl.innerHTML = demoConsultas();
   }
 }
+
+document.getElementById('btn-toggle-interconsultas').addEventListener('click', () => {
+  viendoInterconsultas = !viendoInterconsultas;
+  document.getElementById('consultas-label').textContent = viendoInterconsultas
+    ? 'Interconsultas (todos los médicos)'
+    : 'Historial de consultas (tuyas)';
+  document.getElementById('btn-toggle-interconsultas').textContent = viendoInterconsultas
+    ? '← Ver solo las mías'
+    : '⇄ Ver interconsultas';
+  if (pacIdActualConsultas) cargarConsultas(pacIdActualConsultas, !viendoInterconsultas);
+});
 
 function demoConsultas() {
   return `
