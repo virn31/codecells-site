@@ -1891,7 +1891,7 @@ module.exports = async function handler(req, res) {
     // de contenido largo en el mismo mensaje puede necesitar más espacio antes
     // de que la herramienta termine de construirse; si se corta a medias, la
     // llamada a la herramienta queda incompleta y NOVA "no responde".
-    const safeTokens = Math.min(typeof max_tokens === 'number' ? max_tokens : 1024, 4096);
+    const safeTokens = Math.min(typeof max_tokens === 'number' ? max_tokens : 1024, esMedico ? 8000 : 4096);
 
     const anthropicBody = {
       model      : 'claude-sonnet-5',
