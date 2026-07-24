@@ -2594,6 +2594,7 @@ let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
+  if (typeof evaluarModalInstalar === 'function') evaluarModalInstalar();
 });
 
 function esIOS() {
@@ -2610,14 +2611,16 @@ function esStandalone() {
 }
 
 function evaluarModalInstalar() {
-  if (!isMobile()) return;
   if (esStandalone()) return; // ya está instalada, corriendo como app
   if (localStorage.getItem('cc_instalar_omitido') === '1') return;
-  if (!esIOS() && !esAndroid()) return;
 
-  document.getElementById('pasos-ios').style.display = esIOS() ? 'block' : 'none';
-  document.getElementById('pasos-android').style.display = esAndroid() ? 'flex' : 'none';
-  if (esAndroid()) document.getElementById('pasos-android').style.flexDirection = 'column';
+  var mostrarAndroid = esAndroid() || (!esIOS() && !!deferredInstallPrompt); // Android real, o cualquier Chrome (incl. escritorio) con prompt disponible
+  var mostrarIOS = esIOS();
+  if (!mostrarAndroid && !mostrarIOS) return; // navegador sin forma de instalar (ej. Firefox escritorio)
+
+  document.getElementById('pasos-ios').style.display = mostrarIOS ? 'block' : 'none';
+  document.getElementById('pasos-android').style.display = mostrarAndroid ? 'flex' : 'none';
+  if (mostrarAndroid) document.getElementById('pasos-android').style.flexDirection = 'column';
 
   document.getElementById('modal-instalar').classList.add('active');
 }
