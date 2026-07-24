@@ -1734,6 +1734,7 @@ module.exports = async function handler(req, res) {
     let herramientaPaciente = null; // solo se llena en modo paciente/VIP
     let herramientaMedico = null;   // solo se llena en modo médico (opcional, tool_choice auto)
     let herramientaAltaPaciente = null; // alta de paciente nuevo por dictado
+    let herramientaInvitarMedico = null; // generar invitación pre-cargada para un colega
     let pacRecordId = null;
     let pacMedicoLink = null;
     let esVipReal = false;
@@ -1829,6 +1830,7 @@ module.exports = async function handler(req, res) {
       });
       herramientaMedico = buildHerramientaFichaConsulta();
       herramientaAltaPaciente = buildHerramientaAltaPaciente();
+      herramientaInvitarMedico = buildHerramientaInvitarMedico();
     } else if (esPac) {
       // El nivel (VIP o no) y la memoria NUNCA se confían del cliente — se
       // consultan aquí contra Airtable, para que nadie pueda "volverse VIP"
@@ -1905,7 +1907,7 @@ module.exports = async function handler(req, res) {
       // protocolos/clínica — solo se activa cuando NOVA detecta que le están
       // dictando datos de un paciente para llenar la ficha, o datos de un
       // paciente nuevo para darlo de alta.
-      anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente];
+      anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente, herramientaInvitarMedico];
       anthropicBody.tool_choice = { type: 'auto' };
     }
 
@@ -1960,6 +1962,47 @@ module.exports = async function handler(req, res) {
 
     // ─── MODO MÉDICO CON HERRAMIENTA DE FICHA (opcional) ───────────────
     if (herramientaMedico) {
+      // Generar invitación pre-cargada para un colega — se revisa primero,
+      // es un caso independiente (crea un registro en SOLICITUDES_MEDICO).
+      const toolInvitar = Array.isArray(data.content)
+        ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'generar_invitacion_medico')
+        : null;
+      if (toolInvitar && typeof toolInvitar.input?.nombre_completo === 'string') {
+        try {
+          const datos = toolInvitar.input;
+          const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+          const BASE_ID = 'app6jyD9pDlTLpknA';
+          const TBL_SOLICITUDES_MED = 'tblDpqi2XJqoR4QiE';
+          const codigoInvitacion = 'REF-' + Math.random().toString(36).slice(2, 8);
+
+          const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_SOLICITUDES_MED}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              typecast: true,
+              records: [{ fields: {
+                'Nombre completo': datos.nombre_completo,
+                'Ciudad': datos.ciudad || '',
+                'Especialidad': datos.especialidad || '',
+                'Código invitación': codigoInvitacion,
+                'Invitado por': medicoCode || '',
+                'Estado': 'Invitado',
+                'Fecha solicitud': new Date().toISOString(),
+              } }],
+            }),
+          });
+
+          const mensajeFinal = createRes.ok
+            ? `${datos.mensaje}\n\nLink para ${datos.nombre_completo}:\nhttps://www.codecells.mx/unete.html?pre=${codigoInvitacion}`
+            : `${datos.mensaje}\n\n⚠️ Hubo un problema generando el link — inténtalo de nuevo.`;
+
+          return res.status(200).json({ content: [{ type: 'text', text: mensajeFinal }] });
+        } catch (err) {
+          console.error('[nova] error generando invitación de médico:', err.message);
+          return res.status(502).json({ error: 'Error generando la invitación. Inténtalo de nuevo.' });
+        }
+      }
+
       // Alta de paciente nuevo por dictado — se revisa primero porque es un
       // caso distinto (crea un registro nuevo en PACIENTES, no llena un form).
       const toolAlta = Array.isArray(data.content)
@@ -2205,6 +2248,24 @@ function buildHerramientaFichaConsulta() {
 // Opcional (tool_choice auto) — distinta de rellenar_ficha_consulta: esa es
 // para un paciente YA existente y seleccionado en el portal; esta es para
 // cuando el médico dicta los datos de alguien que AÚN NO está en el sistema.
+// ─── HERRAMIENTA: generar invitación pre-cargada para un colega ────
+function buildHerramientaInvitarMedico() {
+  return {
+    name: 'generar_invitacion_medico',
+    description: 'Úsala cuando el médico te pida generar o crear una invitación/link para que un colega (otro médico) se afilie a la Red CODE CELLS® — ej. "genera una invitación para el Dr. Pedro en Morelia". Requiere al menos nombre completo; ciudad y especialidad si las mencionó.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        mensaje: { type: 'string', description: 'Tu respuesta confirmando que generaste la invitación, mencionando el nombre del colega. El link se agrega aparte, no lo escribas tú.' },
+        nombre_completo: { type: 'string', description: 'Nombre completo del colega invitado.' },
+        ciudad: { type: 'string' },
+        especialidad: { type: 'string' },
+      },
+      required: ['mensaje', 'nombre_completo'],
+    },
+  };
+}
+
 function buildHerramientaAltaPaciente() {
   return {
     name: 'crear_paciente_dictado',
