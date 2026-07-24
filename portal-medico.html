@@ -2363,6 +2363,30 @@
                 <label>Hábitos / estilo de vida</label>
                 <textarea id="f-habitos" placeholder="Actividad física, sueño, hidratación, alimentación…" rows="2"></textarea>
               </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Panel de laboratorio</label>
+                  <select id="f-panel-lab">
+                    <option value="">Selecciona</option>
+                    <option>Panel básico</option>
+                    <option>Panel hormonal</option>
+                    <option>Panel metabólico avanzado</option>
+                    <option>Panel inflamatorio</option>
+                    <option>Panel NOVA completo</option>
+                    <option>Panel DEZAWA™</option>
+                    <option>Personalizado</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Resultados de laboratorio</label>
+                <textarea id="f-resultados-lab" placeholder="Resumen completo de resultados dictados por el médico…" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Valores fuera de rango</label>
+                <textarea id="f-fuera-rango-lab" placeholder="Solo los valores anormales (déjalo vacío si todo salió normal)…" rows="2"></textarea>
+              </div>
             </details>
 
           </div>
@@ -3554,25 +3578,26 @@ async function cargarLabs(pacId) {
 
   try {
     const formula = encodeURIComponent(`{Código de paciente ref}="${pacId}"`);
-    const data = await airtableFetch(TBL_LABS, `?filterByFormula=${formula}&maxRecords=1`);
+    const data = await airtableFetch(TBL_LABS, `?filterByFormula=${formula}&sort[0][field]=Fecha%20de%20resultados&sort[0][direction]=desc&maxRecords=10`);
 
     if (!data.records || data.records.length === 0) {
       cont.innerHTML = demoLabs();
       return;
     }
 
-    const f = data.records[0].fields;
-    const ignorar = ['Código de paciente ref', 'Paciente', 'Fecha', 'fecha', 'Notas'];
-    const filas = Object.entries(f)
-      .filter(([k]) => !ignorar.includes(k) && typeof f[k] !== 'object')
-      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td><td>—</td><td class="val-normal">Normal</td></tr>`)
-      .join('');
-
-    cont.innerHTML = `
-      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:8px;">Fecha: ${formatDate(f['Fecha'] || f['fecha'])}</div>
-      <table class="labs-table"><thead><tr><th>Parámetro</th><th>Resultado</th><th>Referencia</th><th>Estado</th></tr></thead>
-      <tbody>${filas}</tbody></table>
-    `;
+    cont.innerHTML = data.records.map(r => {
+      const f = r.fields;
+      return `
+        <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:6px;">
+            <span>${f['Panel solicitado'] || 'Laboratorio'}</span>
+            <span>${formatDate(f['Fecha de resultados'] || f['Fecha de solicitud'])}</span>
+          </div>
+          <div style="font-size:12px;white-space:pre-wrap;line-height:1.5;margin-bottom:${f['Valores fuera de rango'] ? '8px' : '0'};">${f['Resultados (texto)'] || 'Sin resultados capturados aún.'}</div>
+          ${f['Valores fuera de rango'] ? `<div style="font-size:11.5px;color:#E2574B;"><strong>Fuera de rango:</strong> ${f['Valores fuera de rango']}</div>` : ''}
+        </div>
+      `;
+    }).join('');
 
   } catch (err) {
     cont.innerHTML = demoLabs();
@@ -3659,7 +3684,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
 
   try {
-    await airtablePost(TBL_CONSULTAS, fields);
+    const consultaCreada = await airtablePost(TBL_CONSULTAS, fields);
     showToast('Consulta guardada en Airtable ✓', 'success');
 
     // Antecedentes dictados van a HISTORIA CLÍNICA — crea o corrige el
@@ -3717,6 +3742,29 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       }
     }
 
+    // Resultados de laboratorio dictados van a NOVA LABS — un registro
+    // nuevo por cada set de resultados (conserva el historial completo).
+    const panelLab = document.getElementById('f-panel-lab').value;
+    const resultadosLab = document.getElementById('f-resultados-lab').value.trim();
+    const fueraDeRangoLab = document.getElementById('f-fuera-rango-lab').value.trim();
+    if (resultadosLab) {
+      try {
+        const labFields = {
+          'Código de paciente ref': pacId,
+          'Paciente': [pacienteActual.id],
+          'Panel solicitado': panelLab || 'Personalizado',
+          'Resultados (texto)': resultadosLab,
+          'Fecha de resultados': new Date().toISOString().split('T')[0],
+        };
+        if (fueraDeRangoLab) labFields['Valores fuera de rango'] = fueraDeRangoLab;
+        if (consultaCreada && consultaCreada.id) labFields['Consulta'] = [consultaCreada.id];
+        await airtablePost(TBL_LABS, labFields);
+        cargarLabs(pacId);
+      } catch (err) {
+        console.error('Error guardando resultados en NOVA LABS:', err);
+      }
+    }
+
     limpiarFormulario();
     // Recargar consultas
     setTimeout(() => cargarConsultas(pacId), 800);
@@ -3765,7 +3813,8 @@ function limpiarFormulario() {
    'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas',
    'f-fc','f-fr','f-sato2','f-cintura','f-estado-civil','f-ocupacion',
    'f-grupo-sanguineo','f-escolaridad',
-   'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos'].forEach(id => {
+   'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos',
+   'f-panel-lab','f-resultados-lab','f-fuera-rango-lab'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (el.tagName === 'SELECT') el.selectedIndex = 0;
@@ -4064,6 +4113,9 @@ function aplicarFichaNova(ficha) {
     medicamentos_actuales: 'f-medicamentos',
     alergias: 'f-alergias',
     habitos_estilo_vida: 'f-habitos',
+    panel_laboratorio: 'f-panel-lab',
+    resultados_laboratorio: 'f-resultados-lab',
+    valores_fuera_rango: 'f-fuera-rango-lab',
   };
 
   let camposLlenados = 0;
