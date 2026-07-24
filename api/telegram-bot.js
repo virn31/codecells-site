@@ -22,6 +22,7 @@ const HILOS_TABLE_ID = 'tblTW5X6f2UkuUFPT';
 const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';
 const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
 const CONSULTAS_TABLE_ID = 'tbl1Xp2IGxdV178Ky';
+const LABS_TABLE_ID = 'tblhKp4uE1NdXXqLh';
 const PENDIENTES_TABLE_ID = 'tbl7J1G8slqB8r0xu';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 
@@ -55,6 +56,9 @@ const ETIQUETAS_FICHA = {
   ocupacion: 'Ocupación',
   grupo_sanguineo: 'Grupo sanguíneo',
   escolaridad: 'Escolaridad',
+  panel_laboratorio: 'Panel de laboratorio',
+  resultados_laboratorio: 'Resultados de laboratorio',
+  valores_fuera_rango: 'Valores fuera de rango',
 };
 
 async function airtableGet(tableId, formula) {
@@ -160,11 +164,30 @@ async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
   if (vitalesExtra.length > 0) consultaFields['Signos vitales'] = vitalesExtra.join(' · ');
   Object.keys(consultaFields).forEach((k) => consultaFields[k] === undefined && delete consultaFields[k]);
 
-  await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CONSULTAS_TABLE_ID}`, {
+  const consultaRes = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CONSULTAS_TABLE_ID}`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ typecast: true, records: [{ fields: consultaFields }] }),
   });
+  const consultaData = await consultaRes.json();
+  const consultaId = consultaData.records && consultaData.records[0] && consultaData.records[0].id;
+
+  if (ficha.resultados_laboratorio) {
+    const labFields = {
+      'Código de paciente ref': pacId,
+      'Paciente': [pacienteRecord.id],
+      'Panel solicitado': ficha.panel_laboratorio || 'Personalizado',
+      'Resultados (texto)': ficha.resultados_laboratorio,
+      'Fecha de resultados': new Date().toISOString().split('T')[0],
+    };
+    if (ficha.valores_fuera_rango) labFields['Valores fuera de rango'] = ficha.valores_fuera_rango;
+    if (consultaId) labFields['Consulta'] = [consultaId];
+    await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${LABS_TABLE_ID}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ typecast: true, records: [{ fields: labFields }] }),
+    });
+  }
 
   const historiaFields = {
     'AHF — Heredo-familiares': ficha.antecedentes_heredofamiliares || undefined,
