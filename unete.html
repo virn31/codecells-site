@@ -125,6 +125,12 @@ ESTILO: español, profesional, cálido, sin sonar a formulario. Nunca prometas a
     }).catch(function(){ /* no bloquear la conversación por un error de guardado */ });
   }
 
+  function extraerTextoNova(data){
+    if(!Array.isArray(data.content)) return '';
+    var bloque = data.content.find(function(b){ return b && b.type === 'text' && b.text; });
+    return bloque ? bloque.text : '';
+  }
+
   function pedirRespuesta(esReintento){
     var controller = new AbortController();
     var timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
@@ -136,7 +142,7 @@ ESTILO: español, profesional, cálido, sin sonar a formulario. Nunca prometas a
       signal: controller.signal
     }).then(function(r){ clearTimeout(timeoutId); return r.json(); })
     .then(function(data){
-      var texto = data.content && data.content[0] && data.content[0].text;
+      var texto = extraerTextoNova(data);
       if(!texto && !esReintento){
         console.error('[NOVA] respuesta vacía, reintentando una vez. data:', JSON.stringify(data));
         return pedirRespuesta(true);
