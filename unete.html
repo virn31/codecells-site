@@ -125,24 +125,39 @@ ESTILO: español, profesional, cálido, sin sonar a formulario. Nunca prometas a
     }).catch(function(){ /* no bloquear la conversación por un error de guardado */ });
   }
 
-  function novaRespond(){
-    if(novaIsLoading) return;
-    novaIsLoading = true;
-    var btn = document.getElementById('nova-send'); if(btn) btn.disabled = true;
-    novaShowTyping();
-
+  function pedirRespuesta(esReintento){
     var controller = new AbortController();
     var timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
 
-    fetch(NOVA_ENDPOINT, {
+    return fetch(NOVA_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: SYSTEM_PROMPT, messages: novaHistory }),
       signal: controller.signal
     }).then(function(r){ clearTimeout(timeoutId); return r.json(); })
     .then(function(data){
+      var texto = data.content && data.content[0] && data.content[0].text;
+      if(!texto && !esReintento){
+        console.error('[NOVA] respuesta vacía, reintentando una vez. data:', JSON.stringify(data));
+        return pedirRespuesta(true);
+      }
+      return { texto: texto, data: data };
+    }).catch(function(err){
+      clearTimeout(timeoutId);
+      throw err;
+    });
+  }
+
+  function novaRespond(){
+    if(novaIsLoading) return;
+    novaIsLoading = true;
+    var btn = document.getElementById('nova-send'); if(btn) btn.disabled = true;
+    novaShowTyping();
+
+    pedirRespuesta(false).then(function(resultado){
       novaHideTyping();
-      var reply = (data.content && data.content[0] && data.content[0].text) || 'Hubo un problema al conectar con NOVA. Intenta de nuevo.';
+      var reply = resultado.texto || 'NOVA no pudo generar una respuesta en este momento. Intenta reformular tu pregunta.';
+      if(!resultado.texto) console.error('[NOVA] sin texto tras reintento. data:', JSON.stringify(resultado.data));
 
       var match = reply.match(/\[\[SOLICITUD:(\{.*?\})\]\]/);
       if(match){
@@ -156,7 +171,6 @@ ESTILO: español, profesional, cálido, sin sonar a formulario. Nunca prometas a
       novaHistory.push({ role:'assistant', content: reply });
       renderNovaMessage(reply, 'nova');
     }).catch(function(err){
-      clearTimeout(timeoutId);
       novaHideTyping();
       var msg = (err && err.name === 'AbortError')
         ? 'Tu conexión está muy lenta ahorita — inténtalo de nuevo cuando tengas mejor señal.'
