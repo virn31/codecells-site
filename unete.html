@@ -77,6 +77,7 @@
   var NOVA_MODEL = 'claude-sonnet-5';
   var novaHistory = [];
   var novaIsLoading = false;
+  var preRecordId = null;
 
   var SYSTEM_PROMPT = `Eres NOVA, la asistente de CODE CELLS® encargada de recibir solicitudes de médicos interesados en afiliarse a la Red Médica CODE CELLS®.
 
@@ -118,6 +119,7 @@ ESTILO: español, profesional, cálido, sin sonar a formulario. Nunca prometas a
   }
 
   function guardarSolicitud(datos){
+    if(preRecordId) datos.recordId = preRecordId;
     fetch('/api/nueva-solicitud-medico', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -204,10 +206,42 @@ ESTILO: español, profesional, cálido, sin sonar a formulario. Nunca prometas a
     if(e.key === 'Enter'){ e.preventDefault(); novaSend(); }
   });
 
-  // Mensaje de bienvenida
-  var bienvenida = 'Hola, soy NOVA. Qué gusto que quieras conocer más sobre la Red CODE CELLS®. Puedo contarte cómo funciona la afiliación, o si ya te interesa, vamos armando tu solicitud — ¿cómo te llamas?';
-  novaHistory.push({ role:'assistant', content: bienvenida });
-  renderNovaMessage(bienvenida, 'nova');
+  function iniciarConversacion(nombrePrecargado, ciudadPrecargada){
+    var bienvenida;
+    if(nombrePrecargado){
+      SYSTEM_PROMPT += '\n\nDATO IMPORTANTE: ya sabes que este médico se llama ' + nombrePrecargado +
+        (ciudadPrecargada ? ' y ejerce en ' + ciudadPrecargada : '') +
+        '. NO se lo vuelvas a preguntar — salúdalo por su nombre y ve directo a confirmar/completar los datos que falten (especialidad, cédula profesional, WhatsApp, email).';
+      bienvenida = 'Hola Dr(a). ' + nombrePrecargado.split(' ')[0] + ', qué gusto — ya tengo tu nombre' +
+        (ciudadPrecargada ? ' y que ejerces en ' + ciudadPrecargada : '') +
+        '. Para completar tu solicitud a la Red CODE CELLS®, ¿me confirmas tu especialidad?';
+    } else {
+      bienvenida = 'Hola, soy NOVA. Qué gusto que quieras conocer más sobre la Red CODE CELLS®. Puedo contarte cómo funciona la afiliación, o si ya te interesa, vamos armando tu solicitud — ¿cómo te llamas?';
+    }
+    novaHistory.push({ role:'assistant', content: bienvenida });
+    renderNovaMessage(bienvenida, 'nova');
+  }
+
+  function init(){
+    var params = new URLSearchParams(window.location.search);
+    var pre = params.get('pre');
+    if(!pre){ iniciarConversacion(null, null); return; }
+
+    fetch('/api/airtable?tabla=solicitudes_medico&filterByFormula=' + encodeURIComponent('{Código invitación}="' + pre.replace(/"/g,'') + '"'))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var rec = data.records && data.records[0];
+        if(rec){
+          preRecordId = rec.id;
+          iniciarConversacion(rec.fields['Nombre completo'] || null, rec.fields['Ciudad'] || null);
+        } else {
+          iniciarConversacion(null, null);
+        }
+      })
+      .catch(function(){ iniciarConversacion(null, null); });
+  }
+
+  init();
 </script>
 </body>
 </html>
