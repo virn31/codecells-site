@@ -2225,6 +2225,31 @@
                 </div>
               </div>
 
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Grupo sanguíneo</label>
+                  <select id="f-grupo-sanguineo">
+                    <option value="">Selecciona</option>
+                    <option>O+</option><option>O-</option>
+                    <option>A+</option><option>A-</option>
+                    <option>B+</option><option>B-</option>
+                    <option>AB+</option><option>AB-</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Escolaridad</label>
+                  <select id="f-escolaridad">
+                    <option value="">Selecciona</option>
+                    <option>Primaria</option>
+                    <option>Secundaria</option>
+                    <option>Preparatoria</option>
+                    <option>Licenciatura trunca</option>
+                    <option>Licenciatura terminada</option>
+                    <option>Posgrado</option>
+                  </select>
+                </div>
+              </div>
+
               <div class="form-group">
                 <label>Antecedentes heredofamiliares</label>
                 <textarea id="f-ahf" placeholder="Madre, padre, hermanos…" rows="2"></textarea>
@@ -3489,10 +3514,14 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     // Datos sociodemográficos van directo a PACIENTES.
     const estadoCivil = document.getElementById('f-estado-civil').value.trim();
     const ocupacion = document.getElementById('f-ocupacion').value.trim();
-    if (estadoCivil || ocupacion) {
+    const grupoSanguineo = document.getElementById('f-grupo-sanguineo').value;
+    const escolaridad = document.getElementById('f-escolaridad').value;
+    if (estadoCivil || ocupacion || grupoSanguineo || escolaridad) {
       const pacienteFields = {};
       if (estadoCivil) pacienteFields['Estado civil'] = estadoCivil;
       if (ocupacion) pacienteFields['Ocupación'] = ocupacion;
+      if (grupoSanguineo) pacienteFields['Grupo sanguíneo'] = grupoSanguineo;
+      if (escolaridad) pacienteFields['Escolaridad'] = escolaridad;
       try {
         await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
           method: 'PATCH',
@@ -3551,6 +3580,7 @@ function limpiarFormulario() {
   ['f-protocolo','f-sesion','f-peso','f-talla','f-presion','f-temp',
    'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas',
    'f-fc','f-fr','f-sato2','f-cintura','f-estado-civil','f-ocupacion',
+   'f-grupo-sanguineo','f-escolaridad',
    'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -3841,6 +3871,8 @@ function aplicarFichaNova(ficha) {
     circunferencia_cintura: 'f-cintura',
     estado_civil: 'f-estado-civil',
     ocupacion: 'f-ocupacion',
+    grupo_sanguineo: 'f-grupo-sanguineo',
+    escolaridad: 'f-escolaridad',
     antecedentes_heredofamiliares: 'f-ahf',
     antecedentes_personales_patologicos: 'f-app',
     antecedentes_quirurgicos: 'f-quirurgicos',
