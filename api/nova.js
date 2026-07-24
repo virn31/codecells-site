@@ -2246,6 +2246,8 @@ function buildHerramientaFichaConsulta() {
         habitos_estilo_vida: { type: 'string', description: 'Actividad física, sueño, hidratación, alimentación — todo junto en texto libre.' },
         estado_civil: { type: 'string' },
         ocupacion: { type: 'string' },
+        grupo_sanguineo: { type: 'string', enum: ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'] },
+        escolaridad: { type: 'string', enum: ['Primaria', 'Secundaria', 'Preparatoria', 'Licenciatura trunca', 'Licenciatura terminada', 'Posgrado'] },
         campos_faltantes: {
           type: 'array',
           items: { type: 'string' },
