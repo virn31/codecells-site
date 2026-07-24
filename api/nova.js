@@ -2145,6 +2145,16 @@ module.exports = async function handler(req, res) {
       })();
     }
 
+    const textoUtilizable = Array.isArray(data.content) && data.content.some(b => b && b.type === 'text' && b.text && b.text.trim());
+    if (!textoUtilizable) {
+      console.error(
+        '[nova] público: respuesta sin texto utilizable. stop_reason:', data.stop_reason,
+        '— content:', JSON.stringify(data.content),
+        '— usage:', JSON.stringify(data.usage),
+        '— último mensaje usuario:', JSON.stringify(messages[messages.length - 1]?.content?.slice(0, 300))
+      );
+    }
+
     return res.status(200).json(data);
 
   } catch (err) {
