@@ -1737,6 +1737,7 @@ module.exports = async function handler(req, res) {
     let herramientaMedico = null;   // solo se llena en modo médico (opcional, tool_choice auto)
     let herramientaAltaPaciente = null; // alta de paciente nuevo por dictado
     let herramientaInvitarMedico = null; // generar invitación pre-cargada para un colega
+    let herramientaAvisarMedico = null; // avisar a otro médico por Telegram
     let pacRecordId = null;
     let pacMedicoLink = null;
     let esVipReal = false;
@@ -1833,6 +1834,7 @@ module.exports = async function handler(req, res) {
       herramientaMedico = buildHerramientaFichaConsulta();
       herramientaAltaPaciente = buildHerramientaAltaPaciente();
       herramientaInvitarMedico = buildHerramientaInvitarMedico();
+      herramientaAvisarMedico = buildHerramientaAvisarMedico();
     } else if (esPac) {
       // El nivel (VIP o no) y la memoria NUNCA se confían del cliente — se
       // consultan aquí contra Airtable, para que nadie pueda "volverse VIP"
@@ -1909,7 +1911,7 @@ module.exports = async function handler(req, res) {
       // protocolos/clínica — solo se activa cuando NOVA detecta que le están
       // dictando datos de un paciente para llenar la ficha, o datos de un
       // paciente nuevo para darlo de alta.
-      anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente, herramientaInvitarMedico];
+      anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente, herramientaInvitarMedico, herramientaAvisarMedico];
       anthropicBody.tool_choice = { type: 'auto' };
     }
 
@@ -1964,6 +1966,35 @@ module.exports = async function handler(req, res) {
 
     // ─── MODO MÉDICO CON HERRAMIENTA DE FICHA (opcional) ───────────────
     if (herramientaMedico) {
+      // Avisar a OTRO médico de la red por Telegram — caso independiente,
+      // NOVA decide sola cuándo esto amerita avisarle a un colega.
+      const toolAvisar = Array.isArray(data.content)
+        ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'avisar_medico_telegram')
+        : null;
+      if (toolAvisar && typeof toolAvisar.input?.mensaje_confirmacion === 'string') {
+        try {
+          const { mensaje_confirmacion, codigo_medico_destino, mensaje_para_medico } = toolAvisar.input;
+          const alertaRes = await fetch('https://www.codecells.mx/api/telegram-alert', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-internal-secret': process.env.INTERNAL_ALERT_SECRET,
+            },
+            body: JSON.stringify({ codigoMedico: codigo_medico_destino, mensaje: mensaje_para_medico }),
+          });
+          const alertaData = await alertaRes.json();
+
+          const textoFinal = alertaRes.ok
+            ? mensaje_confirmacion
+            : `${mensaje_confirmacion}\n\n⚠️ No se pudo enviar: ${alertaData.error || 'ese médico aún no vinculó su Telegram.'}`;
+
+          return res.status(200).json({ content: [{ type: 'text', text: textoFinal }] });
+        } catch (err) {
+          console.error('[nova] error avisando a médico por Telegram:', err.message);
+          return res.status(502).json({ error: 'Error enviando la alerta por Telegram. Inténtalo de nuevo.' });
+        }
+      }
+
       // Generar invitación pre-cargada para un colega — se revisa primero,
       // es un caso independiente (crea un registro en SOLICITUDES_MEDICO).
       const toolInvitar = Array.isArray(data.content)
@@ -2265,6 +2296,23 @@ function buildHerramientaFichaConsulta() {
 // Opcional (tool_choice auto) — distinta de rellenar_ficha_consulta: esa es
 // para un paciente YA existente y seleccionado en el portal; esta es para
 // cuando el médico dicta los datos de alguien que AÚN NO está en el sistema.
+// ─── HERRAMIENTA: avisar a otro médico de la red por Telegram ──────
+function buildHerramientaAvisarMedico() {
+  return {
+    name: 'avisar_medico_telegram',
+    description: 'Úsala cuando el médico te pida avisarle algo a OTRO médico de la Red CODE CELLS® por Telegram (ej. "avísale al Dr. Galván que ya revisé al paciente", "dile a mi colega que..."). Necesitas el código del médico destino (formato CCMED-XXXXXX) — si no te lo dio, pregúntaselo primero en una respuesta normal de texto; NO actives esta herramienta sin ese código.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        mensaje_confirmacion: { type: 'string', description: 'Tu respuesta al médico que te pidió esto, confirmando que se envió (o explicando qué falta).' },
+        codigo_medico_destino: { type: 'string', description: 'Código CCMED- del médico al que hay que avisarle.' },
+        mensaje_para_medico: { type: 'string', description: 'El mensaje exacto, breve y claro, que se le debe mandar por Telegram al médico destino.' },
+      },
+      required: ['mensaje_confirmacion', 'codigo_medico_destino', 'mensaje_para_medico'],
+    },
+  };
+}
+
 // ─── HERRAMIENTA: generar invitación pre-cargada para un colega ────
 function buildHerramientaInvitarMedico() {
   return {
