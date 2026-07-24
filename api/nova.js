@@ -2281,6 +2281,19 @@ function buildHerramientaFichaConsulta() {
         ocupacion: { type: 'string' },
         grupo_sanguineo: { type: 'string', enum: ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'] },
         escolaridad: { type: 'string', enum: ['Primaria', 'Secundaria', 'Preparatoria', 'Licenciatura trunca', 'Licenciatura terminada', 'Posgrado'] },
+        panel_laboratorio: {
+          type: 'string',
+          enum: ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'],
+          description: 'Solo si el médico dictó resultados de laboratorio. Si no encaja claramente en ninguna categoría fija, usa "Personalizado".',
+        },
+        resultados_laboratorio: {
+          type: 'string',
+          description: 'Transcribe el resumen completo de resultados de laboratorio tal como lo dictó el médico (valores, unidades, interpretación breve por línea). Solo si mencionó resultados de labs.',
+        },
+        valores_fuera_rango: {
+          type: 'string',
+          description: 'Lista breve SOLO de los valores anormales/fuera de rango mencionados (ej. "Colesterol total: 220 mg/dL, elevado. Triglicéridos: 136 mg/dL, discretamente elevados."). Vacío si todo salió normal.',
+        },
         campos_faltantes: {
           type: 'array',
           items: { type: 'string' },
