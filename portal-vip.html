@@ -123,9 +123,10 @@
     50%{ filter: drop-shadow(0 0 8px var(--pulse-color)) drop-shadow(0 0 22px var(--pulse-color)); }
   }
 
-  .nova-mini-card{ justify-content:center; cursor:pointer; transition:border-color .15s var(--ease); }
-  .nova-mini-card:hover{ border-color:var(--gold-line); }
+  .nova-mini-card{ justify-content:center; cursor:pointer; transition:border-color .15s var(--ease), background .15s var(--ease); border-color:var(--gold-line) !important; background:var(--gold-soft) !important; }
+  .nova-mini-card:hover{ border-color:var(--gold) !important; }
   .nova-mini-card p{ font-size:0.78rem; color:var(--ink-muted); margin:0.3rem 0 0.9rem; line-height:1.4; }
+  .nova-mini-card .nova-cta-hint{ font-family:var(--font-mono); font-size:0.68rem; letter-spacing:0.06em; color:var(--gold); text-transform:uppercase; margin-top:0.6rem; }
   .nova-nest-wrap{ width:72px; height:72px; position:relative; display:flex; align-items:center; justify-content:center; }
   .nova-nest{ width:72px; height:72px; animation: nestColorCycle 9s linear infinite; filter: drop-shadow(0 0 5px currentColor); }
   .nest-rotator{ transform-origin:32px 32px; animation: nestSpin 14s linear infinite; }
@@ -832,11 +833,7 @@
         if(nav === 'resumen') renderDashboard();
         else if(nav === 'plan') renderPlan();
         else if(nav === 'perfil') renderPerfil();
-        else if(nav === 'mensajes'){
-          var f = record.fields || {};
-          var msg = 'Hola, soy ' + (f['Nombre'] || 'paciente') + ' (código ' + (f['Código DZW'] || '') + '). Tengo una pregunta para mi equipo.';
-          window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
-        }
+        else if(nav === 'mensajes'){ renderNovaChat(); }
       });
     });
   }
@@ -941,6 +938,7 @@
         '<div class="nova-mini-card" id="btn-abrir-nova">' +
           '<div class="vip-card-title">NOVA IA</div>' +
           '<p>Tu asistente de salud inteligente</p>' +
+          '<div class="nova-cta-hint">💬 Toca para chatear →</div>' +
           '<div class="nova-nest-wrap">' +
             '<svg class="nova-nest" viewBox="0 0 64 64">' +
               '<g class="nest-rotator">' +
@@ -973,9 +971,9 @@
 
       '<div class="vip-card">' +
         '<div class="vip-card-title">Vinculación directa</div>' +
-        '<div class="vip-card-sub">Con tu equipo médico</div>' +
+        '<div class="vip-card-sub">Con tu equipo médico — vía NOVA, tu copiloto clínica</div>' +
         '<div class="team-row-wrap">' + teamHtml + '</div>' +
-        '<a href="https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(waMsg) + '" target="_blank" rel="noopener" class="btn-message-team">Mensaje al equipo</a>' +
+        '<button type="button" id="btn-mensaje-equipo" class="btn-gold" style="width:100%;margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Chatear con NOVA</button>' +
       '</div>' +
 
       (esVip ?
@@ -995,6 +993,7 @@
       }
     });
     document.getElementById('btn-abrir-nova').addEventListener('click', function(){ renderNovaChat(f); });
+    document.getElementById('btn-mensaje-equipo').addEventListener('click', function(){ renderNovaChat(f); });
     if(esVip){
       document.getElementById('btn-invitar-amigo').addEventListener('click', function(){ renderInvitarAmigo(f); });
     }
@@ -1034,7 +1033,7 @@
       '</div>' +
       '<div class="vip-card">' +
         '<div class="vip-card-title">¿Qué sigue?</div>' +
-        '<div class="protocol-days">Tu especialista coordinará tus próximas evaluaciones y ajustes de protocolo. Cualquier duda, escríbele directo por WhatsApp desde "Mensajes".</div>' +
+        '<div class="protocol-days">Tu especialista coordinará tus próximas evaluaciones y ajustes de protocolo. Cualquier duda, escríbele directo a NOVA desde "Mensajes".</div>' +
       '</div>';
 
     renderBottomNav('plan');
@@ -1293,13 +1292,26 @@ Para cualquier urgencia médica real, o cambios de dosis/plan, dile que contacte
     novaIsLoading = true;
     var btn = document.getElementById('nova-send'); if(btn) btn.disabled = true;
     novaShowTyping();
-    fetch(NOVA_ENDPOINT, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: window._novaSystemPrompt, messages: novaHistory })
-    }).then(function(r){ return r.json(); })
-    .then(function(data){
+
+    function pedirRespuesta(esReintento){
+      return fetch(NOVA_ENDPOINT, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: window._novaSystemPrompt, messages: novaHistory })
+      }).then(function(r){ return r.json(); })
+      .then(function(data){
+        var texto = data.content && data.content[0] && data.content[0].text;
+        if(!texto && !esReintento){
+          console.error('[NOVA] respuesta vacía, reintentando una vez. data:', JSON.stringify(data));
+          return pedirRespuesta(true);
+        }
+        return { texto: texto, data: data };
+      });
+    }
+
+    pedirRespuesta(false).then(function(resultado){
       novaHideTyping();
-      var reply = (data.content && data.content[0] && data.content[0].text) || 'Hubo un problema al conectar con NOVA.';
+      var reply = resultado.texto || 'NOVA no pudo generar una respuesta en este momento. Intenta reformular tu pregunta.';
+      if(!resultado.texto) console.error('[NOVA] sin texto tras reintento. data:', JSON.stringify(resultado.data));
       novaHistory.push({ role:'assistant', content: reply });
       renderNovaMessage(reply, 'nova');
     }).catch(function(){
