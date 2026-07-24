@@ -2075,6 +2075,7 @@ module.exports = async function handler(req, res) {
           const fieldsNuevoPaciente = { 'Código de paciente': nuevoCodigo, 'Nombre completo': datos.nombre_completo };
           if (medicoRecordId) fieldsNuevoPaciente['Médico_principal'] = [medicoRecordId];
           if (datos.sexo) fieldsNuevoPaciente['Sexo biológico'] = datos.sexo;
+          if (datos.telefono_whatsapp) fieldsNuevoPaciente['Teléfono WhatsApp'] = datos.telefono_whatsapp;
           if (datos.edad) {
             const nacimientoAprox = new Date();
             nacimientoAprox.setFullYear(nacimientoAprox.getFullYear() - datos.edad);
@@ -2355,6 +2356,7 @@ function buildHerramientaAltaPaciente() {
         nombre_completo: { type: 'string' },
         edad: { type: 'number' },
         sexo: { type: 'string', enum: ['Masculino', 'Femenino'] },
+        telefono_whatsapp: { type: 'string', description: 'Teléfono/WhatsApp del paciente, si el médico lo mencionó al dictarlo.' },
         peso_kg: { type: 'number' },
         talla_cm: { type: 'number' },
         presion_arterial: { type: 'string', description: "Formato 'sistólica/diastólica', tal como se dictó. Es un signo vital, NO decidas tú si es hipertensión — eso lo decide el médico." },
