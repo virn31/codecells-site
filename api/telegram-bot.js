@@ -102,7 +102,7 @@ async function guardarPendiente(chatId, pacienteRecordId, codigoPaciente, ficha)
       'Chat ID': String(chatId),
       'Paciente': [pacienteRecordId],
       'Código de paciente': codigoPaciente,
-      'Ficha JSON': JSON.stringify(ficha),
+      'Ficha JSON': ficha ? JSON.stringify(ficha) : '',
       'Fecha': new Date().toISOString(),
     },
   };
@@ -409,11 +409,28 @@ module.exports = async (req, res) => {
       // No hay nada pendiente que confirmar — cae al flujo normal abajo.
     }
 
-    // ¿El mensaje trae un código de paciente (CC-PAC-XXXXXX) o el comando
-    // "/consulta"? Se interpreta como dictado de expediente.
+    // ¿El mensaje trae un código de paciente (CC-PAC-XXXXXX), el comando
+    // "/consulta", O ya estábamos esperando el dictado de un paciente que
+    // se identificó en un mensaje anterior? En cualquiera de los tres casos
+    // se interpreta como dictado de expediente.
     const matchPaciente = texto.match(/CC-PAC-[0-9]{4,8}/i);
-    if (matchPaciente || /^\/consulta\b/i.test(texto)) {
-      const codigoPaciente = matchPaciente ? matchPaciente[0].toUpperCase() : null;
+    const esComandoConsulta = /^\/consulta\b/i.test(texto);
+
+    let pendienteEsperando = null;
+    if (!matchPaciente && !esComandoConsulta) {
+      const posible = await obtenerPendiente(chatId);
+      if (posible && posible.fields['Código de paciente'] && !posible.fields['Ficha JSON']) {
+        pendienteEsperando = posible;
+      }
+    }
+
+    if (matchPaciente || esComandoConsulta || pendienteEsperando) {
+      const codigoPaciente = matchPaciente
+        ? matchPaciente[0].toUpperCase()
+        : pendienteEsperando
+          ? pendienteEsperando.fields['Código de paciente']
+          : null;
+
       if (!codigoPaciente) {
         await sendTelegramMessage(chatId, 'Necesito el código del paciente (formato CC-PAC-XXXXXX) para saber a quién va el dictado.');
         return res.status(200).json({ ok: true });
@@ -425,8 +442,14 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
-      const dictado = texto.replace(/^\/consulta\b/i, '').replace(codigoPaciente, '').replace(/^[:\s-]+/, '').trim();
+      // Si ya estábamos esperando su dictado, el mensaje completo ES el
+      // dictado (no hace falta repetir el código).
+      const dictado = pendienteEsperando
+        ? texto.trim()
+        : texto.replace(/^\/consulta\b/i, '').replace(codigoPaciente, '').replace(/^[:\s-]+/, '').trim();
+
       if (!dictado) {
+        await guardarPendiente(chatId, pacienteRecord.id, codigoPaciente, null);
         await sendTelegramMessage(chatId, `Encontré a ${pacienteRecord.fields['Nombre completo']} — ahora dime qué quieres registrar.`);
         return res.status(200).json({ ok: true });
       }
@@ -443,7 +466,7 @@ module.exports = async (req, res) => {
         await guardarPendiente(chatId, pacienteRecord.id, codigoPaciente, ficha);
 
         const resumen = resumenFicha(ficha);
-        await sendTelegramMessage(
+        await sendTelegramMessageChunked(
           chatId,
           `Esto entendí para ${pacienteRecord.fields['Nombre completo']} (${codigoPaciente}):\n\n${resumen}\n\n¿Lo guardo? Responde "sí" para confirmar, o mándame la corrección.`
         );
