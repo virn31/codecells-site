@@ -20,6 +20,7 @@ export default async function handler(req, res) {
     labs:      'tblhKp4uE1NdXXqLh',
     temp:      'tblVOTed5MJSX1Vpy',
     pacientes_vip: 'tblquF2fzFgUC5nll',
+    solicitudes_medico: 'tblDpqi2XJqoR4QiE',
   };
 
   const { tabla } = req.query;
