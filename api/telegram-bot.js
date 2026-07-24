@@ -20,6 +20,9 @@ const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
 const DEDUPE_TABLE_ID = 'tblehEMlnMhPNVEBq';
 const HILOS_TABLE_ID = 'tblTW5X6f2UkuUFPT';
 const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';
+const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
+const CONSULTAS_TABLE_ID = 'tbl1Xp2IGxdV178Ky';
+const PENDIENTES_TABLE_ID = 'tbl7J1G8slqB8r0xu';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 
 const CAMPO_CODIGO = 'Código de médico';
@@ -27,11 +30,187 @@ const CAMPO_CHAT_ID = 'Telegram Chat ID';
 const CAMPO_NOMBRE = 'Nombre completo';
 const CAMPO_CEDULA = 'Cédula profesional';
 
+const ETIQUETAS_FICHA = {
+  peso: 'Peso (kg)',
+  talla: 'Talla (cm)',
+  presion: 'Presión',
+  temperatura: 'Temperatura (°C)',
+  frecuencia_cardiaca: 'Frec. cardiaca',
+  frecuencia_respiratoria: 'Frec. respiratoria',
+  saturacion_oxigeno: 'Sat. O2 (%)',
+  circunferencia_cintura: 'Cintura (cm)',
+  motivo_consulta: 'Motivo de consulta',
+  exploracion_fisica: 'Exploración física',
+  diagnostico: 'Diagnóstico',
+  plan_terapeutico: 'Plan terapéutico',
+  notas_internas: 'Notas internas',
+  antecedentes_heredofamiliares: 'AHF',
+  antecedentes_personales_patologicos: 'APP',
+  antecedentes_quirurgicos: 'Quirúrgicos',
+  antecedentes_ginecoobstetricos: 'Gineco-obstétricos',
+  medicamentos_actuales: 'Medicamentos actuales',
+  alergias: 'Alergias',
+  habitos_estilo_vida: 'Hábitos',
+  estado_civil: 'Estado civil',
+  ocupacion: 'Ocupación',
+  grupo_sanguineo: 'Grupo sanguíneo',
+  escolaridad: 'Escolaridad',
+};
+
 async function airtableGet(tableId, formula) {
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
   const data = await res.json();
   return data.records && data.records.length > 0 ? data.records[0] : null;
+}
+
+async function buscarPacientePorCodigo(codigo) {
+  return airtableGet(PACIENTES_TABLE_ID, `{Código de paciente} = "${codigo}"`);
+}
+
+/**
+ * Llama a NOVA en modo médico (mismo endpoint que usa el Portal) para que
+ * interprete el dictado y regrese la "ficha" estructurada, sin pasar por
+ * ningún formulario de navegador.
+ */
+async function interpretarDictado(dictado, medico) {
+  const res = await fetch('https://www.codecells.mx/api/nova', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      medicoCode: medico.fields[CAMPO_CODIGO],
+      medicoNombre: medico.fields[CAMPO_NOMBRE],
+      medicoEspecialidad: medico.fields['Especialidad'],
+      messages: [{ role: 'user', content: dictado }],
+    }),
+  });
+  const data = await res.json();
+  return data.ficha || null;
+}
+
+function resumenFicha(ficha) {
+  const lineas = Object.entries(ficha)
+    .filter(([clave, val]) => clave !== 'campos_faltantes' && val !== undefined && val !== null && val !== '')
+    .map(([clave, val]) => `${ETIQUETAS_FICHA[clave] || clave}: ${val}`);
+  return lineas.join('\n');
+}
+
+async function guardarPendiente(chatId, pacienteRecordId, codigoPaciente, ficha) {
+  const existente = await airtableGet(PENDIENTES_TABLE_ID, `{Chat ID} = "${chatId}"`);
+  const body = {
+    fields: {
+      'Chat ID': String(chatId),
+      'Paciente': [pacienteRecordId],
+      'Código de paciente': codigoPaciente,
+      'Ficha JSON': JSON.stringify(ficha),
+      'Fecha': new Date().toISOString(),
+    },
+  };
+  const url = existente
+    ? `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PENDIENTES_TABLE_ID}/${existente.id}`
+    : `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PENDIENTES_TABLE_ID}`;
+  await fetch(url, {
+    method: existente ? 'PATCH' : 'POST',
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+async function obtenerPendiente(chatId) {
+  return airtableGet(PENDIENTES_TABLE_ID, `{Chat ID} = "${chatId}"`);
+}
+
+async function borrarPendiente(recordId) {
+  await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PENDIENTES_TABLE_ID}/${recordId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { 'Ficha JSON': '' } }),
+  });
+}
+
+/**
+ * Reparte la ficha en las 3 tablas correctas — mismo criterio que usa el
+ * botón "Guardar consulta" del Portal Médico.
+ */
+async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
+  const headers = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+  const pacId = pacienteRecord.fields['Código de paciente'];
+
+  const vitalesExtra = [];
+  if (ficha.frecuencia_cardiaca) vitalesExtra.push(`FC: ${ficha.frecuencia_cardiaca} lpm`);
+  if (ficha.frecuencia_respiratoria) vitalesExtra.push(`FR: ${ficha.frecuencia_respiratoria} rpm`);
+  if (ficha.saturacion_oxigeno) vitalesExtra.push(`SatO2: ${ficha.saturacion_oxigeno}%`);
+  if (ficha.circunferencia_cintura) vitalesExtra.push(`Cintura: ${ficha.circunferencia_cintura} cm`);
+
+  const consultaFields = {
+    'Código de paciente ref': pacId,
+    'Médico': medico.fields[CAMPO_NOMBRE] || 'Médico',
+    'Código de médico ref': medico.fields[CAMPO_CODIGO] || '—',
+    'Fecha de consulta': new Date().toISOString().split('T')[0],
+    'Peso en consulta (kg)': ficha.peso || undefined,
+    'Talla en consulta (cm)': ficha.talla || undefined,
+    'Presión arterial en consulta': ficha.presion || undefined,
+    'Temperatura en consulta (°C)': ficha.temperatura || undefined,
+    'Motivo de consulta': ficha.motivo_consulta || undefined,
+    'Exploración física': ficha.exploracion_fisica || undefined,
+    'Diagnóstico (CIE-10)': ficha.diagnostico || undefined,
+    'Plan terapéutico': ficha.plan_terapeutico || undefined,
+    'Notas internas': ficha.notas_internas || undefined,
+  };
+  if (vitalesExtra.length > 0) consultaFields['Signos vitales'] = vitalesExtra.join(' · ');
+  Object.keys(consultaFields).forEach((k) => consultaFields[k] === undefined && delete consultaFields[k]);
+
+  await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CONSULTAS_TABLE_ID}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ typecast: true, records: [{ fields: consultaFields }] }),
+  });
+
+  const historiaFields = {
+    'AHF — Heredo-familiares': ficha.antecedentes_heredofamiliares || undefined,
+    'APP — Enfermedades previas': ficha.antecedentes_personales_patologicos || undefined,
+    'Antecedentes quirúrgicos': ficha.antecedentes_quirurgicos || undefined,
+    'AGO — Ginecobstétrico': ficha.antecedentes_ginecoobstetricos || undefined,
+    'Medicamentos actuales': ficha.medicamentos_actuales || undefined,
+    'Alergias': ficha.alergias || undefined,
+    'APNP — Alimentación': ficha.habitos_estilo_vida || undefined,
+  };
+  Object.keys(historiaFields).forEach((k) => historiaFields[k] === undefined && delete historiaFields[k]);
+
+  if (Object.keys(historiaFields).length > 0) {
+    const historiaExistente = await airtableGet(HISTORIA_TABLE_ID, `{Código de paciente ref} = "${pacId}"`);
+    if (historiaExistente) {
+      await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HISTORIA_TABLE_ID}/${historiaExistente.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ typecast: true, fields: historiaFields }),
+      });
+    } else {
+      historiaFields['Código de paciente ref'] = pacId;
+      historiaFields['Paciente'] = [pacienteRecord.id];
+      historiaFields['Fecha entrevista NOVA'] = new Date().toISOString();
+      await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HISTORIA_TABLE_ID}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ typecast: true, records: [{ fields: historiaFields }] }),
+      });
+    }
+  }
+
+  const pacienteFields = {
+    'Estado civil': ficha.estado_civil || undefined,
+    'Ocupación': ficha.ocupacion || undefined,
+    'Grupo sanguíneo': ficha.grupo_sanguineo || undefined,
+    'Escolaridad': ficha.escolaridad || undefined,
+  };
+  Object.keys(pacienteFields).forEach((k) => pacienteFields[k] === undefined && delete pacienteFields[k]);
+  if (Object.keys(pacienteFields).length > 0) {
+    await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PACIENTES_TABLE_ID}/${pacienteRecord.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ typecast: true, fields: pacienteFields }),
+    });
+  }
 }
 
 async function buscarMedicoPorCodigo(codigo) {
@@ -146,7 +325,9 @@ module.exports = async (req, res) => {
         chatId,
         'Hola, soy el bot de notificaciones y apoyo clínico de CODE CELLS® Red Médica.\n\n' +
           'Para vincular tu cuenta, envíame tu código de médico (formato CCMED-XXXXXX).\n\n' +
-          'Una vez vinculado, escribe "plan" seguido de los datos de un paciente (peso, talla, IMC, diagnósticos, medicamentos, labs, etc.) y te genero un plan nutricional de 7 días listo para copiar y reenviar.'
+          'Una vez vinculado:\n' +
+          '• Escribe "plan" + datos del paciente → plan nutricional de 7 días.\n' +
+          '• Escribe el código del paciente (CC-PAC-XXXXXX) + tu dictado → lo interpreto y, si confirmas, lo guardo en su expediente.'
       );
       return res.status(200).json({ ok: true });
     }
@@ -170,7 +351,7 @@ module.exports = async (req, res) => {
       const nombre = medico.fields[CAMPO_NOMBRE] || 'Doctor(a)';
       await sendTelegramMessage(
         chatId,
-        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS® (certificaciones, recordatorios del Diplomado, avisos de NOVA).\n\nPara generar un plan nutricional, escribe "plan" seguido de los datos del paciente.`
+        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS® (certificaciones, recordatorios del Diplomado, avisos de NOVA).\n\nPara generar un plan nutricional, escribe "plan" seguido de los datos del paciente. Para dictar un expediente, escribe el código del paciente (CC-PAC-XXXXXX) seguido de lo que quieras registrar.`
       );
       return res.status(200).json({ ok: true });
     }
@@ -201,6 +382,78 @@ module.exports = async (req, res) => {
       }
     }
 
+    // ¿Es una confirmación ("sí", "confirmar", "guardar"...) de un dictado
+    // de expediente pendiente?
+    if (/^(s[ií]|confirmar|guardar|correcto|ok|dale)\.?!?$/i.test(texto)) {
+      const pendiente = await obtenerPendiente(chatId);
+      if (pendiente && pendiente.fields['Ficha JSON']) {
+        try {
+          const ficha = JSON.parse(pendiente.fields['Ficha JSON']);
+          const pacienteRecord = await buscarPacientePorCodigo(pendiente.fields['Código de paciente']);
+          if (!pacienteRecord) {
+            await sendTelegramMessage(chatId, 'No encontré ese paciente ya — puede que se haya movido. Intenta el dictado de nuevo.');
+            return res.status(200).json({ ok: true });
+          }
+          await guardarFichaEnExpediente(pacienteRecord, ficha, medicoVinculado);
+          await borrarPendiente(pendiente.id);
+          await sendTelegramMessage(
+            chatId,
+            `Guardado en el expediente de ${pacienteRecord.fields['Nombre completo'] || pendiente.fields['Código de paciente']}. ✅`
+          );
+        } catch (err) {
+          console.error('[telegram-bot] error guardando ficha confirmada:', err.message);
+          await sendTelegramMessage(chatId, 'Hubo un error guardando en Airtable. Intenta de nuevo.');
+        }
+        return res.status(200).json({ ok: true });
+      }
+      // No hay nada pendiente que confirmar — cae al flujo normal abajo.
+    }
+
+    // ¿El mensaje trae un código de paciente (CC-PAC-XXXXXX) o el comando
+    // "/consulta"? Se interpreta como dictado de expediente.
+    const matchPaciente = texto.match(/CC-PAC-[0-9]{4,8}/i);
+    if (matchPaciente || /^\/consulta\b/i.test(texto)) {
+      const codigoPaciente = matchPaciente ? matchPaciente[0].toUpperCase() : null;
+      if (!codigoPaciente) {
+        await sendTelegramMessage(chatId, 'Necesito el código del paciente (formato CC-PAC-XXXXXX) para saber a quién va el dictado.');
+        return res.status(200).json({ ok: true });
+      }
+
+      const pacienteRecord = await buscarPacientePorCodigo(codigoPaciente);
+      if (!pacienteRecord) {
+        await sendTelegramMessage(chatId, `No encontré ningún paciente con el código ${codigoPaciente}.`);
+        return res.status(200).json({ ok: true });
+      }
+
+      const dictado = texto.replace(/^\/consulta\b/i, '').replace(codigoPaciente, '').replace(/^[:\s-]+/, '').trim();
+      if (!dictado) {
+        await sendTelegramMessage(chatId, `Encontré a ${pacienteRecord.fields['Nombre completo']} — ahora dime qué quieres registrar.`);
+        return res.status(200).json({ ok: true });
+      }
+
+      await sendTelegramMessage(chatId, 'Analizando el dictado, un momento...');
+
+      try {
+        const ficha = await interpretarDictado(dictado, medicoVinculado);
+        if (!ficha) {
+          await sendTelegramMessage(chatId, 'No pude interpretar datos clínicos claros en ese mensaje. Intenta con más detalle.');
+          return res.status(200).json({ ok: true });
+        }
+
+        await guardarPendiente(chatId, pacienteRecord.id, codigoPaciente, ficha);
+
+        const resumen = resumenFicha(ficha);
+        await sendTelegramMessage(
+          chatId,
+          `Esto entendí para ${pacienteRecord.fields['Nombre completo']} (${codigoPaciente}):\n\n${resumen}\n\n¿Lo guardo? Responde "sí" para confirmar, o mándame la corrección.`
+        );
+      } catch (err) {
+        console.error('[telegram-bot] error interpretando dictado:', err.message);
+        await sendTelegramMessage(chatId, 'Hubo un error interpretando el dictado. Intenta de nuevo.');
+      }
+      return res.status(200).json({ ok: true });
+    }
+
     // Médico vinculado: solo se genera plan nutricional si el mensaje empieza
     // explícitamente con "plan" o "/plan" — así cualquier otro mensaje suyo
     // (confirmar una cita, comentarios, etc.) no se confunde con esto.
@@ -210,6 +463,7 @@ module.exports = async (req, res) => {
       await sendTelegramMessage(
         chatId,
         'Recibido. Si quieres generar un plan nutricional, escribe "plan" seguido de los datos del paciente (peso, talla, diagnósticos, etc.).\n\n' +
+          'Si quieres dictar un expediente, escribe el código del paciente (CC-PAC-XXXXXX) seguido de lo que quieras registrar.\n\n' +
           'Si me estás respondiendo algo de una alerta de paciente, usa la función "Responder" (mantén presionado el mensaje de la alerta y elige Responder) para que le llegue directo.'
       );
       return res.status(200).json({ ok: true });
