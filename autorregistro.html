@@ -48,12 +48,28 @@
     cursor: pointer; margin-top: 12px; width: 100%; max-width: 380px;
   }
   .btn-grande:disabled { opacity: 0.5; }
+  .btn-texto {
+    background: none; border: none; color: var(--text-2); font-family: var(--font-sans);
+    font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 18px; padding: 8px;
+  }
 
   .campo-error { color: #e2574b; font-size: 13px; min-height: 18px; margin-top: 6px; }
   .loader { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(0,0,0,0.25); border-top-color: var(--black); border-radius: 50%; animation: girar 0.8s linear infinite; vertical-align: middle; }
   @keyframes girar { to { transform: rotate(360deg); } }
 
   .codigo-final { font-family: var(--font-mono); font-size: 22px; color: var(--gold); letter-spacing: 0.05em; margin: 18px 0; }
+
+  /* ─── Chat de preconsulta ─── */
+  .chat-wrap { width: 100%; max-width: 480px; display: flex; flex-direction: column; height: 100%; max-height: 640px; }
+  .nova-msgs { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px; margin-bottom: 10px; text-align: left; }
+  .nova-msg { max-width: 88%; padding: 11px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+  .nova-msg--nova { align-self: flex-start; background: var(--black-3); border: 1px solid var(--border-dim); border-bottom-left-radius: 3px; }
+  .nova-msg--user { align-self: flex-end; background: var(--gold-pale); border: 1px solid var(--border); border-bottom-right-radius: 3px; }
+  .nova-typing { align-self: flex-start; color: var(--text-3); font-size: 13px; padding: 6px 14px; }
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-input-row input { flex: 1; background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 10px; padding: 12px 14px; color: var(--text-1); font-family: var(--font-sans); font-size: 15px; outline: none; }
+  .chat-input-row input:focus { border-color: var(--gold); }
+  .chat-input-row button { background: var(--gold); color: var(--black); border: none; border-radius: 10px; width: 46px; font-size: 18px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -76,16 +92,31 @@
   <div class="subtitulo">Pide a tu médico que te comparta el link de registro nuevamente.</div>
 </div>
 
+<!-- Pantalla: preconsulta con NOVA -->
+<div class="pantalla" id="p-preconsulta" style="justify-content:flex-start;padding-top:24px;">
+  <div class="logo-glyph" style="margin-bottom:16px;">CODE CELLS®</div>
+  <div class="chat-wrap">
+    <div class="nova-msgs" id="nova-msgs"></div>
+    <div class="chat-input-row">
+      <input type="text" id="nova-input" placeholder="Escribe tu respuesta…" autocomplete="off">
+      <button type="button" id="nova-send">↑</button>
+    </div>
+    <button type="button" class="btn-texto" id="btn-omitir-preconsulta">Prefiero completarlo después</button>
+  </div>
+</div>
+
 <!-- Pantalla: éxito -->
 <div class="pantalla" id="p-exito">
   <div class="logo-glyph">CODE CELLS®</div>
   <div class="titulo">Listo, <span id="exito-nombre"></span></div>
-  <div class="subtitulo">Tu expediente ya está creado. Te estamos llevando a tu página personal…</div>
+  <div class="subtitulo">Tu expediente ya está completo. Te estamos llevando a tu página personal…</div>
   <div class="codigo-final" id="exito-codigo"></div>
 </div>
 
 <script>
 var tokenRegistro = null;
+var codigoPacienteCreado = null;
+var nombrePacienteCreado = null;
 
 function irA(id) {
   document.querySelectorAll('.pantalla').forEach(function(p){ p.classList.remove('activa'); });
@@ -136,19 +167,174 @@ document.getElementById('btn-registrar').addEventListener('click', async functio
       return;
     }
 
-    document.getElementById('exito-nombre').textContent = nombre.split(' ')[0];
-    document.getElementById('exito-codigo').textContent = data.codigo;
-    irA('p-exito');
-
-    setTimeout(function() {
-      window.location.href = 'mi-nivel.html?codigo=' + encodeURIComponent(data.codigo);
-    }, 2200);
+    codigoPacienteCreado = data.codigo;
+    nombrePacienteCreado = nombre;
+    iniciarPreconsulta();
 
   } catch (err) {
     errEl.textContent = 'Error de conexión. Intenta de nuevo.';
     btn.disabled = false;
     btn.textContent = 'Crear mi expediente';
   }
+});
+
+function irAExito() {
+  document.getElementById('exito-nombre').textContent = nombrePacienteCreado.split(' ')[0];
+  document.getElementById('exito-codigo').textContent = codigoPacienteCreado;
+  irA('p-exito');
+  setTimeout(function() {
+    window.location.href = 'mi-nivel.html?codigo=' + encodeURIComponent(codigoPacienteCreado);
+  }, 2200);
+}
+
+document.getElementById('btn-omitir-preconsulta').addEventListener('click', irAExito);
+
+/* ─── Preconsulta conversacional con NOVA ─── */
+var NOVA_ENDPOINT = '/api/nova';
+var NOVA_MODEL = 'claude-sonnet-5';
+var novaHistory = [];
+var novaIsLoading = false;
+
+var SYSTEM_PROMPT = `Eres NOVA, la asistente de CODE CELLS® encargada de tomar la preconsulta de un paciente ANTES de su cita, para que su médico llegue con toda la información lista.
+
+Ya sabes que se llama __NOMBRE__. NO le vuelvas a preguntar su nombre.
+
+TU TAREA: platica con calidez (nunca como formulario/interrogatorio rígido) y ve capturando, en el orden que fluya natural en la conversación:
+- Motivo de consulta (por qué busca atención en CODE CELLS®)
+- Antecedentes heredofamiliares (enfermedades de papás/hermanos — aclara que es SOLO de familiares, no de él/ella)
+- Antecedentes personales patológicos (enfermedades que él/ella mismo tiene o ha tenido, con tratamiento si aplica)
+- Antecedentes quirúrgicos (cirugías previas)
+- Antecedentes gineco-obstétricos (SOLO si aplica biológicamente — menarca, ciclos, embarazos, etc. — nunca lo preguntes si no aplica)
+- Medicamentos actuales
+- Alergias
+- Hábitos de vida (actividad física, sueño, alimentación, hidratación)
+- Estado civil, ocupación, escolaridad, grupo sanguíneo (si lo sabe)
+
+No hace falta que insistas si el paciente no sabe algo (ej. grupo sanguíneo) — anota lo que sí sepa y sigue.
+
+En cuanto sientas que ya cubriste lo esencial (motivo de consulta + antecedentes principales, aunque algún dato quede vacío), agrega al FINAL de tu último mensaje, en su propia línea, exactamente esto (nunca lo menciones ni lo expliques, es invisible para el paciente):
+[[PRECONSULTA:{"motivo_consulta":"...","antecedentes_heredofamiliares":"...","antecedentes_personales_patologicos":"...","antecedentes_quirurgicos":"...","antecedentes_ginecoobstetricos":"...","medicamentos_actuales":"...","alergias":"...","habitos_estilo_vida":"...","estado_civil":"...","ocupacion":"...","escolaridad":"...","grupo_sanguineo":"..."}]]
+Deja vacío ("") cualquier campo que no aplique o no se haya mencionado. Hazlo UNA sola vez, al cerrar la conversación con un mensaje cálido de cierre.
+
+ESTILO: español, cercano y humano, oraciones cortas, nunca clínico-frío.`;
+
+function iniciarPreconsulta() {
+  SYSTEM_PROMPT = SYSTEM_PROMPT.replace(/__NOMBRE__/g, nombrePacienteCreado.split(' ')[0]);
+  irA('p-preconsulta');
+  var bienvenida = 'Hola ' + nombrePacienteCreado.split(' ')[0] + ', qué gusto. Antes de tu cita quiero conocerte un poco para que tu médico llegue mejor preparado — cuéntame, ¿qué te trae a CODE CELLS®?';
+  novaHistory.push({ role: 'assistant', content: bienvenida });
+  renderNovaMessage(bienvenida, 'nova');
+}
+
+function renderNovaMessage(text, from) {
+  var el = document.createElement('div');
+  el.className = 'nova-msg nova-msg--' + from;
+  el.textContent = text;
+  document.getElementById('nova-msgs').appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+function novaShowTyping() {
+  var el = document.createElement('div');
+  el.className = 'nova-typing';
+  el.id = 'nova-typing-indicator';
+  el.textContent = 'NOVA está escribiendo…';
+  document.getElementById('nova-msgs').appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+function novaHideTyping() {
+  var el = document.getElementById('nova-typing-indicator');
+  if (el) el.remove();
+}
+function extraerTextoNova(data) {
+  if (!Array.isArray(data.content)) return '';
+  var bloque = data.content.find(function(b){ return b && b.type === 'text' && b.text; });
+  return bloque ? bloque.text : '';
+}
+
+function guardarPreconsulta(datos) {
+  datos.codigoPaciente = codigoPacienteCreado;
+  fetch('/api/guardar-preconsulta', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos)
+  }).catch(function(){ /* no bloquear la experiencia por un error de guardado */ });
+}
+
+function pedirRespuesta(esReintento) {
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
+
+  return fetch(NOVA_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: SYSTEM_PROMPT, messages: novaHistory }),
+    signal: controller.signal
+  }).then(function(r){ clearTimeout(timeoutId); return r.json(); })
+  .then(function(data) {
+    var texto = extraerTextoNova(data);
+    if (!texto && !esReintento) {
+      return pedirRespuesta(true);
+    }
+    return { texto: texto, data: data };
+  }).catch(function(err){
+    clearTimeout(timeoutId);
+    throw err;
+  });
+}
+
+function novaRespond() {
+  if (novaIsLoading) return;
+  novaIsLoading = true;
+  var btn = document.getElementById('nova-send'); if (btn) btn.disabled = true;
+  novaShowTyping();
+
+  pedirRespuesta(false).then(function(resultado) {
+    novaHideTyping();
+    var reply = resultado.texto || 'Perdón, tuve un problema. ¿Me repites eso?';
+
+    var match = reply.match(/\[\[PRECONSULTA:(\{.*?\})\]\]/);
+    var esCierre = false;
+    if (match) {
+      reply = reply.replace(match[0], '').trim();
+      esCierre = true;
+      try {
+        var datos = JSON.parse(match[1]);
+        guardarPreconsulta(datos);
+      } catch(e) { /* marcador mal formado, se ignora */ }
+    }
+
+    novaHistory.push({ role: 'assistant', content: reply });
+    renderNovaMessage(reply, 'nova');
+
+    if (esCierre) {
+      setTimeout(irAExito, 2600);
+    }
+  }).catch(function(err) {
+    novaHideTyping();
+    var msg = (err && err.name === 'AbortError')
+      ? 'Tu conexión está muy lenta ahorita — inténtalo de nuevo.'
+      : 'Hubo un problema de conexión. Intenta de nuevo.';
+    renderNovaMessage(msg, 'nova');
+  }).finally(function() {
+    novaIsLoading = false;
+    var b = document.getElementById('nova-send'); var i = document.getElementById('nova-input');
+    if (b) b.disabled = false; if (i) i.focus();
+  });
+}
+
+function novaSend() {
+  var input = document.getElementById('nova-input');
+  var text = input.value.trim();
+  if (!text || novaIsLoading) return;
+  input.value = '';
+  novaHistory.push({ role: 'user', content: text });
+  renderNovaMessage(text, 'user');
+  novaRespond();
+}
+
+document.getElementById('nova-send').addEventListener('click', novaSend);
+document.getElementById('nova-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); novaSend(); }
 });
 
 init();
