@@ -2188,6 +2188,73 @@
               <textarea id="f-notas" placeholder="Observaciones del médico…" rows="2"></textarea>
             </div>
 
+            <details style="margin-top:0.5rem;">
+              <summary class="section-label" style="cursor:pointer;">Antecedentes y datos adicionales (opcional — se guarda en Historia Clínica)</summary>
+
+              <div class="vitals-grid" style="margin-top:0.75rem;">
+                <div class="form-group vital-input">
+                  <label>Frec. cardiaca</label>
+                  <input type="number" id="f-fc" placeholder="78">
+                  <span class="vital-unit">lpm</span>
+                </div>
+                <div class="form-group vital-input">
+                  <label>Frec. respiratoria</label>
+                  <input type="number" id="f-fr" placeholder="16">
+                  <span class="vital-unit">rpm</span>
+                </div>
+                <div class="form-group vital-input">
+                  <label>Sat. O2</label>
+                  <input type="number" id="f-sato2" placeholder="98">
+                  <span class="vital-unit">%</span>
+                </div>
+                <div class="form-group vital-input">
+                  <label>Cintura</label>
+                  <input type="number" id="f-cintura" placeholder="90">
+                  <span class="vital-unit">cm</span>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Estado civil</label>
+                  <input type="text" id="f-estado-civil" placeholder="Casado(a), soltero(a)…">
+                </div>
+                <div class="form-group">
+                  <label>Ocupación</label>
+                  <input type="text" id="f-ocupacion" placeholder="Contador, ingeniero…">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Antecedentes heredofamiliares</label>
+                <textarea id="f-ahf" placeholder="Madre, padre, hermanos…" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Antecedentes personales patológicos</label>
+                <textarea id="f-app" placeholder="Enfermedades que el paciente mismo tiene o ha tenido…" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Antecedentes quirúrgicos</label>
+                <textarea id="f-quirurgicos" placeholder="Cirugías previas…" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Antecedentes gineco-obstétricos</label>
+                <textarea id="f-ago" placeholder="Menarca, ciclos, FUM, fórmula obstétrica…" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Medicamentos actuales</label>
+                <textarea id="f-medicamentos" placeholder="Medicamento, dosis, frecuencia…" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Alergias</label>
+                <textarea id="f-alergias" placeholder="Medicamentosas, alimentarias…" rows="1"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Hábitos / estilo de vida</label>
+                <textarea id="f-habitos" placeholder="Actividad física, sueño, hidratación, alimentación…" rows="2"></textarea>
+              </div>
+            </details>
+
           </div>
 
           <div class="form-actions">
@@ -3348,6 +3415,17 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   const f = pacienteActual.fields;
   const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
 
+  // Signos vitales adicionales van juntos en el campo genérico "Signos vitales"
+  const vitalesExtra = [];
+  const fc = document.getElementById('f-fc').value;
+  const fr = document.getElementById('f-fr').value;
+  const satO2 = document.getElementById('f-sato2').value;
+  const cintura = document.getElementById('f-cintura').value;
+  if (fc) vitalesExtra.push(`FC: ${fc} lpm`);
+  if (fr) vitalesExtra.push(`FR: ${fr} rpm`);
+  if (satO2) vitalesExtra.push(`SatO2: ${satO2}%`);
+  if (cintura) vitalesExtra.push(`Cintura: ${cintura} cm`);
+
   const fields = {
     'Código de paciente ref': pacId,
     Médico:       medicoActual['Nombre completo'] || medicoActual['nombre'] || 'Médico',
@@ -3366,6 +3444,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     'Plan terapéutico': document.getElementById('f-plan').value || null,
     'Notas internas': document.getElementById('f-notas').value || null,
   };
+  if (vitalesExtra.length > 0) fields['Signos vitales'] = vitalesExtra.join(' · ');
 
   // Limpiar nulls
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
@@ -3373,6 +3452,58 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   try {
     await airtablePost(TBL_CONSULTAS, fields);
     showToast('Consulta guardada en Airtable ✓', 'success');
+
+    // Antecedentes dictados van a HISTORIA CLÍNICA — crea o corrige el
+    // registro existente (mismo patrón que el botón "Editar historia").
+    const historiaFields = {
+      'AHF — Heredo-familiares': document.getElementById('f-ahf').value.trim() || null,
+      'APP — Enfermedades previas': document.getElementById('f-app').value.trim() || null,
+      'Antecedentes quirúrgicos': document.getElementById('f-quirurgicos').value.trim() || null,
+      'AGO — Ginecobstétrico': document.getElementById('f-ago').value.trim() || null,
+      'Medicamentos actuales': document.getElementById('f-medicamentos').value.trim() || null,
+      'Alergias': document.getElementById('f-alergias').value.trim() || null,
+      'APNP — Alimentación': document.getElementById('f-habitos').value.trim() || null,
+    };
+    Object.keys(historiaFields).forEach(k => !historiaFields[k] && delete historiaFields[k]);
+
+    if (Object.keys(historiaFields).length > 0) {
+      try {
+        if (historiaActualId) {
+          await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: historiaFields, typecast: true })
+          });
+        } else {
+          historiaFields['Código de paciente ref'] = pacId;
+          historiaFields['Paciente'] = [pacienteActual.id];
+          historiaFields['Fecha entrevista NOVA'] = new Date().toISOString();
+          await airtablePost(TBL_HISTORIA, historiaFields);
+        }
+        cargarHistoria(pacId);
+      } catch (err) {
+        console.error('Error guardando antecedentes en Historia Clínica:', err);
+      }
+    }
+
+    // Datos sociodemográficos van directo a PACIENTES.
+    const estadoCivil = document.getElementById('f-estado-civil').value.trim();
+    const ocupacion = document.getElementById('f-ocupacion').value.trim();
+    if (estadoCivil || ocupacion) {
+      const pacienteFields = {};
+      if (estadoCivil) pacienteFields['Estado civil'] = estadoCivil;
+      if (ocupacion) pacienteFields['Ocupación'] = ocupacion;
+      try {
+        await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: pacienteFields, typecast: true })
+        });
+      } catch (err) {
+        console.error('Error guardando datos sociodemográficos:', err);
+      }
+    }
+
     limpiarFormulario();
     // Recargar consultas
     setTimeout(() => cargarConsultas(pacId), 800);
@@ -3418,8 +3549,11 @@ document.getElementById('btn-limpiar').addEventListener('click', limpiarFormular
 
 function limpiarFormulario() {
   ['f-protocolo','f-sesion','f-peso','f-talla','f-presion','f-temp',
-   'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas'].forEach(id => {
+   'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas',
+   'f-fc','f-fr','f-sato2','f-cintura','f-estado-civil','f-ocupacion',
+   'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos'].forEach(id => {
     const el = document.getElementById(id);
+    if (!el) return;
     if (el.tagName === 'SELECT') el.selectedIndex = 0;
     else el.value = '';
   });
@@ -3701,6 +3835,19 @@ function aplicarFichaNova(ficha) {
     diagnostico: 'f-diagnostico',
     plan_terapeutico: 'f-plan',
     notas_internas: 'f-notas',
+    frecuencia_cardiaca: 'f-fc',
+    frecuencia_respiratoria: 'f-fr',
+    saturacion_oxigeno: 'f-sato2',
+    circunferencia_cintura: 'f-cintura',
+    estado_civil: 'f-estado-civil',
+    ocupacion: 'f-ocupacion',
+    antecedentes_heredofamiliares: 'f-ahf',
+    antecedentes_personales_patologicos: 'f-app',
+    antecedentes_quirurgicos: 'f-quirurgicos',
+    antecedentes_ginecoobstetricos: 'f-ago',
+    medicamentos_actuales: 'f-medicamentos',
+    alergias: 'f-alergias',
+    habitos_estilo_vida: 'f-habitos',
   };
 
   let camposLlenados = 0;
