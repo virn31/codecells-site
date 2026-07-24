@@ -1937,9 +1937,91 @@
 
           <!-- Tab: Datos generales -->
           <div class="tab-pane active" id="tab-datos">
-            <div class="section-label">Información personal</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="section-label" style="margin-bottom:0;">Información personal</div>
+              <button class="btn-secondary" id="btn-editar-datos" style="font-size:10px;padding:5px 12px;">✏️ Editar</button>
+            </div>
             <div class="data-grid" id="datos-grid">
               <div class="loading-row"><span class="loader"></span></div>
+            </div>
+
+            <div id="datos-edit-form" style="display:none;margin-top:12px;">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Nombre completo</label>
+                  <input type="text" id="dg-nombre">
+                </div>
+                <div class="form-group">
+                  <label>Fecha de nacimiento</label>
+                  <input type="date" id="dg-fecha-nacimiento">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Ciudad</label>
+                  <input type="text" id="dg-ciudad">
+                </div>
+                <div class="form-group">
+                  <label>Teléfono WhatsApp</label>
+                  <input type="text" id="dg-telefono">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" id="dg-email">
+                </div>
+                <div class="form-group">
+                  <label>Sexo biológico</label>
+                  <select id="dg-sexo">
+                    <option value="">Selecciona</option>
+                    <option>Femenino</option>
+                    <option>Masculino</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Estado civil</label>
+                  <input type="text" id="dg-estado-civil">
+                </div>
+                <div class="form-group">
+                  <label>Ocupación</label>
+                  <input type="text" id="dg-ocupacion">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Grupo sanguíneo</label>
+                  <select id="dg-grupo-sanguineo">
+                    <option value="">Selecciona</option>
+                    <option>O+</option><option>O-</option>
+                    <option>A+</option><option>A-</option>
+                    <option>B+</option><option>B-</option>
+                    <option>AB+</option><option>AB-</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Escolaridad</label>
+                  <select id="dg-escolaridad">
+                    <option value="">Selecciona</option>
+                    <option>Primaria</option>
+                    <option>Secundaria</option>
+                    <option>Preparatoria</option>
+                    <option>Licenciatura trunca</option>
+                    <option>Licenciatura terminada</option>
+                    <option>Posgrado</option>
+                  </select>
+                </div>
+              </div>
+              <p class="error-msg" id="datos-edit-error" style="color:#c0392b;font-size:12px;"></p>
+              <div class="form-actions">
+                <button class="btn-secondary" id="btn-cancelar-datos">Cancelar</button>
+                <button class="btn-save" id="btn-guardar-datos">
+                  <span id="dg-save-label">Guardar</span>
+                  <span id="dg-save-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -2587,6 +2669,13 @@ function formatDate(iso) {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// La "Edad" en Airtable es un campo fórmula — si el paciente no tiene
+// Fecha de nacimiento capturada, Airtable regresa un objeto de error en vez
+// de un número, y eso se veía como "[object Object] años". Esto lo blinda.
+function formatEdad(valor) {
+  return typeof valor === 'number' ? valor : null;
+}
+
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -3057,7 +3146,7 @@ function renderPacientes(records) {
         <div class="avatar">${ini}</div>
         <div class="patient-info">
           <div class="patient-name">${nombre}</div>
-          <div class="patient-meta">${f['Código de paciente'] || r.id.slice(0,8)} · ${f['Edad'] || '—'} años</div>
+          <div class="patient-meta">${f['Código de paciente'] || r.id.slice(0,8)}${formatEdad(f['Edad']) ? ' · ' + formatEdad(f['Edad']) + ' años' : ''}</div>
         </div>
         <div class="status-dot ${estado}"></div>
       </div>
@@ -3109,7 +3198,7 @@ async function seleccionarPaciente(pacienteId) {
   tagsEl.innerHTML = `
     <span class="tag tag-${estado === 'activo' ? 'cyan' : estado === 'pendiente' ? 'gold' : 'gray'}">${estado.charAt(0).toUpperCase() + estado.slice(1)}</span>
     <span class="tag tag-gold">${protocolo}</span>
-    ${f['Edad'] ? `<span class="tag tag-gray">${f['Edad']} años · ${f['Sexo'] || f['sexo'] || '—'}</span>` : ''}
+    ${formatEdad(f['Edad']) ? `<span class="tag tag-gray">${formatEdad(f['Edad'])} años · ${f['Sexo'] || f['sexo'] || '—'}</span>` : ''}
   `;
 
   // Activar tab de datos
@@ -3145,15 +3234,19 @@ function cargarDatosGenerales(record) {
   const grid = document.getElementById('datos-grid');
 
   const campos = [
-    { key: 'Nombre completo', val: f['Nombre'] || f['nombre'] },
+    { key: 'Nombre completo', val: f['Nombre completo'] || f['Nombre'] || f['nombre'] },
     { key: 'ID Paciente', val: f['Código de paciente'] },
-    { key: 'Edad', val: f['Edad'] ? `${f['Edad']} años` : null },
-    { key: 'Sexo', val: f['Sexo'] || f['sexo'] },
-    { key: 'Fecha de ingreso', val: formatDate(f['Fecha_ingreso'] || f['fecha_ingreso']) },
-    { key: 'Teléfono', val: f['Telefono'] || f['telefono'] || f['WhatsApp'] },
-    { key: 'Email', val: f['Email'] || f['email'] },
+    { key: 'Edad', val: formatEdad(f['Edad']) ? `${formatEdad(f['Edad'])} años` : null },
+    { key: 'Sexo biológico', val: f['Sexo biológico'] || f['Sexo'] || f['sexo'] },
+    { key: 'Fecha de ingreso', val: formatDate(f['Fecha de registro']) },
+    { key: 'Teléfono', val: f['Teléfono WhatsApp'] || f['Telefono'] || f['telefono'] || f['WhatsApp'] },
+    { key: 'Email', val: f['Correo electrónico'] || f['Email'] || f['email'] },
     { key: 'Ciudad', val: f['Ciudad'] || f['ciudad'] },
-    { key: 'Protocolo', val: f['Protocolo'] || f['protocolo'] },
+    { key: 'Estado civil', val: f['Estado civil'] },
+    { key: 'Ocupación', val: f['Ocupación'] },
+    { key: 'Grupo sanguíneo', val: f['Grupo sanguíneo'] },
+    { key: 'Escolaridad', val: f['Escolaridad'] },
+    { key: 'Protocolo', val: f['Protocolo actual'] || f['Protocolo'] || f['protocolo'] },
     { key: 'Estado', val: f['Estado del expediente'] },
   ].filter(c => c.val);
 
@@ -3164,6 +3257,72 @@ function cargarDatosGenerales(record) {
     </div>
   `).join('') || '<div class="data-cell"><div class="key">Info</div><div class="val">Sin datos adicionales</div></div>';
 }
+
+// ─── EDITAR DATOS GENERALES (corrección por el médico) ───────────
+document.getElementById('btn-editar-datos').addEventListener('click', () => {
+  if (!pacienteActual) return;
+  const f = pacienteActual.fields;
+  document.getElementById('dg-nombre').value = f['Nombre completo'] || '';
+  document.getElementById('dg-fecha-nacimiento').value = f['Fecha de nacimiento'] || '';
+  document.getElementById('dg-ciudad').value = f['Ciudad'] || '';
+  document.getElementById('dg-telefono').value = f['Teléfono WhatsApp'] || '';
+  document.getElementById('dg-email').value = f['Correo electrónico'] || '';
+  document.getElementById('dg-sexo').value = f['Sexo biológico'] || '';
+  document.getElementById('dg-estado-civil').value = f['Estado civil'] || '';
+  document.getElementById('dg-ocupacion').value = f['Ocupación'] || '';
+  document.getElementById('dg-grupo-sanguineo').value = f['Grupo sanguíneo'] || '';
+  document.getElementById('dg-escolaridad').value = f['Escolaridad'] || '';
+  document.getElementById('datos-edit-error').textContent = '';
+  document.getElementById('datos-grid').style.display = 'none';
+  document.getElementById('datos-edit-form').style.display = 'block';
+});
+
+document.getElementById('btn-cancelar-datos').addEventListener('click', () => {
+  document.getElementById('datos-edit-form').style.display = 'none';
+  document.getElementById('datos-grid').style.display = 'grid';
+});
+
+document.getElementById('btn-guardar-datos').addEventListener('click', async () => {
+  if (!pacienteActual) return;
+  const errEl = document.getElementById('datos-edit-error');
+  const btn = document.getElementById('btn-guardar-datos');
+  const lbl = document.getElementById('dg-save-label');
+  const loader = document.getElementById('dg-save-loader');
+  errEl.textContent = '';
+
+  const fields = {
+    'Nombre completo': document.getElementById('dg-nombre').value.trim() || null,
+    'Fecha de nacimiento': document.getElementById('dg-fecha-nacimiento').value || null,
+    'Ciudad': document.getElementById('dg-ciudad').value.trim() || null,
+    'Teléfono WhatsApp': document.getElementById('dg-telefono').value.trim() || null,
+    'Correo electrónico': document.getElementById('dg-email').value.trim() || null,
+    'Sexo biológico': document.getElementById('dg-sexo').value || null,
+    'Estado civil': document.getElementById('dg-estado-civil').value.trim() || null,
+    'Ocupación': document.getElementById('dg-ocupacion').value.trim() || null,
+    'Grupo sanguíneo': document.getElementById('dg-grupo-sanguineo').value || null,
+    'Escolaridad': document.getElementById('dg-escolaridad').value || null,
+  };
+  Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
+
+  btn.disabled = true; lbl.style.display = 'none'; loader.style.display = 'inline';
+
+  try {
+    await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields, typecast: true })
+    });
+    Object.assign(pacienteActual.fields, fields);
+    showToast('Datos actualizados ✓', 'success');
+    document.getElementById('datos-edit-form').style.display = 'none';
+    document.getElementById('datos-grid').style.display = 'grid';
+    cargarDatosGenerales(pacienteActual);
+  } catch (err) {
+    errEl.textContent = 'Error al guardar. Verifica conexión.';
+  } finally {
+    btn.disabled = false; lbl.style.display = 'inline'; loader.style.display = 'none';
+  }
+});
 
 // ─── HISTORIA CLÍNICA ─────────────────────────────────────────────
 let historiaActualId = null;
@@ -3919,11 +4078,11 @@ async function generarPDF() {
   const f = pacienteActual.fields;
   const nombre    = f['Nombre completo'] || f['nombre'] || 'Paciente';
   const pacId     = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-  const edad      = f['Edad'] || '—';
+  const edad      = formatEdad(f['Edad']) || '—';
   const sexo      = f['Sexo'] || f['sexo'] || '—';
   const protocolo = f['Protocolo'] || f['protocolo'] || '—';
   const estado    = f['Estado del expediente'] || '—';
-  const ingreso   = formatDate(f['Fecha_ingreso'] || f['fecha_ingreso']);
+  const ingreso   = formatDate(f['Fecha de registro']);
 
   const medNombre = medicoActual?.['Nombre completo'] || medicoActual?.['Nombre'] || 'Médico';
   const medCedula = medicoActual?.['Cédula profesional'] || medicoActual?.['Cedula'] || '—';
@@ -4061,7 +4220,7 @@ document.getElementById('btn-imprimir-receta').addEventListener('click', () => {
   const f = pacienteActual?.fields || {};
   const nombre     = f['Nombre completo'] || f['nombre'] || 'Paciente';
   const pacId      = f['Código de paciente'] || f['ID_Paciente'] || '';
-  const edad       = f['Edad'] ? f['Edad'] + ' años' : '—';
+  const edad       = formatEdad(f['Edad']) ? formatEdad(f['Edad']) + ' años' : '—';
   const medNombre  = medicoActual?.['Nombre completo'] || medicoActual?.['Nombre'] || 'Médico';
   const medCedula  = medicoActual?.['Cédula profesional'] || medicoActual?.['Cedula'] || '—';
   const medEsp     = medicoActual?.['Especialidad'] || '—';
