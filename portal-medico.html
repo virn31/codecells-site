@@ -3080,8 +3080,9 @@ async function cargarPacientes() {
     renderPacientes(todosPacientes);
 
   } catch (err) {
-    todosPacientes = demoPacientes();
+    todosPacientes = [];
     renderPacientes(todosPacientes);
+    showToast('No se pudo cargar la lista de pacientes. Verifica tu conexión.', 'error');
   }
 }
 
@@ -3504,7 +3505,7 @@ async function cargarConsultas(pacId, soloMias = true) {
     if (!data.records || data.records.length === 0) {
       tl.innerHTML = soloMias
         ? '<div class="data-cell"><div class="val">Aún no tienes consultas registradas para este paciente. Toca "Ver interconsultas" para ver el manejo de otros médicos.</div></div>'
-        : demoConsultas();
+        : '<div class="data-cell"><div class="val">Ningún otro médico ha registrado consultas para este paciente.</div></div>';
       return;
     }
 
@@ -3524,7 +3525,7 @@ async function cargarConsultas(pacId, soloMias = true) {
     }).join('');
 
   } catch (err) {
-    tl.innerHTML = demoConsultas();
+    tl.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar las consultas. Verifica tu conexión e intenta de nuevo.</div></div>';
   }
 }
 
@@ -3581,7 +3582,7 @@ async function cargarLabs(pacId) {
     const data = await airtableFetch(TBL_LABS, `?filterByFormula=${formula}&sort[0][field]=Fecha%20de%20resultados&sort[0][direction]=desc&maxRecords=10`);
 
     if (!data.records || data.records.length === 0) {
-      cont.innerHTML = demoLabs();
+      cont.innerHTML = '<div class="data-cell"><div class="val">Este paciente aún no tiene resultados de laboratorio registrados.</div></div>';
       return;
     }
 
@@ -3600,7 +3601,7 @@ async function cargarLabs(pacId) {
     }).join('');
 
   } catch (err) {
-    cont.innerHTML = demoLabs();
+    cont.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.</div></div>';
   }
 }
 
