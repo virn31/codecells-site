@@ -1805,6 +1805,8 @@
     <div class="topbar-code" id="topbar-code">—</div>
     <!-- Toggle modo claro/oscuro -->
     <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
+    <!-- Botón Mi Link — link de autorregistro personal para pacientes -->
+    <button class="btn-topbar" id="btn-mi-link" title="Copiar mi link de preconsulta para pacientes">🔗 Mi Link</button>
     <!-- Botón Capacitación -->
     <a class="btn-capacitacion-topbar" href="/capacitacion/" target="_blank" title="Programa de certificación médica">
       ◈ Capacitación
@@ -3896,6 +3898,41 @@ function cerrarNova() {
 }
 
 document.getElementById('btn-nova-open').addEventListener('click', abrirNova);
+
+document.getElementById('btn-mi-link').addEventListener('click', async () => {
+  if (!medicoActual || medicoActual.id === 'demo') {
+    showToast('El modo demo no puede generar un link real.', 'error');
+    return;
+  }
+  const btn = document.getElementById('btn-mi-link');
+  const textoOriginal = btn.textContent;
+  btn.textContent = '…';
+  btn.disabled = true;
+
+  try {
+    let token = medicoActual['Token de autorregistro'];
+    if (!token) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      token = 'REG-' + Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      await fetch(`/api/airtable?tabla=${TBL_MEDICOS}&recordId=${medicoActual.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: { 'Token de autorregistro': token }, typecast: true })
+      });
+      medicoActual['Token de autorregistro'] = token;
+    }
+
+    const link = `https://www.codecells.mx/autorregistro.html?token=${token}`;
+    await navigator.clipboard.writeText(link);
+    showToast('Link copiado ✓ Compártelo con tus pacientes para su preconsulta.', 'success');
+  } catch (err) {
+    console.error('Error generando Mi Link:', err);
+    showToast('No se pudo generar/copiar el link. Intenta de nuevo.', 'error');
+  } finally {
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+  }
+});
 document.getElementById('btn-nova-close').addEventListener('click', cerrarNova);
 novaOverlay.addEventListener('click', cerrarNova);
 
