@@ -1294,10 +1294,14 @@ Para cualquier urgencia médica real, o cambios de dosis/plan, dile que contacte
     novaShowTyping();
 
     function pedirRespuesta(esReintento){
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function(){ controller.abort(); }, 20000); // 20s máximo
+
       return fetch(NOVA_ENDPOINT, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: window._novaSystemPrompt, messages: novaHistory })
-      }).then(function(r){ return r.json(); })
+        body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: window._novaSystemPrompt, messages: novaHistory }),
+        signal: controller.signal
+      }).then(function(r){ clearTimeout(timeoutId); return r.json(); })
       .then(function(data){
         var texto = data.content && data.content[0] && data.content[0].text;
         if(!texto && !esReintento){
@@ -1305,6 +1309,9 @@ Para cualquier urgencia médica real, o cambios de dosis/plan, dile que contacte
           return pedirRespuesta(true);
         }
         return { texto: texto, data: data };
+      }).catch(function(err){
+        clearTimeout(timeoutId);
+        throw err;
       });
     }
 
@@ -1314,9 +1321,12 @@ Para cualquier urgencia médica real, o cambios de dosis/plan, dile que contacte
       if(!resultado.texto) console.error('[NOVA] sin texto tras reintento. data:', JSON.stringify(resultado.data));
       novaHistory.push({ role:'assistant', content: reply });
       renderNovaMessage(reply, 'nova');
-    }).catch(function(){
+    }).catch(function(err){
       novaHideTyping();
-      renderNovaMessage('Hubo un problema de conexión. Intenta de nuevo.', 'nova');
+      var msg = (err && err.name === 'AbortError')
+        ? 'Tu conexión está muy lenta ahorita — inténtalo de nuevo cuando tengas mejor señal.'
+        : 'Hubo un problema de conexión. Intenta de nuevo.';
+      renderNovaMessage(msg, 'nova');
     }).finally(function(){
       novaIsLoading = false;
       var b = document.getElementById('nova-send'); var i = document.getElementById('nova-input');
