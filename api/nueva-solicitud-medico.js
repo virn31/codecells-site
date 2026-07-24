@@ -32,31 +32,34 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { nombre, especialidad, cedula, ciudad, whatsapp, email } = req.body;
+    const { nombre, especialidad, cedula, ciudad, whatsapp, email, recordId } = req.body;
 
     if (!nombre || !whatsapp) {
       return res.status(400).json({ error: 'Faltan datos mínimos (nombre y WhatsApp).' });
     }
 
-    const createRes = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${SOLICITUDES_TABLE_ID}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        typecast: true,
-        records: [{
-          fields: {
-            'Nombre completo': nombre || '',
-            'Especialidad': especialidad || '',
-            'Cédula profesional': cedula || '',
-            'Ciudad': ciudad || '',
-            'WhatsApp': whatsapp || '',
-            'Email': email || '',
-            'Fecha solicitud': new Date().toISOString(),
-            'Estado': 'Pendiente',
-          },
-        }],
-      }),
-    });
+    const fields = {
+      'Nombre completo': nombre || '',
+      'Especialidad': especialidad || '',
+      'Cédula profesional': cedula || '',
+      'Ciudad': ciudad || '',
+      'WhatsApp': whatsapp || '',
+      'Email': email || '',
+      'Fecha solicitud': new Date().toISOString(),
+      'Estado': 'Pendiente',
+    };
+
+    const createRes = recordId
+      ? await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${SOLICITUDES_TABLE_ID}/${recordId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ typecast: true, fields }),
+        })
+      : await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${SOLICITUDES_TABLE_ID}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ typecast: true, records: [{ fields }] }),
+        });
 
     if (!createRes.ok) {
       const errData = await createRes.text();
