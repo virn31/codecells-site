@@ -2139,12 +2139,6 @@
 
           <!-- Tab: NOVA LABS -->
           <div class="tab-pane" id="tab-labs">
-            <div id="labs-resumen" style="display:none;margin-bottom:18px;padding:14px 16px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;">
-              <div class="section-label" style="margin:0 0 10px;">Resumen e interpretación — corte actual vs. anterior</div>
-              <div id="labs-comparativo-tabla" style="margin-bottom:10px;"></div>
-              <div id="labs-interpretacion" style="font-size:12.5px;line-height:1.6;color:var(--text-2);"></div>
-            </div>
-
             <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;" id="labs-subtabs">
               <button class="labs-subtab-btn activo" data-tipo="Todos" onclick="cambiarSubtabLabs('Todos')">Todos</button>
               <button class="labs-subtab-btn" data-tipo="Laboratorio" onclick="cambiarSubtabLabs('Laboratorio')">Laboratorios</button>
@@ -3727,9 +3721,7 @@ var labsSubtabActual = 'Todos';
 
 async function cargarLabs(pacId) {
   const cont = document.getElementById('labs-content');
-  const resumenBox = document.getElementById('labs-resumen');
   cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
-  resumenBox.style.display = 'none';
   labsSubtabActual = 'Todos';
   document.querySelectorAll('.labs-subtab-btn').forEach(b => b.classList.toggle('activo', b.getAttribute('data-tipo') === 'Todos'));
   document.getElementById('labs-pivote-wrap').style.display = 'none';
@@ -3749,24 +3741,6 @@ async function cargarLabs(pacId) {
     }
 
     labsEstudiosActuales = data.estudios || [];
-
-    // Panel de resumen/comparativo — solo se muestra si hay algo que comparar.
-    if (data.comparativo && data.comparativo.length) {
-      resumenBox.style.display = 'block';
-      document.getElementById('labs-comparativo-tabla').innerHTML = data.comparativo.map(c => {
-        const claseDelta = c.actual.bandera === 'Alto' ? 'labs-comparativo-delta-alto' : (c.actual.bandera === 'Bajo' ? 'labs-comparativo-delta-bajo' : '');
-        const flechaTexto = c.previo ? `${c.previo.valor} ${c.previo.unidad} → ` : '';
-        const deltaTexto = (c.delta !== null && c.delta !== undefined) ? ` (Δ ${c.delta > 0 ? '+' : ''}${c.delta.toFixed(2)})` : '';
-        return `<div class="labs-comparativo-fila">
-          <span>${c.analito}</span>
-          <span class="${claseDelta}">${flechaTexto}${c.actual.valor} ${c.actual.unidad}${deltaTexto}</span>
-        </div>`;
-      }).join('');
-      document.getElementById('labs-interpretacion').textContent = data.interpretacion || 'Sin interpretación generada.';
-    } else {
-      resumenBox.style.display = 'none';
-    }
-
     renderLabsFiltrados();
   } catch (err) {
     cont.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.</div></div>';
