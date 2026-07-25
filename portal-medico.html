@@ -4434,7 +4434,7 @@ async function enviarNova() {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s — evita que se quede "escribiendo…" para siempre en conexiones lentas
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s — dictados de backfill histórico (varias fechas + muchos analitos) tardan más que un mensaje normal
 
     const res = await fetch('/api/nova', {
       method: 'POST',

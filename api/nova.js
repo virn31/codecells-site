@@ -2729,10 +2729,7 @@ module.exports = async function handler(req, res) {
             return res.status(200).json({ content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No encontré ese paciente en Airtable — no se guardó nada.` }] });
           }
 
-          let guardadas = 0;
-          const fechasGuardadas = [];
-          for (const serie of series) {
-            if (!serie.fecha) continue;
+          const resultadosSeries = await Promise.all(series.filter(s => s.fecha).map(async serie => {
             const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
             const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
 
@@ -2753,7 +2750,7 @@ module.exports = async function handler(req, res) {
               }),
             });
             const crearData = await crearRes.json();
-            if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); continue; }
+            if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return null; }
 
             if (analitos.length) {
               const registrosValores = analitos.map(a => {
@@ -2781,9 +2778,11 @@ module.exports = async function handler(req, res) {
                 body: JSON.stringify({ typecast: true, records: registrosValores }),
               }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
             }
-            guardadas++;
-            fechasGuardadas.push(serie.fecha);
-          }
+            return serie.fecha;
+          }));
+
+          const fechasGuardadas = resultadosSeries.filter(Boolean);
+          const guardadas = fechasGuardadas.length;
 
           const textoFinal = guardadas > 0
             ? `${mensaje}\n\n✅ Guardado en NOVA LABS: ${guardadas} de ${series.length} fecha(s) (${fechasGuardadas.join(', ')}). Ya puedes verlas en la pestaña NOVA LABS del expediente.`
