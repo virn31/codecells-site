@@ -878,6 +878,39 @@ module.exports = async function handler(req, res) {
               headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
             }).catch(() => {});
+
+            // Un registro por analito en LAB_VALORES — fuente real del comparativo
+            // (más robusta que parsear JSON de un campo de texto).
+            const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+            const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
+            const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+            const fechaEstudio = extraido.fecha_estudio || new Date().toISOString().slice(0, 10);
+            const registrosValores = analitos.filter(a => a.nombre).map(a => {
+              const banderaCap = capitalizar(a.bandera);
+              const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+              return {
+                fields: {
+                  'Analito': a.nombre,
+                  'Valor': String(a.valor ?? ''),
+                  ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+                  'Unidad': a.unidad || '',
+                  'Rango de referencia': a.rango_texto || '',
+                  'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+                  'Relevante a patología': !!a.relevante,
+                  'Fecha del estudio': fechaEstudio,
+                  'Código de paciente ref': pacienteCode,
+                  'Paciente': [pacRecord.id],
+                  'Estudio (NOVA LABS)': [crearData.id],
+                },
+              };
+            });
+            for (let i = 0; i < registrosValores.length; i += 50) {
+              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, records: registrosValores.slice(i, i + 50) }),
+              }).catch(e => console.error('[nova] error creando LAB_VALORES:', e.message));
+            }
           } else {
             console.error('[nova] error creando registro NOVA LABS:', JSON.stringify(crearData));
           }
@@ -894,9 +927,9 @@ module.exports = async function handler(req, res) {
   }
 
   // ─── PACIENTE: COMPARATIVO DE LABORATORIOS ────────────────────────
-  // Lee todos los estudios de NOVA LABS del paciente, parsea los analitos
-  // estructurados guardados en 'Resultados (texto)' y arma un pivote
-  // analito × fecha para mostrar tendencia + flags fuera de rango.
+  // Lee todos los valores de LAB_VALORES del paciente (un registro por
+  // analito por estudio) y arma un pivote analito × fecha para mostrar
+  // tendencia + flags fuera de rango / relevancia clínica.
   if (action === 'paciente_comparativo_labs') {
     try {
       const { pacienteCode } = req.body;
@@ -904,32 +937,34 @@ module.exports = async function handler(req, res) {
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
       const formula = `{Código de paciente ref}="${pacienteCode}"`;
-      const labsRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha de resultados&sort[0][direction]=asc`, {
+      const valoresRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, {
         headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
       });
-      const labsData = await labsRes.json();
-      const registros = labsData.records || [];
+      const valoresData = await valoresRes.json();
+      const registros = valoresData.records || [];
 
       // Pivote: { "Glucosa": [ {fecha, valor, unidad, bandera, rango_texto, relevante}, ... ], ... }
       const pivote = {};
+      const fechasVistas = new Set();
       registros.forEach(rec => {
-        const fecha = rec.fields['Fecha de resultados'] || '';
-        let analitos = [];
-        try { analitos = JSON.parse(rec.fields['Resultados (texto)'] || '[]'); } catch {}
-        analitos.forEach(a => {
-          if (!a.nombre) return;
-          if (!pivote[a.nombre]) pivote[a.nombre] = [];
-          pivote[a.nombre].push({
-            fecha, valor: a.valor, unidad: a.unidad || '', bandera: a.bandera || 'indeterminado',
-            rango_texto: a.rango_texto || '', relevante: !!a.relevante,
-          });
+        const f = rec.fields;
+        if (!f['Analito']) return;
+        fechasVistas.add(f['Fecha del estudio'] || '');
+        if (!pivote[f['Analito']]) pivote[f['Analito']] = [];
+        pivote[f['Analito']].push({
+          fecha: f['Fecha del estudio'] || '',
+          valor: f['Valor'] || '',
+          unidad: f['Unidad'] || '',
+          bandera: (f['Bandera'] || 'Indeterminado').toLowerCase(),
+          rango_texto: f['Rango de referencia'] || '',
+          relevante: !!f['Relevante a patología'],
         });
       });
 
-      return res.status(200).json({ ok: true, pivote, totalEstudios: registros.length });
+      return res.status(200).json({ ok: true, pivote, totalEstudios: fechasVistas.size });
     } catch (err) {
       console.error('[nova] paciente_comparativo_labs error:', err.message);
       return res.status(500).json({ error: 'Error interno al armar el comparativo.' });
