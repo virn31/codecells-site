@@ -37,6 +37,7 @@ module.exports = async (req, res) => {
 
     // Datos sociodemográficos → PACIENTES
     const pacienteFields = {
+      'Fecha de nacimiento': datos.fecha_nacimiento || undefined,
       'Estado civil': datos.estado_civil || undefined,
       'Ocupación': datos.ocupacion || undefined,
       'Grupo sanguíneo': datos.grupo_sanguineo || undefined,
