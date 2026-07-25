@@ -2745,87 +2745,8 @@ module.exports = async function handler(req, res) {
         : null;
       if (toolSeriesLab && Array.isArray(toolSeriesLab.input?.series)) {
         try {
-          const { mensaje, series } = toolSeriesLab.input;
-          if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
-            return res.status(200).json({ content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tengo un paciente seleccionado en el portal para guardar esto — abre su expediente primero y dicta de nuevo.` }] });
-          }
-
-          const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-          const BASE_ID = 'app6jyD9pDlTLpknA';
-          const TBL_PAC = 'tblyUcCfueFLJuvIv';
-          const TBL_LABS = 'tblhKp4uE1NdXXqLh';
-          const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
-          const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
-          const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
-
-          const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-          const pacData = await pacRes.json();
-          const pacRecord = pacData.records?.[0];
-          if (!pacRecord) {
-            return res.status(200).json({ content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No encontré ese paciente en Airtable — no se guardó nada.` }] });
-          }
-
-          const resultadosSeries = await Promise.all(series.filter(s => s.fecha).map(async serie => {
-            const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
-            const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
-
-            const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                typecast: true,
-                fields: {
-                  'Código de paciente ref': pacienteCode,
-                  'Paciente': [pacRecord.id],
-                  'Fecha de resultados': serie.fecha,
-                  'Tipo de estudio': serie.tipo_estudio || (analitos.length ? 'Laboratorio' : 'Otro estudio'),
-                  'Panel solicitado': serie.panel_sugerido || 'Personalizado',
-                  'Resultados (texto)': serie.resumen_texto || (analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Dictado por médico.'),
-                  ...(fueraDeRango.length ? { 'Valores fuera de rango': fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'})`).join('\n') } : {}),
-                },
-              }),
-            });
-            const crearData = await crearRes.json();
-            if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return null; }
-
-            if (analitos.length) {
-              const registrosValores = analitos.map(a => {
-                const banderaCap = capitalizar(a.bandera);
-                const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
-                return {
-                  fields: {
-                    'Analito': a.nombre,
-                    'Valor': String(a.valor ?? ''),
-                    ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
-                    'Unidad': a.unidad || '',
-                    'Rango de referencia': a.rango_texto || '',
-                    'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-                    'Es crítico': !!a.critico,
-                    'Relevante a patología': true,
-                    'Fecha del estudio': serie.fecha,
-                    'Código de paciente ref': pacienteCode,
-                    'Paciente': [pacRecord.id],
-                    'Estudio (NOVA LABS)': [crearData.id],
-                  },
-                };
-              });
-              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ typecast: true, records: registrosValores }),
-              }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
-            }
-            return serie.fecha;
-          }));
-
-          const fechasGuardadas = resultadosSeries.filter(Boolean);
-          const guardadas = fechasGuardadas.length;
-
-          const textoFinal = guardadas > 0
-            ? `${mensaje}\n\n✅ Guardado en NOVA LABS: ${guardadas} de ${series.length} fecha(s) (${fechasGuardadas.join(', ')}). Ya puedes verlas en la pestaña NOVA LABS del expediente.`
-            : `${mensaje}\n\n⚠️ No se pudo guardar ninguna fecha — revisa el formato e inténtalo de nuevo.`;
-
-          return res.status(200).json({ content: [{ type: 'text', text: textoFinal }], refrescarLabs: guardadas > 0 });
+          const resultado = await ejecutarGuardadoSeriesLab(pacienteCode, toolSeriesLab.input.mensaje, toolSeriesLab.input.series);
+          return res.status(200).json(resultado);
         } catch (err) {
           console.error('[nova] error en guardar_series_historicas_laboratorio:', err.message);
           return res.status(502).json({ error: 'Error guardando el historial de laboratorio. Inténtalo de nuevo.' });
@@ -2872,6 +2793,46 @@ module.exports = async function handler(req, res) {
       }
       // Si NOVA no usó la herramienta (pregunta normal, sin dictado clínico),
       // sigue el flujo de texto normal de abajo.
+
+      // ─── RED DE SEGURIDAD: dictado con 2+ fechas pero NOVA no usó NINGUNA
+      // herramienta (con tool_choice:'auto' puede simplemente "platicar" en vez
+      // de guardar). Se detecta por patrón de fechas en el último mensaje del
+      // médico y se fuerza una segunda llamada obligando la herramienta de
+      // backfill — así el guardado no depende de que el modelo "decida" usarla.
+      const huboToolUse = Array.isArray(data.content) && data.content.some(b => b && b.type === 'tool_use');
+      if (!huboToolUse && pacienteCode && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+        const ultimoMensaje = typeof messages[messages.length - 1]?.content === 'string' ? messages[messages.length - 1].content : '';
+        const fechasDetectadas = (ultimoMensaje.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/g) || []).length;
+        if (fechasDetectadas >= 2) {
+          console.error('[nova] dictado con', fechasDetectadas, 'fechas pero sin tool_use — forzando guardar_series_historicas_laboratorio.');
+          try {
+            const forzadoRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({
+                model: 'claude-sonnet-5',
+                max_tokens: 8000,
+                system: systemPrompt,
+                messages,
+                tools: [herramientaSeriesLab],
+                tool_choice: { type: 'tool', name: 'guardar_series_historicas_laboratorio' },
+              }),
+            });
+            const forzadoData = await forzadoRes.json();
+            const forzadoTool = forzadoRes.ok && Array.isArray(forzadoData.content)
+              ? forzadoData.content.find(b => b && b.type === 'tool_use' && b.name === 'guardar_series_historicas_laboratorio')
+              : null;
+            if (forzadoTool && Array.isArray(forzadoTool.input?.series)) {
+              const resultado = await ejecutarGuardadoSeriesLab(pacienteCode, forzadoTool.input.mensaje, forzadoTool.input.series);
+              return res.status(200).json(resultado);
+            }
+          } catch (err) {
+            console.error('[nova] error en reintento forzado de guardado de labs:', err.message);
+          }
+          // Si el reintento forzado también falla, sigue al texto normal de abajo
+          // en vez de dejar al médico sin ninguna respuesta.
+        }
+      }
     }
 
     // ─── MODO MÉDICO (sin ficha) / PÚBLICO: respuesta de texto normal ──
@@ -2996,6 +2957,94 @@ function buildHerramientaSeriesHistoricasLab() {
       required: ['mensaje', 'series'],
     },
   };
+}
+
+// ─── Ejecuta el guardado real de series históricas en Airtable ────
+// Extraída como función independiente para poder llamarla tanto desde el
+// tool_use natural de NOVA como desde el reintento forzado (cuando NOVA
+// respondió solo en texto sin usar ninguna herramienta pese a que el
+// dictado claramente traía varias fechas).
+async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
+  if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+    return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tengo un paciente seleccionado en el portal para guardar esto — abre su expediente primero y dicta de nuevo.` }] };
+  }
+
+  const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+  const BASE_ID = 'app6jyD9pDlTLpknA';
+  const TBL_PAC = 'tblyUcCfueFLJuvIv';
+  const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+  const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+  const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+  const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
+
+  const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  const pacData = await pacRes.json();
+  const pacRecord = pacData.records?.[0];
+  if (!pacRecord) {
+    return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No encontré ese paciente en Airtable — no se guardó nada.` }] };
+  }
+
+  const resultadosSeries = await Promise.all((series || []).filter(s => s.fecha).map(async serie => {
+    const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
+    const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
+
+    const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        typecast: true,
+        fields: {
+          'Código de paciente ref': pacienteCode,
+          'Paciente': [pacRecord.id],
+          'Fecha de resultados': serie.fecha,
+          'Tipo de estudio': serie.tipo_estudio || (analitos.length ? 'Laboratorio' : 'Otro estudio'),
+          'Panel solicitado': serie.panel_sugerido || 'Personalizado',
+          'Resultados (texto)': serie.resumen_texto || (analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Dictado por médico.'),
+          ...(fueraDeRango.length ? { 'Valores fuera de rango': fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'})`).join('\n') } : {}),
+        },
+      }),
+    });
+    const crearData = await crearRes.json();
+    if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return null; }
+
+    if (analitos.length) {
+      const registrosValores = analitos.map(a => {
+        const banderaCap = capitalizar(a.bandera);
+        const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+        return {
+          fields: {
+            'Analito': a.nombre,
+            'Valor': String(a.valor ?? ''),
+            ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+            'Unidad': a.unidad || '',
+            'Rango de referencia': a.rango_texto || '',
+            'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+            'Es crítico': !!a.critico,
+            'Relevante a patología': true,
+            'Fecha del estudio': serie.fecha,
+            'Código de paciente ref': pacienteCode,
+            'Paciente': [pacRecord.id],
+            'Estudio (NOVA LABS)': [crearData.id],
+          },
+        };
+      });
+      await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ typecast: true, records: registrosValores }),
+      }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
+    }
+    return serie.fecha;
+  }));
+
+  const fechasGuardadas = resultadosSeries.filter(Boolean);
+  const guardadas = fechasGuardadas.length;
+
+  const textoFinal = guardadas > 0
+    ? `${mensaje}\n\n✅ Guardado en NOVA LABS: ${guardadas} de ${(series || []).length} fecha(s) (${fechasGuardadas.join(', ')}). Ya puedes verlas en la pestaña NOVA LABS del expediente.`
+    : `${mensaje}\n\n⚠️ No se pudo guardar ninguna fecha — revisa el formato e inténtalo de nuevo.`;
+
+  return { content: [{ type: 'text', text: textoFinal }], refrescarLabs: guardadas > 0 };
 }
 
 // ─── DEFINICIÓN DE LA HERRAMIENTA DE NOVA EN MODO MÉDICO (ficha) ───
