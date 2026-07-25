@@ -91,6 +91,18 @@
   .install-banner { background: var(--gold-pale2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; }
   .install-banner p { flex: 1; font-size: 13px; color: var(--text-1); line-height: 1.5; margin: 0; }
   .install-banner button { background: var(--gold); color: var(--black); border: none; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+
+  .filtro-labs-btn { font-size: 11.5px; color: var(--text-2); background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 20px; padding: 7px 13px; cursor: pointer; }
+  .filtro-labs-btn.activo { color: var(--black); background: var(--gold); border-color: var(--gold); font-weight: 600; }
+  .lab-analito { border-bottom: 1px solid var(--border-dim); padding: 12px 0; }
+  .lab-analito:last-child { border-bottom: none; }
+  .lab-analito-nombre { font-size: 13.5px; color: var(--text-1); font-weight: 500; margin-bottom: 6px; }
+  .lab-serie { display: flex; flex-wrap: wrap; gap: 6px; }
+  .lab-punto { font-family: var(--font-mono); font-size: 11px; border-radius: 8px; padding: 5px 9px; white-space: nowrap; }
+  .lab-punto-normal { background: var(--black-3); color: var(--text-2); }
+  .lab-punto-alto { background: rgba(226,87,75,0.15); color: #E2574B; }
+  .lab-punto-bajo { background: rgba(0,212,255,0.12); color: var(--cyan); }
+  .lab-punto-fecha { display: block; font-size: 9px; color: var(--text-3); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -150,6 +162,19 @@
       <button class="btn-enviar" id="btn-subir-estudio" style="width:100%;border-radius:24px;font-size:14px;font-weight:600;">📎 Elegir archivo</button>
       <div id="estudio-nombre" style="font-size:12px;color:var(--text-3);margin-top:8px;text-align:center;"></div>
       <div id="estudio-estado" style="font-size:13px;margin-top:10px;text-align:center;min-height:18px;"></div>
+    </div>
+
+    <div class="seccion-label">Tus laboratorios</div>
+    <div class="chat-caja" style="padding:20px;" id="labs-caja">
+      <div id="labs-vacio" style="font-size:13px;color:var(--text-3);font-style:italic;">Aún no tienes estudios con datos extraídos.</div>
+      <div id="labs-contenido" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button type="button" class="filtro-labs-btn activo" data-filtro="relevantes" onclick="cambiarFiltroLabs('relevantes')">Relevantes a tu caso</button>
+          <button type="button" class="filtro-labs-btn" data-filtro="fuera" onclick="cambiarFiltroLabs('fuera')">Fuera de rango</button>
+          <button type="button" class="filtro-labs-btn" data-filtro="todos" onclick="cambiarFiltroLabs('todos')">Todos</button>
+        </div>
+        <div id="labs-tabla"></div>
+      </div>
     </div>
 
     <div class="seccion-label">Habla con NOVA</div>
@@ -352,6 +377,7 @@ function cargarPaciente() {
       mensajeBienvenida();
       irA('p-principal');
       renderInstallBanner();
+      cargarComparativoLabs();
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';
@@ -452,6 +478,82 @@ document.getElementById('chat-input').addEventListener('keydown', function(e){
   if (e.key === 'Enter') enviarMensaje();
 });
 
+// ─── COMPARATIVO DE LABORATORIOS ──────────────────────────────────
+var labsPivote = {};
+var filtroLabsActual = 'relevantes';
+
+function cargarComparativoLabs() {
+  fetch('/api/nova', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'paciente_comparativo_labs', pacienteCode: pacienteCodigo }),
+  })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.ok) return;
+      labsPivote = data.pivote || {};
+      renderComparativoLabs();
+    })
+    .catch(function(){ /* silencioso — no bloquea el resto del portal */ });
+}
+
+function cambiarFiltroLabs(filtro) {
+  filtroLabsActual = filtro;
+  document.querySelectorAll('.filtro-labs-btn').forEach(function(b){
+    b.classList.toggle('activo', b.getAttribute('data-filtro') === filtro);
+  });
+  renderComparativoLabs();
+}
+
+function renderComparativoLabs() {
+  var nombres = Object.keys(labsPivote);
+  var vacioEl = document.getElementById('labs-vacio');
+  var contEl = document.getElementById('labs-contenido');
+  var tablaEl = document.getElementById('labs-tabla');
+
+  if (!nombres.length) {
+    vacioEl.style.display = 'block';
+    contEl.style.display = 'none';
+    return;
+  }
+
+  var nombresFiltrados = nombres.filter(function(nombre) {
+    var serie = labsPivote[nombre];
+    if (filtroLabsActual === 'todos') return true;
+    if (filtroLabsActual === 'fuera') return serie.some(function(p){ return p.bandera === 'alto' || p.bandera === 'bajo'; });
+    if (filtroLabsActual === 'relevantes') return serie.some(function(p){ return p.relevante; });
+    return true;
+  });
+
+  if (!nombresFiltrados.length) {
+    vacioEl.style.display = 'block';
+    vacioEl.textContent = filtroLabsActual === 'fuera'
+      ? 'No hay valores fuera de rango en tus estudios.'
+      : 'No hay valores marcados como relevantes a tu caso todavía — revisa "Todos".';
+    contEl.style.display = 'none';
+    return;
+  }
+
+  vacioEl.style.display = 'none';
+  contEl.style.display = 'block';
+  tablaEl.innerHTML = '';
+
+  nombresFiltrados.forEach(function(nombre) {
+    var serie = labsPivote[nombre];
+    var fila = document.createElement('div');
+    fila.className = 'lab-analito';
+    var puntosHtml = serie.map(function(p) {
+      var claseBandera = (p.bandera === 'alto' || p.bandera === 'bajo') ? 'lab-punto-' + p.bandera : 'lab-punto-normal';
+      return '<div class="lab-punto ' + claseBandera + '">' +
+        p.valor + (p.unidad ? ' ' + p.unidad : '') +
+        '<span class="lab-punto-fecha">' + (p.fecha || '—') + '</span>' +
+        '</div>';
+    }).join('');
+    fila.innerHTML = '<div class="lab-analito-nombre">' + nombre + '</div><div class="lab-serie">' + puntosHtml + '</div>';
+    tablaEl.appendChild(fila);
+  });
+}
+
 // ─── SUBIR ESTUDIO CON VERIFICACIÓN DE IDENTIDAD ─────────────────
 document.getElementById('btn-subir-estudio').addEventListener('click', function() {
   document.getElementById('input-estudio').click();
@@ -506,8 +608,12 @@ document.getElementById('input-estudio').addEventListener('change', function(e) 
         btn.disabled = false;
         if (data.ok && data.verificado) {
           estadoEl.style.color = '#5FAE6E';
-          estadoEl.textContent = 'Estudio agregado a tu expediente ✓';
+          estadoEl.textContent = 'Estudio agregado a tu expediente ✓ — procesando datos…';
           document.getElementById('input-estudio').value = '';
+          // La extracción de analitos corre en segundo plano en el servidor;
+          // se refresca el comparativo un par de veces dando tiempo a que termine.
+          setTimeout(cargarComparativoLabs, 6000);
+          setTimeout(cargarComparativoLabs, 14000);
         } else {
           estadoEl.style.color = '#E2574B';
           estadoEl.textContent = data.error || 'No se pudo verificar el documento.';

@@ -810,10 +810,129 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({ typecast: true, fields: { 'Última actividad': new Date().toISOString() } }),
       }).catch(() => {});
 
+      // 5) Extracción estructurada a NOVA LABS — corre en segundo plano, nunca
+      // bloquea la respuesta al paciente. Si falla, el archivo YA quedó a salvo
+      // en el expediente (paso 4); solo se pierde el comparativo automático,
+      // que el médico puede llenar manualmente desde Interpretación médico.
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const patologiasActivas = pacRecord.fields['Patologías activas'] || [];
+      const panelesValidos = ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'];
+
+      (async () => {
+        try {
+          const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({
+              model: 'claude-sonnet-5',
+              max_tokens: 2000,
+              messages: [{
+                role: 'user',
+                content: [
+                  contentBlock,
+                  { type: 'text', text:
+                    `Extrae los resultados de este estudio de laboratorio/imagen en JSON puro, sin texto adicional ni backticks.\n` +
+                    `Patologías activas conocidas del paciente: ${patologiasActivas.length ? patologiasActivas.join(', ') : 'ninguna registrada'}.\n` +
+                    `Formato exacto:\n` +
+                    `{"fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
+                    `Si el documento no es un laboratorio con valores numéricos (ej. es una imagen/estudio de gabinete sin analitos), responde {"fecha_estudio":null,"panel_sugerido":"Personalizado","analitos":[]}.`
+                  }
+                ]
+              }]
+            })
+          });
+          const extractData = await extractRes.json();
+          let extraido;
+          try { extraido = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { extraido = { fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
+          const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
+          const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
+          const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
+          const relevantes = analitos.filter(a => a.relevante);
+
+          const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              typecast: true,
+              fields: {
+                'Código de paciente ref': pacienteCode,
+                'Fecha de resultados': extraido.fecha_estudio || new Date().toISOString().slice(0, 10),
+                'Panel solicitado': panel,
+                'Resultados (texto)': JSON.stringify(analitos),
+                'Valores fuera de rango': fueraDeRango.length
+                  ? fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'}, ref ${a.rango_texto || 'n/d'})`).join('\n')
+                  : 'Sin valores fuera de rango detectados.',
+                'Interpretación NOVA': relevantes.length
+                  ? `Relevante a patologías activas: ${relevantes.map(a => a.nombre).join(', ')}.`
+                  : (analitos.length ? 'Ningún valor marcado como relevante a las patologías activas registradas — el médico puede revisar el estudio completo en el adjunto.' : ''),
+                'Requiere seguimiento': fueraDeRango.some(a => a.relevante),
+                'Paciente': [pacRecord.id],
+              },
+            }),
+          });
+          const crearData = await crearRes.json();
+          if (crearData.id) {
+            // Adjuntar el mismo archivo al registro de NOVA LABS (además del expediente general).
+            fetch(`https://content.airtable.com/v0/${BASE_ID}/${crearData.id}/fldxrF2w5I4cc3MNF/uploadAttachment`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
+            }).catch(() => {});
+          } else {
+            console.error('[nova] error creando registro NOVA LABS:', JSON.stringify(crearData));
+          }
+        } catch (bgErr) {
+          console.error('[nova] extracción NOVA LABS en segundo plano falló:', bgErr.message);
+        }
+      })();
+
       return res.status(200).json({ ok: true, verificado: true });
     } catch (err) {
       console.error('[nova] paciente_subir_estudio error:', err.message);
       return res.status(500).json({ error: 'Error interno al procesar el estudio.' });
+    }
+  }
+
+  // ─── PACIENTE: COMPARATIVO DE LABORATORIOS ────────────────────────
+  // Lee todos los estudios de NOVA LABS del paciente, parsea los analitos
+  // estructurados guardados en 'Resultados (texto)' y arma un pivote
+  // analito × fecha para mostrar tendencia + flags fuera de rango.
+  if (action === 'paciente_comparativo_labs') {
+    try {
+      const { pacienteCode } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+
+      const formula = `{Código de paciente ref}="${pacienteCode}"`;
+      const labsRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha de resultados&sort[0][direction]=asc`, {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+      });
+      const labsData = await labsRes.json();
+      const registros = labsData.records || [];
+
+      // Pivote: { "Glucosa": [ {fecha, valor, unidad, bandera, rango_texto, relevante}, ... ], ... }
+      const pivote = {};
+      registros.forEach(rec => {
+        const fecha = rec.fields['Fecha de resultados'] || '';
+        let analitos = [];
+        try { analitos = JSON.parse(rec.fields['Resultados (texto)'] || '[]'); } catch {}
+        analitos.forEach(a => {
+          if (!a.nombre) return;
+          if (!pivote[a.nombre]) pivote[a.nombre] = [];
+          pivote[a.nombre].push({
+            fecha, valor: a.valor, unidad: a.unidad || '', bandera: a.bandera || 'indeterminado',
+            rango_texto: a.rango_texto || '', relevante: !!a.relevante,
+          });
+        });
+      });
+
+      return res.status(200).json({ ok: true, pivote, totalEstudios: registros.length });
+    } catch (err) {
+      console.error('[nova] paciente_comparativo_labs error:', err.message);
+      return res.status(500).json({ error: 'Error interno al armar el comparativo.' });
     }
   }
 
