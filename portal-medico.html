@@ -3766,6 +3766,7 @@ function cambiarSubtabLabs(tipo) {
 var labsPivoteFilas = [];
 var labsPivoteFechas = [];
 var labsCategoriasColapsadas = new Set();
+var labsInterpretacionActual = '';
 
 async function cargarTablaPivoteLabs() {
   if (!pacienteActual) return;
@@ -3773,15 +3774,27 @@ async function cargarTablaPivoteLabs() {
   const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
   const cont = document.getElementById('labs-tabla-pivote');
   cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
+  labsInterpretacionActual = '';
 
   try {
-    const r = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'medico_tabla_labs', pacienteCode: pacId }),
-    });
+    const [r, rInterp] = await Promise.all([
+      fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'medico_tabla_labs', pacienteCode: pacId }),
+      }),
+      fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'medico_resumen_labs', pacienteCode: pacId }),
+      }).catch(() => null),
+    ]);
     const data = await r.json();
     if (!data.ok) { cont.innerHTML = '<div class="data-cell"><div class="val">No se pudo cargar la tabla de laboratorios.</div></div>'; return; }
+
+    if (rInterp) {
+      try { const dataInterp = await rInterp.json(); labsInterpretacionActual = (dataInterp.ok && dataInterp.interpretacion) || ''; } catch {}
+    }
 
     labsPivoteFilas = data.filas || [];
     labsPivoteFechas = data.fechas || [];
@@ -3828,18 +3841,42 @@ function sparklineSVG(puntos) {
   const vals = numericos.map(p => p.valorNum);
   const min = Math.min(...vals), max = Math.max(...vals);
   const rango = (max - min) || 1;
-  const w = 70, h = 22, pad = 3;
-  const pts = numericos.map((p, i) => {
-    const x = pad + (i / (numericos.length - 1)) * (w - pad * 2);
-    const y = h - pad - ((p.valorNum - min) / rango) * (h - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
+  const w = 84, h = 28, pad = 4;
+
+  const coords = numericos.map((p, i) => ({
+    x: pad + (i / (numericos.length - 1)) * (w - pad * 2),
+    y: h - pad - ((p.valorNum - min) / rango) * (h - pad * 2),
+  }));
+
+  // Curva suave tipo Catmull-Rom → Bézier, en vez de segmentos rectos.
+  let path = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const p0 = coords[i - 1] || coords[i];
+    const p1 = coords[i];
+    const p2 = coords[i + 1];
+    const p3 = coords[i + 2] || p2;
+    const cp1x = p1.x + (p2.x - p0.x) / 6, cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6, cp2y = p2.y - (p3.y - p1.y) / 6;
+    path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  const areaPath = `${path} L ${coords[coords.length - 1].x.toFixed(1)} ${h} L ${coords[0].x.toFixed(1)} ${h} Z`;
 
   const badness = b => (b === 'Alto' || b === 'Bajo') ? 1 : (b === 'Normal' ? 0 : 0.5);
   const primero = badness(numericos[0].bandera), ultimo = badness(numericos[numericos.length - 1].bandera);
-  const color = ultimo < primero ? '#4FA8A0' : (ultimo > primero ? '#E2574B' : '#8a8580');
+  const color = ultimo < primero ? '#5FAE6E' : (ultimo > primero ? '#E2574B' : '#C9A96A');
+  const gid = 'spk' + Math.random().toString(36).slice(2, 9);
+  const finalPt = coords[coords.length - 1];
+  const finalCritico = numericos[numericos.length - 1].critico;
 
-  return `<svg width="${w}" height="${h}" style="display:block;pointer-events:none;"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+  return `<svg width="${w}" height="${h}" style="display:block;pointer-events:none;">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${areaPath}" fill="url(#${gid})" stroke="none"/>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round"/>
+    <circle cx="${finalPt.x.toFixed(1)}" cy="${finalPt.y.toFixed(1)}" r="${finalCritico ? 3.5 : 2.5}" fill="${finalCritico ? '#E74C3C' : color}"/>
+  </svg>`;
 }
 
 function claseValorBandera(p) {
@@ -3938,6 +3975,7 @@ function renderTablaPivoteLabs() {
       <tbody>${bloquesHTML}</tbody>
     </table>
     <div style="font-size:11px;color:var(--text-3);margin-top:10px;">🔵 Bajo &nbsp; 🟢 Normal &nbsp; 🟠 Alto &nbsp; 🔴 Crítico — los resultados están sujetos a interpretación clínica. Clic en una fila para ver el detalle.</div>
+    ${labsInterpretacionActual ? `<div style="margin-top:16px;padding:14px 16px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.6;color:var(--text-2);">${labsInterpretacionActual}</div>` : ''}
   `;
 }
 
