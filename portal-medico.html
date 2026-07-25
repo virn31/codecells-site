@@ -1807,6 +1807,8 @@
     <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
     <!-- Botón Mi Link — link de autorregistro personal para pacientes -->
     <button class="btn-topbar" id="btn-mi-link" title="Copiar mi link de preconsulta para pacientes">🔗 Mi Link</button>
+    <!-- Botón conectar Google Calendar -->
+    <button class="btn-topbar" id="btn-google-calendar" title="Conectar mi Google Calendar">📅 Agenda</button>
     <!-- Botón Capacitación -->
     <a class="btn-capacitacion-topbar" href="/capacitacion/" target="_blank" title="Programa de certificación médica">
       ◈ Capacitación
@@ -3932,6 +3934,30 @@ document.getElementById('btn-mi-link').addEventListener('click', async () => {
     btn.textContent = textoOriginal;
     btn.disabled = false;
   }
+});
+
+document.getElementById('btn-google-calendar').addEventListener('click', () => {
+  if (!medicoActual || medicoActual.id === 'demo') {
+    showToast('El modo demo no puede conectar Google Calendar.', 'error');
+    return;
+  }
+  if (medicoActual['Google Calendar Email']) {
+    showToast(`Ya tienes conectado: ${medicoActual['Google Calendar Email']}`, 'success');
+    return;
+  }
+  const GOOGLE_CLIENT_ID = '741625233877-n4i5n224o0mq7h2ao7cbnru470co7m9b.apps.googleusercontent.com';
+  const redirectUri = 'https://www.codecells.mx/api/google-oauth-callback';
+  const codigoMedico = medicoActual['Código de médico'] || medicoActual['codigo'];
+  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email',
+    access_type: 'offline',
+    prompt: 'consent',
+    state: codigoMedico,
+  }).toString();
+  window.location.href = authUrl;
 });
 document.getElementById('btn-nova-close').addEventListener('click', cerrarNova);
 novaOverlay.addEventListener('click', cerrarNova);
