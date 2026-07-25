@@ -1567,6 +1567,21 @@
   .tab-pane { display: none; }
   .tab-pane.active { display: block; }
 
+  .labs-subtab-btn {
+    background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-3);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 20px; cursor: pointer; transition: all 0.15s;
+  }
+  .labs-subtab-btn:hover { color: var(--text-2); }
+  .labs-subtab-btn.activo { background: var(--gold); border-color: var(--gold); color: #0a0a0a; font-weight: 700; }
+  .labs-comparativo-fila {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    padding: 7px 0; border-bottom: 0.5px solid var(--border-dim); font-size: 12px;
+  }
+  .labs-comparativo-fila:last-child { border-bottom: none; }
+  .labs-comparativo-delta-alto { color: #E2574B; font-family: var(--font-mono); }
+  .labs-comparativo-delta-bajo { color: #4FA8A0; font-family: var(--font-mono); }
+
   /* Labs table */
   .labs-table {
     width: 100%;
@@ -2096,7 +2111,21 @@
 
           <!-- Tab: NOVA LABS -->
           <div class="tab-pane" id="tab-labs">
-            <div class="section-label">Últimos laboratorios</div>
+            <div id="labs-resumen" style="display:none;margin-bottom:18px;padding:14px 16px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;">
+              <div class="section-label" style="margin:0 0 10px;">Resumen e interpretación — corte actual vs. anterior</div>
+              <div id="labs-comparativo-tabla" style="margin-bottom:10px;"></div>
+              <div id="labs-interpretacion" style="font-size:12.5px;line-height:1.6;color:var(--text-2);"></div>
+            </div>
+
+            <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;" id="labs-subtabs">
+              <button class="labs-subtab-btn activo" data-tipo="Todos" onclick="cambiarSubtabLabs('Todos')">Todos</button>
+              <button class="labs-subtab-btn" data-tipo="Laboratorio" onclick="cambiarSubtabLabs('Laboratorio')">Laboratorios</button>
+              <button class="labs-subtab-btn" data-tipo="RX" onclick="cambiarSubtabLabs('RX')">RX</button>
+              <button class="labs-subtab-btn" data-tipo="USG" onclick="cambiarSubtabLabs('USG')">USG</button>
+              <button class="labs-subtab-btn" data-tipo="otros" onclick="cambiarSubtabLabs('otros')">Otros</button>
+            </div>
+
+            <div class="section-label">Estudios en orden cronológico</div>
             <div id="labs-content">
               <div class="loading-row"><span class="loader"></span></div>
             </div>
@@ -3575,36 +3604,87 @@ function demoConsultas() {
 }
 
 // ─── NOVA LABS ────────────────────────────────────────────────────
+var labsEstudiosActuales = [];
+var labsSubtabActual = 'Todos';
+
 async function cargarLabs(pacId) {
   const cont = document.getElementById('labs-content');
+  const resumenBox = document.getElementById('labs-resumen');
   cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
+  resumenBox.style.display = 'none';
+  labsSubtabActual = 'Todos';
+  document.querySelectorAll('.labs-subtab-btn').forEach(b => b.classList.toggle('activo', b.getAttribute('data-tipo') === 'Todos'));
 
   try {
-    const formula = encodeURIComponent(`{Código de paciente ref}="${pacId}"`);
-    const data = await airtableFetch(TBL_LABS, `?filterByFormula=${formula}&sort[0][field]=Fecha%20de%20resultados&sort[0][direction]=desc&maxRecords=10`);
+    const r = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_resumen_labs', pacienteCode: pacId }),
+    });
+    const data = await r.json();
 
-    if (!data.records || data.records.length === 0) {
-      cont.innerHTML = '<div class="data-cell"><div class="val">Este paciente aún no tiene resultados de laboratorio registrados.</div></div>';
+    if (!data.ok) {
+      cont.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.</div></div>';
       return;
     }
 
-    cont.innerHTML = data.records.map(r => {
-      const f = r.fields;
-      return `
-        <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:6px;">
-            <span>${f['Panel solicitado'] || 'Laboratorio'}</span>
-            <span>${formatDate(f['Fecha de resultados'] || f['Fecha de solicitud'])}</span>
-          </div>
-          <div style="font-size:12px;white-space:pre-wrap;line-height:1.5;margin-bottom:${f['Valores fuera de rango'] ? '8px' : '0'};">${f['Resultados (texto)'] || 'Sin resultados capturados aún.'}</div>
-          ${f['Valores fuera de rango'] ? `<div style="font-size:11.5px;color:#E2574B;"><strong>Fuera de rango:</strong> ${f['Valores fuera de rango']}</div>` : ''}
-        </div>
-      `;
-    }).join('');
+    labsEstudiosActuales = data.estudios || [];
 
+    // Panel de resumen/comparativo — solo se muestra si hay algo que comparar.
+    if (data.comparativo && data.comparativo.length) {
+      resumenBox.style.display = 'block';
+      document.getElementById('labs-comparativo-tabla').innerHTML = data.comparativo.map(c => {
+        const claseDelta = c.actual.bandera === 'Alto' ? 'labs-comparativo-delta-alto' : (c.actual.bandera === 'Bajo' ? 'labs-comparativo-delta-bajo' : '');
+        const flechaTexto = c.previo ? `${c.previo.valor} ${c.previo.unidad} → ` : '';
+        const deltaTexto = (c.delta !== null && c.delta !== undefined) ? ` (Δ ${c.delta > 0 ? '+' : ''}${c.delta.toFixed(2)})` : '';
+        return `<div class="labs-comparativo-fila">
+          <span>${c.analito}</span>
+          <span class="${claseDelta}">${flechaTexto}${c.actual.valor} ${c.actual.unidad}${deltaTexto}</span>
+        </div>`;
+      }).join('');
+      document.getElementById('labs-interpretacion').textContent = data.interpretacion || 'Sin interpretación generada.';
+    } else {
+      resumenBox.style.display = 'none';
+    }
+
+    renderLabsFiltrados();
   } catch (err) {
     cont.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.</div></div>';
   }
+}
+
+function cambiarSubtabLabs(tipo) {
+  labsSubtabActual = tipo;
+  document.querySelectorAll('.labs-subtab-btn').forEach(b => b.classList.toggle('activo', b.getAttribute('data-tipo') === tipo));
+  renderLabsFiltrados();
+}
+
+function renderLabsFiltrados() {
+  const cont = document.getElementById('labs-content');
+  const tiposConocidos = ['Laboratorio', 'RX', 'USG'];
+  const filtrados = labsEstudiosActuales.filter(e => {
+    if (labsSubtabActual === 'Todos') return true;
+    if (labsSubtabActual === 'otros') return !tiposConocidos.includes(e.tipo);
+    return e.tipo === labsSubtabActual;
+  });
+
+  if (!filtrados.length) {
+    cont.innerHTML = '<div class="data-cell"><div class="val">Este paciente aún no tiene estudios registrados en esta categoría.</div></div>';
+    return;
+  }
+
+  cont.innerHTML = filtrados.map(e => `
+    <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;${e.requiereSeguimiento ? 'border-left:3px solid #E2574B;' : ''}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:6px;">
+        <span>${e.tipo}${e.panel ? ' · ' + e.panel : ''}</span>
+        <span>${formatDate(e.fecha)}</span>
+      </div>
+      <div style="font-size:12px;white-space:pre-wrap;line-height:1.5;margin-bottom:${e.fueraDeRango || e.interpretacionNova ? '8px' : '0'};">${e.resultadosTexto || 'Sin resultados capturados aún.'}</div>
+      ${e.fueraDeRango ? `<div style="font-size:11.5px;color:#E2574B;margin-bottom:6px;"><strong>Fuera de rango:</strong> ${e.fueraDeRango}</div>` : ''}
+      ${e.interpretacionNova ? `<div style="font-size:11.5px;color:var(--text-2);"><strong>NOVA:</strong> ${e.interpretacionNova}</div>` : ''}
+      ${e.archivos.length ? `<div style="margin-top:8px;"><a href="${e.archivos[0].url}" target="_blank" style="font-size:11px;color:var(--gold);">📎 Ver archivo adjunto</a></div>` : ''}
+    </div>
+  `).join('');
 }
 
 function demoLabs() {
@@ -3756,6 +3836,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
           'Código de paciente ref': pacId,
           'Paciente': [pacienteActual.id],
           'Panel solicitado': panelLab || 'Personalizado',
+          'Tipo de estudio': 'Laboratorio',
           'Resultados (texto)': resultadosLab,
           'Fecha de resultados': new Date().toISOString().split('T')[0],
         };

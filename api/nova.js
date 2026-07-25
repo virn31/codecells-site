@@ -817,6 +817,7 @@ module.exports = async function handler(req, res) {
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const patologiasActivas = pacRecord.fields['Patologías activas'] || [];
       const panelesValidos = ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'];
+      const tiposEstudioValidos = ['Laboratorio', 'RX', 'USG', 'Tomografía', 'Resonancia', 'Otro estudio'];
 
       (async () => {
         try {
@@ -831,11 +832,12 @@ module.exports = async function handler(req, res) {
                 content: [
                   contentBlock,
                   { type: 'text', text:
-                    `Extrae los resultados de este estudio de laboratorio/imagen en JSON puro, sin texto adicional ni backticks.\n` +
+                    `Extrae los resultados de este estudio médico en JSON puro, sin texto adicional ni backticks.\n` +
                     `Patologías activas conocidas del paciente: ${patologiasActivas.length ? patologiasActivas.join(', ') : 'ninguna registrada'}.\n` +
                     `Formato exacto:\n` +
-                    `{"fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
-                    `Si el documento no es un laboratorio con valores numéricos (ej. es una imagen/estudio de gabinete sin analitos), responde {"fecha_estudio":null,"panel_sugerido":"Personalizado","analitos":[]}.`
+                    `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
+                    `"tipo_estudio" clasifica el documento (Laboratorio si trae analitos con valores numéricos; RX/USG/Tomografía/Resonancia si es un estudio de imagen; Otro estudio si no encaja).\n` +
+                    `Si el documento es un estudio de imagen sin analitos numéricos, responde con "analitos":[] y deja "panel_sugerido":"Personalizado".`
                   }
                 ]
               }]
@@ -843,9 +845,10 @@ module.exports = async function handler(req, res) {
           });
           const extractData = await extractRes.json();
           let extraido;
-          try { extraido = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { extraido = { fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
+          try { extraido = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { extraido = { tipo_estudio: 'Otro estudio', fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
           const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
           const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
+          const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
           const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
           const relevantes = analitos.filter(a => a.relevante);
 
@@ -858,6 +861,7 @@ module.exports = async function handler(req, res) {
                 'Código de paciente ref': pacienteCode,
                 'Fecha de resultados': extraido.fecha_estudio || new Date().toISOString().slice(0, 10),
                 'Panel solicitado': panel,
+                'Tipo de estudio': tipoEstudio,
                 'Resultados (texto)': JSON.stringify(analitos),
                 'Valores fuera de rango': fueraDeRango.length
                   ? fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'}, ref ${a.rango_texto || 'n/d'})`).join('\n')
@@ -968,6 +972,107 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] paciente_comparativo_labs error:', err.message);
       return res.status(500).json({ error: 'Error interno al armar el comparativo.' });
+    }
+  }
+
+  // ─── MÉDICO: RESUMEN DE ESTUDIOS + COMPARATIVO CONTEXTUALIZADO ────
+  // Arma la vista de la pestaña NOVA LABS del Portal Médico: estudios en
+  // orden cronológico (clasificados por Tipo de estudio para las pestañas
+  // Laboratorio/RX/USG/etc.), comparativo del corte más reciente contra el
+  // anterior por analito, e interpretación en texto generada por Claude que
+  // explica los cambios en el contexto clínico real del paciente.
+  if (action === 'medico_resumen_labs') {
+    try {
+      const { pacienteCode } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+      const TBL_PAC = 'tblyUcCfueFLJuvIv';
+      const TBL_CONSULTAS = 'tbl1Xp2IGxdV178Ky';
+
+      const formula = `{Código de paciente ref}="${pacienteCode}"`;
+
+      const [labsRes, valoresRes, pacRes, consultasRes] = await Promise.all([
+        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha de resultados&sort[0][direction]=desc`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_CONSULTAS}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha de consulta&sort[0][direction]=desc&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+      ]);
+      const [labsData, valoresData, pacData, consultasData] = await Promise.all([labsRes.json(), valoresRes.json(), pacRes.json(), consultasRes.json()]);
+
+      const estudios = (labsData.records || []).map(r => ({
+        id: r.id,
+        tipo: r.fields['Tipo de estudio'] || 'Laboratorio',
+        panel: r.fields['Panel solicitado'] || '',
+        fecha: r.fields['Fecha de resultados'] || r.fields['Fecha de solicitud'] || '',
+        resultadosTexto: r.fields['Resultados (texto)'] || '',
+        fueraDeRango: r.fields['Valores fuera de rango'] || '',
+        interpretacionNova: r.fields['Interpretación NOVA'] || '',
+        interpretacionMedico: r.fields['Interpretación médico'] || '',
+        archivos: r.fields['Archivos de resultados'] || [],
+        requiereSeguimiento: !!r.fields['Requiere seguimiento'],
+      }));
+
+      // Comparativo: agrupa por analito, toma el corte de fecha más reciente
+      // contra el corte de fecha inmediato anterior (no necesariamente mes
+      // calendario — corte real de cuándo se sacaron los estudios).
+      const porAnalito = {};
+      (valoresData.records || []).forEach(r => {
+        const f = r.fields;
+        if (!f['Analito']) return;
+        (porAnalito[f['Analito']] ||= []).push({
+          fecha: f['Fecha del estudio'] || '', valor: f['Valor'] || '', valorNum: f['Valor numérico'],
+          unidad: f['Unidad'] || '', bandera: f['Bandera'] || 'Indeterminado', relevante: !!f['Relevante a patología'],
+        });
+      });
+      const comparativo = Object.entries(porAnalito).map(([analito, serie]) => {
+        serie.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+        const actual = serie[serie.length - 1];
+        const previo = serie.length > 1 ? serie[serie.length - 2] : null;
+        let delta = null;
+        if (previo && typeof actual.valorNum === 'number' && typeof previo.valorNum === 'number') {
+          delta = actual.valorNum - previo.valorNum;
+        }
+        return { analito, actual, previo, delta, relevante: actual.relevante, totalCortes: serie.length };
+      }).filter(c => c.relevante || c.actual.bandera === 'Alto' || c.actual.bandera === 'Bajo');
+
+      // Interpretación contextualizada — solo se genera si hay algo que comparar
+      // (evita gastar tokens en pacientes sin historial de labs todavía).
+      let interpretacion = '';
+      if (comparativo.length) {
+        const patologias = pacData.records?.[0]?.fields?.['Patologías activas'] || [];
+        const diagnostico = consultasData.records?.[0]?.fields?.['Diagnóstico (CIE-10)'] || consultasData.records?.[0]?.fields?.['Diagnóstico principal'] || '';
+        const resumenComparativo = comparativo.map(c =>
+          `${c.analito}: ${c.previo ? c.previo.valor + ' ' + c.previo.unidad + ' → ' : ''}${c.actual.valor} ${c.actual.unidad} (${c.actual.bandera}${c.delta !== null ? ', Δ ' + (c.delta > 0 ? '+' : '') + c.delta.toFixed(2) : ''})`
+        ).join('\n');
+
+        try {
+          const interpRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({
+              model: 'claude-sonnet-5',
+              max_tokens: 500,
+              messages: [{
+                role: 'user',
+                content: `Eres el motor de interpretación clínica de NOVA para un médico de CODE CELLS®. Con este comparativo de laboratorios (valor previo → valor actual, corte más reciente vs. anterior):\n\n${resumenComparativo}\n\nContexto del paciente — Patologías activas: ${patologias.length ? patologias.join(', ') : 'ninguna registrada'}. Diagnóstico más reciente: ${diagnostico || 'no registrado'}.\n\nEscribe un párrafo breve (máximo 120 palabras), directo y clínico, dirigido al médico, explicando qué significan estos cambios en el contexto de este paciente específico — no repitas los números, interprétalos. Si algo requiere atención prioritaria, dilo explícitamente. No inventes diagnósticos ni recomiendes tratamientos, solo interpreta la tendencia.`
+              }]
+            })
+          });
+          const interpData = await interpRes.json();
+          interpretacion = (interpData.content?.[0]?.text || '').trim();
+        } catch (e) {
+          console.error('[nova] error generando interpretación de labs:', e.message);
+        }
+      }
+
+      return res.status(200).json({ ok: true, estudios, comparativo, interpretacion });
+    } catch (err) {
+      console.error('[nova] medico_resumen_labs error:', err.message);
+      return res.status(500).json({ error: 'Error interno al armar el resumen de laboratorios.' });
     }
   }
 
