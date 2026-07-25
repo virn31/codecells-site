@@ -849,7 +849,7 @@ module.exports = async function handler(req, res) {
                     `Extrae los resultados de este estudio médico en JSON puro, sin texto adicional ni backticks.\n` +
                     `Patologías activas conocidas del paciente: ${patologiasActivas.length ? patologiasActivas.join(', ') : 'ninguna registrada'}.\n` +
                     `Formato exacto:\n` +
-                    `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
+                    `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","critico":true o false — SOLO true si el valor está MUY fuera del rango de referencia (no una desviación leve, un valor que amerite atención clínica prioritaria), "relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
                     `"tipo_estudio" clasifica el documento (Laboratorio si trae analitos con valores numéricos; RX/USG/Tomografía/Resonancia si es un estudio de imagen; Otro estudio si no encaja).\n` +
                     `Si el documento es un estudio de imagen sin analitos numéricos, responde con "analitos":[] y deja "panel_sugerido":"Personalizado".`
                   }
@@ -914,6 +914,7 @@ module.exports = async function handler(req, res) {
                   'Unidad': a.unidad || '',
                   'Rango de referencia': a.rango_texto || '',
                   'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+                  'Es crítico': !!a.critico,
                   'Relevante a patología': !!a.relevante,
                   'Fecha del estudio': fechaEstudio,
                   'Código de paciente ref': pacienteCode,
@@ -1017,7 +1018,9 @@ module.exports = async function handler(req, res) {
         { nombre: 'Función Hepática', claves: ['ast', 'alt', 'ggt', 'bilirrubina', 'fosfatasa alcalina', 'albúmina', 'albumina'] },
         { nombre: 'Función Renal', claves: ['tfg', 'filtrado glomerular', 'microalbuminuria'] },
         { nombre: 'Perfil Hormonal', claves: ['tsh', 't3', 't4', 'cortisol', 'testosterona', 'estradiol', 'progesterona', 'igf-1', 'igf1', 'prolactina', 'fsh', 'lh', 'dhea'] },
-        { nombre: 'Metabólico e Inflamatorio', claves: ['hba1c', 'insulina', 'homa-ir', 'homa ir', 'vitamina d', 'pcr', 'proteína c reactiva', 'proteina c reactiva', 'ferritina'] },
+        { nombre: 'Metabólico', claves: ['hba1c', 'insulina', 'homa-ir', 'homa ir', 'glucemia'] },
+        { nombre: 'Vitaminas', claves: ['vitamina d', 'vitamina b12', 'acido folico', 'ácido fólico', 'vitamina c', 'vitamina b1', 'vitamina b6'] },
+        { nombre: 'Marcadores Inflamatorios', claves: ['pcr', 'proteína c reactiva', 'proteina c reactiva', 'ferritina', 'vsg', 'velocidad de sedimentacion'] },
       ];
       const clasificar = nombreAnalito => {
         const n = (nombreAnalito || '').toLowerCase();
@@ -1043,6 +1046,7 @@ module.exports = async function handler(req, res) {
         }
         porAnalito[f['Analito']].porFecha[fecha] = {
           valor: f['Valor'] || '', valorNum: f['Valor numérico'], bandera: f['Bandera'] || 'Indeterminado',
+          critico: !!f['Es crítico'], estudioId: (f['Estudio (NOVA LABS)'] || [])[0] || null,
         };
         // Si el mismo analito trae rango/unidad distinto en un corte más reciente, se queda el más reciente.
         if (fecha >= (porAnalito[f['Analito']]._ultimaFechaVista || '')) {
@@ -1228,6 +1232,7 @@ module.exports = async function handler(req, res) {
               'Unidad': v.unidad || '',
               'Rango de referencia': v.rango || '',
               'Bandera': banderaCap,
+              'Es crítico': !!v.critico,
               'Relevante a patología': true, // el médico lo capturó a propósito en consultorio
               'Fecha del estudio': hoy,
               'Código de paciente ref': pacienteCode,
@@ -1297,7 +1302,7 @@ module.exports = async function handler(req, res) {
                 `Extrae los resultados de este estudio médico en JSON puro, sin texto adicional ni backticks.\n` +
                 `Patologías activas conocidas del paciente: ${patologiasActivas.length ? patologiasActivas.join(', ') : 'ninguna registrada'}.\n` +
                 `Formato exacto:\n` +
-                `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
+                `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","critico":true o false — SOLO true si el valor está MUY fuera del rango de referencia, "relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
                 `"tipo_estudio" clasifica el documento (Laboratorio si trae analitos con valores numéricos; RX/USG/Tomografía/Resonancia si es un estudio de imagen; Otro estudio si no encaja).\n` +
                 `Si el documento es un estudio de imagen sin analitos numéricos, responde con "analitos":[] y deja "panel_sugerido":"Personalizado".`
               }
@@ -1361,6 +1366,7 @@ module.exports = async function handler(req, res) {
               'Unidad': a.unidad || '',
               'Rango de referencia': a.rango_texto || '',
               'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+              'Es crítico': !!a.critico,
               'Relevante a patología': !!a.relevante,
               'Fecha del estudio': fechaEstudio,
               'Código de paciente ref': pacienteCode,
@@ -2794,6 +2800,7 @@ module.exports = async function handler(req, res) {
                     'Unidad': a.unidad || '',
                     'Rango de referencia': a.rango_texto || '',
                     'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+                    'Es crítico': !!a.critico,
                     'Relevante a patología': true,
                     'Fecha del estudio': serie.fecha,
                     'Código de paciente ref': pacienteCode,
@@ -2976,6 +2983,7 @@ function buildHerramientaSeriesHistoricasLab() {
                     unidad: { type: 'string' },
                     rango_texto: { type: 'string' },
                     bandera: { type: 'string', enum: ['normal', 'alto', 'bajo', 'indeterminado'] },
+                    critico: { type: 'boolean', description: 'true SOLO si el valor está muy fuera del rango de referencia (no una desviación leve).' },
                   },
                   required: ['nombre', 'valor'],
                 },

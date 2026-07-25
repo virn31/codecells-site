@@ -1594,10 +1594,20 @@
   .labs-pivote-table th, .labs-pivote-table td { padding: 7px 10px; border-bottom: 0.5px solid var(--border-dim); text-align: left; white-space: nowrap; }
   .labs-pivote-table th { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
   .labs-pivote-cat-row td { background: var(--bg-panel); font-weight: 700; color: var(--gold); padding-top: 12px; }
-  .labs-valor-alto { color: #E2574B; font-weight: 600; }
-  .labs-valor-bajo { color: #4FA8A0; font-weight: 600; }
+  .labs-valor-alto { color: #F0AD4E; font-weight: 600; }
+  .labs-valor-bajo { color: #4DA3FF; font-weight: 600; }
+  .labs-valor-critico { color: #fff; background: #E74C3C; font-weight: 700; border-radius: 4px; padding: 1px 6px; }
   .labs-valor-normal { color: var(--text-1); }
   .labs-valor-indeterminado { color: var(--text-3); }
+  .labs-pivote-table tbody tr:not(.labs-pivote-cat-row):hover { background: rgba(201,169,110,0.06); cursor: pointer; }
+  .labs-timeline-chip {
+    font-family: var(--font-mono); font-size: 10.5px; background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text-2); padding: 6px 12px; border-radius: 16px; cursor: pointer;
+  }
+  .labs-timeline-chip.activo { background: var(--gold); border-color: var(--gold); color: #0a0a0a; font-weight: 700; }
+  .labs-cat-toggle { cursor: pointer; user-select: none; }
+  .labs-cat-toggle .flecha { display: inline-block; transition: transform 0.15s; margin-right: 6px; }
+  .labs-cat-toggle.colapsado .flecha { transform: rotate(-90deg); }
 
   /* Labs table */
   .labs-table {
@@ -1714,6 +1724,7 @@
     .login-logo-block { margin-bottom: 1rem; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -2143,6 +2154,8 @@
             </div>
 
             <div id="labs-pivote-wrap" style="display:none;">
+              <div id="labs-timeline" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end;">
                 <div class="form-group" style="min-width:220px;">
                   <label>Rango de fechas</label>
@@ -2151,6 +2164,17 @@
                     <input type="date" id="labs-fecha-hasta" onchange="renderTablaPivoteLabs()">
                   </div>
                 </div>
+                <div class="form-group" style="min-width:160px;">
+                  <label>Buscar parámetro</label>
+                  <input type="text" id="labs-buscar" placeholder="ej. Glucosa…" oninput="renderTablaPivoteLabs()">
+                </div>
+                <div class="form-group" style="min-width:150px;">
+                  <label>Ordenar fechas</label>
+                  <select id="labs-orden-fecha" onchange="renderTablaPivoteLabs()">
+                    <option value="asc">Más antigua primero</option>
+                    <option value="desc">Más reciente primero</option>
+                  </select>
+                </div>
                 <div class="form-group" style="min-width:170px;">
                   <label>Ver</label>
                   <select id="labs-filtro-ver" onchange="renderTablaPivoteLabs()">
@@ -2158,7 +2182,22 @@
                     <option value="fuera">Solo fuera de rango</option>
                   </select>
                 </div>
-                <button type="button" class="btn-secondary" onclick="window.print()" style="font-size:11px;padding:9px 14px;">⬇ Exportar / Imprimir</button>
+                <button type="button" class="btn-secondary" id="btn-toggle-comparar" onclick="toggleModoComparar()" style="font-size:11px;padding:9px 14px;">⇄ Comparar fechas</button>
+                <button type="button" class="btn-secondary" onclick="copiarResumenLabs()" style="font-size:11px;padding:9px 14px;">📋 Copiar resumen</button>
+              </div>
+
+              <div id="labs-comparar-wrap" style="display:none;margin-bottom:18px;padding:14px 16px;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end;">
+                  <div class="form-group" style="min-width:160px;">
+                    <label>Fecha inicial</label>
+                    <select id="labs-comparar-fecha-a" onchange="renderCompararFechas()"></select>
+                  </div>
+                  <div class="form-group" style="min-width:160px;">
+                    <label>Fecha final</label>
+                    <select id="labs-comparar-fecha-b" onchange="renderCompararFechas()"></select>
+                  </div>
+                </div>
+                <div id="labs-comparar-tabla"></div>
               </div>
 
               <div id="labs-tarjetas-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px;"></div>
@@ -2171,6 +2210,23 @@
               <div id="labs-content">
                 <div class="loading-row"><span class="loader"></span></div>
               </div>
+            </div>
+          </div>
+
+          <!-- Modal: detalle de parámetro -->
+          <div id="labs-detalle-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:20px;">
+            <div style="background:var(--bg-card,#141414);border:1px solid var(--border);border-radius:12px;padding:22px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+                <div>
+                  <div id="labs-detalle-nombre" style="font-family:var(--font-serif,serif);font-size:20px;"></div>
+                  <div id="labs-detalle-rango" style="font-size:11px;color:var(--text-3);margin-top:4px;"></div>
+                </div>
+                <button type="button" onclick="document.getElementById('labs-detalle-modal').style.display='none'" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">×</button>
+              </div>
+              <div id="labs-detalle-estado" style="margin-bottom:14px;"></div>
+              <canvas id="labs-detalle-chart" height="160"></canvas>
+              <div id="labs-detalle-tabla" style="margin-top:16px;"></div>
+              <div id="labs-detalle-interpretacion" style="margin-top:14px;font-size:12.5px;color:var(--text-2);line-height:1.6;"></div>
             </div>
           </div>
 
@@ -3735,6 +3791,7 @@ function cambiarSubtabLabs(tipo) {
 // ─── TABLA PIVOTE DE LABORATORIOS (analito × fecha, por categoría) ─
 var labsPivoteFilas = [];
 var labsPivoteFechas = [];
+var labsCategoriasColapsadas = new Set();
 
 async function cargarTablaPivoteLabs() {
   if (!pacienteActual) return;
@@ -3754,15 +3811,41 @@ async function cargarTablaPivoteLabs() {
 
     labsPivoteFilas = data.filas || [];
     labsPivoteFechas = data.fechas || [];
+    labsCategoriasColapsadas = new Set();
 
     if (labsPivoteFechas.length) {
       document.getElementById('labs-fecha-desde').value = labsPivoteFechas[0];
       document.getElementById('labs-fecha-hasta').value = labsPivoteFechas[labsPivoteFechas.length - 1];
+      const selA = document.getElementById('labs-comparar-fecha-a');
+      const selB = document.getElementById('labs-comparar-fecha-b');
+      const opciones = labsPivoteFechas.map(fch => `<option value="${fch}">${formatDate(fch)}</option>`).join('');
+      selA.innerHTML = opciones; selB.innerHTML = opciones;
+      selA.value = labsPivoteFechas[0]; selB.value = labsPivoteFechas[labsPivoteFechas.length - 1];
     }
+    renderTimelineLabs();
     renderTablaPivoteLabs();
   } catch (err) {
     cont.innerHTML = '<div class="data-cell"><div class="val">No se pudo cargar la tabla de laboratorios.</div></div>';
   }
+}
+
+function renderTimelineLabs() {
+  const cont = document.getElementById('labs-timeline');
+  if (!labsPivoteFechas.length) { cont.innerHTML = ''; return; }
+  cont.innerHTML = `<button type="button" class="labs-timeline-chip activo" data-fecha="__todas__" onclick="filtrarPorFechaTimeline(null)">Todas</button>` +
+    labsPivoteFechas.map(f => `<button type="button" class="labs-timeline-chip" data-fecha="${f}" onclick="filtrarPorFechaTimeline('${f}')">${formatDate(f)}</button>`).join('');
+}
+
+function filtrarPorFechaTimeline(fecha) {
+  document.querySelectorAll('.labs-timeline-chip').forEach(b => b.classList.toggle('activo', b.getAttribute('data-fecha') === (fecha || '__todas__')));
+  if (fecha) {
+    document.getElementById('labs-fecha-desde').value = fecha;
+    document.getElementById('labs-fecha-hasta').value = fecha;
+  } else if (labsPivoteFechas.length) {
+    document.getElementById('labs-fecha-desde').value = labsPivoteFechas[0];
+    document.getElementById('labs-fecha-hasta').value = labsPivoteFechas[labsPivoteFechas.length - 1];
+  }
+  renderTablaPivoteLabs();
 }
 
 function sparklineSVG(puntos) {
@@ -3782,29 +3865,46 @@ function sparklineSVG(puntos) {
   const primero = badness(numericos[0].bandera), ultimo = badness(numericos[numericos.length - 1].bandera);
   const color = ultimo < primero ? '#4FA8A0' : (ultimo > primero ? '#E2574B' : '#8a8580');
 
-  return `<svg width="${w}" height="${h}" style="display:block;"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+  return `<svg width="${w}" height="${h}" style="display:block;pointer-events:none;"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+}
+
+function claseValorBandera(p) {
+  if (p.critico) return 'labs-valor-critico';
+  if (p.bandera === 'Alto') return 'labs-valor-alto';
+  if (p.bandera === 'Bajo') return 'labs-valor-bajo';
+  if (p.bandera === 'Normal') return 'labs-valor-normal';
+  return 'labs-valor-indeterminado';
+}
+
+function obtenerFilasVisibles() {
+  const desde = document.getElementById('labs-fecha-desde').value;
+  const hasta = document.getElementById('labs-fecha-hasta').value;
+  const soloFueraDeRango = document.getElementById('labs-filtro-ver').value === 'fuera';
+  const busqueda = (document.getElementById('labs-buscar').value || '').trim().toLowerCase();
+  const orden = document.getElementById('labs-orden-fecha').value;
+
+  let fechasVisibles = labsPivoteFechas.filter(f => (!desde || f >= desde) && (!hasta || f <= hasta));
+  if (orden === 'desc') fechasVisibles = [...fechasVisibles].reverse();
+
+  const filasVisibles = labsPivoteFilas
+    .map(fila => ({ ...fila, puntosVisibles: labsPivoteFechas.filter(f => fechasVisibles.includes(f)).map(f => ({ fecha: f, ...(fila.porFecha[f] || {}) })).filter(p => p.valor !== undefined) }))
+    .filter(fila => fila.puntosVisibles.length > 0)
+    .filter(fila => !soloFueraDeRango || fila.puntosVisibles.some(p => p.bandera === 'Alto' || p.bandera === 'Bajo'))
+    .filter(fila => !busqueda || fila.analito.toLowerCase().includes(busqueda));
+
+  return { fechasVisibles, filasVisibles };
 }
 
 function renderTablaPivoteLabs() {
   const cont = document.getElementById('labs-tabla-pivote');
   const tarjetasCont = document.getElementById('labs-tarjetas-resumen');
-  const desde = document.getElementById('labs-fecha-desde').value;
-  const hasta = document.getElementById('labs-fecha-hasta').value;
-  const soloFueraDeRango = document.getElementById('labs-filtro-ver').value === 'fuera';
-
-  const fechasVisibles = labsPivoteFechas.filter(f => (!desde || f >= desde) && (!hasta || f <= hasta));
+  const { fechasVisibles, filasVisibles } = obtenerFilasVisibles();
 
   if (!labsPivoteFilas.length || !fechasVisibles.length) {
     tarjetasCont.innerHTML = '';
     cont.innerHTML = '<div class="data-cell"><div class="val">Este paciente aún no tiene resultados de laboratorio estructurados en este rango.</div></div>';
     return;
   }
-
-  // Filas con al menos un valor en el rango visible (y fuera de rango si aplica el filtro)
-  const filasVisibles = labsPivoteFilas
-    .map(fila => ({ ...fila, puntosVisibles: fechasVisibles.map(f => ({ fecha: f, ...(fila.porFecha[f] || {}) })).filter(p => p.valor !== undefined) }))
-    .filter(fila => fila.puntosVisibles.length > 0)
-    .filter(fila => !soloFueraDeRango || fila.puntosVisibles.some(p => p.bandera === 'Alto' || p.bandera === 'Bajo'));
 
   // Tarjetas resumen
   const totalResultados = filasVisibles.reduce((acc, f) => acc + f.puntosVisibles.length, 0);
@@ -3818,35 +3918,40 @@ function renderTablaPivoteLabs() {
   });
   const tendenciaTexto = mejoran > empeoran ? 'Mejoría ↗' : (empeoran > mejoran ? 'Atención ↘' : 'Estable →');
   const tendenciaClase = mejoran > empeoran ? 'mejoria' : (empeoran > mejoran ? 'empeora' : '');
+  const ultimoEstudio = labsPivoteFechas.length ? formatDate(labsPivoteFechas[labsPivoteFechas.length - 1]) : '—';
 
   tarjetasCont.innerHTML = `
     <div class="labs-tarjeta"><div class="labs-tarjeta-label">Estudios realizados</div><div class="labs-tarjeta-valor">${fechasVisibles.length}</div></div>
-    <div class="labs-tarjeta"><div class="labs-tarjeta-label">Resultados</div><div class="labs-tarjeta-valor">${totalResultados}</div></div>
+    <div class="labs-tarjeta"><div class="labs-tarjeta-label">Último estudio</div><div class="labs-tarjeta-valor" style="font-size:15px;">${ultimoEstudio}</div></div>
     <div class="labs-tarjeta"><div class="labs-tarjeta-label">Fuera de rango</div><div class="labs-tarjeta-valor" style="${totalFueraDeRango ? 'color:#E2574B;' : ''}">${totalFueraDeRango}</div></div>
     <div class="labs-tarjeta"><div class="labs-tarjeta-label">Tendencia global</div><div class="labs-tarjeta-valor ${tendenciaClase}">${tendenciaTexto}</div></div>
   `;
 
-  // Tabla agrupada por categoría
-  let categoriaActual = null;
-  const filasHTML = filasVisibles.map(fila => {
-    let filaCategoria = '';
-    if (fila.categoria !== categoriaActual) {
-      categoriaActual = fila.categoria;
-      filaCategoria = `<tr class="labs-pivote-cat-row"><td colspan="${3 + fechasVisibles.length + 1}">${categoriaActual}</td></tr>`;
-    }
-    const celdas = fechasVisibles.map(f => {
-      const p = fila.porFecha[f];
-      if (!p || p.valor === undefined) return '<td>—</td>';
-      const clase = p.bandera === 'Alto' ? 'labs-valor-alto' : p.bandera === 'Bajo' ? 'labs-valor-bajo' : p.bandera === 'Normal' ? 'labs-valor-normal' : 'labs-valor-indeterminado';
-      return `<td class="${clase}">${p.valor}</td>`;
+  // Tabla agrupada por categoría, con colapsar/expandir
+  const grupos = {};
+  filasVisibles.forEach(fila => { (grupos[fila.categoria] ||= []).push(fila); });
+
+  const bloquesHTML = Object.keys(grupos).sort().map(categoria => {
+    const colapsado = labsCategoriasColapsadas.has(categoria);
+    const filasCategoria = grupos[categoria].map(fila => {
+      const celdas = fechasVisibles.map(f => {
+        const p = fila.porFecha[f];
+        if (!p || p.valor === undefined) return '<td>—</td>';
+        return `<td class="${claseValorBandera(p)}">${p.valor}</td>`;
+      }).join('');
+      return `<tr style="${colapsado ? 'display:none;' : ''}" data-categoria="${categoria}" onclick="abrirDetalleParametro('${fila.analito.replace(/'/g, "\\'")}')">
+        <td><strong>${fila.analito}</strong></td>
+        <td style="color:var(--text-3);">${fila.unidad}</td>
+        <td style="color:var(--text-3);">${fila.rango_texto}</td>
+        ${celdas}
+        <td>${sparklineSVG(fila.puntosVisibles)}</td>
+      </tr>`;
     }).join('');
-    return `${filaCategoria}<tr>
-      <td><strong>${fila.analito}</strong></td>
-      <td style="color:var(--text-3);">${fila.unidad}</td>
-      <td style="color:var(--text-3);">${fila.rango_texto}</td>
-      ${celdas}
-      <td>${sparklineSVG(fila.puntosVisibles)}</td>
-    </tr>`;
+    return `<tr class="labs-pivote-cat-row">
+      <td colspan="${3 + fechasVisibles.length + 1}">
+        <span class="labs-cat-toggle ${colapsado ? 'colapsado' : ''}" onclick="toggleCategoriaLabs('${categoria.replace(/'/g, "\\'")}')"><span class="flecha">▾</span>${categoria}</span>
+      </td>
+    </tr>${filasCategoria}`;
   }).join('');
 
   cont.innerHTML = `
@@ -3856,10 +3961,155 @@ function renderTablaPivoteLabs() {
         ${fechasVisibles.map(f => `<th>${formatDate(f)}</th>`).join('')}
         <th>Tendencia</th>
       </tr></thead>
-      <tbody>${filasHTML}</tbody>
+      <tbody>${bloquesHTML}</tbody>
     </table>
-    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">Los resultados están sujetos a interpretación clínica.</div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">🔵 Bajo &nbsp; 🟢 Normal &nbsp; 🟠 Alto &nbsp; 🔴 Crítico — los resultados están sujetos a interpretación clínica. Clic en una fila para ver el detalle.</div>
   `;
+}
+
+function toggleCategoriaLabs(categoria) {
+  if (labsCategoriasColapsadas.has(categoria)) labsCategoriasColapsadas.delete(categoria);
+  else labsCategoriasColapsadas.add(categoria);
+  renderTablaPivoteLabs();
+}
+
+// ─── COMPARAR 2 FECHAS ─────────────────────────────────────────────
+function toggleModoComparar() {
+  const wrap = document.getElementById('labs-comparar-wrap');
+  const visible = wrap.style.display !== 'none';
+  wrap.style.display = visible ? 'none' : 'block';
+  if (!visible) renderCompararFechas();
+}
+
+function renderCompararFechas() {
+  const fechaA = document.getElementById('labs-comparar-fecha-a').value;
+  const fechaB = document.getElementById('labs-comparar-fecha-b').value;
+  const cont = document.getElementById('labs-comparar-tabla');
+  if (!fechaA || !fechaB) { cont.innerHTML = ''; return; }
+
+  const filas = labsPivoteFilas
+    .map(fila => ({ analito: fila.analito, unidad: fila.unidad, a: fila.porFecha[fechaA], b: fila.porFecha[fechaB] }))
+    .filter(f => f.a && f.b && f.a.valor !== undefined && f.b.valor !== undefined);
+
+  if (!filas.length) { cont.innerHTML = '<div style="font-size:12px;color:var(--text-3);">No hay parámetros con datos en ambas fechas.</div>'; return; }
+
+  cont.innerHTML = `
+    <table class="labs-pivote-table">
+      <thead><tr><th>Parámetro</th><th>${formatDate(fechaA)}</th><th>${formatDate(fechaB)}</th><th>Cambio</th><th>Interpretación</th></tr></thead>
+      <tbody>${filas.map(f => {
+        let cambioTexto = '—', interpretacion = 'Sin datos numéricos suficientes.';
+        if (typeof f.a.valorNum === 'number' && typeof f.b.valorNum === 'number' && f.a.valorNum !== 0) {
+          const pct = ((f.b.valorNum - f.a.valorNum) / Math.abs(f.a.valorNum)) * 100;
+          const abs = f.b.valorNum - f.a.valorNum;
+          cambioTexto = `${abs > 0 ? '+' : ''}${abs.toFixed(2)} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)`;
+          const badness = b => (b === 'Alto' || b === 'Bajo') ? 1 : (b === 'Normal' ? 0 : 0.5);
+          const d = badness(f.b.bandera) - badness(f.a.bandera);
+          interpretacion = d < 0 ? 'Mejoró — se acercó o entró al rango normal.' : d > 0 ? 'Empeoró — se alejó del rango normal.' : 'Se mantuvo estable.';
+        }
+        return `<tr>
+          <td><strong>${f.analito}</strong></td>
+          <td class="${claseValorBandera(f.a)}">${f.a.valor} ${f.unidad}</td>
+          <td class="${claseValorBandera(f.b)}">${f.b.valor} ${f.unidad}</td>
+          <td>${cambioTexto}</td>
+          <td style="color:var(--text-2);font-size:11.5px;">${interpretacion}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  `;
+}
+
+// ─── DETALLE DE PARÁMETRO (modal con gráfica) ──────────────────────
+var labsChartInstancia = null;
+
+function abrirDetalleParametro(nombreAnalito) {
+  const fila = labsPivoteFilas.find(f => f.analito === nombreAnalito);
+  if (!fila) return;
+
+  const fechas = labsPivoteFechas.filter(f => fila.porFecha[f] && fila.porFecha[f].valor !== undefined);
+  const puntos = fechas.map(f => ({ fecha: f, ...fila.porFecha[f] }));
+
+  document.getElementById('labs-detalle-nombre').textContent = fila.analito;
+  document.getElementById('labs-detalle-rango').textContent = `Unidad: ${fila.unidad || 'n/d'} · Rango de referencia: ${fila.rango_texto || 'n/d'}`;
+
+  const ultimo = puntos[puntos.length - 1];
+  const estadoTexto = ultimo ? (ultimo.critico ? 'Crítico' : ultimo.bandera) : 'Sin datos';
+  document.getElementById('labs-detalle-estado').innerHTML = ultimo
+    ? `<span class="${claseValorBandera(ultimo)}" style="font-size:22px;font-weight:700;">${ultimo.valor} ${fila.unidad}</span> <span style="font-size:12px;color:var(--text-3);margin-left:8px;">(${estadoTexto}, ${formatDate(ultimo.fecha)})</span>`
+    : '';
+
+  // Gráfica
+  const ctx = document.getElementById('labs-detalle-chart').getContext('2d');
+  if (labsChartInstancia) labsChartInstancia.destroy();
+  const numericos = puntos.filter(p => typeof p.valorNum === 'number');
+  if (numericos.length >= 2) {
+    labsChartInstancia = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: numericos.map(p => formatDate(p.fecha)),
+        datasets: [{
+          label: fila.analito,
+          data: numericos.map(p => p.valorNum),
+          borderColor: '#C9A96A',
+          backgroundColor: 'rgba(201,169,106,0.12)',
+          pointBackgroundColor: numericos.map(p => p.critico ? '#E74C3C' : (p.bandera === 'Alto' ? '#F0AD4E' : p.bandera === 'Bajo' ? '#4DA3FF' : '#5CB85C')),
+          pointRadius: 5,
+          tension: 0.3,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#9a9590' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#9a9590' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        },
+      },
+    });
+  }
+
+  // Tabla histórica
+  document.getElementById('labs-detalle-tabla').innerHTML = `
+    <table class="labs-pivote-table">
+      <thead><tr><th>Fecha</th><th>Valor</th><th>Estado</th></tr></thead>
+      <tbody>${puntos.slice().reverse().map(p => `<tr><td>${formatDate(p.fecha)}</td><td class="${claseValorBandera(p)}">${p.valor} ${fila.unidad}</td><td>${p.critico ? 'Crítico' : p.bandera}</td></tr>`).join('')}</tbody>
+    </table>
+  `;
+
+  // Interpretación simple basada en % de cambio inicio→fin (regla, no IA por clic)
+  let interpretacionTexto = 'No hay suficientes valores numéricos para calcular tendencia.';
+  if (numericos.length >= 2) {
+    const primero = numericos[0], ultimoNum = numericos[numericos.length - 1];
+    const pct = primero.valorNum !== 0 ? ((ultimoNum.valorNum - primero.valorNum) / Math.abs(primero.valorNum)) * 100 : 0;
+    const direccion = pct > 0 ? 'aumentó' : pct < 0 ? 'disminuyó' : 'se mantuvo';
+    interpretacionTexto = `${fila.analito} ${direccion} ${Math.abs(pct).toFixed(1)}% entre ${formatDate(primero.fecha)} y ${formatDate(ultimoNum.fecha)}. Estado actual: ${estadoTexto}.`;
+  }
+  document.getElementById('labs-detalle-interpretacion').textContent = interpretacionTexto;
+
+  document.getElementById('labs-detalle-modal').style.display = 'flex';
+}
+
+// ─── COPIAR RESUMEN (en vez de generar PDF) ────────────────────────
+function copiarResumenLabs() {
+  const { fechasVisibles, filasVisibles } = obtenerFilasVisibles();
+  if (!filasVisibles.length) { showToast('No hay datos para copiar en este rango.', 'error'); return; }
+
+  let texto = `Resumen de laboratorios — ${pacienteActual?.fields?.['Nombre completo'] || 'Paciente'}\n`;
+  texto += `Rango: ${formatDate(fechasVisibles[0])} a ${formatDate(fechasVisibles[fechasVisibles.length - 1])}\n\n`;
+
+  let categoriaActual = null;
+  filasVisibles.forEach(fila => {
+    if (fila.categoria !== categoriaActual) {
+      categoriaActual = fila.categoria;
+      texto += `\n${categoriaActual.toUpperCase()}\n`;
+    }
+    const valores = fila.puntosVisibles.map(p => `${p.valor}${p.critico ? '‼' : (p.bandera === 'Alto' ? '↑' : p.bandera === 'Bajo' ? '↓' : '')}`).join(' → ');
+    texto += `${fila.analito} (${fila.unidad}): ${valores}\n`;
+  });
+
+  navigator.clipboard.writeText(texto)
+    .then(() => showToast('Resumen copiado al portapapeles.', 'success'))
+    .catch(() => showToast('No se pudo copiar — revisa permisos del navegador.', 'error'));
 }
 
 function renderLabsFiltrados() {
@@ -4130,7 +4380,9 @@ function agregarFilaLabRapido() {
     <select class="lr-bandera" style="flex:0.8;min-width:100px;">
       <option value="Normal">Normal</option>
       <option value="Alto">Alto</option>
+      <option value="Alto-critico">Alto (crítico)</option>
       <option value="Bajo">Bajo</option>
+      <option value="Bajo-critico">Bajo (crítico)</option>
       <option value="Indeterminado">Indeterminado</option>
     </select>
     <input type="text" placeholder="Rango ref. (opcional)" class="lr-rango" style="flex:1;min-width:90px;">
@@ -4140,13 +4392,18 @@ function agregarFilaLabRapido() {
 }
 
 function leerFilasLabRapido() {
-  return Array.from(document.querySelectorAll('#lab-rapido-filas > div')).map(fila => ({
-    analito: fila.querySelector('.lr-analito').value.trim(),
-    valor: fila.querySelector('.lr-valor').value.trim(),
-    unidad: fila.querySelector('.lr-unidad').value.trim(),
-    bandera: fila.querySelector('.lr-bandera').value,
-    rango: fila.querySelector('.lr-rango').value.trim(),
-  })).filter(f => f.analito);
+  return Array.from(document.querySelectorAll('#lab-rapido-filas > div')).map(fila => {
+    const banderaRaw = fila.querySelector('.lr-bandera').value;
+    const esCritico = banderaRaw.endsWith('-critico');
+    return {
+      analito: fila.querySelector('.lr-analito').value.trim(),
+      valor: fila.querySelector('.lr-valor').value.trim(),
+      unidad: fila.querySelector('.lr-unidad').value.trim(),
+      bandera: esCritico ? banderaRaw.replace('-critico', '') : banderaRaw,
+      critico: esCritico,
+      rango: fila.querySelector('.lr-rango').value.trim(),
+    };
+  }).filter(f => f.analito);
 }
 
 // ─── SUBIR ESTUDIO EN CONSULTORIO (médico) ─────────────────────────
