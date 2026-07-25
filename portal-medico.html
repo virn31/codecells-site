@@ -222,7 +222,11 @@
   }
 
   /* ─── TEMA CLARO ─── */
-  body.light {
+  /* Se aplica a html.light Y body.light — hay elementos que resuelven sus
+     variables contra el <html> en vez de heredarlas de <body> (detectado:
+     un contenedor quedaba con --black/--text-1 en sus valores de modo oscuro
+     por defecto pese a que el resto de la página ya estaba en modo claro). */
+  html.light, body.light {
     --black: #F5F0E8;
     --black-2: #EDEAE2;
     --black-3: #E4DDD0;
@@ -4520,9 +4524,11 @@ const THEME_KEY = 'cc_portal_theme';
 function aplicarTema(tema) {
   if (tema === 'light') {
     document.body.classList.add('light');
+    document.documentElement.classList.add('light');
     document.getElementById('btn-theme').textContent = '🌙';
   } else {
     document.body.classList.remove('light');
+    document.documentElement.classList.remove('light');
     document.getElementById('btn-theme').textContent = '☀';
   }
   localStorage.setItem(THEME_KEY, tema);
