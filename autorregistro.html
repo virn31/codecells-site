@@ -108,9 +108,12 @@
 <!-- Pantalla: éxito -->
 <div class="pantalla" id="p-exito">
   <div class="logo-glyph">CODE CELLS®</div>
-  <div class="titulo">Listo, <span id="exito-nombre"></span></div>
-  <div class="subtitulo">Tu expediente ya está completo. Te estamos llevando a tu página personal…</div>
+  <div class="titulo">Gracias, <span id="exito-nombre"></span></div>
+  <div class="subtitulo">Tu expediente ha sido creado correctamente. Tu médico ya podrá verlo antes de tu cita.</div>
   <div class="codigo-final" id="exito-codigo"></div>
+  <button class="btn-grande" id="btn-ir-portal">Entrar a mi portal →</button>
+  <button type="button" class="btn-texto" id="btn-salir">Salir</button>
+  <div class="subtitulo" id="mensaje-salir" style="display:none;margin-top:8px;">Listo — ya puedes cerrar esta ventana.</div>
 </div>
 
 <script>
@@ -184,10 +187,17 @@ function irAExito() {
   document.getElementById('exito-nombre').textContent = nombrePacienteCreado.split(' ')[0];
   document.getElementById('exito-codigo').textContent = codigoPacienteCreado;
   irA('p-exito');
-  setTimeout(function() {
-    window.location.href = 'mi-nivel.html?codigo=' + encodeURIComponent(codigoPacienteCreado);
-  }, 2200);
 }
+
+document.getElementById('btn-ir-portal').addEventListener('click', function() {
+  window.location.href = 'mi-nivel.html?codigo=' + encodeURIComponent(codigoPacienteCreado);
+});
+
+document.getElementById('btn-salir').addEventListener('click', function() {
+  document.getElementById('btn-ir-portal').style.display = 'none';
+  document.getElementById('btn-salir').style.display = 'none';
+  document.getElementById('mensaje-salir').style.display = 'block';
+});
 
 document.getElementById('btn-omitir-preconsulta').addEventListener('click', irAExito);
 
