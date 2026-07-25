@@ -4260,6 +4260,7 @@ async function enviarNova() {
         medicoCode:          codigo,       // servidor valida y construye el system prompt
         medicoNombre:        nombre,
         medicoEspecialidad:  especialidad,
+        pacienteCode:        pacienteActual ? (pacienteActual.fields['Código de paciente'] || pacienteActual.fields['ID_Paciente'] || pacienteActual.id) : null,
         messages:            novaHistorial,
         max_tokens:          4096
       })
@@ -4288,6 +4289,13 @@ async function enviarNova() {
     const respuesta = bloqueTexto.text;
     agregarMensajeNova('assistant', respuesta);
     novaHistorial.push({ role: 'assistant', content: respuesta });
+
+    // Si NOVA guardó un backfill de historial de labs directo en Airtable,
+    // refresca la pestaña NOVA LABS para que se vea sin recargar la página.
+    if (data.refrescarLabs && pacienteActual) {
+      const pacIdRefrescar = pacienteActual.fields['Código de paciente'] || pacienteActual.fields['ID_Paciente'] || pacienteActual.id;
+      cargarLabs(pacIdRefrescar);
+    }
 
     // Si NOVA detectó dictado clínico, el servidor manda "ficha" además del
     // texto — aquí se autorellena el formulario de Nueva consulta.

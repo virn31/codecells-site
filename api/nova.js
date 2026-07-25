@@ -409,6 +409,11 @@ HbA1c: 6.1% → 5.8% → 5.5%
 Colesterol total: 236 → 191 mg/dL"
 — no todo eso pegado en una sola línea. La regla de "sin párrafos interminables" es sobre longitud innecesaria, no sobre negar estructura visual a datos que la necesitan para ser legibles.
 
+DICTADO DE LABORATORIOS/ESTUDIOS — CUÁL HERRAMIENTA USAR (CRÍTICO, no confundir):
+- Si el médico dicta UN solo corte (los resultados de HOY, de la consulta que está haciendo ahora): usa rellenar_ficha_consulta. Esto NO guarda nada en Airtable todavía — solo llena el formulario en pantalla, y el médico debe presionar "Guardar consulta". Nunca digas "guardé" o "actualicé el expediente" con esta herramienta — di que quedó listo en el formulario para revisar.
+- Si el médico dicta resultados de DOS O MÁS fechas distintas del pasado (reconstruyendo el historial de labs/imagen de un paciente, ej. "el 15 de abril tenía esto, el 18 de mayo esto otro, el 21 de junio esto"): usa guardar_series_historicas_laboratorio. Esta SÍ escribe de inmediato en NOVA LABS y LAB_VALORES, una por cada fecha — solo confirma que se guardó DESPUÉS de que la herramienta te devuelva el resultado, nunca antes.
+- NUNCA afirmes que datos quedaron guardados, reflejados en la ficha, o disponibles en NOVA LABS si no llamaste a la herramienta correspondiente y confirmaste su resultado — eso desinforma al médico sobre el estado real del expediente.
+
 PACIENTE DEMO (para practicar el uso del portal):
 Existe un paciente de práctica compartido para todos los médicos: código CC-PAC-DEMO01, nombre "Paciente Demo". Si el médico es nuevo, pregunta cómo funciona el portal, o parece confundido usándolo, sugiérele con naturalidad escribir ese código en la sección "Paciente compartido" del portal (barra lateral, junto a "Ver") — ahí puede ver un expediente real, crear una consulta de prueba, generar un plan nutricional, etc., sin tocar información de un paciente real. Aclara que es el mismo paciente para todos los médicos (no es privado de nadie), así que no debe registrar información sensible real ahí.
 ${bloqueMemoria}${REGLA_NUTRICION}
@@ -2234,6 +2239,7 @@ module.exports = async function handler(req, res) {
     let herramientaAltaPaciente = null; // alta de paciente nuevo por dictado
     let herramientaInvitarMedico = null; // generar invitación pre-cargada para un colega
     let herramientaAvisarMedico = null; // avisar a otro médico por Telegram
+    let herramientaSeriesLab = null; // backfill de series históricas de laboratorio/imagen
     let pacRecordId = null;
     let pacMedicoLink = null;
     let esVipReal = false;
@@ -2331,6 +2337,7 @@ module.exports = async function handler(req, res) {
       herramientaAltaPaciente = buildHerramientaAltaPaciente();
       herramientaInvitarMedico = buildHerramientaInvitarMedico();
       herramientaAvisarMedico = buildHerramientaAvisarMedico();
+      herramientaSeriesLab = buildHerramientaSeriesHistoricasLab();
     } else if (esPac) {
       // El nivel (VIP o no) y la memoria NUNCA se confían del cliente — se
       // consultan aquí contra Airtable, para que nadie pueda "volverse VIP"
@@ -2407,7 +2414,7 @@ module.exports = async function handler(req, res) {
       // protocolos/clínica — solo se activa cuando NOVA detecta que le están
       // dictando datos de un paciente para llenar la ficha, o datos de un
       // paciente nuevo para darlo de alta.
-      anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente, herramientaInvitarMedico, herramientaAvisarMedico];
+      anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente, herramientaInvitarMedico, herramientaAvisarMedico, herramientaSeriesLab];
       anthropicBody.tool_choice = { type: 'auto' };
     }
 
@@ -2620,6 +2627,101 @@ module.exports = async function handler(req, res) {
         }
       }
 
+      // Backfill de historial de laboratorio/imagen dictado en múltiples
+      // fechas — a diferencia de rellenar_ficha_consulta, esto SÍ escribe
+      // directo en Airtable, sin esperar a que el médico presione "Guardar".
+      const toolSeriesLab = Array.isArray(data.content)
+        ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'guardar_series_historicas_laboratorio')
+        : null;
+      if (toolSeriesLab && Array.isArray(toolSeriesLab.input?.series)) {
+        try {
+          const { mensaje, series } = toolSeriesLab.input;
+          if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+            return res.status(200).json({ content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tengo un paciente seleccionado en el portal para guardar esto — abre su expediente primero y dicta de nuevo.` }] });
+          }
+
+          const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+          const BASE_ID = 'app6jyD9pDlTLpknA';
+          const TBL_PAC = 'tblyUcCfueFLJuvIv';
+          const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+          const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+          const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+          const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
+
+          const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          const pacData = await pacRes.json();
+          const pacRecord = pacData.records?.[0];
+          if (!pacRecord) {
+            return res.status(200).json({ content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No encontré ese paciente en Airtable — no se guardó nada.` }] });
+          }
+
+          let guardadas = 0;
+          const fechasGuardadas = [];
+          for (const serie of series) {
+            if (!serie.fecha) continue;
+            const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
+            const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
+
+            const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                typecast: true,
+                fields: {
+                  'Código de paciente ref': pacienteCode,
+                  'Paciente': [pacRecord.id],
+                  'Fecha de resultados': serie.fecha,
+                  'Tipo de estudio': serie.tipo_estudio || (analitos.length ? 'Laboratorio' : 'Otro estudio'),
+                  'Panel solicitado': serie.panel_sugerido || 'Personalizado',
+                  'Resultados (texto)': serie.resumen_texto || (analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Dictado por médico.'),
+                  ...(fueraDeRango.length ? { 'Valores fuera de rango': fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'})`).join('\n') } : {}),
+                },
+              }),
+            });
+            const crearData = await crearRes.json();
+            if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); continue; }
+
+            if (analitos.length) {
+              const registrosValores = analitos.map(a => {
+                const banderaCap = capitalizar(a.bandera);
+                const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+                return {
+                  fields: {
+                    'Analito': a.nombre,
+                    'Valor': String(a.valor ?? ''),
+                    ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+                    'Unidad': a.unidad || '',
+                    'Rango de referencia': a.rango_texto || '',
+                    'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+                    'Relevante a patología': true,
+                    'Fecha del estudio': serie.fecha,
+                    'Código de paciente ref': pacienteCode,
+                    'Paciente': [pacRecord.id],
+                    'Estudio (NOVA LABS)': [crearData.id],
+                  },
+                };
+              });
+              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, records: registrosValores }),
+              }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
+            }
+            guardadas++;
+            fechasGuardadas.push(serie.fecha);
+          }
+
+          const textoFinal = guardadas > 0
+            ? `${mensaje}\n\n✅ Guardado en NOVA LABS: ${guardadas} de ${series.length} fecha(s) (${fechasGuardadas.join(', ')}). Ya puedes verlas en la pestaña NOVA LABS del expediente.`
+            : `${mensaje}\n\n⚠️ No se pudo guardar ninguna fecha — revisa el formato e inténtalo de nuevo.`;
+
+          return res.status(200).json({ content: [{ type: 'text', text: textoFinal }], refrescarLabs: guardadas > 0 });
+        } catch (err) {
+          console.error('[nova] error en guardar_series_historicas_laboratorio:', err.message);
+          return res.status(502).json({ error: 'Error guardando el historial de laboratorio. Inténtalo de nuevo.' });
+        }
+      }
+
       const toolBlock = Array.isArray(data.content)
         ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'rellenar_ficha_consulta')
         : null;
@@ -2736,6 +2838,55 @@ module.exports = async function handler(req, res) {
   }
 }
 
+// ─── HERRAMIENTA: GUARDAR SERIES HISTÓRICAS DE LABORATORIO/IMAGEN ──
+// Distinta de rellenar_ficha_consulta: esa es solo para la consulta de HOY y
+// no guarda nada hasta que el médico presiona "Guardar consulta". Esta SÍ
+// escribe de inmediato en NOVA LABS + LAB_VALORES, una vez por cada fecha
+// dictada — para cuando el médico reconstruye el historial de un paciente
+// leyendo varios estudios pasados en la misma dictada.
+function buildHerramientaSeriesHistoricasLab() {
+  return {
+    name: 'guardar_series_historicas_laboratorio',
+    description: 'Úsala SOLO cuando el médico dicte resultados de DOS O MÁS fechas distintas del pasado (reconstrucción de historial) para el paciente que ya tiene seleccionado en el portal. A diferencia de rellenar_ficha_consulta, esta herramienta guarda de inmediato en Airtable (NOVA LABS + LAB_VALORES), una entrada por cada fecha — no depende de que el médico presione "Guardar consulta". Si solo dicta la fecha de HOY (una sola), usa rellenar_ficha_consulta en su lugar, no esta. Requiere que haya un paciente seleccionado en el portal — si no lo hay, dilo en el mensaje y no inventes que se guardó nada.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        mensaje: { type: 'string', description: 'Tu respuesta al médico. Confirma EXACTAMENTE cuántas series se guardaron y de qué fechas — nunca afirmes que se guardó algo que no viene en "series".' },
+        series: {
+          type: 'array',
+          description: 'Una entrada por cada fecha de estudio dictada.',
+          items: {
+            type: 'object',
+            properties: {
+              fecha: { type: 'string', description: 'Formato YYYY-MM-DD.' },
+              tipo_estudio: { type: 'string', enum: ['Laboratorio', 'RX', 'USG', 'Tomografía', 'Resonancia', 'Otro estudio'] },
+              panel_sugerido: { type: 'string', enum: ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'] },
+              resumen_texto: { type: 'string', description: 'Resumen narrativo de ese corte (hallazgos de imagen, o el listado de labs tal como se dictó).' },
+              analitos: {
+                type: 'array',
+                description: 'Solo si tipo_estudio es Laboratorio y hay valores individuales dictados.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    nombre: { type: 'string' },
+                    valor: { type: 'string' },
+                    unidad: { type: 'string' },
+                    rango_texto: { type: 'string' },
+                    bandera: { type: 'string', enum: ['normal', 'alto', 'bajo', 'indeterminado'] },
+                  },
+                  required: ['nombre', 'valor'],
+                },
+              },
+            },
+            required: ['fecha', 'tipo_estudio'],
+          },
+        },
+      },
+      required: ['mensaje', 'series'],
+    },
+  };
+}
+
 // ─── DEFINICIÓN DE LA HERRAMIENTA DE NOVA EN MODO MÉDICO (ficha) ───
 // Opcional (tool_choice auto) — NOVA la usa solo cuando detecta que el médico
 // le está dictando datos clínicos de un paciente que está atendiendo, no en
@@ -2743,7 +2894,7 @@ module.exports = async function handler(req, res) {
 function buildHerramientaFichaConsulta() {
   return {
     name: 'rellenar_ficha_consulta',
-    description: 'Úsala SOLO cuando el médico dicte o describa datos clínicos de un paciente que está atendiendo ahora, con intención de llenar la ficha de consulta (edad, diagnóstico, signos vitales, motivo, plan, antecedentes). No la uses para preguntas generales, de protocolos o consultas que no describen a un paciente concreto. Mantén "mensaje" y todos los campos breves y concretos — nunca redactes documentos largos dentro de esta herramienta; si el médico pide algo más extenso además del dictado, dilo en una frase corta dentro de "mensaje" y ya. PROHIBIDO usar esta herramienta para planes nutricionales — un plan nutricional (aunque sea largo) SIEMPRE se responde en texto normal, sin llamar a ninguna herramienta, nunca dentro de "mensaje" ni de ningún campo de aquí. CRÍTICO: antecedentes heredofamiliares (lo que tienen los papás/hermanos/familiares) van SOLO en antecedentes_heredofamiliares, nunca se mezclan con lo que el paciente mismo tiene.',
+    description: 'Úsala SOLO para llenar la ficha de la consulta de HOY con datos clínicos que el médico dicte de un paciente que está atendiendo ahora mismo (edad, diagnóstico, signos vitales, motivo, plan, antecedentes, o UN solo corte de laboratorio de hoy). IMPORTANTE: esta herramienta NO guarda nada en Airtable — solo autorellena el formulario en pantalla; el médico debe presionar "Guardar consulta" para que se guarde. Si el médico dicta resultados de DOS O MÁS fechas distintas del pasado (reconstrucción de historial), usa guardar_series_historicas_laboratorio en su lugar, no esta — y en tu "mensaje" nunca digas que algo quedó "guardado" o "actualizado en el expediente" si solo llenaste el formulario, di que quedó listo en el formulario para revisar y guardar. No la uses para preguntas generales, de protocolos o consultas que no describen a un paciente concreto. Mantén "mensaje" y todos los campos breves y concretos — nunca redactes documentos largos dentro de esta herramienta; si el médico pide algo más extenso además del dictado, dilo en una frase corta dentro de "mensaje" y ya. PROHIBIDO usar esta herramienta para planes nutricionales — un plan nutricional (aunque sea largo) SIEMPRE se responde en texto normal, sin llamar a ninguna herramienta, nunca dentro de "mensaje" ni de ningún campo de aquí. CRÍTICO: antecedentes heredofamiliares (lo que tienen los papás/hermanos/familiares) van SOLO en antecedentes_heredofamiliares, nunca se mezclan con lo que el paciente mismo tiene.',
     input_schema: {
       type: 'object',
       properties: {
