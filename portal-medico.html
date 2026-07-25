@@ -2410,12 +2410,27 @@
                   </select>
                 </div>
               </div>
+
               <div class="form-group">
-                <label>Resultados de laboratorio</label>
+                <label>Valores rápidos — pruebas point-of-care (glucosa capilar, etc.)</label>
+                <div id="lab-rapido-filas"></div>
+                <button type="button" onclick="agregarFilaLabRapido()" style="margin-top:6px;background:none;border:1px solid var(--border);color:var(--text-2);border-radius:6px;padding:6px 12px;font-size:11.5px;cursor:pointer;">+ Agregar valor</button>
+                <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Cada fila alimenta el comparativo automático de NOVA LABS — no es obligatorio llenar todas las columnas.</div>
+              </div>
+
+              <div class="form-group">
+                <label>📎 Subir PDF o foto del estudio (lo que traiga el paciente o se tome en consultorio)</label>
+                <input type="file" id="f-lab-archivo" accept="application/pdf,image/*" style="display:none;">
+                <button type="button" id="btn-subir-lab-archivo" style="background:none;border:1px solid var(--border);color:var(--text-2);border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;">Elegir archivo…</button>
+                <div id="lab-archivo-estado" style="font-size:11.5px;margin-top:6px;min-height:16px;"></div>
+              </div>
+
+              <div class="form-group">
+                <label>Resultados de laboratorio — resumen en texto libre (opcional si ya llenaste valores rápidos)</label>
                 <textarea id="f-resultados-lab" placeholder="Resumen completo de resultados dictados por el médico…" rows="3"></textarea>
               </div>
               <div class="form-group">
-                <label>Valores fuera de rango</label>
+                <label>Valores fuera de rango — texto libre (opcional, se genera solo desde los valores rápidos)</label>
                 <textarea id="f-fuera-rango-lab" placeholder="Solo los valores anormales (déjalo vacío si todo salió normal)…" rows="2"></textarea>
               </div>
             </details>
@@ -3825,24 +3840,30 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       }
     }
 
-    // Resultados de laboratorio dictados van a NOVA LABS — un registro
-    // nuevo por cada set de resultados (conserva el historial completo).
+    // Resultados de laboratorio — texto libre dictado por el médico y/o
+    // filas de valores rápidos capturadas en consultorio. Ambos se guardan
+    // vía nova.js para que los valores rápidos alimenten LAB_VALORES y el
+    // comparativo automático (no solo NOVA LABS como antes).
     const panelLab = document.getElementById('f-panel-lab').value;
     const resultadosLab = document.getElementById('f-resultados-lab').value.trim();
     const fueraDeRangoLab = document.getElementById('f-fuera-rango-lab').value.trim();
-    if (resultadosLab) {
+    const filasRapidas = leerFilasLabRapido();
+    if (resultadosLab || filasRapidas.length) {
       try {
-        const labFields = {
-          'Código de paciente ref': pacId,
-          'Paciente': [pacienteActual.id],
-          'Panel solicitado': panelLab || 'Personalizado',
-          'Tipo de estudio': 'Laboratorio',
-          'Resultados (texto)': resultadosLab,
-          'Fecha de resultados': new Date().toISOString().split('T')[0],
-        };
-        if (fueraDeRangoLab) labFields['Valores fuera de rango'] = fueraDeRangoLab;
-        if (consultaCreada && consultaCreada.id) labFields['Consulta'] = [consultaCreada.id];
-        await airtablePost(TBL_LABS, labFields);
+        await fetch('/api/nova', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'medico_guardar_labs_rapidos',
+            pacienteCode: pacId,
+            panel: panelLab || 'Personalizado',
+            tipoEstudio: 'Laboratorio',
+            resultadosTexto: resultadosLab,
+            fueraDeRango: fueraDeRangoLab,
+            valoresRapidos: filasRapidas,
+            consultaId: (consultaCreada && consultaCreada.id) || null,
+          }),
+        });
         cargarLabs(pacId);
       } catch (err) {
         console.error('Error guardando resultados en NOVA LABS:', err);
@@ -3905,7 +3926,107 @@ function limpiarFormulario() {
     else el.value = '';
   });
   document.getElementById('f-estado').value = 'activo';
+  document.getElementById('lab-rapido-filas').innerHTML = '';
+  document.getElementById('lab-archivo-estado').textContent = '';
 }
+
+// ─── VALORES RÁPIDOS DE LABORATORIO (point-of-care) ────────────────
+function agregarFilaLabRapido() {
+  const cont = document.getElementById('lab-rapido-filas');
+  const fila = document.createElement('div');
+  fila.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;';
+  fila.innerHTML = `
+    <input type="text" placeholder="Analito (ej. Glucosa)" class="lr-analito" style="flex:1.4;min-width:110px;">
+    <input type="text" placeholder="Valor" class="lr-valor" style="flex:0.7;min-width:70px;">
+    <input type="text" placeholder="Unidad" class="lr-unidad" style="flex:0.7;min-width:70px;">
+    <select class="lr-bandera" style="flex:0.8;min-width:100px;">
+      <option value="Normal">Normal</option>
+      <option value="Alto">Alto</option>
+      <option value="Bajo">Bajo</option>
+      <option value="Indeterminado">Indeterminado</option>
+    </select>
+    <input type="text" placeholder="Rango ref. (opcional)" class="lr-rango" style="flex:1;min-width:90px;">
+    <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;padding:0 4px;">×</button>
+  `;
+  cont.appendChild(fila);
+}
+
+function leerFilasLabRapido() {
+  return Array.from(document.querySelectorAll('#lab-rapido-filas > div')).map(fila => ({
+    analito: fila.querySelector('.lr-analito').value.trim(),
+    valor: fila.querySelector('.lr-valor').value.trim(),
+    unidad: fila.querySelector('.lr-unidad').value.trim(),
+    bandera: fila.querySelector('.lr-bandera').value,
+    rango: fila.querySelector('.lr-rango').value.trim(),
+  })).filter(f => f.analito);
+}
+
+// ─── SUBIR ESTUDIO EN CONSULTORIO (médico) ─────────────────────────
+document.getElementById('btn-subir-lab-archivo').addEventListener('click', () => {
+  document.getElementById('f-lab-archivo').click();
+});
+
+document.getElementById('f-lab-archivo').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
+
+  const estadoEl = document.getElementById('lab-archivo-estado');
+  const btn = document.getElementById('btn-subir-lab-archivo');
+  const tiposValidos = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic'];
+  if (tiposValidos.indexOf(file.type) === -1) {
+    estadoEl.style.color = '#E2574B';
+    estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).';
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    estadoEl.style.color = '#E2574B';
+    estadoEl.textContent = 'Archivo muy grande (máximo 8MB).';
+    return;
+  }
+
+  const f = pacienteActual.fields;
+  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
+
+  estadoEl.style.color = 'var(--text-2)';
+  estadoEl.textContent = 'Leyendo y extrayendo datos del estudio…';
+  btn.disabled = true;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'medico_subir_estudio',
+        pacienteCode: pacId,
+        fileBase64: base64,
+        fileName: file.name,
+        mediaType: file.type,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        btn.disabled = false;
+        if (data.ok) {
+          estadoEl.style.color = '#5FAE6E';
+          estadoEl.textContent = `Estudio agregado (${data.tipoEstudio}${data.totalAnalitos ? ', ' + data.totalAnalitos + ' valores' : ''}${data.totalFueraDeRango ? ', ' + data.totalFueraDeRango + ' fuera de rango' : ''}) ✓`;
+          document.getElementById('f-lab-archivo').value = '';
+          cargarLabs(pacId);
+        } else {
+          estadoEl.style.color = '#E2574B';
+          estadoEl.textContent = data.error || 'No se pudo procesar el estudio.';
+        }
+      })
+      .catch(() => {
+        btn.disabled = false;
+        estadoEl.style.color = '#E2574B';
+        estadoEl.textContent = 'Error de conexión. Intenta de nuevo.';
+      });
+  };
+  reader.readAsDataURL(file);
+});
 
 // ─── TEMPORIZADOR DE SESIÓN ───────────────────────────────────────
 function iniciarTemporizador() {

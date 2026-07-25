@@ -1076,6 +1076,228 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── MÉDICO: GUARDAR VALORES RÁPIDOS (point-of-care en consultorio) ──
+  // Para pruebas rápidas que el médico hace en su consultorio (ej. glucosa
+  // capilar) sin necesidad de subir ningún archivo. Crea el registro resumen
+  // en NOVA LABS y, si vienen valores estructurados, un registro por analito
+  // en LAB_VALORES para que alimenten el comparativo automático.
+  if (action === 'medico_guardar_labs_rapidos') {
+    try {
+      const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_PAC = 'tblyUcCfueFLJuvIv';
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+      const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacData = await pacRes.json();
+      const pacRecord = pacData.records?.[0];
+      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
+
+      const filas = Array.isArray(valoresRapidos) ? valoresRapidos.filter(v => v && v.analito && String(v.analito).trim()) : [];
+      const hoy = new Date().toISOString().slice(0, 10);
+
+      const textoAuto = filas.length ? filas.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''}`.trim()).join('\n') : '';
+      const fueraDeRangoAuto = filas.filter(v => v.bandera === 'Alto' || v.bandera === 'Bajo')
+        .map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''} (${v.bandera})`).join('\n');
+
+      const labFields = {
+        'Código de paciente ref': pacienteCode,
+        'Paciente': [pacRecord.id],
+        'Panel solicitado': panel || 'Personalizado',
+        'Tipo de estudio': tipoEstudio || 'Laboratorio',
+        'Resultados (texto)': (resultadosTexto && resultadosTexto.trim()) || textoAuto || 'Sin resultados capturados.',
+        'Fecha de resultados': hoy,
+      };
+      const fueraFinal = (fueraDeRango && fueraDeRango.trim()) || fueraDeRangoAuto;
+      if (fueraFinal) labFields['Valores fuera de rango'] = fueraFinal;
+      if (consultaId) labFields['Consulta'] = [consultaId];
+
+      const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ typecast: true, fields: labFields }),
+      });
+      const crearData = await crearRes.json();
+      if (!crearData.id) {
+        console.error('[nova] error creando NOVA LABS (dictado médico):', JSON.stringify(crearData));
+        return res.status(502).json({ error: 'No se pudo guardar el laboratorio.' });
+      }
+
+      if (filas.length) {
+        const registrosValores = filas.map(v => {
+          const banderaCap = banderasValidas.includes(v.bandera) ? v.bandera : 'Indeterminado';
+          const numMatch = String(v.valor || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+          return {
+            fields: {
+              'Analito': v.analito,
+              'Valor': String(v.valor || ''),
+              ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+              'Unidad': v.unidad || '',
+              'Rango de referencia': v.rango || '',
+              'Bandera': banderaCap,
+              'Relevante a patología': true, // el médico lo capturó a propósito en consultorio
+              'Fecha del estudio': hoy,
+              'Código de paciente ref': pacienteCode,
+              'Paciente': [pacRecord.id],
+              'Estudio (NOVA LABS)': [crearData.id],
+            },
+          };
+        });
+        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ typecast: true, records: registrosValores }),
+        }).catch(e => console.error('[nova] error creando LAB_VALORES (dictado médico):', e.message));
+      }
+
+      return res.status(200).json({ ok: true, novaLabsId: crearData.id, analitosGuardados: filas.length });
+    } catch (err) {
+      console.error('[nova] medico_guardar_labs_rapidos error:', err.message);
+      return res.status(500).json({ error: 'Error interno al guardar el laboratorio.' });
+    }
+  }
+
+  // ─── MÉDICO: SUBIR ESTUDIO EN CONSULTORIO (PDF/foto, sin verificación) ──
+  // El médico ya tiene al paciente seleccionado en el portal — no aplica la
+  // verificación de identidad por nombre que sí se exige cuando el propio
+  // paciente sube un estudio desde mi-nivel.html. Corre síncrono (a diferencia
+  // del flujo de paciente) para que el médico vea de inmediato qué se extrajo.
+  if (action === 'medico_subir_estudio') {
+    try {
+      const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
+      const esPDF = mediaType === 'application/pdf';
+      const esImagen = mediaType.startsWith('image/');
+      if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_PAC = 'tblyUcCfueFLJuvIv';
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacData = await pacRes.json();
+      const pacRecord = pacData.records?.[0];
+      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
+
+      const contentBlock = esPDF
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
+
+      const patologiasActivas = pacRecord.fields['Patologías activas'] || [];
+      const panelesValidos = ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'];
+      const tiposEstudioValidos = ['Laboratorio', 'RX', 'USG', 'Tomografía', 'Resonancia', 'Otro estudio'];
+
+      const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-5',
+          max_tokens: 2000,
+          messages: [{
+            role: 'user',
+            content: [
+              contentBlock,
+              { type: 'text', text:
+                `Extrae los resultados de este estudio médico en JSON puro, sin texto adicional ni backticks.\n` +
+                `Patologías activas conocidas del paciente: ${patologiasActivas.length ? patologiasActivas.join(', ') : 'ninguna registrada'}.\n` +
+                `Formato exacto:\n` +
+                `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
+                `"tipo_estudio" clasifica el documento (Laboratorio si trae analitos con valores numéricos; RX/USG/Tomografía/Resonancia si es un estudio de imagen; Otro estudio si no encaja).\n` +
+                `Si el documento es un estudio de imagen sin analitos numéricos, responde con "analitos":[] y deja "panel_sugerido":"Personalizado".`
+              }
+            ]
+          }]
+        })
+      });
+      const extractData = await extractRes.json();
+      let extraido;
+      try { extraido = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { extraido = { tipo_estudio: 'Otro estudio', fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
+      const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
+      const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
+      const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
+      const fechaEstudio = extraido.fecha_estudio || new Date().toISOString().slice(0, 10);
+      const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
+      const relevantes = analitos.filter(a => a.relevante);
+
+      const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          typecast: true,
+          fields: {
+            'Código de paciente ref': pacienteCode,
+            'Fecha de resultados': fechaEstudio,
+            'Panel solicitado': panel,
+            'Tipo de estudio': tipoEstudio,
+            'Resultados (texto)': analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Estudio de imagen — ver archivo adjunto.',
+            'Valores fuera de rango': fueraDeRango.length
+              ? fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'}, ref ${a.rango_texto || 'n/d'})`).join('\n')
+              : 'Sin valores fuera de rango detectados.',
+            'Interpretación NOVA': relevantes.length ? `Relevante a patologías activas: ${relevantes.map(a => a.nombre).join(', ')}.` : '',
+            'Requiere seguimiento': fueraDeRango.some(a => a.relevante),
+            'Paciente': [pacRecord.id],
+          },
+        }),
+      });
+      const crearData = await crearRes.json();
+      if (!crearData.id) {
+        console.error('[nova] error creando NOVA LABS (subida médico):', JSON.stringify(crearData));
+        return res.status(502).json({ error: 'No se pudo guardar el estudio.' });
+      }
+
+      fetch(`https://content.airtable.com/v0/${BASE_ID}/${crearData.id}/fldxrF2w5I4cc3MNF/uploadAttachment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
+      }).catch(() => {});
+
+      if (analitos.length) {
+        const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
+        const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+        const registrosValores = analitos.filter(a => a.nombre).map(a => {
+          const banderaCap = capitalizar(a.bandera);
+          const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+          return {
+            fields: {
+              'Analito': a.nombre,
+              'Valor': String(a.valor ?? ''),
+              ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+              'Unidad': a.unidad || '',
+              'Rango de referencia': a.rango_texto || '',
+              'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+              'Relevante a patología': !!a.relevante,
+              'Fecha del estudio': fechaEstudio,
+              'Código de paciente ref': pacienteCode,
+              'Paciente': [pacRecord.id],
+              'Estudio (NOVA LABS)': [crearData.id],
+            },
+          };
+        });
+        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ typecast: true, records: registrosValores }),
+        }).catch(e => console.error('[nova] error creando LAB_VALORES (subida médico):', e.message));
+      }
+
+      return res.status(200).json({
+        ok: true, tipoEstudio, panel, fecha: fechaEstudio,
+        totalAnalitos: analitos.length, totalFueraDeRango: fueraDeRango.length,
+      });
+    } catch (err) {
+      console.error('[nova] medico_subir_estudio error:', err.message);
+      return res.status(500).json({ error: 'Error interno al procesar el estudio.' });
+    }
+  }
+
   if (action === 'kiosco_crear_paciente') {
     try {
       const { staffCodigo, regToken, nombreCompleto, edad, sexo, telefono } = req.body;
