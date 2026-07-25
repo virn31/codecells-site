@@ -2256,7 +2256,7 @@
         </div>
 
         <!-- Formulario de consulta -->
-        <div class="consulta-section">
+        <div class="consulta-section" style="display:none;">
           <div class="consulta-header">
             <h3>Nueva consulta</h3>
             <span class="tag tag-gold" id="consulta-fecha">—</span>
@@ -3343,6 +3343,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 function activarTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+  // El formulario "Nueva consulta" solo tiene sentido en la pestaña Consultas —
+  // en NOVA LABS y las demás debe verse únicamente el contenido de esa pestaña.
+  const seccionConsulta = document.querySelector('.consulta-section');
+  if (seccionConsulta) seccionConsulta.style.display = (tab === 'consultas') ? '' : 'none';
 }
 
 // ─── DATOS GENERALES ──────────────────────────────────────────────
@@ -4446,7 +4450,7 @@ async function enviarNova() {
         medicoEspecialidad:  especialidad,
         pacienteCode:        pacienteActual ? (pacienteActual.fields['Código de paciente'] || pacienteActual.fields['ID_Paciente'] || pacienteActual.id) : null,
         messages:            novaHistorial,
-        max_tokens:          4096
+        max_tokens:          8000
       })
     });
     clearTimeout(timeoutId);

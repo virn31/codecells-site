@@ -2543,6 +2543,36 @@ module.exports = async function handler(req, res) {
 
     // ─── MODO MÉDICO CON HERRAMIENTA DE FICHA (opcional) ───────────────
     if (herramientaMedico) {
+      // Guardia general de truncamiento — antes solo cubría la herramienta de
+      // ficha; un dictado grande (ej. backfill de varias fechas con muchos
+      // analitos) puede truncar CUALQUIER herramienta médica a medio JSON,
+      // dejando el tool_use inválido/incompleto y sin ejecutar nada. Se
+      // detecta aquí, antes de intentar leer cualquier tool_use específico.
+      if (data.stop_reason === 'max_tokens') {
+        console.error('[nova] herramienta médica truncada por max_tokens — reintentando sin herramientas.');
+        try {
+          const retryRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type'      : 'application/json',
+              'x-api-key'         : process.env.ANTHROPIC_API_KEY,
+              'anthropic-version' : '2023-06-01',
+            },
+            body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: safeTokens, system: systemPrompt, messages }),
+          });
+          const retryData = await retryRes.json();
+          const retryTexto = retryRes.ok && Array.isArray(retryData.content)
+            ? retryData.content.find(b => b && b.type === 'text' && typeof b.text === 'string' && b.text.trim().length > 0)
+            : null;
+          if (retryTexto) {
+            return res.status(200).json({ content: [{ type: 'text', text: `${retryTexto.text}\n\n⚠️ Nota técnica: tu dictado era muy grande y no se pudo guardar estructurado en un solo mensaje — divídelo en 1-2 fechas por mensaje para que sí se guarde en NOVA LABS.` }] });
+          }
+        } catch (retryErr) {
+          console.error('[nova] error en reintento sin herramientas:', retryErr.message);
+        }
+        return res.status(502).json({ error: 'Tu dictado era demasiado grande y se cortó a la mitad sin guardarse. Divídelo en 1-2 fechas por mensaje e inténtalo de nuevo.' });
+      }
+
       // Avisar a OTRO médico de la red por Telegram — caso independiente,
       // NOVA decide sola cuándo esto amerita avisarle a un colega.
       const toolAvisar = Array.isArray(data.content)
