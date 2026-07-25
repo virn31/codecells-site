@@ -989,6 +989,80 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── MÉDICO: TABLA PIVOTE DE LABORATORIOS (analito × fecha) ───────
+  // Arma la tabla comparativa tipo hoja de laboratorio: filas agrupadas por
+  // categoría clínica (Biometría Hemática, Química Sanguínea, etc.), columnas
+  // por fecha de estudio, con bandera de color y serie para la tendencia.
+  if (action === 'medico_tabla_labs') {
+    try {
+      const { pacienteCode } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+
+      const formula = `{Código de paciente ref}="${pacienteCode}"`;
+      const valoresRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+      });
+      const valoresData = await valoresRes.json();
+      const registros = valoresData.records || [];
+
+      // Clasificación por palabras clave — heurística, no perfecta, pero
+      // agrupa lo más común de un panel CODE CELLS® en categorías legibles.
+      const CATEGORIAS = [
+        { nombre: 'Biometría Hemática', claves: ['hemoglobina', 'hematocrito', 'leucocito', 'plaqueta', 'eritrocito', 'vcm', 'hcm'] },
+        { nombre: 'Química Sanguínea', claves: ['glucosa', 'urea', 'creatinina', 'ácido úrico', 'acido urico', 'colesterol', 'triglicérido', 'trigliceridos', 'hdl', 'ldl', 'bun'] },
+        { nombre: 'Función Hepática', claves: ['ast', 'alt', 'ggt', 'bilirrubina', 'fosfatasa alcalina', 'albúmina', 'albumina'] },
+        { nombre: 'Función Renal', claves: ['tfg', 'filtrado glomerular', 'microalbuminuria'] },
+        { nombre: 'Perfil Hormonal', claves: ['tsh', 't3', 't4', 'cortisol', 'testosterona', 'estradiol', 'progesterona', 'igf-1', 'igf1', 'prolactina', 'fsh', 'lh', 'dhea'] },
+        { nombre: 'Metabólico e Inflamatorio', claves: ['hba1c', 'insulina', 'homa-ir', 'homa ir', 'vitamina d', 'pcr', 'proteína c reactiva', 'proteina c reactiva', 'ferritina'] },
+      ];
+      const clasificar = nombreAnalito => {
+        const n = (nombreAnalito || '').toLowerCase();
+        const cat = CATEGORIAS.find(c => c.claves.some(k => n.includes(k)));
+        return cat ? cat.nombre : 'Otros Estudios';
+      };
+
+      const fechasSet = new Set();
+      const porAnalito = {};
+      registros.forEach(r => {
+        const f = r.fields;
+        if (!f['Analito']) return;
+        const fecha = f['Fecha del estudio'] || '';
+        fechasSet.add(fecha);
+        if (!porAnalito[f['Analito']]) {
+          porAnalito[f['Analito']] = {
+            analito: f['Analito'],
+            categoria: clasificar(f['Analito']),
+            unidad: f['Unidad'] || '',
+            rango_texto: f['Rango de referencia'] || '',
+            porFecha: {},
+          };
+        }
+        porAnalito[f['Analito']].porFecha[fecha] = {
+          valor: f['Valor'] || '', valorNum: f['Valor numérico'], bandera: f['Bandera'] || 'Indeterminado',
+        };
+        // Si el mismo analito trae rango/unidad distinto en un corte más reciente, se queda el más reciente.
+        if (fecha >= (porAnalito[f['Analito']]._ultimaFechaVista || '')) {
+          porAnalito[f['Analito']].unidad = f['Unidad'] || porAnalito[f['Analito']].unidad;
+          porAnalito[f['Analito']].rango_texto = f['Rango de referencia'] || porAnalito[f['Analito']].rango_texto;
+          porAnalito[f['Analito']]._ultimaFechaVista = fecha;
+        }
+      });
+      Object.values(porAnalito).forEach(a => delete a._ultimaFechaVista);
+
+      const fechas = [...fechasSet].sort();
+      const filas = Object.values(porAnalito).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.analito.localeCompare(b.analito));
+
+      return res.status(200).json({ ok: true, fechas, filas });
+    } catch (err) {
+      console.error('[nova] medico_tabla_labs error:', err.message);
+      return res.status(500).json({ error: 'Error interno al armar la tabla de laboratorios.' });
+    }
+  }
+
   // ─── MÉDICO: RESUMEN DE ESTUDIOS + COMPARATIVO CONTEXTUALIZADO ────
   // Arma la vista de la pestaña NOVA LABS del Portal Médico: estudios en
   // orden cronológico (clasificados por Tipo de estudio para las pestañas
