@@ -827,6 +827,7 @@ module.exports = async function handler(req, res) {
       const TBL_MED = 'tbl87DsuBMmb4DjFM';
 
       let medicoRecordId = null;
+      let medicoNombre = null;
 
       if (regToken) {
         // Autorregistro del propio paciente: el token NUNCA da acceso al portal,
@@ -835,7 +836,9 @@ module.exports = async function handler(req, res) {
         const formulaTok = `{Token de autorregistro}="${regToken}"`;
         const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaTok)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
         const medData = await medRes.json();
-        medicoRecordId = medData.records?.[0]?.id || null;
+        const medRecord = medData.records?.[0] || null;
+        medicoRecordId = medRecord?.id || null;
+        medicoNombre = medRecord?.fields?.['Nombre completo'] || null;
         if (!medicoRecordId) return res.status(403).json({ error: 'Link de registro inválido.' });
       } else {
         // Flujo del kiosco de consultorio: requiere sesión de personal ya verificada
@@ -843,7 +846,9 @@ module.exports = async function handler(req, res) {
         const formulaMed = `{Código de médico}="${staffCodigo}"`;
         const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaMed)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
         const medData = await medRes.json();
-        medicoRecordId = medData.records?.[0]?.id || null;
+        const medRecord = medData.records?.[0] || null;
+        medicoRecordId = medRecord?.id || null;
+        medicoNombre = medRecord?.fields?.['Nombre completo'] || null;
       }
 
       // Siguiente código CC-PAC- disponible
@@ -878,7 +883,7 @@ module.exports = async function handler(req, res) {
       const createData = await createRes.json();
       if (!createRes.ok) return res.status(502).json({ error: 'No se pudo registrar al paciente en Airtable.' });
 
-      return res.status(200).json({ ok: true, codigo: nuevoCodigo, recordId: createData.records[0].id, nombre: nombreCompleto.trim() });
+      return res.status(200).json({ ok: true, codigo: nuevoCodigo, recordId: createData.records[0].id, nombre: nombreCompleto.trim(), medicoNombre });
     } catch (err) {
       console.error('[nova] kiosco_crear_paciente error:', err.message);
       return res.status(500).json({ error: 'Error interno registrando al paciente.' });
