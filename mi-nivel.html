@@ -457,9 +457,9 @@ document.getElementById('input-estudio').addEventListener('change', function(e) 
     estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).';
     return;
   }
-  if (file.size > 15 * 1024 * 1024) {
+  if (file.size > 3 * 1024 * 1024) {
     estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'El archivo es muy grande (máximo 15MB).';
+    estadoEl.textContent = 'El archivo es muy grande (máximo 3MB) — si es un PDF escaneado, intenta tomarle foto en vez de escanearlo.';
     return;
   }
 
@@ -482,7 +482,12 @@ document.getElementById('input-estudio').addEventListener('change', function(e) 
         mediaType: file.type,
       }),
     })
-      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        if (!r.ok && r.status === 413) {
+          throw new Error('archivo_muy_grande');
+        }
+        return r.json();
+      })
       .then(function(data) {
         btn.disabled = false;
         if (data.ok && data.verificado) {
@@ -494,10 +499,12 @@ document.getElementById('input-estudio').addEventListener('change', function(e) 
           estadoEl.textContent = data.error || 'No se pudo verificar el documento.';
         }
       })
-      .catch(function() {
+      .catch(function(err) {
         btn.disabled = false;
         estadoEl.style.color = '#E2574B';
-        estadoEl.textContent = 'Error de conexión. Intenta de nuevo.';
+        estadoEl.textContent = (err && err.message === 'archivo_muy_grande')
+          ? 'El archivo es demasiado pesado para subirlo así. Intenta con uno más chico o tómale foto en vez de escanearlo.'
+          : 'Error de conexión. Intenta de nuevo.';
       });
   };
   reader.readAsDataURL(file);
