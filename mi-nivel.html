@@ -390,6 +390,18 @@ function mensajeBienvenida() {
 }
 
 var novaHistorial = [];
+var LIMITE_HISTORIAL = 20; // últimos N mensajes — controla el gasto de tokens en chats largos
+
+function recortarHistorial() {
+  if (novaHistorial.length > LIMITE_HISTORIAL) {
+    novaHistorial = novaHistorial.slice(novaHistorial.length - LIMITE_HISTORIAL);
+    // Airtable/Anthropic exigen que el primer mensaje del historial sea del
+    // usuario — si el recorte dejó un 'assistant' primero, se quita ese uno.
+    if (novaHistorial.length && novaHistorial[0].role !== 'user') {
+      novaHistorial.shift();
+    }
+  }
+}
 
 function enviarMensaje() {
   var input = document.getElementById('chat-input');
@@ -397,6 +409,7 @@ function enviarMensaje() {
   if (!texto) return;
   agregarMensaje(texto, 'user');
   novaHistorial.push({ role: 'user', content: texto });
+  recortarHistorial();
   input.value = '';
 
   var btn = document.getElementById('btn-enviar');
@@ -424,6 +437,7 @@ function enviarMensaje() {
       if (!bloqueTexto) { agregarMensaje('⚠️ NOVA no generó una respuesta legible. Intenta de nuevo.', 'nova'); return; }
       agregarMensaje(bloqueTexto.text, 'nova');
       novaHistorial.push({ role: 'assistant', content: bloqueTexto.text });
+      recortarHistorial();
     })
     .catch(function(err){
       clearTimeout(timeoutId);
