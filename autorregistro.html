@@ -117,6 +117,7 @@
 var tokenRegistro = null;
 var codigoPacienteCreado = null;
 var nombrePacienteCreado = null;
+var nombreMedicoRemitente = null;
 
 function irA(id) {
   document.querySelectorAll('.pantalla').forEach(function(p){ p.classList.remove('activa'); });
@@ -169,6 +170,7 @@ document.getElementById('btn-registrar').addEventListener('click', async functio
 
     codigoPacienteCreado = data.codigo;
     nombrePacienteCreado = nombre;
+    nombreMedicoRemitente = data.medicoNombre || null;
     iniciarPreconsulta();
 
   } catch (err) {
@@ -195,7 +197,7 @@ var NOVA_MODEL = 'claude-sonnet-5';
 var novaHistory = [];
 var novaIsLoading = false;
 
-var SYSTEM_PROMPT = `Eres NOVA, la asistente de CODE CELLS® encargada de tomar la preconsulta de un paciente ANTES de su cita, para que su médico llegue con toda la información lista.
+var SYSTEM_PROMPT = `Eres NOVA, la asistente de __MEDICO_INTRO__ para tomar la preconsulta de un paciente ANTES de su cita, para que su médico llegue con toda la información lista.
 
 Ya sabes que se llama __NOMBRE__. NO le vuelvas a preguntar su nombre.
 
@@ -220,9 +222,13 @@ Deja vacío ("") cualquier campo que no aplique o no se haya mencionado. Hazlo U
 ESTILO: español, cercano y humano, oraciones cortas, nunca clínico-frío.`;
 
 function iniciarPreconsulta() {
-  SYSTEM_PROMPT = SYSTEM_PROMPT.replace(/__NOMBRE__/g, nombrePacienteCreado.split(' ')[0]);
+  var introMedico = nombreMedicoRemitente ? ('Dr(a). ' + nombreMedicoRemitente) : 'CODE CELLS®';
+  SYSTEM_PROMPT = SYSTEM_PROMPT.replace(/__MEDICO_INTRO__/g, introMedico).replace(/__NOMBRE__/g, nombrePacienteCreado.split(' ')[0]);
   irA('p-preconsulta');
-  var bienvenida = 'Hola ' + nombrePacienteCreado.split(' ')[0] + ', qué gusto. Antes de tu cita quiero conocerte un poco para que tu médico llegue mejor preparado — cuéntame, ¿qué te trae a CODE CELLS®?';
+  var saludoMedico = nombreMedicoRemitente
+    ? ('Hola ' + nombrePacienteCreado.split(' ')[0] + ', soy NOVA, la asistente del Dr(a). ' + nombreMedicoRemitente + '. ')
+    : ('Hola ' + nombrePacienteCreado.split(' ')[0] + ', qué gusto. ');
+  var bienvenida = saludoMedico + 'Antes de tu cita quiero conocerte un poco para que tu médico llegue mejor preparado — cuéntame, ¿qué te trae a CODE CELLS®?';
   novaHistory.push({ role: 'assistant', content: bienvenida });
   renderNovaMessage(bienvenida, 'nova');
 }
