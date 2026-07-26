@@ -2396,6 +2396,17 @@
               <textarea id="f-plan" placeholder="Indicaciones, ajustes al protocolo, próximos pasos…" rows="3"></textarea>
             </div>
 
+            <div class="form-row">
+              <div class="form-group">
+                <label>Próxima cita</label>
+                <input type="date" id="f-proxima-cita">
+              </div>
+              <div class="form-group">
+                <label>Hora</label>
+                <input type="time" id="f-proxima-cita-hora" value="10:00">
+              </div>
+            </div>
+
             <div class="form-group">
               <label>Notas internas (no visibles al paciente)</label>
               <textarea id="f-notas" placeholder="Observaciones del médico…" rows="2"></textarea>
@@ -4229,6 +4240,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     'Estado del protocolo': document.getElementById('f-estado').value,
     'Plan terapéutico': document.getElementById('f-plan').value || null,
     'Notas internas': document.getElementById('f-notas').value || null,
+    'Próxima cita': document.getElementById('f-proxima-cita').value || null,
   };
   if (vitalesExtra.length > 0) fields['Signos vitales'] = vitalesExtra.join(' · ');
 
@@ -4238,6 +4250,32 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   try {
     const consultaCreada = await airtablePost(TBL_CONSULTAS, fields);
     showToast('Consulta guardada en Airtable ✓', 'success');
+
+    // Si el médico capturó fecha de próxima cita, intenta crear el evento en
+    // su Google Calendar (si lo tiene conectado). Nunca bloquea ni falla el
+    // guardado de la consulta — es una comodidad adicional, no un requisito.
+    const proximaCitaFecha = document.getElementById('f-proxima-cita').value;
+    if (proximaCitaFecha) {
+      const proximaCitaHora = document.getElementById('f-proxima-cita-hora').value || '10:00';
+      fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'medico_crear_evento_calendario',
+          medicoCode: medicoActual['Código de médico'] || medicoActual['codigo'] || '',
+          pacienteNombre: pacienteActual.fields['Nombre completo'] || 'Paciente',
+          fecha: proximaCitaFecha,
+          hora: proximaCitaHora,
+          motivo: motivo || 'Consulta de seguimiento',
+        }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) showToast('Cita agregada a tu Google Calendar ✓', 'success');
+          // Si no hay calendario conectado o falla, no se muestra error — es opcional.
+        })
+        .catch(() => {});
+    }
 
     // Antecedentes dictados van a HISTORIA CLÍNICA — crea o corrige el
     // registro existente (mismo patrón que el botón "Editar historia").
@@ -4373,13 +4411,14 @@ function limpiarFormulario() {
    'f-fc','f-fr','f-sato2','f-cintura','f-estado-civil','f-ocupacion',
    'f-grupo-sanguineo','f-escolaridad',
    'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos',
-   'f-panel-lab','f-resultados-lab','f-fuera-rango-lab'].forEach(id => {
+   'f-panel-lab','f-resultados-lab','f-fuera-rango-lab','f-proxima-cita'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (el.tagName === 'SELECT') el.selectedIndex = 0;
     else el.value = '';
   });
   document.getElementById('f-estado').value = 'activo';
+  document.getElementById('f-proxima-cita-hora').value = '10:00';
   document.getElementById('lab-rapido-filas').innerHTML = '';
   document.getElementById('lab-archivo-estado').textContent = '';
 }

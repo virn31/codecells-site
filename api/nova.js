@@ -17,6 +17,13 @@ try {
 }
 const BNCC_ING_POR_ID = Object.fromEntries(BNCC_DATA.ingredientes.map(i => [i.id, i]));
 
+let googleCalendarLib = null;
+try {
+  googleCalendarLib = require('../lib/google-calendar.js');
+} catch (err) {
+  console.error('[nova] No se pudo cargar lib/google-calendar.js:', err.message);
+}
+
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
 const TAXONOMIA_PATOLOGIAS = ["Obesidad","Sobrepeso","Diabetes Tipo 2","Prediabetes","Resistencia a la Insulina",
@@ -1173,6 +1180,51 @@ module.exports = async function handler(req, res) {
   // capilar) sin necesidad de subir ningún archivo. Crea el registro resumen
   // en NOVA LABS y, si vienen valores estructurados, un registro por analito
   // en LAB_VALORES para que alimenten el comparativo automático.
+  // ─── MÉDICO: CREAR EVENTO EN SU GOOGLE CALENDAR ────────────────────
+  // Se llama al guardar una consulta con "Próxima cita" capturada. Si el
+  // médico no ha conectado su Google Calendar, responde ok:false sin generar
+  // error — es una comodidad opcional, nunca bloquea el flujo de la consulta.
+  if (action === 'medico_crear_evento_calendario') {
+    try {
+      const { medicoCode, pacienteNombre, fecha, hora, motivo } = req.body;
+      if (!medicoCode || !/^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode)) return res.status(400).json({ ok: false, error: 'Código de médico inválido.' });
+      if (!fecha) return res.status(400).json({ ok: false, error: 'Falta la fecha.' });
+      if (!googleCalendarLib) return res.status(200).json({ ok: false, error: 'Integración de Google Calendar no disponible.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_MEDICOS = 'tbl87DsuBMmb4DjFM';
+
+      const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MEDICOS}?filterByFormula=${encodeURIComponent(`{Código de médico}="${medicoCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const medData = await medRes.json();
+      const medico = medData.records?.[0];
+      const refreshToken = medico?.fields?.['Google Calendar Refresh Token'];
+
+      if (!refreshToken) {
+        // No es un error — simplemente este médico no ha conectado su calendario.
+        return res.status(200).json({ ok: false, motivo: 'sin_conectar' });
+      }
+
+      const horaFinal = /^\d{2}:\d{2}$/.test(hora) ? hora : '10:00';
+      const inicioISO = `${fecha}T${horaFinal}:00`;
+      const finDate = new Date(`${fecha}T${horaFinal}:00`);
+      finDate.setMinutes(finDate.getMinutes() + 30);
+      const finISO = finDate.toISOString().slice(0, 19);
+
+      const evento = await googleCalendarLib.crearEvento(refreshToken, {
+        titulo: `CODE CELLS® — Consulta: ${pacienteNombre || 'Paciente'}`,
+        descripcion: motivo || 'Consulta de seguimiento — CODE CELLS®',
+        inicioISO,
+        finISO,
+      });
+
+      return res.status(200).json({ ok: true, eventoId: evento.id, link: evento.htmlLink });
+    } catch (err) {
+      console.error('[nova] medico_crear_evento_calendario error:', err.message);
+      return res.status(200).json({ ok: false, error: 'No se pudo crear el evento en Google Calendar.' });
+    }
+  }
+
   if (action === 'medico_guardar_labs_rapidos') {
     try {
       const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
