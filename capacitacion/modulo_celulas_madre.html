@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Células madre y biológicos — GENESIS™</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185; --purple: #b79ae0;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:4px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:420px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:52px; height:52px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:16px; font-size:24px; }
+  h3 { margin:0 0 12px; font-size:19px; font-weight:600; color:#fff; }
+  h4 { margin:16px 0 6px; font-size:12.5px; font-weight:700; color:var(--gold-light); letter-spacing:0.03em; text-transform:uppercase; }
+  p { font-size:14.5px; line-height:1.65; color:var(--text-secondary); margin:0 0 10px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .step-label { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--teal-light); background:rgba(79,209,192,0.1); border-radius:20px; padding:4px 10px; margin-bottom:10px; }
+  .step-label.p2 { color:var(--gold-light); background:rgba(200,160,80,0.1); }
+  .step-label.p3 { color:var(--purple); background:rgba(183,154,224,0.1); }
+  .chip-row { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px; }
+  .chip { background:var(--surface); border-radius:20px; padding:7px 12px; font-size:12px; font-weight:600; color:var(--text); }
+  .protocard { background:var(--surface); border-left:3px solid var(--teal-light); border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+  .protocard .pname { font-weight:700; color:#fff; font-size:13.5px; margin-bottom:4px; }
+  .protocard .pcomp { font-size:12.5px; color:var(--text-secondary); margin-bottom:4px; }
+  .protocard .pmeta { font-size:11px; color:var(--teal-light); font-family:monospace; margin-bottom:4px; }
+  .protocard .pwarn { font-size:11.5px; color:var(--danger); }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:10.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+var PRACTICE_CASES = [
+  { caseText: "Paciente con artrosis de rodilla, candidato a MSC placentarias por vía intraarticular.",
+    opts: ["10 millones de células, repitiendo cada 4-6 meses.", "1 millón de células por kg de peso, como en el esquema sistémico.", "28 millones de células, la dosis reservada para casos agudos."], correct: 0,
+    rationale: "La artrosis por vía intraarticular usa 10 millones de células cada 4-6 meses — una dosis y frecuencia distinta tanto del esquema sistémico (1M/kg) como del esquema de mayor severidad (28M) reservado para casos como fractura aguda." },
+  { caseText: "Paciente con fractura aguda, candidato a MSC placentarias con el esquema de mayor severidad.",
+    opts: ["1 millón por kg exclusivamente por vía IV, sin componente local.", "28 millones por vía intralesional, combinando simultáneamente la vía intravenosa — la única indicación donde se combinan ambas vías.", "10 millones intraarticulares únicamente, igual que en artrosis."], correct: 1,
+    rationale: "La fractura aguda es la única indicación documentada donde se combinan intralesional (28 millones) e intravenoso de forma simultánea — un esquema de mayor severidad que el usado en artrosis." },
+  { caseText: "Paciente con DM2 controlada, candidato a implante placentario (presentación de 1-2g, vía subcutánea con técnica específica).",
+    opts: ["Cada 2 meses, igual que un caso descompensado.", "Una sola vez al año sin excepción, sin importar el control metabólico.", "Cada 6 meses."], correct: 2,
+    rationale: "La DM2 controlada corresponde al esquema de cada 6 meses — el implante placentario es de regeneración más lenta, orientado a enfermedad crónico-degenerativa estable, no a descompensación aguda." },
+  { caseText: "Paciente con DM2 descompensada, candidato a implante placentario.",
+    opts: ["Cada 2 meses — la frecuencia se acorta ante descompensación.", "Cada 6 meses, igual que en control metabólico estable.", "Se suspende el implante placentario hasta compensar completamente al paciente."], correct: 0,
+    rationale: "Ante descompensación metabólica, la frecuencia del implante placentario se acorta a cada 2 meses — un ejemplo claro de que la frecuencia depende del estado de control, no es fija para la indicación." },
+  { caseText: "Paciente oncológico, candidato a células NK.",
+    opts: ["Dosis ajustada por kg de peso, igual que MSC.", "Monodosis estándar por vía IV, cada 2 meses — exclusivo de pacientes oncológicos.", "Dosis ajustada por severidad en viales, igual que exosomas."], correct: 1,
+    rationale: "Las células NK se manejan con monodosis estándar (no por peso ni por severidad en viales), vía IV, cada 2 meses, y son exclusivas de pacientes con cáncer — su mecanismo de inmunovigilancia y control tumoral no aplica a otras indicaciones del catálogo de biológicos." },
+  { caseText: "Un paciente pregunta si las MSC \"curan absolutamente todo\", ya que un influencer en redes sociales las describió así.",
+    opts: ["Sí, la evidencia confirma que las MSC son curativas universales para cualquier condición.", "Solo curan enfermedades autoinmunes, ninguna otra condición.", "No: las MSC son moduladoras (inmunomoduladoras y tróficas), no curativas universales. Su seguridad es consistentemente buena, pero su eficacia ha sido inconsistente entre ensayos clínicos — se comunican como una herramienta prometedora, no como una cura garantizada."], correct: 2,
+    rationale: "Presentar a las MSC como curativas universales no tiene respaldo científico y viola la política de Publicidad Responsable — la evidencia disponible es prometedora pero heterogénea, con buena seguridad y eficacia variable según indicación." },
+  { caseText: "Un paciente pregunta si el implante placentario es \"tejido vivo de un bebé\", con cierta preocupación ética.",
+    opts: ["No: es un biomaterial acelular — tejido placentario procesado, deshidratado y esterilizado que conserva matriz extracelular y factores bioactivos, pero sin células vivas.", "Sí, contiene células vivas que se integran directamente al cuerpo del paciente.", "Depende del lote, algunos productos sí contienen tejido vivo."], correct: 0,
+    rationale: "Aclarar que el implante placentario es acelular (no es tejido vivo) es clave tanto para la precisión científica como para responder con honestidad a preocupaciones éticas razonables del paciente." },
+  { caseText: "Un paciente oncológico pregunta si las células NK \"van a curar su cáncer por sí solas\".",
+    opts: ["Sí, las NK son monoterapia curativa para cualquier tipo de cáncer.", "No: las NK son una herramienta dentro de un esquema de inmunoterapia, generalmente en combinación con otras terapias oncológicas — no son curativas universales por sí solas.", "Las NK no tienen ninguna relación con el manejo oncológico."], correct: 1,
+    rationale: "Las NK muestran señales de eficacia y buen perfil de seguridad en varios tipos de cáncer, pero se estudian y aplican dentro de esquemas combinados de inmunoterapia — presentarlas como monoterapia curativa es impreciso y clínicamente irresponsable." },
+  { caseText: "Un médico calcula la dosis de exosomas para un paciente multiplicando 1 millón de unidades por kg de peso, 'igual que se hace con MSC placentarias'.",
+    opts: ["Los exosomas no tienen ningún criterio de dosificación documentado.", "Correcto, todos los biológicos de GENESIS™ se dosifican por peso corporal.", "Incorrecto: los exosomas se dosifican por número de viales según la severidad del caso, no por peso corporal — ese criterio es específico de MSC/MUSE, no se traslada automáticamente a exosomas."], correct: 2,
+    rationale: "Cada biológico tiene su propia lógica de dosificación — MSC/MUSE se dosifican por peso o por severidad según la vía; los exosomas se dosifican por número de viales según severidad del caso, nunca por peso corporal." },
+  { caseText: "Paciente con tendinopatía crónica y desgaste de cartílago articular es candidato a manejo regenerativo. El médico considera si los exosomas deben aplicarse solos o si tiene sentido combinarlos con otro biológico.",
+    opts: ["Los exosomas pueden combinarse con MSC o MUSE específicamente en reparación osteoarticular (cartílago, tendinopatías, inflamación articular) — es una combinación documentada, no una improvisación.", "Los exosomas nunca pueden combinarse con otros biológicos.", "Solo se pueden aplicar exosomas por vía tópica en este contexto."], correct: 0,
+    rationale: "La combinación de exosomas con MSC/MUSE está documentada específicamente para procesos de reparación osteoarticular — cartílago, tendinopatías e inflamación articular — no es una mezcla arbitraria de productos." },
+  { caseText: "Un paciente con osteoartritis de rodilla pregunta por PDRN, que un colega le recomendó ampliamente.",
+    opts: ["Se rechaza cualquier uso de PDRN porque no es un biológico reconocido en medicina regenerativa.", "Se explica el mecanismo (agonista de receptores de adenosina A2A, angiogénesis y reparación tisular) y sus vías habituales (intraarticular, SC, mesoterapia) — pero el protocolo exacto de dosis/frecuencia de CODE CELLS® para PDRN debe confirmarse con la dirección médica antes de aplicar un esquema fijo.", "Se aplica de inmediato con el mismo esquema de dosis que MSC intraarticular (10 millones cada 4-6 meses)."], correct: 1,
+    rationale: "PDRN es un producto real y ampliamente recomendado en la práctica clínica, con mecanismo bien descrito — pero, a diferencia de MSC/MUSE/Exosomas/Implante placentario/NK, todavía no tenemos el protocolo exacto de CODE CELLS® documentado. No debe asumirse un esquema de otro biológico solo porque ambos son inyectables." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Un médico aplica MSC placentarias a un paciente con fractura aguda usando el mismo esquema que usaría en un paciente con artrosis (10 millones intraarticulares cada 4-6 meses), asumiendo que 'ambos son MSC, así que la dosis es la misma'.",
+    opts: ["Incorrecto: la artrosis usa 10 millones intraarticulares cada 4-6 meses; la fractura aguda usa 28 millones intralesional combinados con IV simultáneo — la severidad y la urgencia del caso determinan tanto la dosis como si se combinan vías, no el solo hecho de tratarse de MSC.", "Correcto, la dosis de MSC es estándar sin importar la indicación."], correct: 0,
+    rationale: "MSC placentarias no tiene una dosis única — varía según indicación, severidad y vía, desde 10 millones en un caso crónico hasta 28 millones combinados con IV en un caso agudo. Asumir una dosis fija por producto ignora el criterio clínico real." },
+  { caseText: "Un médico asume que, como el implante placentario ya se aplicó hace 6 meses según el esquema de DM2 controlada, no hay razón para reevaluar la frecuencia aunque el paciente se haya descompensado metabólicamente en el intervalo.",
+    opts: ["Correcto, la frecuencia programada se mantiene sin importar cambios en el estado del paciente.", "Incorrecto: la frecuencia del implante placentario depende del estado de control metabólico actual, no de un calendario fijo — ante descompensación, la frecuencia debe acortarse a cada 2 meses, revalorando al paciente en cada visita."], correct: 1,
+    rationale: "Tratar la frecuencia de aplicación como un calendario fijo, sin reevaluar el estado clínico actual del paciente, ignora que el criterio real es el grado de control metabólico en el momento de cada decisión." },
+  { caseText: "Un médico afirma que la buena seguridad reportada de las MSC en ensayos clínicos significa automáticamente que su eficacia también está firmemente demostrada para cualquier indicación.",
+    opts: ["Incorrecto: son dos variables distintas — la seguridad de las MSC es consistentemente buena en los ensayos, pero la eficacia ha sido inconsistente entre estudios y varía según indicación, dosis y población. Una no garantiza la otra.", "Correcto: seguridad sólida implica eficacia sólida por definición."], correct: 0,
+    rationale: "Confundir seguridad con eficacia es un error conceptual frecuente en medicina regenerativa. Ambas deben evaluarse y comunicarse de forma independiente." },
+  { caseText: "Un médico evalúa a un paciente con laboratorios normales y sin infección activa, cáncer ni embarazo, y lo considera candidato sin más consideración — aunque el paciente ha expresado abiertamente que espera 'quedar como nuevo en dos semanas' y que no piensa regresar para ninguna cita de seguimiento.",
+    opts: ["Es candidato, ya que no tiene ninguna contraindicación clínica de laboratorio o antecedente.", "No es candidato en este momento: las expectativas irreales y la negativa a comprometerse con el seguimiento clínico son parte de los criterios de exclusión, además de las contraindicaciones clínicas tradicionales."], correct: 1,
+    rationale: "Los criterios de candidatura no se limitan a laboratorios y antecedentes clínicos — las expectativas irreales del paciente y su negativa a comprometerse con el seguimiento son, por sí solas, razones válidas para no proceder." }
+];
+
+var QUESTIONS = [
+  { q: "¿Qué tipo de células son las MSC placentarias?", opts: ["Multipotentes, con capacidad de autorrenovación", "Totipotentes, capaces de formar un organismo completo", "Exclusivamente de origen sanguíneo periférico", "Diferenciadas terminalmente, sin capacidad de renovación"], correct: 0 },
+  { q: "¿Qué efecto inmunomodulador describen las revisiones sobre MSC?", opts: ["Aumentan todas las citocinas proinflamatorias sin excepción", "Disminuyen IL-6, TNF-α e IL-1β, y aumentan IL-10", "No tienen ningún efecto sobre el sistema inmune", "Bloquean permanentemente la respuesta inmune completa"], correct: 1 },
+  { q: "Además de la inmunomodulación, ¿qué otro mecanismo describe la acción de las MSC?", opts: ["Producción de anticuerpos monoclonales específicos", "Fagocitosis directa de patógenos", "Liberación de factores tróficos y exosomas propios, apoyo a angiogénesis y remodelación de matriz extracelular", "Síntesis de insulina exógena"], correct: 2 },
+  { q: "Según revisiones sistemáticas recientes, ¿qué beneficio se ha documentado con MSC intraarticular en osteoartritis?", opts: ["Empeoramiento documentado del cuadro articular", "Ningún beneficio medible en ningún estudio", "Curación completa y definitiva de la osteoartritis en el 100% de los casos", "Reducción de dolor y mejoría funcional, con beneficio sostenido hasta 24 meses en algunos estudios"], correct: 3 },
+  { q: "¿Cuál es la relación entre seguridad y eficacia de las MSC según los ensayos clínicos disponibles?", opts: ["La seguridad es consistentemente buena, pero la eficacia ha sido inconsistente entre ensayos", "La eficacia es perfecta y consistente en el 100% de los estudios", "Ninguna de las dos se ha evaluado en ensayos clínicos", "Ambas son inconsistentes por igual"], correct: 0 },
+  { q: "¿Cuáles son los principales retos de estandarización señalados para las MSC?", opts: ["Solo la disponibilidad geográfica del proveedor", "Variabilidad de fuente/donante, diferencias en aislamiento/expansión/criopreservación, y dosis/vía/frecuencia no estandarizadas", "Únicamente el costo del producto", "No existe ningún reto de estandarización documentado"], correct: 1 },
+  { q: "¿Qué es, biológicamente, el implante placentario liofilizado?", opts: ["Tejido vivo que se integra directamente al cuerpo del paciente", "Un medicamento sintético sin ningún componente biológico", "Un biomaterial acelular que conserva matriz extracelular y factores bioactivos", "Células madre vivas suspendidas en solución"], correct: 2 },
+  { q: "¿Qué componentes conserva la placenta liofilizada tras su procesamiento?", opts: ["Solo componentes sintéticos añadidos en el proceso", "Ninguno, el proceso elimina toda actividad biológica", "Únicamente agua y sales minerales", "Matriz extracelular (colágeno, elastina, proteoglicanos) y factores de crecimiento"], correct: 3 },
+  { q: "¿Cuál es el mecanismo principal del implante placentario?", opts: ["Provisión de un scaffold para migración/proliferación celular y liberación gradual de factores bioactivos", "Producción de nuevas células madre in situ", "Bloqueo total de la respuesta inflamatoria local", "Reemplazo quirúrgico directo del tejido dañado"], correct: 0 },
+  { q: "¿En qué tipo de heridas se ha documentado el uso de implante placentario?", opts: ["Únicamente heridas quirúrgicas agudas menores de 24 horas", "Úlceras diabéticas, venosas, por presión y heridas complejas", "Exclusivamente quemaduras de tercer grado", "No se ha documentado su uso en ningún tipo de herida"], correct: 1 },
+  { q: "¿De qué depende principalmente la seguridad del implante placentario, según la literatura?", opts: ["No depende de ningún factor identificable", "Del precio del producto en el mercado", "Del proceso de manufactura bajo estándares adecuados y la selección de donantes, con trazabilidad y control de infecciones", "Únicamente de la opinión del paciente"], correct: 2 },
+  { q: "¿Cómo destruyen las células NK a células tumorales o infectadas?", opts: ["Produciendo anticuerpos específicos como los linfocitos B", "Mediante fagocitosis directa exclusivamente", "No tienen mecanismo citotóxico documentado", "Mediante receptores activadores/inhibidores y liberación de perforinas y granzimas"], correct: 3 },
+  { q: "¿De qué fuentes pueden obtenerse células NK para uso terapéutico?", opts: ["Sangre periférica, cordón umbilical, líneas celulares NK y diferenciación de progenitoras", "Únicamente de tejido adiposo del propio paciente", "Solo pueden sintetizarse artificialmente sin fuente biológica", "Exclusivamente de médula ósea"], correct: 0 },
+  { q: "¿En qué áreas oncológicas se concentran la mayoría de los ensayos con células NK?", opts: ["Únicamente tumores benignos", "Leucemias, linfomas y tumores sólidos en combinación con otras terapias", "Exclusivamente cáncer de piel no melanoma", "No existen ensayos oncológicos con NK"], correct: 1 },
+  { q: "¿Qué es CAR-NK?", opts: ["Un tipo de dieta especializada para pacientes oncológicos", "Un método exclusivo de diagnóstico por imagen", "Ingeniería de receptores quiméricos en células NK para potenciar su especificidad antitumoral", "Un protocolo de fisioterapia post-quimioterapia"], correct: 2 },
+  { q: "¿Qué ventaja de seguridad se documenta en NK frente a terapias con linfocitos T?", opts: ["Ninguna diferencia de seguridad documentada", "Mayor toxicidad hepática consistente", "Mayor riesgo de rechazo en todos los casos", "Menor riesgo de enfermedad de injerto contra huésped"], correct: 3 },
+  { q: "Dentro de la jerarquía de potencial celular, ¿cómo se clasifican las MSC placentarias?", opts: ["Multipotentes", "Totipotentes", "No tienen clasificación de potencial", "Unipotentes exclusivamente"], correct: 0 },
+  { q: "¿Cómo se describe a las MUSE Cells en cuanto a su potencial de diferenciación?", opts: ["Unipotentes, un solo linaje posible", "Pluripotentes resistentes al estrés", "Totipotentes capaces de formar un organismo completo", "Exactamente el mismo nivel que las MSC, sin ninguna diferencia"], correct: 1 },
+  { q: "En la jerarquía de evidencia científica, ¿qué nivel se considera de mayor solidez?", opts: ["Comentarios en redes sociales", "Casos clínicos aislados", "Revisiones sistemáticas y metaanálisis", "Opinión de expertos"], correct: 2 },
+  { q: "¿Qué significa que un tratamiento tenga 'baja calidad de evidencia' según este marco?", opts: ["Que el tratamiento definitivamente no funciona", "Que no se puede usar bajo ninguna circunstancia", "Que el producto es ilegal", "Que investigaciones futuras aún pueden cambiar la conclusión — no que el tratamiento sea inútil"], correct: 3 },
+  { q: "¿Cuál es el principio general del beneficio clínico en MSC, exosomas e implante placentario?", opts: ["Señales paracrinas que modifican el microambiente, favoreciendo que el propio tejido del paciente repare", "Reemplazo físico directo del tejido dañado por el producto aplicado", "No existe ningún principio común entre estos biológicos", "Efecto exclusivamente placebo sin base biológica"], correct: 0 },
+  { q: "¿Cuál de las siguientes NO es, por sí sola, un criterio de exclusión para biológicos regenerativos?", opts: ["Expectativas irreales del paciente sobre el resultado", "Que el paciente pida una segunda opinión antes de decidir", "Infección activa o sepsis", "Negativa a comprometerse con el seguimiento clínico"], correct: 1 },
+  { q: "¿Qué dosis se usa para MSC placentarias por vía sistémica?", opts: ["Monodosis estándar sin ajuste", "28 millones de células fijas en todos los casos", "1 millón de células por kg de peso", "500 mil células por kg de peso"], correct: 2 },
+  { q: "¿Cuál es la única indicación del catálogo donde se combinan simultáneamente las vías intralesional e intravenosa?", opts: ["VIH activo con exosomas", "Artrosis", "DM2 descompensada con implante placentario", "Fractura aguda con MSC"], correct: 3 },
+  { q: "¿Cuál es la vía y presentación del implante placentario?", opts: ["Vía subcutánea, presentación de 1g o 2g según severidad", "Vía oral, en cápsulas", "Vía intravenosa, ampolleta de 10 ml", "Vía intramuscular en glúteo"], correct: 0 },
+  { q: "¿Cuál es la vía, dosis y población de uso de las células NK?", opts: ["Vía subcutánea, dosis por severidad, exclusivo VIH", "Vía IV, monodosis estándar, cada 2 meses, exclusivo de pacientes oncológicos", "Intraarticular, monodosis, exclusivo artrosis", "Vía oral, dosis por kg de peso, cualquier paciente"], correct: 1 }
+];
+
+var CELLS = [
+  { label: "1 · Bienvenida", render: function() {
+    return '<div class="icon-badge">🧬</div><h3>Células madre y biológicos — GENESIS™</h3>' +
+      '<p>MSC placentarias, implante de placenta liofilizada y células NK son tres biológicos con orígenes, mecanismos y aplicaciones completamente distintos. Este módulo cubre cada uno con profundidad real, y después su aplicación práctica dentro de GENESIS™.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás explicar el mecanismo de cada biológico, distinguir sus aplicaciones y niveles de evidencia, y aplicar correctamente dosis, vías y frecuencia según indicación real — no según un esquema genérico compartido.</p></div>';
+  }},
+  { label: "2 · MSC: introducción", render: function() {
+    return '<div class="icon-badge">🌱</div><span class="step-label">Parte I · MSC</span><h3>Células Madre Mesenquimales</h3>' +
+      '<p>Las MSC son células <strong style="color:#fff;">multipotentes</strong> con capacidad de autorrenovación y potente actividad inmunomoduladora y trófica. CODE CELLS® las obtiene de fuente <strong style="color:#fff;">placentaria</strong>, vía Regene Global.</p>' +
+      '<div class="card"><p style="margin:0;">Su nombre técnico completo es <strong style="color:#fff;">célula estromal multipotente</strong>; "mesenquimal" hace referencia al tejido embrionario (mesénquima) del que derivan histológicamente los linajes que puede formar.</p></div>';
+  }},
+  { label: "3 · MSC: breve historia", render: function() {
+    return '<div class="icon-badge">📜</div><span class="step-label">Parte I · MSC</span><h3>Breve historia</h3>' +
+      '<p>El biólogo ruso <strong style="color:#fff;">Alexander Friedenstein</strong> las describió por primera vez a finales de los años 60 y 70, al identificar en médula ósea una población de células adherentes al plástico capaces de formar colonias tipo fibroblasto.</p>' +
+      '<div class="card"><p style="margin:0;">El término <strong style="color:#fff;">"célula madre mesenquimal"</strong> lo popularizó <strong style="color:#fff;">Arnold Caplan</strong> en los años 90. En 2006, la Sociedad Internacional de Terapia Celular (ISCT) fijó los criterios mínimos que hoy se usan para definirlas: adherencia al plástico, un perfil específico de marcadores de superficie, y capacidad de diferenciarse en hueso, cartílago y grasa.</p></div>';
+  }},
+  { label: "4 · MSC: origen", render: function() {
+    return '<div class="icon-badge">🧭</div><span class="step-label">Parte I · MSC</span><h3>Fuentes y diferenciación limitada</h3>' +
+      '<p>Se obtienen de tejido adiposo, médula ósea o placenta. A diferencia de células embrionarias/pluripotentes, no forman tejidos fuera de su linaje habitual — lo que facilita su estudio clínico.</p>' +
+      '<div class="card"><p style="margin:0;">La fuente placentaria (usada por CODE CELLS®) suele obtenerse por consentimiento tras partos por cesárea programados, evitando así cualquier procedimiento adicional al donante.</p></div>';
+  }},
+  { label: "5 · MSC: inmunomodulación", render: function() {
+    return '<div class="icon-badge">🛡️</div><span class="step-label">Parte I · MSC</span><h3>Mecanismo: inmunomodulación</h3>' +
+      '<p>El mecanismo mejor documentado: reducen IL-6, TNF-α e IL-1β, y aumentan IL-10.</p>' +
+      '<div class="card"><p style="margin:0;">El efecto neto es <strong style="color:var(--teal-light);">regulador</strong>, no supresor completo del sistema inmune. Este perfil "sensor del entorno" explica por qué las MSC de distintos tejidos —adiposo, médula, placenta— pueden comportarse de forma algo distinta según el estado inflamatorio local en el que actúan.</p></div>';
+  }},
+  { label: "6 · MSC: factores tróficos", render: function() {
+    return '<div class="icon-badge">📡</div><span class="step-label">Parte I · MSC</span><h3>Mecanismo: factores tróficos</h3>' +
+      '<p>Liberan factores de crecimiento solubles y, a su vez, sus propios exosomas — buena parte del efecto ocurre de forma <strong style="color:#fff;">paracrina</strong>.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--gold-light);">Recordatorio de biología — ¿qué es "paracrino"?</strong> Es cuando una célula libera una señal que actúa sobre células <strong style="color:#fff;">vecinas</strong>, sin viajar por la sangre (eso sería endocrino) ni actuar sobre sí misma (eso sería autocrino). La MSC no reparara el tejido directamente — le "avisa" a las células de alrededor cómo repararse mejor.</p></div>';
+  }},
+  { label: "7 · MSC: angiogénesis", render: function() {
+    return '<div class="icon-badge">🩸</div><span class="step-label">Parte I · MSC</span><h3>Mecanismo: angiogénesis y matriz</h3>' +
+      '<p>Apoyan la formación de nuevos vasos sanguíneos y la remodelación de la matriz extracelular del tejido dañado.</p>' +
+      '<div class="card"><p style="margin:0;">Esto ocurre principalmente por la secreción de factores como VEGF (factor de crecimiento del endotelio vascular) y enzimas que reorganizan el colágeno local — no porque la MSC se convierta directamente en célula vascular.</p></div>';
+  }},
+  { label: "8 · MSC: osteoartritis", render: function() {
+    return '<div class="icon-badge">🦴</div><span class="step-label">Parte I · MSC</span><h3>Aplicación: osteoartritis</h3>' +
+      '<p>La indicación con más revisiones sistemáticas: reducción de dolor y mejoría funcional, con beneficio reportado hasta 24 meses en algunas series.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿Por qué lo usan los traumatólogos?</strong> Buscan una opción intermedia entre el manejo conservador (analgésicos, fisioterapia) y la cirugía de reemplazo articular — especialmente en pacientes que quieren posponer una prótesis, o que aún no califican para ella. Reportan sobre todo mejoría del dolor y de la función articular; la magnitud del efecto varía considerablemente entre estudios.</p></div>';
+  }},
+  { label: "9 · MSC: heridas y piel", render: function() {
+    return '<div class="icon-badge">🩹</div><span class="step-label">Parte I · MSC</span><h3>Aplicación: heridas crónicas y piel</h3>' +
+      '<p>Se estudia su papel en regeneración cutánea mediante diferenciación local y modulación del microambiente inflamatorio.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿Por qué la usan?</strong> En heridas que llevan meses sin cerrar (como pie diabético) el problema suele ser un microambiente atascado en inflamación crónica — las MSC buscan "reiniciar" esa fase. Se reporta mejoría en velocidad de cierre y calidad del tejido cicatrizal en series clínicas, aunque con variabilidad según la severidad de la herida de base.</p></div>';
+  }},
+  { label: "10 · MSC: autoinmune/neuro", render: function() {
+    return '<div class="icon-badge">🧠</div><span class="step-label">Parte I · MSC</span><h3>Aplicación: autoinmune y neurológico</h3>' +
+      '<p>Líneas de investigación en esclerosis múltiple y ciertas condiciones neurológicas — etapa más temprana de desarrollo clínico que la osteoartritis.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿Por qué interesa aquí?</strong> El mismo perfil inmunomodulador (↓IL-6/TNF-α, ↑IL-10) que ayuda en articulaciones es lo que atrae a neurólogos en enfermedades donde el propio sistema inmune ataca tejido nervioso. Los reportes hablan de señales de seguridad y beneficio potencial — todavía sin el volumen de evidencia clínica robusta que sí existe para osteoartritis.</p></div>';
+  }},
+  { label: "11 · MSC: seguridad vs eficacia", render: function() {
+    return '<div class="icon-badge">⚖️</div><span class="step-label">Parte I · MSC</span><h3>La distinción más importante</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--teal-light);">Seguridad:</strong> consistentemente buena en los ensayos.<br><strong style="color:var(--danger);">Eficacia:</strong> inconsistente entre muchos estudios.</p></div>' +
+      '<p>Buena seguridad no equivale a eficacia demostrada — se comunican por separado.</p>';
+  }},
+  { label: "12 · MSC: estandarización", render: function() {
+    return '<div class="icon-badge">⚠️</div><span class="step-label">Parte I · MSC</span><h3>Retos de estandarización</h3>' +
+      '<div class="chip-row"><span class="chip">Variabilidad de donante</span><span class="chip">Aislamiento/expansión/criopreservación</span><span class="chip">Dosis/vía/frecuencia no estándar</span></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿De quién es esta responsabilidad?</strong> Cumplir con estos estándares es tarea del <strong style="color:var(--gold-light);">laboratorio/proveedor</strong> (Regene Global) — controlar donante, proceso de aislamiento y condiciones de conservación. La responsabilidad de CODE CELLS® y del médico es distinta pero igual de importante: <strong style="color:var(--teal-light);">verificar</strong> que el lote recibido corresponda a la documentación (trazabilidad), y no asumir que "el laboratorio ya se encargó" sin confirmarlo.</p></div>';
+  }},
+  { label: "13 · Placenta: introducción", render: function() {
+    return '<div class="icon-badge">🌿</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Un biomaterial, no una célula</h3>' +
+      '<p>Durante el embarazo, la placenta cumple una función extraordinaria: nutre, protege y sostiene el desarrollo fetal durante meses, tolerada por el sistema inmune de la madre. Ese mismo tejido, una vez donado y procesado tras el parto, conserva buena parte de esa capacidad de <strong style="color:#fff;">sostener y proteger tejido</strong> — ahora aplicada a la reparación.</p>' +
+      '<div class="card"><p style="margin:0;">Su forma <strong style="color:#fff;">liofilizada</strong> (deshidratada por congelación) permite conservarla por tiempo prolongado, manipularla con facilidad y aplicarla en distintos contextos clínicos sin necesidad de cadena de frío estricta.</p></div>';
+  }},
+  { label: "14 · Placenta: breve historia", render: function() {
+    return '<div class="icon-badge">📜</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Breve historia</h3>' +
+      '<p>El uso médico de tejido placentario/amniótico no es nuevo: los primeros reportes de <strong style="color:#fff;">injertos de membrana amniótica</strong> para quemaduras y heridas cutáneas datan de la década de 1910, y su uso se expandió en oftalmología (reconstrucción de superficie ocular) desde mediados del siglo XX.</p>' +
+      '<div class="card"><p style="margin:0;">Las presentaciones <strong style="color:#fff;">liofilizadas y procesadas</strong> de uso comercial más extendido en heridas crónicas son mucho más recientes, desarrolladas principalmente desde los años 2000-2010 con técnicas modernas de esterilización y control de calidad.</p></div>';
+  }},
+  { label: "15 · Placenta: qué es", render: function() {
+    return '<div class="icon-badge">🔬</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>¿Qué es, exactamente?</h3>' +
+      '<p>Tejido placentario humano <strong style="color:#fff;">procesado, deshidratado y esterilizado</strong>.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--danger);">No es tejido vivo</strong> — es un biomaterial acelular, funciona como soporte biológico (scaffold).</p></div>';
+  }},
+  { label: "16 · Placenta: composición", render: function() {
+    return '<div class="icon-badge">🧪</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Composición — y por qué es tan completa</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Colágeno:</strong> la proteína estructural del tejido conectivo — da soporte físico y resistencia mientras el área sana. <strong style="color:#fff;">Elastina:</strong> aporta la elasticidad para que el tejido nuevo no quede rígido. <strong style="color:#fff;">Proteoglicanos:</strong> retienen agua y nutrientes en la matriz, manteniendo el ambiente hidratado que la reparación necesita. <strong style="color:#fff;">Factores de crecimiento:</strong> las señales que realmente le "avisan" a las células del paciente cuándo y dónde multiplicarse.</p></div>' +
+      '<p>Combinar los cuatro en un solo producto —soporte, elasticidad, hidratación y señalización— es lo que lo hace más completo que aplicar cualquiera de ellos por separado.</p>';
+  }},
+  { label: "17 · Placenta: mecanismo", render: function() {
+    return '<div class="icon-badge">🏗️</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Mecanismo de acción</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--gold-light);">Recordatorio de biología — ¿qué es un scaffold?</strong> Literalmente "andamio": una estructura física temporal sobre la cual las células del propio paciente se sostienen, migran y proliferan — igual que un andamio de construcción sostiene a los trabajadores mientras se levanta el edificio, y después se retira.</p></div>' +
+      '<p>El implante placentario actúa como ese andamio biológico: además modula la inflamación local y libera sus factores de forma gradual mientras el tejido nuevo avanza.</p>';
+  }},
+  { label: "18 · Placenta: heridas crónicas", render: function() {
+    return '<div class="icon-badge">🩹</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Aplicación: heridas crónicas</h3>' +
+      '<p>Úlceras diabéticas, venosas, por presión y heridas complejas — mejoría reportada en granulación y epitelización. Compatible con curaciones convencionales.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿Por qué lo usan?</strong> Podólogos y especialistas en manejo de heridas lo prefieren en úlceras que llevan semanas o meses sin cerrar con curación convencional — a diferencia de un apósito pasivo, libera factores activamente durante días. Reportan aceleración del cierre y mejor calidad del tejido de granulación en estos casos crónicos.</p></div>';
+  }},
+  { label: "19 · Placenta: tejidos blandos", render: function() {
+    return '<div class="icon-badge">🔧</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Aplicación: tejidos blandos y cirugía</h3>' +
+      '<p>Defectos de tejidos blandos, manejo de incisiones, cirugía podiátrica y dermatológica — presentación en polvo o membrana según necesidad.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿Por qué lo usan?</strong> Cirujanos podiátricos y dermatológicos lo incorporan como coadyuvante en cierres complejos o de alto riesgo de mala cicatrización, buscando reducir inflamación postquirúrgica y favorecer un cierre más ordenado — no como sustituto de la técnica quirúrgica, sino como apoyo biológico adicional.</p></div>';
+  }},
+  { label: "20 · Placenta: seguridad", render: function() {
+    return '<div class="icon-badge">🔒</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Seguridad y trazabilidad</h3>' +
+      '<p>Buen perfil cuando se procesa bajo estándares adecuados con donantes seleccionados.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Trazabilidad y control de infecciones son críticos</strong> — es tejido de origen humano.</p></div>';
+  }},
+  { label: "21 · Placenta: limitaciones", render: function() {
+    return '<div class="icon-badge">📉</div><span class="step-label p2">Parte II · Placenta liofilizada</span><h3>Limitaciones y retos</h3>' +
+      '<div class="chip-row"><span class="chip">Variabilidad entre fabricantes</span><span class="chip">Más ensayos necesarios</span><span class="chip">Costo/disponibilidad</span></div>' +
+      '<div class="card"><p style="margin:0;">Igual que con las MSC: procesar el tejido bajo estándares adecuados es responsabilidad del <strong style="color:var(--gold-light);">fabricante/proveedor</strong>. Lo que corresponde a CODE CELLS® y al médico es <strong style="color:var(--teal-light);">verificar</strong> el registro sanitario y la trazabilidad de cada lote antes de usarlo — no darlo por hecho.</p></div>';
+  }},
+  { label: "22 · NK: introducción", render: function() {
+    return '<div class="icon-badge">🎯</div><span class="step-label p3">Parte III · Células NK</span><h3>Inmunidad innata contra el cáncer</h3>' +
+      '<p>Linfocitos del sistema inmune <strong style="color:#fff;">innato</strong> que reconocen y destruyen células tumorales o infectadas <strong style="color:#fff;">sin inmunización previa</strong>.</p>';
+  }},
+  { label: "23 · NK: breve historia", render: function() {
+    return '<div class="icon-badge">📜</div><span class="step-label p3">Parte III · Células NK</span><h3>Breve historia</h3>' +
+      '<p>Se describieron a mediados de los años 70, de forma independiente por varios grupos —entre ellos <strong style="color:#fff;">Rolf Kiessling</strong>—, al observar linfocitos capaces de destruir células tumorales sin exposición previa. De ahí el nombre <strong style="color:#fff;">"natural killer"</strong>: mataban de forma "natural", sin necesitar entrenamiento inmunológico.</p>' +
+      '<div class="card"><p style="margin:0;">El desarrollo de <strong style="color:#fff;">CAR-NK</strong> (años 2010 en adelante) se apoyó directamente en el aprendizaje previo de la ingeniería CAR-T en oncología, adaptando ese diseño a un tipo celular con perfil de seguridad distinto.</p></div>';
+  }},
+  { label: "24 · NK: mecanismo", render: function() {
+    return '<div class="icon-badge">⚔️</div><span class="step-label p3">Parte III · Células NK</span><h3>Mecanismo de acción</h3>' +
+      '<p>Balance de receptores activadores/inhibidores; ante una célula anómala, liberan <strong style="color:#fff;">perforinas y granzimas</strong> que inducen su muerte.</p>' +
+      '<div class="card"><p style="margin:0;">Las células sanas expresan moléculas "propias" (como el MHC-I) que envían una señal inhibidora — cuando el tumor o la infección reduce esa señal (como suele ocurrir), la NK pierde el freno y ataca. Es, en esencia, vigilancia por ausencia de una contraseña.</p></div>';
+  }},
+  { label: "25 · NK: fuentes", render: function() {
+    return '<div class="icon-badge">🧭</div><span class="step-label p3">Parte III · Células NK</span><h3>Fuentes de obtención</h3>' +
+      '<div class="chip-row"><span class="chip">Sangre periférica</span><span class="chip">Cordón umbilical</span><span class="chip">Líneas celulares NK</span><span class="chip">Diferenciación de progenitoras</span></div>';
+  }},
+  { label: "26 · NK: oncología", render: function() {
+    return '<div class="icon-badge">🎗️</div><span class="step-label p3">Parte III · Células NK</span><h3>Aplicación: oncología</h3>' +
+      '<p>La mayoría de los ensayos se concentra en leucemias, linfomas y tumores sólidos — generalmente en combinación con otras terapias oncológicas.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿Por qué las usan los oncólogos?</strong> A diferencia de la quimioterapia, que ataca cualquier célula de división rápida (sana o tumoral), las NK ofrecen un mecanismo de reconocimiento más selectivo — de ahí el interés en combinarlas con terapias convencionales, no en reemplazarlas. Los reportes muestran, en general, buena tolerancia y señales de eficacia en subgrupos específicos, más que respuestas universales.</p></div>';
+  }},
+  { label: "27 · NK: CAR-NK", render: function() {
+    return '<div class="icon-badge">🧩</div><span class="step-label p3">Parte III · Células NK</span><h3>CAR-NK</h3>' +
+      '<p>Ingeniería de receptores quiméricos para potenciar la especificidad antitumoral. Ensayos iniciales con perfil de seguridad favorable.</p>';
+  }},
+  { label: "28 · NK: seguridad", render: function() {
+    return '<div class="icon-badge">🔒</div><span class="step-label p3">Parte III · Células NK</span><h3>Seguridad comparativa</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--teal-light);">Menor riesgo de enfermedad de injerto contra huésped</strong> frente a terapias con linfocitos T — parte de su atractivo como plataforma.</p></div>';
+  }},
+  { label: "29 · NK: retos", render: function() {
+    return '<div class="icon-badge">⚠️</div><span class="step-label p3">Parte III · Células NK</span><h3>Retos actuales</h3>' +
+      '<div class="chip-row"><span class="chip">Persistencia in vivo</span><span class="chip">Optimización de dosis</span><span class="chip">Estandarización de manufactura</span></div>' +
+      '<div class="card"><p style="margin:0;">Otra vez el mismo principio: la manufactura y criopreservación son tarea del <strong style="color:var(--gold-light);">laboratorio</strong>. Nuestra tarea es confirmar que el producto recibido corresponda exactamente a lo documentado antes de aplicarlo.</p></div>';
+  }},
+  { label: "30 · Jerarquía celular", render: function() {
+    return '<div class="icon-badge">📶</div><span class="step-label">Marco conceptual</span><h3>Jerarquía de potencial celular</h3>' +
+      '<p style="text-align:center;font-size:13px;"><strong style="color:#fff;">Totipotente</strong> &gt; <strong style="color:#fff;">Pluripotente</strong> &gt; <strong style="color:#fff;">Multipotente</strong> &gt; <strong style="color:#fff;">Unipotente</strong></p>' +
+      '<div class="card"><p style="margin:0;">MSC placentarias: <strong style="color:var(--teal-light);">multipotentes</strong>. MUSE: <strong style="color:var(--gold-light);">pluripotentes resistentes al estrés</strong> — no es el mismo nivel de potencial.</p></div>';
+  }},
+  { label: "31 · Jerarquía de evidencia", render: function() {
+    return '<div class="icon-badge">📊</div><span class="step-label">Marco conceptual</span><h3>Jerarquía de evidencia científica</h3>' +
+      '<p style="font-size:12.5px;">Opinión de expertos → casos clínicos → observacionales → ensayos clínicos → metaanálisis → revisiones sistemáticas.</p>' +
+      '<div class="card"><p style="margin:0;">Baja calidad de evidencia <strong style="color:#fff;">no significa que no funcione</strong> — significa que aún puede cambiar la conclusión.</p></div>';
+  }},
+  { label: "32 · Principio paracrino", render: function() {
+    return '<div class="icon-badge">📶</div><span class="step-label">Marco conceptual</span><h3>Señales paracrinas, no reemplazo</h3>' +
+      '<p>En MSC, exosomas e implante placentario, el beneficio no viene de reemplazar físicamente el tejido — viene de señales que modifican el microambiente para que el propio tejido del paciente repare.</p>' +
+      '<div class="card"><p style="margin:0;">Es útil pensarlo como la diferencia entre <strong style="color:#fff;">reconstruir una casa</strong> (reemplazo directo) y <strong style="color:#fff;">coordinar mejor a los trabajadores que ya están reparándola</strong> (efecto paracrino) — el segundo es, en la mayoría de estos biológicos, el mecanismo real.</p></div>';
+  }},
+  { label: "33 · Quién NO es candidato", render: function() {
+    return '<div class="icon-badge">🚫</div><span class="step-label">Marco conceptual</span><h3>¿Quién NO es candidato?</h3>' +
+      '<p style="margin:0;">Infección activa/sepsis, cáncer sin valoración oncológica, embarazo sin evidencia suficiente, <strong style="color:#fff;">expectativas irreales</strong>, y <strong style="color:#fff;">negativa al seguimiento clínico</strong>.</p>';
+  }},
+  { label: "34 · Seguimiento clínico", render: function() {
+    return '<div class="icon-badge">📈</div><span class="step-label">Marco conceptual</span><h3>Seguimiento post-tratamiento</h3>' +
+      '<p>Escala de dolor, escala funcional, fotografía clínica, laboratorios, eventos adversos, calidad de vida.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Sin seguimiento, es una experiencia — no medicina.</strong></p></div>';
+  }},
+  { label: "35 · GENESIS™: MSC", render: function() {
+    return '<div class="icon-badge">💉</div><span class="step-label">Aplicación práctica</span><h3>MSC — dosis y vías</h3>' +
+      '<div class="protocard"><div class="pname">MSC placentarias</div><div class="pcomp">Sistémico: 1M/kg. Intralesional/intraarticular: 10-28M según severidad.</div></div>';
+  }},
+  { label: "36 · GENESIS™: artrosis vs fractura", render: function() {
+    return '<div class="icon-badge">🦴</div><span class="step-label">Aplicación práctica</span><h3>Artrosis vs. fractura aguda</h3>' +
+      '<div class="protocard"><div class="pmeta">Artrosis: 10M intraarticular c/4-6 meses</div><div class="pmeta">Fractura aguda: 28M intralesional + IV simultáneo</div><div class="pwarn">Única indicación con combinación de vías: fractura aguda</div></div>';
+  }},
+  { label: "37 · GENESIS™: MUSE", render: function() {
+    return '<div class="icon-badge">🧬</div><span class="step-label">Aplicación práctica</span><h3>MUSE Cells</h3>' +
+      '<div class="protocard"><div class="pname">MUSE Cells</div><div class="pcomp">Mismo criterio de dosis y vía que MSC placentarias — pero son pluripotentes resistentes al estrés, no multipotentes: un nivel de potencial mayor (ver Jerarquía de potencial celular).</div></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--gold-light);">Nota:</strong> por su relevancia actual dentro de la red, MUSE Cells tendrá su propio módulo dedicado próximamente — aquí solo se cubre lo esencial para ubicarlas dentro del catálogo de GENESIS™.</p></div>';
+  }},
+  { label: "38 · GENESIS™: Placenta", render: function() {
+    return '<div class="icon-badge">💉</div><span class="step-label">Aplicación práctica</span><h3>Implante placentario — dosis y vía</h3>' +
+      '<div class="protocard"><div class="pname">Implante placentario</div><div class="pcomp">1g o 2g según severidad. Vía subcutánea con técnica específica.</div></div>';
+  }},
+  { label: "39 · GENESIS™: DM2", render: function() {
+    return '<div class="icon-badge">📅</div><span class="step-label">Aplicación práctica</span><h3>DM2 controlada vs. descompensada</h3>' +
+      '<div class="protocard"><div class="pmeta">DM2 controlada: cada 6 meses</div><div class="pmeta">DM2 descompensada: cada 2 meses</div><div class="pwarn">La frecuencia se acorta ante descompensación — no es un calendario fijo</div></div>';
+  }},
+  { label: "40 · GENESIS™: NK", render: function() {
+    return '<div class="icon-badge">🎯</div><span class="step-label">Aplicación práctica</span><h3>Células NK — dosis y vía</h3>' +
+      '<div class="protocard"><div class="pname">Células NK</div><div class="pcomp">Monodosis estándar. Vía IV.</div><div class="pmeta">Cada 2 meses · Exclusivo pacientes oncológicos</div></div>';
+  }},
+  { label: "41 · Exosomas y PDRN", render: function() {
+    return '<div class="icon-badge">🔗</div><span class="step-label">Aplicación práctica</span><h3>Referencia cruzada</h3>' +
+      '<div class="protocard"><div class="pname">Exosomas</div><div class="pcomp">Por viales según severidad, no por peso. Combinables con MSC/MUSE en osteoarticular. Ver Módulo de Exosomas.</div></div>' +
+      '<div class="protocard"><div class="pname">PDRN</div><div class="pwarn">Protocolo exacto de CODE CELLS® pendiente de confirmar — no asumir esquema de otro biológico.</div></div>';
+  }},
+  { label: "42 · Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Paciente con fractura aguda, candidato a MSC placentarias.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1.</strong> No se maneja con el esquema de un caso crónico (artrosis, 10M intraarticular).</p>' +
+      '<p><strong style="color:#fff;">Paso 2.</strong> Se usan 28 millones de células por vía intralesional.</p>' +
+      '<p style="margin:0;"><strong style="color:#fff;">Paso 3 — conclusión.</strong> Es la única indicación con vías combinadas (intralesional + IV simultáneo): no existe "la dosis de MSC", existen dosis según indicación.</p>';
+  }},
+  { label: "43 · Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica clínica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "44 · Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos criterios compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "45 · Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "46 · Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>MSC: multipotentes, inmunomoduladoras — seguridad sólida, eficacia inconsistente entre ensayos.</li>' +
+      '<li>Implante placentario: biomaterial acelular (no tejido vivo), scaffold de reparación lenta.</li>' +
+      '<li>NK: inmunidad innata, exclusivas de oncología, menor riesgo de injerto contra huésped que linfocitos T.</li>' +
+      '<li>MSC y MUSE se dosifican por peso o severidad — la fractura aguda es la única indicación con vías combinadas.</li>' +
+      '<li>La frecuencia nunca es un calendario fijo: depende de la actividad de enfermedad o estado de control, reevaluado en cada visita.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, regresa a la celda 45 para reintentar")+'</p>' +
+      '<p style="margin:8px 0 0;">Siguiente módulo sugerido: Farmacia e inyectables.</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent=CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(state.current===42) blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(state.current===43) blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(state.current===44) blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>
