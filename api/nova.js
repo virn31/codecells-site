@@ -125,7 +125,7 @@ Los biológicos Regene Global operan bajo licencia MCI™ con trazabilidad compl
 
 ### Estructura clínica
 Niveles de certificación médica:
-- Nivel 1 — Asociado / RESTORE™: sueroterapia IV + antihomotoxicología + nutraceuticals
+- Nivel 1 — Asociado / RESTORE™: Optimización Biológica Intravenosa + antihomotoxicología + nutraceuticals
 - Nivel 2 — Certificado / ACTIVATE™: agrega péptidos terapéuticos
 - Nivel 3 — Senior / GENESIS™: agrega biológicos Regene Global (exosomas, MSC, NK, MUSE cells)
 - CONTINUUM™: fase de mantenimiento, juicio clínico libre del médico

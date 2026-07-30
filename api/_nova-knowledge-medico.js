@@ -86,13 +86,13 @@ Este documento consolida el contenido de los 10 módulos de capacitación para N
 | Liraglutida | GLP-1 | Aprobado |
 | Tirzepatida | GIP/GLP-1 dual | Aprobado |
 | Retatrutida | Triple agonista (GIP/GLP-1/glucagón) | Investigación |
-| NAD+ | Metabolismo/antienvejecimiento | Uso variable (dosis exactas en módulo de Sueroterapia) |
+| NAD+ | Metabolismo/antienvejecimiento | Uso variable (dosis exactas en módulo de Optimización Biológica Intravenosa) |
 | BPC-157 | Reparación/intestinal (pentadecapéptido sintético) | Investigación |
 | Epitalon | Anti-aging (telómeros, ritmos circadianos) | Investigación |
 | GHK-Cu | Piel/cabello (tópico sólido; inyectable experimental) | Uso variable |
 | PT-141 (Bremelanotida) | Sexualidad (agonista melanocortínico) | Aprobado en indicación específica |
 | Thymosin Alpha-1 | Inmunología (linfocitos T) | Uso específico según país |
-| Glutatión | Antioxidante | Uso variable (dosis exactas en Sueroterapia) |
+| Glutatión | Antioxidante | Uso variable (dosis exactas en Optimización Biológica Intravenosa) |
 | CJC-1295 | Secretagogo GH | Investigación |
 | CJC-1295 DAC | Secretagogo GH (mayor duración, NO mayor seguridad) | Investigación |
 | Ipamorelin | Secretagogo GH selectivo | Investigación |
@@ -215,7 +215,7 @@ Este documento consolida el contenido de los 10 módulos de capacitación para N
 
 ## 10. EXAMEN INTEGRADOR POR NIVELES CLÍNICOS
 
-- RESTORE™ (Básico): sueroterapia IV + antihomotoxicología (base compartida con Homotoxicología: Lymphomyosot + Trameel S) + nutracéuticos.
+- RESTORE™ (Básico): Optimización Biológica Intravenosa + antihomotoxicología (base compartida con Homotoxicología: Lymphomyosot + Trameel S) + nutracéuticos.
 - ACTIVATE™ (Intermedio): + péptidos (aprobados e investigación, ver sección 3).
 - GENESIS™ (Avanzado): + biológicos (exosomas, MSC, NK, MUSE, PDRN).
 - Cada nivel exige certificación propia — no se hereda del nivel anterior ni de experiencia general con inyectables.

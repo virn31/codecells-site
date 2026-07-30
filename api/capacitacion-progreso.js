@@ -18,7 +18,7 @@ const TABLE_ID = 'tbldxB4GK1vpnj7JR'; // CAPACITACIONES_MEDICO
 // Debe coincidir exactamente con las opciones reales del campo "Módulo" en
 // Airtable y con los IDs 1-10 usados en capacitacion/index.html.
 const MODULOS_VALIDOS = [
-  'Marco Regulatorio', 'Sueroterapia', 'Homotoxicología', 'Farmacia',
+  'Marco Regulatorio', 'Optimización Biológica Intravenosa', 'Homotoxicología', 'Farmacia',
   'Portal Médico', 'Péptidos', 'Exosomas', 'Células madre', 'DEZAWA',
   'Examen integrador',
 ];
