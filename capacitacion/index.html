@@ -466,6 +466,21 @@ html, body {
   transform: scale(1.15);
 }
 
+/* Imágenes 3D Premium de Módulos */
+.icon-mod-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.3));
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.card:hover .icon-mod-img {
+  transform: scale(1.08);
+  filter: drop-shadow(0 12px 24px rgba(18,196,180,0.2));
+}
+
 /* Franja de color inferior de la imagen */
 .card-img-bar {
   position: absolute;
@@ -1129,7 +1144,7 @@ html, body {
 
     <div class="card" data-id="1" onclick="abrirModulo(1)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h18M12 3v18M8 9h8v6H8z" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <img src="assets/modulos-iconos/01-marco-regulatorio.png" alt="Marco Regulatorio" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1150,7 +1165,7 @@ html, body {
 
     <div class="card" data-id="2" onclick="abrirModulo(2)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6c3 0 5 2 5 5m0 0c0 3 2 5 5 5m-5-5c3 0 5-2 5-5m0 0c0-3-2-5-5-5" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="2" x2="12" y2="22" stroke-width="1.5"/></svg>
+        <img src="assets/modulos-iconos/02-biohacking.png" alt="Biohacking" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1171,7 +1186,7 @@ html, body {
 
     <div class="card" data-id="3" onclick="abrirModulo(3)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3l3 6 3-6M9 9h6v10c0 2-1 3-3 3s-3-1-3-3V9z" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <img src="assets/modulos-iconos/03-optimizacion-iv.png" alt="Optimización IV" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1192,7 +1207,7 @@ html, body {
 
     <div class="card" data-id="4" onclick="abrirModulo(4)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2c0 0-2 3-2 7 0 2 1 3 2 3s2-1 2-3c0-4-2-7-2-7M10 10c-1 2-3 4-3 6 0 3 2 4 3 4M14 10c1 2 3 4 3 6 0 3-2 4-3 4" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <img src="assets/modulos-iconos/04-homotoxicologia.png" alt="Homotoxicología" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1213,7 +1228,7 @@ html, body {
 
     <div class="card" data-id="5" onclick="abrirModulo(5)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="8" cy="12" r="4" stroke-width="1.5"/><circle cx="16" cy="12" r="4" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="16" stroke-width="1.5"/></svg>
+        <img src="assets/modulos-iconos/05-farmacia.png" alt="Farmacia" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1234,7 +1249,7 @@ html, body {
 
     <div class="card" data-id="6" onclick="abrirModulo(6)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="14" rx="1" stroke-width="1.5"/><line x1="9" y1="17" x2="15" y2="17" stroke-width="1.5"/><line x1="12" y1="17" x2="12" y2="20" stroke-width="1.5"/></svg>
+        <img src="assets/modulos-iconos/06-portal-medico.png" alt="Portal Médico" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1255,7 +1270,7 @@ html, body {
 
     <div class="card" data-id="7" onclick="abrirModulo(7)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3l3 6 3-6M9 9h6v10c0 2-1 3-3 3s-3-1-3-3V9z" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <img src="assets/modulos-iconos/07-peptidos.png" alt="Péptidos" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1276,7 +1291,7 @@ html, body {
 
     <div class="card" data-id="8" onclick="abrirModulo(8)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="7" cy="7" r="2" stroke-width="1.5" fill="currentColor"/><circle cx="17" cy="8" r="2.5" stroke-width="1.5" fill="currentColor"/><circle cx="12" cy="14" r="1.5" stroke-width="1.5" fill="currentColor"/><circle cx="8" cy="18" r="1" stroke-width="1.5" fill="currentColor"/><circle cx="19" cy="16" r="1.5" stroke-width="1.5" fill="currentColor"/></svg>
+        <img src="assets/modulos-iconos/08-exosomas.png" alt="Exosomas" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1297,7 +1312,7 @@ html, body {
 
     <div class="card" data-id="9" onclick="abrirModulo(9)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2h12v10c0 2-1 4-3 4H9c-2 0-3-2-3-4V2z" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="22" x2="20" y2="22" stroke-width="1.5"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/></svg>
+        <img src="assets/modulos-iconos/09-celulas-madre.png" alt="Células Madre" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1318,7 +1333,7 @@ html, body {
 
     <div class="card" data-id="10" onclick="abrirModulo(10)">
       <div class="card-img-placeholder">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 6h6l-5 4 2 6-6-4-6 4 2-6-5-4h6l3-6z" stroke-width="1.5" fill="currentColor"/></svg>
+        <img src="assets/modulos-iconos/10-dezawa.png" alt="DEZAWA Protocol" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1342,7 +1357,7 @@ html, body {
   <div class="cards-grid">
     <div class="card" data-id="11" onclick="abrirModulo(11)">
       <div class="card-img-placeholder" style="height:120px;">
-        <svg class="icon-mod" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="6" cy="6" r="2" fill="currentColor"/><circle cx="18" cy="6" r="2" fill="currentColor"/><circle cx="6" cy="18" r="2" fill="currentColor"/><circle cx="18" cy="18" r="2" fill="currentColor"/><line x1="6" y1="6" x2="18" y2="18" stroke-width="1.5"/><line x1="18" y1="6" x2="6" y2="18" stroke-width="1.5"/></svg>
+        <img src="assets/modulos-iconos/11-casos-clinicos.png" alt="Casos Clínicos" class="icon-mod-img">
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
