@@ -1118,7 +1118,7 @@ html, body {
       <div class="card-body">
         <div class="card-top">
           <span class="card-num">MÓDULO 01</span>
-          <span class="card-badge pendiente" id="badge-1">PENDIENTE</span>
+          <span class="card-badge completado" id="badge-1">COMPLETADO</span>
         </div>
         <div class="card-title">Marco Regulatorio Mexicano</div>
         <div class="card-desc">COFEPRIS, Ley General de Salud, NOM-253, licencias institucionales y política administrativa interna de CODE CELLS®.</div>
@@ -1127,7 +1127,7 @@ html, body {
           <span class="chip">⏱ ~45 min</span>
           <span class="chip">CERTIFICADO</span>
         </div>
-        <button class="card-btn" id="btn-1">Iniciar módulo →</button>
+        <button class="card-btn" id="btn-1">Repasar módulo ↻</button>
       </div>
     </div>
 
@@ -1139,7 +1139,7 @@ html, body {
       <div class="card-body">
         <div class="card-top">
           <span class="card-num">MÓDULO 02</span>
-          <span class="card-badge pendiente" id="badge-2">PENDIENTE</span>
+          <span class="card-badge completado" id="badge-2">COMPLETADO</span>
         </div>
         <div class="card-title">Biohacking y Optimización Biológica</div>
         <div class="card-desc">Fundamentos de biohacking, edad biológica, los seis pilares de optimización: nutrición, movimiento, sueño, estrés, inflamación y energía.</div>
@@ -1148,7 +1148,7 @@ html, body {
           <span class="chip">⏱ ~50 min</span>
           <span class="chip">CERTIFICADO</span>
         </div>
-        <button class="card-btn" id="btn-2">Iniciar módulo →</button>
+        <button class="card-btn" id="btn-2">Repasar módulo ↻</button>
       </div>
     </div>
 
@@ -1215,62 +1215,42 @@ html, body {
       </div>
     </div>
 
-    <div class="card" data-id="5" onclick="abrirModulo(5)">
+    <div class="card" data-id="6" onclick="abrirModulo(6)">
       <div class="card-img-placeholder">
         🖥️
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
         <div class="card-top">
-          <span class="card-num">MÓDULO 05</span>
-          <span class="card-badge pendiente" id="badge-5">PENDIENTE</span>
+          <span class="card-num">MÓDULO 06</span>
+          <span class="card-badge pendiente" id="badge-6">PENDIENTE</span>
         </div>
         <div class="card-title">Portal Médico CODE CELLS®</div>
-        <div class="card-desc">Uso de la plataforma: expedientes, consultas, NOVA clínica, recetas, interconsultas y registro de pacientes en tiempo real.</div>
+        <div class="card-desc">Uso de la plataforma: expedientes, consultas, NOVA integrada, interconsultas, seguimiento de pacientes.</div>
         <div class="card-chips">
-          <span class="chip">⚡ Plataforma</span>
-          <span class="chip">⏱ ~30 min</span>
+          <span class="chip">💻 Plataforma</span>
+          <span class="chip">⏱ ~35 min</span>
           <span class="chip">CERTIFICADO</span>
         </div>
-        <button class="card-btn" id="btn-5">Iniciar módulo →</button>
+        <button class="card-btn" id="btn-6">Iniciar módulo →</button>
       </div>
     </div>
-
-  </div>
-</section>
-
-<!-- ─── NIVEL 2 ACTIVATE™ ─── -->
-<section class="section nivel-2" id="nivel-2">
-  <div class="section-header">
-    <div class="section-left">
-      <div class="section-eyebrow">Nivel 2 · ACTIVATE™ · Más popular</div>
-      <h2 class="section-title">Activación y Optimización Biológica</h2>
-      <p class="section-subtitle">Explora protocolos avanzados para activar los mecanismos naturales de reparación del cuerpo.</p>
-    </div>
-    <div class="section-prog">
-      <span class="section-prog-label" id="lbl-n2">0 / 2 completados</span>
-      <div class="section-prog-bar">
-        <div class="section-prog-fill" id="fill-n2" style="width:0%"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cards-grid">
 
     <div class="card" data-id="7" onclick="abrirModulo(7)">
-      <img class="card-img" src="assets/dna-activate.png" alt="Péptidos ACTIVATE™"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-      <div class="card-img-placeholder" style="display:none">🧬<div class="card-img-bar"></div></div>
+      <div class="card-img-placeholder">
+        💉
+        <div class="card-img-bar"></div>
+      </div>
       <div class="card-body">
         <div class="card-top">
           <span class="card-num">MÓDULO 07</span>
           <span class="card-badge pendiente" id="badge-7">PENDIENTE</span>
         </div>
         <div class="card-title">Péptidos ACTIVATE™</div>
-        <div class="card-desc">BPC-157, GHK-Cu, Epitalon, PT-141 y más. Mecanismos de acción, dosis, vías de administración y protocolos combinados.</div>
+        <div class="card-desc">Péptidos bioactivos: mecanismo, indicaciones clínicas, protocolos de uso, combinaciones sinérgicas con otros tratamientos.</div>
         <div class="card-chips">
-          <span class="chip">🔬 Péptidos</span>
-          <span class="chip">⏱ ~55 min</span>
+          <span class="chip">🧬 Péptidos</span>
+          <span class="chip">⏱ ~45 min</span>
           <span class="chip">CERTIFICADO</span>
         </div>
         <button class="card-btn" id="btn-7">Iniciar módulo →</button>
@@ -1278,10 +1258,8 @@ html, body {
     </div>
 
     <div class="card" data-id="8" onclick="abrirModulo(8)">
-      <img class="card-img" src="assets/dna-genesis.png" alt="Exosomas GENESIS™"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-      <div class="card-img-placeholder" style="display:none">
-        ✨
+      <div class="card-img-placeholder">
+        🌌
         <div class="card-img-bar"></div>
       </div>
       <div class="card-body">
@@ -1290,9 +1268,9 @@ html, body {
           <span class="card-badge pendiente" id="badge-8">PENDIENTE</span>
         </div>
         <div class="card-title">Exosomas GENESIS™</div>
-        <div class="card-desc">Biología de exosomas, productos Regene Global (RGCD042417), vías de administración, indicaciones clínicas y control de calidad.</div>
+        <div class="card-desc">Exosomas de origen celular, mecanismo de acción, control de calidad, indicaciones terapéuticas, seguimiento.</div>
         <div class="card-chips">
-          <span class="chip">🧫 Exosomas</span>
+          <span class="chip">🔬 Exosomas</span>
           <span class="chip">⏱ ~50 min</span>
           <span class="chip">CERTIFICADO</span>
         </div>
@@ -1300,41 +1278,21 @@ html, body {
       </div>
     </div>
 
-  </div>
-</section>
-
-<!-- ─── NIVEL 3 GENESIS™ ─── -->
-<section class="section nivel-3" id="nivel-3">
-  <div class="section-header">
-    <div class="section-left">
-      <div class="section-eyebrow">Nivel 3 · GENESIS™</div>
-      <h2 class="section-title">Maestría en Terapias Regenerativas Avanzadas</h2>
-      <p class="section-subtitle">Integra terapias avanzadas, innovación y personalización clínica para resultados extraordinarios.</p>
-    </div>
-    <div class="section-prog">
-      <span class="section-prog-label" id="lbl-n3">0 / 2 completados</span>
-      <div class="section-prog-bar">
-        <div class="section-prog-fill" id="fill-n3" style="width:0%"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cards-grid">
-
     <div class="card" data-id="9" onclick="abrirModulo(9)">
-      <img class="card-img" src="assets/dna-genesis.png" alt="Células Madre"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-      <div class="card-img-placeholder" style="display:none">🔬<div class="card-img-bar"></div></div>
+      <div class="card-img-placeholder">
+        🧪
+        <div class="card-img-bar"></div>
+      </div>
       <div class="card-body">
         <div class="card-top">
           <span class="card-num">MÓDULO 09</span>
           <span class="card-badge pendiente" id="badge-9">PENDIENTE</span>
         </div>
-        <div class="card-title">Células Madre y Biológicos</div>
-        <div class="card-desc">MSC placentarias, NK cells, criterio clínico avanzado. Dosis, vías de administración, consentimiento informado y manejo post-aplicación.</div>
+        <div class="card-title">Células Madre</div>
+        <div class="card-desc">Mesenquimales de origen autólogo, procesamiento, control de calidad, indicaciones clínicas, seguimiento y seguridad.</div>
         <div class="card-chips">
-          <span class="chip">🫧 MSC · NK</span>
-          <span class="chip">⏱ ~65 min</span>
+          <span class="chip">🧬 Células Madre</span>
+          <span class="chip">⏱ ~55 min</span>
           <span class="chip">CERTIFICADO</span>
         </div>
         <button class="card-btn" id="btn-9">Iniciar módulo →</button>
@@ -1342,18 +1300,19 @@ html, body {
     </div>
 
     <div class="card" data-id="10" onclick="abrirModulo(10)">
-      <img class="card-img" src="assets/dna-restore.png" alt="Protocolo DEZAWA™"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-      <div class="card-img-placeholder" style="display:none">⭐<div class="card-img-bar"></div></div>
+      <div class="card-img-placeholder">
+        ✨
+        <div class="card-img-bar"></div>
+      </div>
       <div class="card-body">
         <div class="card-top">
           <span class="card-num">MÓDULO 10</span>
           <span class="card-badge pendiente" id="badge-10">PENDIENTE</span>
         </div>
         <div class="card-title">Protocolo DEZAWA™</div>
-        <div class="card-desc">MUSE Cells bajo licencia MCI™, posicionamiento clínico de alto nivel y comunicación con el paciente VIP. El protocolo más avanzado de la red.</div>
+        <div class="card-desc">Protocolo premium integrativo: selección de pacientes, combinación de modalidades, seguimiento VIP, documentación especializada.</div>
         <div class="card-chips">
-          <span class="chip">💎 MUSE Cells</span>
+          <span class="chip">🏆 Premium</span>
           <span class="chip">⏱ ~60 min</span>
           <span class="chip">CERTIFICADO</span>
         </div>
@@ -1361,23 +1320,6 @@ html, body {
       </div>
     </div>
 
-  </div>
-</section>
-
-<!-- ─── EXAMEN INTEGRADOR ─── -->
-<section class="section nivel-exam" id="nivel-exam">
-  <div class="section-header">
-    <div class="section-left">
-      <div class="section-eyebrow">Repaso · Integración clínica</div>
-      <h2 class="section-title">Casos Clínicos Integradores</h2>
-      <p class="section-subtitle">Repasa tu razonamiento integrando abordajes regenerativos de varios sistemas a la vez — sin calificación.</p>
-    </div>
-    <div class="section-prog">
-      <span class="section-prog-label" id="lbl-exam">0 / 1 completado</span>
-      <div class="section-prog-bar">
-        <div class="section-prog-fill" id="fill-exam" style="width:0%"></div>
-      </div>
-    </div>
   </div>
 
   <div class="cards-grid">
@@ -1400,6 +1342,9 @@ html, body {
         </div>
         <button class="card-btn" id="btn-11">Repasar casos →</button>
       </div>
+    </div>
+  </div>
+
     </div>
   </div>
 </section>
