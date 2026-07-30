@@ -1473,28 +1473,29 @@ html, body {
 
 <script>
 const KEY = 'cc_cap_v2';
-const TOTAL = 10;
+const TOTAL = 11;
 const MODS = {
   1:  { nombre:'Marco Regulatorio',      file:'modulo_marco_regulatorio.html' },
-  2:  { nombre:'Optimización Biológica Intravenosa',         file:'modulo_sueroterapia.html' },
-  3:  { nombre:'Homotoxicología',         file:'modulo_homotoxicologia.html' },
-  4:  { nombre:'Farmacia e Inyectables',  file:'modulo_farmacia.html' },
-  5:  { nombre:'Portal Médico',           file:'modulo_portal_medico.html' },
-  6:  { nombre:'Péptidos ACTIVATE™',      file:'modulo_peptidos.html' },
-  7:  { nombre:'Exosomas GENESIS™',       file:'modulo_exosomas.html' },
-  8:  { nombre:'Células Madre',           file:'modulo_celulas_madre.html' },
-  9:  { nombre:'Protocolo DEZAWA™',       file:'modulo_dezawa.html' },
-  10: { nombre:'Casos Clínicos Integradores', file:'examen_niveles_clinicos.html' },
+  2:  { nombre:'Biohacking y Optimización Biológica',         file:'modulo_biohacking.html' },
+  3:  { nombre:'Optimización Biológica Intravenosa',         file:'modulo_sueroterapia.html' },
+  4:  { nombre:'Homotoxicología',         file:'modulo_homotoxicologia.html' },
+  5:  { nombre:'Farmacia e Inyectables',  file:'modulo_farmacia.html' },
+  6:  { nombre:'Portal Médico',           file:'modulo_portal_medico.html' },
+  7:  { nombre:'Péptidos ACTIVATE™',      file:'modulo_peptidos.html' },
+  8:  { nombre:'Exosomas GENESIS™',       file:'modulo_exosomas.html' },
+  9:  { nombre:'Células Madre',           file:'modulo_celulas_madre.html' },
+  10: { nombre:'Protocolo DEZAWA™',       file:'modulo_dezawa.html' },
+  11: { nombre:'Casos Clínicos Integradores', file:'examen_niveles_clinicos.html' },
 };
 
 let actual = null;
 
-// Traduce el ID numérico interno (1-10) al nombre exacto que usa el campo
+// Traduce el ID numérico interno (1-11) al nombre exacto que usa el campo
 // "Módulo" (singleSelect) en la tabla CAPACITACIONES_MEDICO de Airtable.
 const MODULO_AIRTABLE = {
-  1: 'Marco Regulatorio', 2: 'Optimización Biológica Intravenosa', 3: 'Homotoxicología', 4: 'Farmacia',
-  5: 'Portal Médico', 6: 'Péptidos', 7: 'Exosomas', 8: 'Células madre',
-  9: 'DEZAWA', 10: 'Examen integrador',
+  1: 'Marco Regulatorio', 2: 'Biohacking y Optimización Biológica', 3: 'Optimización Biológica Intravenosa', 4: 'Homotoxicología', 5: 'Farmacia',
+  6: 'Portal Médico', 7: 'Péptidos', 8: 'Exosomas', 9: 'Células madre',
+  10: 'DEZAWA', 11: 'Examen integrador',
 };
 const MODULO_AIRTABLE_INVERSO = Object.fromEntries(Object.entries(MODULO_AIRTABLE).map(([k, v]) => [v, Number(k)]));
 
