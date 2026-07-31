@@ -183,7 +183,7 @@ html, body {
 .hero-bg {
   position: absolute;
   inset: 0;
-  background-image: url('assets/bg-capacitacion.png');
+  background-image: url('assets/bg-neural-network.jpg');
   background-size: cover;
   background-position: center;
   background-color: var(--bg-2);
@@ -1064,6 +1064,10 @@ html, body {
 </style>
 </head>
 <body>
+<!-- ─── AUDIO AMBIENTAL PARA PRESENTACIÓN ─── -->
+<audio id="ambient-audio" autoplay loop muted style="display:none;">
+  <source src="../assets/helix-in-gold.mp3" type="audio/mpeg">
+</audio>
 
 <!-- ─── NAVBAR ─── -->
 <nav class="navbar">
@@ -1915,6 +1919,41 @@ async function enviarNova() {
     document.getElementById('nova-input').focus();
   }
 }
+
+/* ─── CONTROL DE AUDIO AMBIENTAL PARA PRESENTACIÓN ─── */
+(function() {
+  const audio = document.getElementById('ambient-audio');
+  if (!audio) return;
+  
+  // Intentar reproducir con autoplay (si es permitido por el navegador)
+  audio.muted = false;
+  audio.volume = 0.15; // 15% de volumen - suave pero audible
+  audio.play().catch(() => {
+    // Si autoplay falla, el usuario puede activarlo con la tecla 'M'
+    console.log('Autoplay bloqueado. Usa tecla M para activar música.');
+  });
+  
+  // Atajo de teclado: Tecla 'M' para mute/unmute
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'm' && e.ctrlKey) {
+      e.preventDefault();
+      audio.muted = !audio.muted;
+      console.log(`🎵 Música: ${audio.muted ? 'Silenciado' : 'Reproduciendo'}`);
+    }
+  });
+  
+  // Atajo alternativo: Solo 'M'
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+      const activeElement = document.activeElement;
+      if (!activeElement || activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        audio.muted = !audio.muted;
+        console.log(`🎵 Música: ${audio.muted ? 'Silenciado' : 'Reproduciendo'}`);
+      }
+    }
+  });
+})();
 </script>
 </body>
 </html>
