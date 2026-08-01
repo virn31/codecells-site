@@ -2416,6 +2416,23 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── TEST: VERIFICAR RECONOCIMIENTO DE CEO ────────────────────────
+  if (action === 'test_jorge_recognition') {
+    const { codigoTest } = req.body;
+    if (codigoTest === 'CCMED-JORGE01') {
+      const CEOS_TEST = { 'CCMED-JORGE01': 'Jorge Torres, CEO de Regene Global' };
+      const esComingStraté = CEOS_TEST[codigoTest];
+      return res.status(200).json({
+        reconocido: true,
+        codigo: codigoTest,
+        tipo: 'CEO_ESTRATEGICO',
+        nombre: esComingStraté,
+        mensaje: `✅ Jorge Torres RECONOCIDO como CEO de Regene Global. NOVA lo tratará con máxima formalidad y le dará acceso a red completa, protocolos, outcomes y comunicación directa con fundadores.`
+      });
+    }
+    return res.status(200).json({ reconocido: false, codigo: codigoTest });
+  }
+
   // ─── CHAT CON NOVA ────────────────────────────────────────────────
   try {
     const {
