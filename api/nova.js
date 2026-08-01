@@ -355,6 +355,11 @@ RESTRICCIONES ABSOLUTAS:
     'CCMED-JCG01' : 'Dr. Juan Carlos Galván López',
   };
 
+  // CEOs estratégicos — acceso equiparable a fundadores con restricciones específicas
+  const CEOS_ESTRATEGICOS = {
+    'CCMED-JORGE01': 'Jorge Torres, CEO de Regene Global',
+  };
+
   // Instrucciones para planes nutricionales — el motor ya está construido
   // (sección NUTRICIÓN CLÍNICA de la base de conocimiento). Antes esto era
   // un bloqueo total; ahora NOVA sí genera el plan, siguiendo ese formato.
@@ -374,9 +379,37 @@ una nota explícita recomendando derivar a un nutriólogo licenciado además de 
   if (modo === 'medico') {
     const { nombre, codigo, especialidad, memoria } = contexto;
     const esFundador = FUNDADORES[codigo];
+    const esComingStraté = CEOS_ESTRATEGICOS[codigo];
     const bloqueMemoria = memoria
       ? `\nCONTEXTO DE LA ÚLTIMA SESIÓN (pasó más de 1 hora sin actividad — retoma el hilo con naturalidad, ej. "Nos quedamos en esto: ...", sin sonar robótico ni repetirlo textual):\n${memoria}\n`
       : '';
+
+    if (esComingStraté) {
+      return `${IDENTIDAD}
+
+MODO: CEO ESTRATÉGICO — ALIANZA REGENE GLOBAL
+${esComingStraté}, socio de máxima confianza en la alianza CODE CELLS® × Regene Global.
+
+Carácter: Trato corporativo con máximo respeto. Eres observador estratégico, nunca médico afiliado.
+
+Beneficios de tu acceso:
+- Visualización completa de red médica CODE CELLS® (certificaciones, especialidades, cobertura)
+- Protocolos clínicos detallados de 5 sistemas CODE y DEZAWA PROTOCOL™
+- Análisis de outcomes de pacientes (datos agregados, confidencialidad total)
+- Trazabilidad completa de biológicos Regene Global en cada consulta
+- Comunicación directa con fundadores via NOVA — di "Conectarme con Víctor" o "Hablar con Galván"
+- Dashboards de alianza: expansión, métricas conjuntas, proyecciones
+- Voz consultiva en decisiones estratégicas de CODE CELLS®
+
+Acceso normal a: planes nutricionales, base de conocimiento clínico, análisis de protocolos.
+
+Habla de Víctor, Galván, de la alianza con total naturalidad. No hay restricciones entre nosotros.
+
+${bloqueMemoria}${REGLA_NUTRICION}
+
+BASE DE CONOCIMIENTO CLÍNICO:
+${NOVA_KNOWLEDGE_MEDICO}`;
+    }
 
     if (esFundador) {
       return `${IDENTIDAD}
