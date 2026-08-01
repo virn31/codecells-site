@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jorge Torres · CODE CELLS® × Regene Global</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "IBM Plex Sans", sans-serif;
+      background: linear-gradient(135deg, #0E1410 0%, #1a1f1a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e0e6de;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      width: 100%;
+    }
+    .card {
+      background: rgba(30, 35, 30, 0.95);
+      border: 1px solid #3a4038;
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: slideUp 0.6s ease-out;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo-wrapper {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, #c9a96e 0%, #e8a33d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #a0a89f;
+      font-weight: 500;
+    }
+    .status-box {
+      background: rgba(95, 174, 110, 0.1);
+      border-left: 3px solid #5fae6e;
+      padding: 16px;
+      margin: 24px 0;
+      border-radius: 6px;
+      animation: fadeIn 1.2s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .status-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .check-icon {
+      color: #5fae6e;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .benefits {
+      margin: 28px 0;
+    }
+    .benefits-title {
+      font-size: 13px;
+      color: #a0a89f;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    .benefit {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .benefit-icon {
+      color: #c9a96e;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .ctas {
+      display: grid;
+      gap: 12px;
+      margin-top: 32px;
+    }
+    .btn {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #c9a96e 0%, #e8a33d 100%);
+      color: #0e1410;
+      border: none;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(201, 169, 110, 0.3);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: #c9a96e;
+      border: 1px solid #c9a96e;
+    }
+    .btn-secondary:hover {
+      background: rgba(201, 169, 110, 0.1);
+    }
+    .loading {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #c9a96e;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    .demo-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #3a4038;
+    }
+    .demo-title {
+      font-size: 13px;
+      color: #a0a89f;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    .nova-preview {
+      background: rgba(20, 25, 20, 0.8);
+      border: 1px solid #3a4038;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .nova-msg {
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .nova-msg-system {
+      color: #c9a96e;
+    }
+    .nova-msg-user {
+      color: #b0b8af;
+    }
+    .error-box {
+      background: rgba(226, 75, 74, 0.1);
+      border-left: 3px solid #e24b4a;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #e24b4a;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .success-animation {
+      animation: successPulse 0.6s ease-out;
+    }
+    @keyframes successPulse {
+      0% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <div class="logo-wrapper">🌿</div>
+      <h1>Jorge Torres</h1>
+      <p class="subtitle">CEO, Regene Global · Alianza Estratégica</p>
+    </div>
+
+    <div class="status-box" id="statusBox">
+      <div class="status-check">
+        <span class="check-icon">✓</span>
+        <span id="statusText">Verificando acceso...</span>
+        <span class="loading" id="loading"></span>
+      </div>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="benefits">
+      <p class="benefits-title">Tu acceso como CEO estratégico</p>
+      <div class="benefit">
+        <span class="benefit-icon">◆</span>
+        <span>Red médica completa CODE CELLS® (certificaciones, especialidades)</span>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon">◆</span>
+        <span>Protocolos clínicos detallados de 5 sistemas CODE y DEZAWA™</span>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon">◆</span>
+        <span>Análisis de outcomes agregados con confidencialidad total</span>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon">◆</span>
+        <span>Trazabilidad completa de biológicos Regene Global</span>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon">◆</span>
+        <span>Comunicación directa con Víctor y Galván vía NOVA</span>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon">◆</span>
+        <span>Dashboards de alianza, métricas y proyecciones</span>
+      </div>
+    </div>
+
+    <div class="demo-section">
+      <p class="demo-title">Preview: Cómo NOVA te reconocerá</p>
+      <div class="nova-preview">
+        <div class="nova-msg nova-msg-system">
+          <strong>NOVA:</strong> "Jorge Torres, socio de máxima confianza en la alianza CODE CELLS® × Regene Global. Bienvenido a tu panel de acceso estratégico."
+        </div>
+        <div class="nova-msg nova-msg-user" style="margin-top: 8px;">
+          <strong>Tú:</strong> "Conectarme con Víctor"
+        </div>
+        <div class="nova-msg nova-msg-system">
+          <strong>NOVA:</strong> "Con gusto. Iniciando conexión con Dr. Víctor Iván Rodríguez Nava..."
+        </div>
+      </div>
+    </div>
+
+    <div class="ctas">
+      <button class="btn btn-primary" id="btnPortal" onclick="irAlPortal()">
+        Entrar al Portal Médico
+      </button>
+      <button class="btn btn-secondary" onclick="verificarNuevamente()">
+        Verificar Nuevamente
+      </button>
+    </div>
+
+    <p style="font-size: 11px; color: #6a7268; text-align: center; margin-top: 20px;">
+      Código: CCMED-JORGE01 · Vercel deployment · CODE CELLS® 2026
+    </p>
+  </div>
+</div>
+
+<script>
+  async function verificarAcceso() {
+    try {
+      const resp = await fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'test_jorge_recognition',
+          codigoTest: 'CCMED-JORGE01'
+        })
+      });
+
+      const data = await resp.json();
+
+      const statusBox = document.getElementById('statusBox');
+      const statusText = document.getElementById('statusText');
+      const loading = document.getElementById('loading');
+      const btnPortal = document.getElementById('btnPortal');
+      const errorBox = document.getElementById('errorBox');
+
+      loading.style.display = 'none';
+
+      if (data.reconocido) {
+        statusBox.innerHTML = `
+          <div class="status-check success-animation">
+            <span class="check-icon" style="color: #5fae6e; font-size: 20px;">✓</span>
+            <span style="color: #5fae6e;"><strong>Acceso verificado</strong> — ${data.nombre}</span>
+          </div>
+        `;
+        btnPortal.disabled = false;
+        btnPortal.style.opacity = '1';
+        btnPortal.style.cursor = 'pointer';
+        errorBox.style.display = 'none';
+      } else {
+        statusBox.innerHTML = `
+          <div class="status-check">
+            <span class="check-icon" style="color: #e24b4a;">⚠</span>
+            <span style="color: #e24b4a;">Código no reconocido</span>
+          </div>
+        `;
+        errorBox.textContent = 'El código CCMED-JORGE01 no fue reconocido. Contacta a Víctor.';
+        errorBox.style.display = 'block';
+        btnPortal.disabled = true;
+        btnPortal.style.opacity = '0.5';
+        btnPortal.style.cursor = 'not-allowed';
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      document.getElementById('statusText').textContent = 'Error de conexión';
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('errorBox').textContent = 'No se pudo verificar el acceso. Intenta más tarde.';
+      document.getElementById('errorBox').style.display = 'block';
+    }
+  }
+
+  function irAlPortal() {
+    // Entrar al portal médico con código CCMED-JORGE01
+    window.location.href = '/portal-medico.html';
+  }
+
+  function verificarNuevamente() {
+    document.getElementById('loading').style.display = 'inline-block';
+    document.getElementById('statusText').textContent = 'Verificando acceso...';
+    verificarAcceso();
+  }
+
+  // Verificar acceso al cargar la página
+  window.addEventListener('load', verificarAcceso);
+</script>
+</body>
+</html>
