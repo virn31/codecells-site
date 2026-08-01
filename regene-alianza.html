@@ -373,11 +373,16 @@ function playSlideAudio(idx){
   player.pause();
   if(!s.audio){ showContinue(); return; }
   player.src=s.audio;
+  player.preload='auto';
   player.load();
-  const p=player.play();
-  if(p&&p.catch){ p.catch(()=>{ showContinue(); }); }
+  player.addEventListener('canplay', function handleCanPlay(){
+    player.removeEventListener('canplay', handleCanPlay);
+    const p=player.play();
+    if(p&&p.catch){ p.catch(()=>{ showContinue(); }); }
+  }, {once:true});
+  setTimeout(()=>{ if(player.paused&&!player.ended) player.play().catch(()=>{}); }, 500);
 }
-player.addEventListener('ended', ()=>{ showContinue(); if(cur<SLIDES.length-1){ autoAdvTm=setTimeout(()=>nextSlide(), 900); } });
+player.addEventListener('ended', ()=>{ showContinue(); if(cur<SLIDES.length-1){ autoAdvTm=setTimeout(()=>nextSlide(), 1500); } });
 player.addEventListener('error', ()=>{ showContinue(); });
 player.addEventListener('play', ()=>setPlayIcon(true));
 player.addEventListener('pause', ()=>setPlayIcon(false));
