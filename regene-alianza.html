@@ -269,7 +269,7 @@ const SLIDES = [
 let cur=0, autoAdvTm=null;
 const player=document.getElementById('player');
 const bgMusic=document.getElementById('bgMusic');
-bgMusic.src=encodeURI('assets/audio/Helix in Gold.mp3');
+bgMusic.src='assets/audio/Helix_in_Gold.mp3';
 bgMusic.volume=0.22;
 const progFill=document.getElementById('prog-fill');
 const dotsEl=document.getElementById('dots');
@@ -398,7 +398,7 @@ player.addEventListener('ended', ()=>{
     if(cur<SLIDES.length-1){ 
       autoAdvTm=setTimeout(()=>nextSlide(), 800); 
     }
-  }, 30);
+  }, 35);
 });
 player.addEventListener('error', ()=>{ showContinue(); });
 player.addEventListener('play', ()=>setPlayIcon(true));
@@ -414,7 +414,7 @@ player.addEventListener('play', () => {
       player.pause();
       setTimeout(() => {
         player.dispatchEvent(new Event('ended'));
-      }, 30);
+      }, 35);
       clearInterval(audioWatchdog);
     }
     lastTime = player.currentTime;
