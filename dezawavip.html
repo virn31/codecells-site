@@ -668,6 +668,7 @@ Tu trabajo ahora es orientarlo: explícale con calma qué sigue, cómo es la apl
 
     var voiceEl = new Audio();
     voiceEl.volume = 1;
+    voiceEl.preload = 'auto';
 
     function nextImg(){
       imgIdx = (imgIdx + 1) % VIP_IMAGES.length;
@@ -703,7 +704,7 @@ Tu trabajo ahora es orientarlo: explícale con calma qué sigue, cómo es la apl
       if(vipTourAborted) return;
       if(beatIndex >= beats.length){ finishTour(); return; }
       var b = beats[beatIndex];
-      voiceEl.src = 'data:audio/mpeg;base64,' + VIP_VOZ[beatIndex];
+      voiceEl.pause(); voiceEl.currentTime = 0; voiceEl.src = 'data:audio/mpeg;base64,' + VIP_VOZ[beatIndex];
 
       if(b.explosion){
         // Ráfaga de imágenes muy rápida y luego destello blanco + logo
@@ -738,10 +739,12 @@ Tu trabajo ahora es orientarlo: explícale con calma qué sigue, cómo es la apl
       }
 
       voiceEl.onended = function(){
+        voiceEl.pause();
+        voiceEl.currentTime = 0;
         if(vipTourAborted) return;
         beatIndex++;
         if(beatIndex < beats.length){
-          playBeat();
+          setTimeout(function(){ playBeat(); }, 250);
         }
         // si ya no hay más beats, nos quedamos en la última pantalla
         // esperando a que la persona toque el botón (ya visible).
