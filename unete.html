@@ -78,6 +78,7 @@
   var novaHistory = [];
   var novaIsLoading = false;
   var preRecordId = null;
+  var medicoCodeDetectado = null; // Guardar si Jorge identifica su código
 
   var SYSTEM_PROMPT = `Eres NOVA, la asistente de CODE CELLS® encargada de recibir solicitudes de médicos interesados en afiliarse a la Red Médica CODE CELLS®.
 
@@ -138,7 +139,6 @@ ESTILO: español, profesional, cálido, sin sonar a formulario, ágil (una pregu
     var timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
 
     // Detectar si Jorge u otro médico envía su código CCMED-
-    var medicoCodeDetectado = null;
     var ultimoMensaje = novaHistory[novaHistory.length - 1]?.content || '';
     var matchCCMED = ultimoMensaje.match(/CCMED-[A-Z0-9]{4,8}/i);
     if (matchCCMED) {
@@ -148,13 +148,17 @@ ESTILO: español, profesional, cálido, sin sonar a formulario, ágil (una pregu
     var bodyData = {
       model: NOVA_MODEL,
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
       messages: novaHistory
     };
 
-    // Si detectamos código de médico, enviarlo al servidor para reconocimiento CEO
+    // Si detectamos código de médico, enviarlo Y NO enviar system
+    // api/nova.js recibirá medicoCode y buildSystemPrompt lo detectará como CEO si lo es
     if (medicoCodeDetectado) {
       bodyData.medicoCode = medicoCodeDetectado;
+      // NO enviar system — api/nova.js construirá el correcto
+    } else {
+      // Modo aspirante normal — enviar system prompt de afiliación
+      bodyData.system = SYSTEM_PROMPT;
     }
 
     return fetch(NOVA_ENDPOINT, {
