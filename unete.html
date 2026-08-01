@@ -137,10 +137,30 @@ ESTILO: español, profesional, cálido, sin sonar a formulario, ágil (una pregu
     var controller = new AbortController();
     var timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
 
+    // Detectar si Jorge u otro médico envía su código CCMED-
+    var medicoCodeDetectado = null;
+    var ultimoMensaje = novaHistory[novaHistory.length - 1]?.content || '';
+    var matchCCMED = ultimoMensaje.match(/CCMED-[A-Z0-9]{4,8}/i);
+    if (matchCCMED) {
+      medicoCodeDetectado = matchCCMED[0].toUpperCase();
+    }
+
+    var bodyData = {
+      model: NOVA_MODEL,
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: novaHistory
+    };
+
+    // Si detectamos código de médico, enviarlo al servidor para reconocimiento CEO
+    if (medicoCodeDetectado) {
+      bodyData.medicoCode = medicoCodeDetectado;
+    }
+
     return fetch(NOVA_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: NOVA_MODEL, max_tokens: 1024, system: SYSTEM_PROMPT, messages: novaHistory }),
+      body: JSON.stringify(bodyData),
       signal: controller.signal
     }).then(function(r){ clearTimeout(timeoutId); return r.json(); })
     .then(function(data){
