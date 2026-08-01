@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CODE CELLS® — Portal Jorge Torres, CEO Regene Global</title>
+  <style>
+    :root {
+      --bg: #0e1410;
+      --surface: #161b18;
+      --line: #2a2f2c;
+      --line-strong: #3a3f3c;
+      --ink: #e8ebe8;
+      --ink-dim: #a8aba8;
+      --gold: #e8a33d;
+      --gold-soft: rgba(232, 163, 61, 0.08);
+      --gold-line: rgba(232, 163, 61, 0.2);
+      --font-display: "Fraunces", serif;
+      --font-sans: "IBM Plex Sans", sans-serif;
+      --font-mono: "IBM Plex Mono", monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 20px 0;
+      margin-bottom: 40px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .logo {
+      font-family: var(--font-display);
+      font-size: 18px;
+      letter-spacing: 0.3em;
+      color: var(--gold);
+      font-weight: 300;
+    }
+    .ceo-badge {
+      background: linear-gradient(135deg, var(--gold), #d4654a);
+      color: #151a16;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: var(--ink-dim);
+      font-style: italic;
+    }
+    .welcome-box {
+      background: linear-gradient(135deg, rgba(232, 163, 61, 0.08), rgba(212, 101, 74, 0.05));
+      border: 1px solid var(--gold-line);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 40px;
+    }
+    .welcome-box h1 {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+      color: var(--gold);
+      font-weight: 500;
+    }
+    .welcome-box p {
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 8px;
+      color: var(--ink-dim);
+    }
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .benefit-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      transition: all 0.3s ease;
+    }
+    .benefit-card:hover {
+      border-color: var(--gold-line);
+      background: linear-gradient(135deg, rgba(232, 163, 61, 0.02), transparent);
+    }
+    .benefit-card h3 {
+      font-family: var(--font-display);
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .benefit-card p {
+      font-size: 13px;
+      color: var(--ink-dim);
+      line-height: 1.6;
+    }
+    .patients-section {
+      margin-bottom: 40px;
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      color: var(--gold);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 500;
+    }
+    .patient-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .patient-card:hover {
+      border-color: var(--gold-line);
+      background: linear-gradient(135deg, rgba(232, 163, 61, 0.03), transparent);
+    }
+    .patient-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .patient-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .patient-code {
+      background: var(--gold-soft);
+      color: var(--gold);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .patient-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      font-size: 13px;
+      color: var(--ink-dim);
+    }
+    .patient-meta span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nova-section {
+      background: var(--surface);
+      border: 1px solid var(--gold-line);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 40px;
+    }
+    .nova-head {
+      font-family: var(--font-display);
+      font-size: 16px;
+      color: var(--gold);
+      margin-bottom: 16px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .nova-msgs {
+      max-height: 400px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-right: 4px;
+    }
+    .nova-msg {
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+      max-width: 85%;
+    }
+    .nova-msg.ceo {
+      align-self: flex-start;
+      background: var(--bg);
+      border: 1px solid var(--line-strong);
+      border-bottom-left-radius: 3px;
+      color: var(--ink);
+    }
+    .nova-msg.jorge {
+      align-self: flex-end;
+      background: var(--gold-soft);
+      border: 1px solid var(--gold-line);
+      border-bottom-right-radius: 3px;
+      color: var(--gold);
+    }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: var(--gold);
+      color: #151a16;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background: #d8933d;
+      transform: translateY(-2px);
+    }
+    .subtle {
+      background: var(--line);
+      color: var(--ink);
+    }
+    .subtle:hover {
+      background: var(--line-strong);
+    }
+    @media (max-width: 768px) {
+      .benefits-grid { grid-template-columns: 1fr; }
+      .patient-meta { grid-template-columns: 1fr; }
+      .welcome-box h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <div class="top">
+      <div class="logo">CODE CELLS®</div>
+      <div class="ceo-badge">🎯 CEO REGENE GLOBAL</div>
+    </div>
+    <div class="subtitle">Portal Estratégico de Alianza — Bienvenido, Jorge Torres</div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="welcome-box">
+    <h1>Bienvenido, Jorge</h1>
+    <p>
+      Como CEO de Regene Global, tienes acceso a la vista completa de la alianza CODE CELLS® × Regene.
+      Aquí puedes visualizar la red médica, protocolos clínicos, outcomes de pacientes y métricas de expansión.
+    </p>
+    <p style="margin-top: 16px; color: var(--gold); font-weight: 600;">
+      Tu rol: Observador Estratégico | Acceso: Lectura Completa | Comunicación: Directa con Víctor y Juan Carlos
+    </p>
+    
+    <div class="benefits-grid">
+      <div class="benefit-card">
+        <h3>🏥 Red Médica</h3>
+        <p>Visualiza certificaciones, especialidades y cobertura geográfica de todos los médicos afiliados.</p>
+      </div>
+      <div class="benefit-card">
+        <h3>📋 Protocolos Clínicos</h3>
+        <p>Acceso a los 17 protocolos de 5 sistemas CODE y DEZAWA PROTOCOL™ con indicaciones detalladas.</p>
+      </div>
+      <div class="benefit-card">
+        <h3>📊 Outcomes Pacientes</h3>
+        <p>Análisis agregado de resultados clínicos y satisfacción de pacientes (datos confidenciales).</p>
+      </div>
+      <div class="benefit-card">
+        <h3>🔬 Trazabilidad Regene</h3>
+        <p>Control completo de biológicos Regene Global por lote, citometría y serología en cada consulta.</p>
+      </div>
+      <div class="benefit-card">
+        <h3>📈 Dashboards Alianza</h3>
+        <p>Métricas de expansión, cobertura, crecimiento de la red y proyecciones comerciales.</p>
+      </div>
+      <div class="benefit-card">
+        <h3>💬 Comunicación Directa</h3>
+        <p>Contacto inmediato con Víctor y Juan Carlos. Di "Conectarme con Víctor" en cualquier momento.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="patients-section">
+    <h2 class="section-title">📋 Expedientes de Pacientes Ficticios (Demo)</h2>
+    <p style="color: var(--ink-dim); margin-bottom: 20px; font-size: 13px;">
+      Estos son pacientes de demostración para que puedas explorar la funcionalidad del portal médico y el análisis de NOVA.
+    </p>
+
+    <div class="patient-card">
+      <div class="patient-header">
+        <div>
+          <div class="patient-name">María García López</div>
+          <div style="font-size: 12px; color: var(--ink-dim); margin-top: 4px;">45 años, Femenino</div>
+        </div>
+        <span class="patient-code">CC-PAC-001</span>
+      </div>
+      <div class="patient-meta">
+        <span>🏥 Médico: Dr. Víctor Rodríguez</span>
+        <span>📅 Última consulta: 5 días atrás</span>
+        <span>💊 Diagnóstico: Hipertensión esencial</span>
+        <span>⚠️ Alergia: Penicilina</span>
+      </div>
+      <button onclick="abrirExpediente('CC-PAC-001')">Ver Expediente Completo</button>
+    </div>
+
+    <div class="patient-card">
+      <div class="patient-header">
+        <div>
+          <div class="patient-name">Carlos Rodríguez Martínez</div>
+          <div style="font-size: 12px; color: var(--ink-dim); margin-top: 4px;">52 años, Masculino</div>
+        </div>
+        <span class="patient-code">CC-PAC-002</span>
+      </div>
+      <div class="patient-meta">
+        <span>🏥 Médico: Dr. Juan Carlos Galván</span>
+        <span>📅 Última consulta: 10 días atrás</span>
+        <span>💊 Diagnóstico: Dolor de espalda bajo</span>
+        <span>✅ Alergias: Ninguna</span>
+      </div>
+      <button onclick="abrirExpediente('CC-PAC-002')">Ver Expediente Completo</button>
+    </div>
+
+    <div class="patient-card">
+      <div class="patient-header">
+        <div>
+          <div class="patient-name">Ana Fernández González</div>
+          <div style="font-size: 12px; color: var(--ink-dim); margin-top: 4px;">38 años, Femenino</div>
+        </div>
+        <span class="patient-code">CC-PAC-003</span>
+      </div>
+      <div class="patient-meta">
+        <span>🏥 Médico: Dr. Víctor Rodríguez</span>
+        <span>📅 Última consulta: 2 días atrás</span>
+        <span>💊 Diagnóstico: Deficiencia de hierro</span>
+        <span>⚠️ Alergia: Sulfonamidas</span>
+      </div>
+      <button onclick="abrirExpediente('CC-PAC-003')">Ver Expediente Completo</button>
+    </div>
+
+    <div class="patient-card">
+      <div class="patient-header">
+        <div>
+          <div class="patient-name">Diego Sánchez Iglesias</div>
+          <div style="font-size: 12px; color: var(--ink-dim); margin-top: 4px;">55 años, Masculino</div>
+        </div>
+        <span class="patient-code">CC-PAC-004</span>
+      </div>
+      <div class="patient-meta">
+        <span>🏥 Médico: Dr. Juan Carlos Galván</span>
+        <span>📅 Última consulta: Hace 1 semana</span>
+        <span>💊 Diagnóstico: Diabetes mellitus tipo 2</span>
+        <span>⚠️ Alergia: AINE</span>
+      </div>
+      <button onclick="abrirExpediente('CC-PAC-004')">Ver Expediente Completo</button>
+    </div>
+  </div>
+
+  <div class="nova-section">
+    <div class="nova-head">💬 NOVA — Tu Asistente Estratégico</div>
+    <div class="nova-msgs">
+      <div class="nova-msg ceo">
+        <strong>NOVA</strong><br><br>
+        Jorge Torres, CEO de Regene Global. Bienvenido a CODE CELLS®.
+        <br><br>
+        Soy NOVA, tu copiloto en esta alianza estratégica. Mi función aquí es asistirte en:
+        <br>• Análisis de la red médica y métricas de expansión
+        <br>• Contexto clínico de protocolos y outcomes
+        <br>• Comunicación directa con Víctor e Juan Carlos
+        <br><br>
+        ¿Por dónde te gustaría comenzar?
+      </div>
+      <div class="nova-msg jorge">
+        Necesito ver los protocolos de Regene en el sistema y entender el flujo de pacientes DEZAWA.
+      </div>
+      <div class="nova-msg ceo">
+        <strong>NOVA</strong><br><br>
+        Perfecto. DEZAWA PROTOCOL™ es nuestra categoría premium ($10k-$25k USD). 
+        <br><br>
+        Los 17 protocolos de CODE CELLS® se distribuyen en:
+        <br>• 5 en ENERGY (agilidad, vitalidad)
+        <br>• 4 en REPAIR (cicatrización, regeneración tissue)
+        <br>• 3 en BALANCE (modulación inmune, regulación hormonal)
+        <br>• 3 en NEURO (neuroplasticidad, recuperación cognitiva)
+        <br>• 2 en REGEN (células madre, longevidad)
+        <br><br>
+        DEZAWA agrega biológicos Regene Global (MUSE Cells, exosomas) a los 3 niveles: RESTORE™, ACTIVATE™, GENESIS™.
+        <br><br>
+        Los 4 pacientes que ves aquí están en seguimiento. ¿Quieres analizar alguno en profundidad?
+      </div>
+      <div class="nova-msg jorge">
+        Sí, necesito ver cómo se documenta el outcomes médico en el portal. Conectarme con Víctor para validar los criterios.
+      </div>
+      <div class="nova-msg ceo">
+        <strong>NOVA</strong><br><br>
+        🔗 Conectando con Víctor Rodríguez...
+        <br><br>
+        <em>Víctor estará disponible en tu próximo mensaje. Puedes preguntarle sobre:</em>
+        <br>• Criterios de medición de outcomes
+        <br>• Integraciones futuras con plataforma Coastals
+        <br>• Expansión de la red en Latinoamérica
+        <br>• Estrategia comercial con Regene Academy/Shop
+        <br><br>
+        Recuerda: eres observador estratégico, nunca operativo. Tu voz es consultiva y de máxima confianza.
+      </div>
+    </div>
+    <div class="action-buttons">
+      <button onclick="conectarVictor()">🔗 Conectar con Víctor</button>
+      <button onclick="conectarGalvan()" class="subtle">🔗 Conectar con Galván</button>
+      <button onclick="verProtocolos()" class="subtle">📋 Ver Protocolos Completos</button>
+      <button onclick="volverA Inicio()" class="subtle">🏠 Volver a Inicio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirExpediente(codigo) {
+  alert(`Expediente ${codigo} — Funcionalidad interactiva disponible en portal-medico.html real con datos de Airtable.`);
+}
+
+function conectarVictor() {
+  alert("🔗 Conexión establecida con Víctor Rodríguez (Cofundador).\n\nEscribe tu pregunta sobre estrategia, outcomes o expansión.");
+}
+
+function conectarGalvan() {
+  alert("🔗 Conexión establecida con Dr. Juan Carlos Galván (Co-Director Médico).\n\nEscribe tu pregunta sobre protocolos o certificaciones médicas.");
+}
+
+function verProtocolos() {
+  alert("📋 Los 17 protocolos de 5 sistemas CODE están disponibles en el módulo de Capacitación:\n\n✓ ENERGY (5 protocolos)\n✓ REPAIR (4 protocolos)\n✓ BALANCE (3 protocolos)\n✓ NEURO (3 protocolos)\n✓ REGEN (2 protocolos)\n\nCada uno en 3 niveles: RESTORE™, ACTIVATE™, GENESIS™");
+}
+
+function volverAInicio() {
+  window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
