@@ -392,7 +392,14 @@ function playSlideAudio(idx){
     } 
   }, 800);
 }
-player.addEventListener('ended', ()=>{ showContinue(); if(cur<SLIDES.length-1){ autoAdvTm=setTimeout(()=>nextSlide(), 800); } });
+player.addEventListener('ended', ()=>{ 
+  setTimeout(() => {
+    showContinue(); 
+    if(cur<SLIDES.length-1){ 
+      autoAdvTm=setTimeout(()=>nextSlide(), 800); 
+    }
+  }, 30);
+});
 player.addEventListener('error', ()=>{ showContinue(); });
 player.addEventListener('play', ()=>setPlayIcon(true));
 player.addEventListener('pause', ()=>setPlayIcon(false));
@@ -403,9 +410,11 @@ player.addEventListener('play', () => {
   let lastTime = 0;
   audioWatchdog = setInterval(() => {
     if(!player.paused && player.currentTime === lastTime && player.currentTime > 0) {
-      // Audio pegado, forzar ended
+      // Audio pegado, forzar ended con buffer
       player.pause();
-      player.dispatchEvent(new Event('ended'));
+      setTimeout(() => {
+        player.dispatchEvent(new Event('ended'));
+      }, 30);
       clearInterval(audioWatchdog);
     }
     lastTime = player.currentTime;
