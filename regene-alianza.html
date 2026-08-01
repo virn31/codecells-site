@@ -370,29 +370,48 @@ function prevSlide(){ gotoSlide(cur-1); }
 
 function playSlideAudio(idx){
   const s=SLIDES[idx];
-  player.pause();
   if(!s.audio){ showContinue(); return; }
+  
+  player.pause();
+  player.currentTime = 0;
   player.src=s.audio;
-  player.preload='auto';
   player.load();
-  // Esperar a que esté listo antes de tocar
-  const playWhenReady = () => {
-    const p = player.play();
-    if(p && p.catch) { p.catch(()=>{ showContinue(); }); }
-    player.removeEventListener('canplay', playWhenReady);
+  
+  // Limpiar eventos previos
+  player.onloadedmetadata = null;
+  
+  // Cuando se carga la duración, tocar
+  player.onloadedmetadata = () => {
+    player.play().catch(()=>{ showContinue(); });
   };
-  player.addEventListener('canplay', playWhenReady);
-  // Fallback: si en 1s no está listo, intentar de todas formas
-  setTimeout(() => {
-    if(player.paused && player.readyState >= 2) {
-      player.play().catch(()=>{});
-    }
-  }, 1000);
+  
+  // Fallback: tocar aunque no tenga duración
+  setTimeout(() => { 
+    if(player.paused && player.src) { 
+      player.play().catch(()=>{ showContinue(); }); 
+    } 
+  }, 800);
 }
-player.addEventListener('ended', ()=>{ showContinue(); });
+player.addEventListener('ended', ()=>{ showContinue(); if(cur<SLIDES.length-1){ autoAdvTm=setTimeout(()=>nextSlide(), 800); } });
 player.addEventListener('error', ()=>{ showContinue(); });
 player.addEventListener('play', ()=>setPlayIcon(true));
 player.addEventListener('pause', ()=>setPlayIcon(false));
+// Watchdog: si el audio se pegó o se cortó, forzar avance
+let audioWatchdog = null;
+player.addEventListener('play', () => {
+  clearInterval(audioWatchdog);
+  let lastTime = 0;
+  audioWatchdog = setInterval(() => {
+    if(!player.paused && player.currentTime === lastTime && player.currentTime > 0) {
+      // Audio pegado, forzar ended
+      player.pause();
+      player.dispatchEvent(new Event('ended'));
+      clearInterval(audioWatchdog);
+    }
+    lastTime = player.currentTime;
+  }, 500);
+});
+player.addEventListener('ended', () => { clearInterval(audioWatchdog); });
 player.addEventListener('timeupdate',()=>{
   if(!player.duration) return;
   aFill.style.width=(player.currentTime/player.duration*100)+'%';
