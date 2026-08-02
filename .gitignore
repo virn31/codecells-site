@@ -45,3 +45,23 @@ desktop.ini
 *.bak
 *.orig
 *~
+
+# ==========================================
+# ARCHIVOS TEMPORALES — FEEDBACK DE JORGE
+# ==========================================
+# Estos archivos son tours/demos para exploración y feedback de Jorge Torres (CEO Regene).
+# No son parte del producto final y se pueden eliminar después de su visita.
+# Se guardan por Si acaso necesita volver a revisitar.
+
+# Demo y welcome del CEO
+jorge-torres-demo.html
+jorge-torres-welcome.html
+
+# Script de carga manual de datos (uso interno)
+scripts/load_jorge_data.py
+
+# Respaldos de versiones anteriores
+*-backup.js
+*-backup.html
+*-v*.js
+*-v*.html
