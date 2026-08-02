@@ -1,0 +1,47 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Entorno / secretos — NUNCA subir
+.env
+.env.local
+.env*.local
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# Vercel
+.vercel
+
+# Build / cache
+.next/
+out/
+dist/
+build/
+.cache/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporales / respaldos
+*.tmp
+*.bak
+*.orig
+*~
