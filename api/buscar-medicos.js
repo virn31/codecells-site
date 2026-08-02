@@ -1,10 +1,10 @@
 /**
- * API: Búsqueda de Médicos + Triage NOVA
+ * API: Búsqueda de Médicos + Triage NOVA (BILINGÜE)
  * Endpoint: /api/buscar-medicos (POST)
  * 
  * Acciones:
- * 1. "listar" — lista todos los médicos activos con filtros
- * 2. "triage" — NOVA hace triage inteligente del problema clínico del paciente
+ * 1. "listar" — lista todos los médicos activos
+ * 2. "triage" — NOVA sugiere médicos basado en síntomas (español/inglés)
  */
 
 const Anthropic = require("@anthropic-ai/sdk");
@@ -51,9 +51,11 @@ async function obtenerMedicosDeAirtable() {
   }
 }
 
-// Triage inteligente con NOVA
-async function triageNova(mensaje, historial, medicos) {
-  const systemPrompt = `Eres NOVA, asistente médico inteligente de CODE CELLS®. Tu rol es:
+// Triage inteligente con NOVA (BILINGÜE)
+async function triageNova(mensaje, historial, medicos, idioma = 'es') {
+  const isEnglish = idioma === 'en';
+  
+  const systemPromptES = `Eres NOVA, asistente médico inteligente de CODE CELLS®. Tu rol es:
 
 1. ESCUCHAR el problema clínico del paciente (síntomas, condición, duración).
 2. IDENTIFICAR el sistema CODE más relevante:
@@ -84,6 +86,39 @@ ${medicos
 
 Responde SIEMPRE en español, con empatía. Si el paciente describe un problema específico, sugiere el médico más adecuado por especialidad + ubicación. Mantén la conversación conversacional y amable.`;
 
+  const systemPromptEN = `You are NOVA, an intelligent medical assistant for CODE CELLS®. Your role is:
+
+1. LISTEN to the patient's clinical problem (symptoms, condition, duration).
+2. IDENTIFY the most relevant CODE system:
+   - ENERGY: fatigue, low energy, chronic tiredness
+   - REPAIR: injuries, trauma, scarring, wounds
+   - BALANCE: hormonal balance, stress, anxiety, sleep
+   - NEURO: neurology, migraines, neuropathy, memory
+   - REGEN: cellular regeneration, osteoarthritis, cartilage, tissues
+   - DEZAWA: premium protocol, aging, cosmetic results
+
+3. SUGGEST doctors from the network who are specialists in that system.
+4. USE an empathetic, scientific, elegant tone (Mayo Clinic + Apple).
+5. NEVER diagnose — only guide toward the right specialist.
+
+Available doctors in the CODE CELLS® Network:
+${medicos
+  .filter((m) => m.activo)
+  .map(
+    (m) => `
+- Dr. ${m.nombre} (${m.codigo})
+  Specialties: ${m.especialidades.join(", ")}
+  Location: ${m.ciudad}, ${m.estado}
+  Level: ${m.nivel}
+  ${m.bio ? "Bio: " + m.bio : ""}
+`
+  )
+  .join("")}
+
+Always respond in English, with empathy. If the patient describes a specific problem, suggest the most appropriate doctor by specialty + location. Keep the conversation conversational and friendly.`;
+
+  const systemPrompt = isEnglish ? systemPromptEN : systemPromptES;
+
   const messages = [
     ...historial.map((m) => ({
       role: m.role === "user" ? "user" : "assistant",
@@ -102,9 +137,9 @@ Responde SIEMPRE en español, con empatía. Si el paciente describe un problema 
 
     const respuesta = response.content[0].type === "text" ? response.content[0].text : "";
 
-    // Extraer códigos de médicos sugeridos (ej. "CCMED-XXX")
+    // Extraer códigos de médicos sugeridos
     const codigosMatch = respuesta.match(/CCMED-[A-Z0-9]+/g) || [];
-    const medicosIds = [...new Set(codigosMatch)]; // Únicos
+    const medicosIds = [...new Set(codigosMatch)];
 
     return {
       respuesta,
@@ -112,9 +147,10 @@ Responde SIEMPRE en español, con empatía. Si el paciente describe un problema 
     };
   } catch (error) {
     console.error("Error NOVA:", error);
+    const fallbackES = "Disculpa, hubo un error procesando tu solicitud. Intenta describir tus síntomas de nuevo.";
+    const fallbackEN = "Sorry, there was an error processing your request. Please try describing your symptoms again.";
     return {
-      respuesta:
-        "Disculpa, hubo un error procesando tu solicitud. Intenta describir tus síntomas de nuevo.",
+      respuesta: isEnglish ? fallbackEN : fallbackES,
       medicos_sugeridos: [],
     };
   }
@@ -126,7 +162,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { accion, mensaje, historial } = req.body;
+  const { accion, mensaje, historial, idioma = 'es' } = req.body;
 
   // Cargar médicos
   const medicos = await obtenerMedicosDeAirtable();
@@ -142,7 +178,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Mensaje requerido" });
     }
 
-    const resultado = await triageNova(mensaje, historial || [], medicos);
+    const resultado = await triageNova(mensaje, historial || [], medicos, idioma);
     return res.status(200).json(resultado);
   }
 

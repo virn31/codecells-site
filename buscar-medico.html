@@ -41,6 +41,22 @@
       align-items: center;
     }
 
+    .language-selector {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #E8A33D;
+      background: rgba(14, 20, 16, 0.5);
+      color: #E8A33D;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .language-selector:hover {
+      background: rgba(232, 163, 61, 0.1);
+    }
+
     .navbar-right button {
       padding: 0.6rem 1.2rem;
       border: 1px solid #E8A33D;
@@ -72,7 +88,6 @@
       }
     }
 
-    /* LADO IZQUIERDO: Búsqueda filtrada */
     .search-panel {
       background: white;
       border-radius: 12px;
@@ -185,7 +200,6 @@
       color: white;
     }
 
-    /* LADO DERECHO: Resultados + NOVA */
     .results-panel {
       display: flex;
       flex-direction: column;
@@ -259,7 +273,6 @@
       font-size: 0.95rem;
     }
 
-    /* NOVA Chat */
     .nova-panel {
       background: white;
       border-radius: 12px;
@@ -378,7 +391,11 @@
   <div class="navbar">
     <div class="logo">CODE CELLS®</div>
     <div class="navbar-right">
-      <button onclick="location.href='/'">← Volver</button>
+      <select id="languageSelector" onchange="cambiarIdioma()" class="language-selector">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+      </select>
+      <button onclick="location.href='/'">← <span data-i18n="volver">Volver</span></button>
     </div>
   </div>
 
@@ -386,11 +403,11 @@
   <div class="container">
     <!-- LADO IZQUIERDO: Búsqueda Filtrada -->
     <div class="search-panel">
-      <h2>🔍 Encuentra tu Médico</h2>
+      <h2 data-i18n="titulo_busca">🔍 Encuentra tu Médico</h2>
       
       <!-- Filtro por Especialidad -->
       <div class="filter-group">
-        <label>Especialidad CODE Systems</label>
+        <label data-i18n="especialidad">Especialidad CODE Systems</label>
         <div class="checkbox-group">
           <div class="checkbox-item">
             <input type="checkbox" id="spec-energy" value="ENERGY">
@@ -421,44 +438,44 @@
 
       <!-- Filtro por Estado -->
       <div class="filter-group">
-        <label for="estado">Estado</label>
+        <label for="estado" data-i18n="estado">Estado</label>
         <select id="estado">
-          <option value="">Todos los estados</option>
+          <option value="" data-i18n="todos_estados">Todos los estados</option>
           <option value="Sinaloa">Sinaloa</option>
           <option value="Jalisco">Jalisco</option>
           <option value="CDMX">CDMX</option>
           <option value="Monterrey">Nuevo León</option>
           <option value="Veracruz">Veracruz</option>
           <option value="Yucatán">Yucatán</option>
-          <option value="Otros">Otros estados</option>
+          <option value="Otros" data-i18n="otros">Otros estados</option>
         </select>
       </div>
 
       <!-- Filtro por Ciudad -->
       <div class="filter-group">
-        <label for="ciudad">Ciudad (opcional)</label>
-        <input type="text" id="ciudad" placeholder="Ej. Culiacán, Guadalajara">
+        <label for="ciudad" data-i18n="ciudad_label">Ciudad (opcional)</label>
+        <input type="text" id="ciudad" placeholder="Ej. Culiacán, Guadalajara" data-i18n-placeholder="ciudad_placeholder">
       </div>
 
       <!-- Filtro por Nivel -->
       <div class="filter-group">
-        <label for="nivel">Nivel Clínico</label>
+        <label for="nivel" data-i18n="nivel">Nivel Clínico</label>
         <select id="nivel">
-          <option value="">Todos los niveles</option>
-          <option value="Asociado">Asociado</option>
-          <option value="Certificado">Certificado</option>
+          <option value="" data-i18n="todos_niveles">Todos los niveles</option>
+          <option value="Asociado" data-i18n="asociado">Asociado</option>
+          <option value="Certificado" data-i18n="certificado">Certificado</option>
           <option value="Senior">Senior</option>
         </select>
       </div>
 
       <!-- Botones -->
       <div class="search-buttons">
-        <button class="btn-primary" onclick="filtrarMedicos()">🔎 Buscar</button>
-        <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+        <button class="btn-primary" onclick="filtrarMedicos()" data-i18n="buscar">🔎 Buscar</button>
+        <button class="btn-secondary" onclick="limpiarFiltros()" data-i18n="limpiar">Limpiar</button>
       </div>
 
       <div class="info-box">
-        💡 <strong>Tip:</strong> O pregúntale a NOVA en el chat de la derecha qué médico es mejor para tu caso. NOVA te hará un triage inteligente.
+        💡 <strong data-i18n="tip">Tip:</strong> <span data-i18n="tip_mensaje">O pregúntale a NOVA en el chat de la derecha qué médico es mejor para tu caso. NOVA te hará un triage inteligente.</span>
       </div>
     </div>
 
@@ -466,21 +483,22 @@
     <div class="results-panel">
       <!-- Resultados de búsqueda -->
       <div class="results-container">
-        <h3>Médicos disponibles</h3>
-        <div id="resultados" class="no-results">
+        <h3 data-i18n="medicos_disponibles">Médicos disponibles</h3>
+        <div id="resultados" class="no-results" data-i18n="sin_resultados">
           👉 Usa los filtros de la izquierda o pregúntale a NOVA
         </div>
       </div>
 
       <!-- NOVA Triage -->
       <div class="nova-panel">
-        <div class="nova-header">NOVA Triage Inteligente</div>
+        <div class="nova-header" data-i18n="nova_titulo">NOVA Triage Inteligente</div>
         <div class="nova-messages" id="novaMessages"></div>
         <div class="nova-input-group">
           <input 
             type="text" 
             id="novaInput" 
             class="nova-input" 
+            data-i18n-placeholder="nova_placeholder"
             placeholder="Describe tu condición (ej: 'tengo dolor en rodillas')"
             onkeypress="if(event.key==='Enter') enviarANova()"
           >
@@ -491,8 +509,86 @@
   </div>
 
   <script>
+    // Diccionario de traducciones
+    const i18n = {
+      es: {
+        titulo_busca: '🔍 Encuentra tu Médico',
+        especialidad: 'Especialidad CODE Systems',
+        estado: 'Estado',
+        todos_estados: 'Todos los estados',
+        otros: 'Otros estados',
+        ciudad_label: 'Ciudad (opcional)',
+        ciudad_placeholder: 'Ej. Culiacán, Guadalajara',
+        nivel: 'Nivel Clínico',
+        todos_niveles: 'Todos los niveles',
+        asociado: 'Asociado',
+        certificado: 'Certificado',
+        buscar: '🔎 Buscar',
+        limpiar: 'Limpiar',
+        tip: 'Tip:',
+        tip_mensaje: 'O pregúntale a NOVA en el chat de la derecha qué médico es mejor para tu caso. NOVA te hará un triage inteligente.',
+        medicos_disponibles: 'Médicos disponibles',
+        sin_resultados: '👉 Usa los filtros de la izquierda o pregúntale a NOVA',
+        nova_titulo: 'NOVA Triage Inteligente',
+        nova_placeholder: 'Describe tu condición (ej: "tengo dolor en rodillas")',
+        volver: 'Volver',
+        no_hay_medicos: '❌ No hay médicos que cumplan esos criterios. Intenta con otros filtros.',
+        nova_bienvenida: '¡Hola! Soy NOVA, tu asistente de diagnóstico. 👋 Cuéntame qué síntomas o condición tienes, y te sugeriré el médico especialista ideal de nuestra red.',
+        medico_seleccionado: 'Me gustaría agendar con el Dr.',
+        respuesta_nova: '¡Excelente! El Dr. es una excelente opción. Te conectaré con él. ¿Cuándo te gustaría agendar la cita?',
+      },
+      en: {
+        titulo_busca: '🔍 Find Your Doctor',
+        especialidad: 'CODE Systems Specialty',
+        estado: 'State/Region',
+        todos_estados: 'All regions',
+        otros: 'Other states',
+        ciudad_label: 'City (optional)',
+        ciudad_placeholder: 'E.g. Culiacán, Guadalajara',
+        nivel: 'Clinical Level',
+        todos_niveles: 'All levels',
+        asociado: 'Associate',
+        certificado: 'Certified',
+        buscar: '🔎 Search',
+        limpiar: 'Clear',
+        tip: 'Tip:',
+        tip_mensaje: 'Or ask NOVA in the chat on the right what doctor is best for your case. NOVA will perform an intelligent triage.',
+        medicos_disponibles: 'Available doctors',
+        sin_resultados: '👉 Use the filters on the left or ask NOVA',
+        nova_titulo: 'NOVA Intelligent Triage',
+        nova_placeholder: 'Describe your condition (e.g. "I have knee pain")',
+        volver: 'Back',
+        no_hay_medicos: '❌ No doctors match those criteria. Try different filters.',
+        nova_bienvenida: 'Hello! I\'m NOVA, your diagnostic assistant. 👋 Tell me what symptoms or condition you have, and I\'ll suggest the ideal specialist from our network.',
+        medico_seleccionado: 'I would like to schedule with Dr.',
+        respuesta_nova: 'Excellent! Dr. is an excellent choice. I\'ll connect you with them. When would you like to schedule your appointment?',
+      }
+    };
+
+    let currentLang = localStorage.getItem('language') || 'es';
     let medicosData = [];
     let conversacionNova = [];
+
+    // Cambiar idioma
+    function cambiarIdioma() {
+      const selector = document.getElementById('languageSelector');
+      currentLang = selector.value;
+      localStorage.setItem('language', currentLang);
+      document.documentElement.lang = currentLang;
+      traducirPagina();
+    }
+
+    // Traducir página
+    function traducirPagina() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = i18n[currentLang][key] || el.textContent;
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        el.placeholder = i18n[currentLang][key] || el.placeholder;
+      });
+    }
 
     // Cargar médicos desde Airtable
     async function cargarMedicos() {
@@ -504,13 +600,12 @@
         });
         const data = await response.json();
         medicosData = data.medicos || [];
-        console.log('Médicos cargados:', medicosData);
       } catch (error) {
         console.error('Error cargando médicos:', error);
       }
     }
 
-    // Filtrar médicos por criterios
+    // Filtrar médicos
     function filtrarMedicos() {
       const especialidades = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
         .map(cb => cb.value);
@@ -519,23 +614,15 @@
       const nivel = document.getElementById('nivel').value;
 
       let filtered = medicosData.filter(m => {
-        // Especialidad
         if (especialidades.length > 0) {
           const tieneEspec = especialidades.some(e => 
             m.especialidades && m.especialidades.includes(e)
           );
           if (!tieneEspec) return false;
         }
-
-        // Estado
         if (estado && m.estado !== estado) return false;
-
-        // Ciudad
         if (ciudad && !m.ciudad.toLowerCase().includes(ciudad)) return false;
-
-        // Nivel
         if (nivel && m.nivel !== nivel) return false;
-
         return true;
       });
 
@@ -546,7 +633,7 @@
     function mostrarResultados(medicos) {
       const container = document.getElementById('resultados');
       if (medicos.length === 0) {
-        container.innerHTML = '<div class="no-results">❌ No hay médicos que cumplan esos criterios. Intenta con otros filtros.</div>';
+        container.innerHTML = `<div class="no-results">${i18n[currentLang]['no_hay_medicos']}</div>`;
         return;
       }
 
@@ -563,11 +650,13 @@
 
     // Seleccionar médico
     function seleccionarMedico(codigo, nombre) {
-      agregarMensajeNova('user', `Me gustaría agendar con el Dr. ${nombre}`);
-      agregarMensajeNova('nova', `¡Excelente! El Dr. ${nombre} (${codigo}) es una excelente opción. Te conectaré con él. ¿Cuándo te gustaría agendar la cita?`);
+      const msg = `${i18n[currentLang]['medico_seleccionado']} ${nombre}`;
+      const resp = `¡Excelente! ${i18n[currentLang]['respuesta_nova'].replace('Dr. ', 'Dr. ' + nombre + ' ')}`;
+      agregarMensajeNova('user', msg);
+      agregarMensajeNova('nova', resp);
     }
 
-    // NOVA Triage
+    // Enviar a NOVA
     async function enviarANova() {
       const input = document.getElementById('novaInput');
       const mensaje = input.value.trim();
@@ -583,16 +672,14 @@
           body: JSON.stringify({
             accion: 'triage',
             mensaje,
-            historial: conversacionNova
+            historial: conversacionNova,
+            idioma: currentLang
           })
         });
 
         const data = await response.json();
-        
-        // Agregar respuesta NOVA
         agregarMensajeNova('nova', data.respuesta);
 
-        // Si NOVA sugiere médicos
         if (data.medicos_sugeridos && data.medicos_sugeridos.length > 0) {
           mostrarResultados(medicosData.filter(m => 
             data.medicos_sugeridos.includes(m.codigo)
@@ -600,7 +687,10 @@
         }
       } catch (error) {
         console.error('Error en triage NOVA:', error);
-        agregarMensajeNova('nova', '❌ Hubo un error procesando tu solicitud. Intenta de nuevo.');
+        agregarMensajeNova('nova', currentLang === 'es' ? 
+          '❌ Hubo un error procesando tu solicitud. Intenta de nuevo.' :
+          '❌ There was an error processing your request. Please try again.'
+        );
       }
     }
 
@@ -619,16 +709,18 @@
       document.getElementById('estado').value = '';
       document.getElementById('ciudad').value = '';
       document.getElementById('nivel').value = '';
-      document.getElementById('resultados').innerHTML = '<div class="no-results">👉 Usa los filtros de la izquierda o pregúntale a NOVA</div>';
+      document.getElementById('resultados').innerHTML = `<div class="no-results">${i18n[currentLang]['sin_resultados']}</div>`;
     }
 
-    // Inicializar NOVA
     function inicializarNova() {
-      agregarMensajeNova('nova', '¡Hola! Soy NOVA, tu asistente de diagnóstico. 👋 Cuéntame qué síntomas o condición tienes, y te sugeriré el médico especialista ideal de nuestra red.');
+      agregarMensajeNova('nova', i18n[currentLang]['nova_bienvenida']);
     }
 
-    // Cargar al iniciar
+    // Iniciar
     document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('languageSelector').value = currentLang;
+      document.documentElement.lang = currentLang;
+      traducirPagina();
       cargarMedicos();
       inicializarNova();
     });
