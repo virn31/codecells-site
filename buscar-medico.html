@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Encuentra tu Médico | CODE CELLS®</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: linear-gradient(135deg, #0E1410 0%, #1a1f1d 100%);
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    .navbar {
+      background: rgba(14, 20, 16, 0.95);
+      padding: 1rem 2rem;
+      border-bottom: 1px solid rgba(232, 163, 61, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-family: 'Fraunces', serif;
+      font-size: 1.5rem;
+      color: #E8A33D;
+      font-weight: 700;
+    }
+
+    .navbar-right {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .navbar-right button {
+      padding: 0.6rem 1.2rem;
+      border: 1px solid #E8A33D;
+      background: transparent;
+      color: #E8A33D;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+    }
+
+    .navbar-right button:hover {
+      background: #E8A33D;
+      color: #0E1410;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* LADO IZQUIERDO: Búsqueda filtrada */
+    .search-panel {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .search-panel h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 1.8rem;
+      color: #0E1410;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filter-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-group label {
+      display: block;
+      font-weight: 600;
+      color: #0E1410;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #E8A33D;
+      border-radius: 6px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+      outline: none;
+      background: #fffbf0;
+      box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.2);
+    }
+
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checkbox-item input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #E8A33D;
+    }
+
+    .checkbox-item label {
+      margin: 0;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 400;
+    }
+
+    .search-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      flex: 1;
+      padding: 1rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: #E8A33D;
+      color: #0E1410;
+    }
+
+    .btn-primary:hover {
+      background: #d68f1f;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #0E1410;
+      border: 2px solid #E8A33D;
+    }
+
+    .btn-secondary:hover {
+      background: #E8A33D;
+      color: white;
+    }
+
+    /* LADO DERECHO: Resultados + NOVA */
+    .results-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .results-container {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .results-container h3 {
+      font-family: 'Fraunces', serif;
+      color: #0E1410;
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+    }
+
+    .doctor-card {
+      background: #f9f7f4;
+      border-left: 4px solid #E8A33D;
+      padding: 1.2rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .doctor-card:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 12px rgba(232, 163, 61, 0.15);
+    }
+
+    .doctor-name {
+      font-weight: 700;
+      color: #0E1410;
+      font-size: 1.05rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .doctor-meta {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+
+    .doctor-specialties {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .specialty-badge {
+      display: inline-block;
+      background: #E8A33D;
+      color: #0E1410;
+      padding: 0.25rem 0.6rem;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .no-results {
+      text-align: center;
+      color: #999;
+      padding: 2rem;
+      font-size: 0.95rem;
+    }
+
+    /* NOVA Chat */
+    .nova-panel {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      height: 500px;
+    }
+
+    .nova-header {
+      font-family: 'Fraunces', serif;
+      color: #E8A33D;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .nova-header::before {
+      content: '🤖';
+      font-size: 1.3rem;
+    }
+
+    .nova-messages {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+      padding-right: 0.5rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .message.nova {
+      justify-content: flex-start;
+    }
+
+    .message.user {
+      justify-content: flex-end;
+    }
+
+    .message-bubble {
+      max-width: 80%;
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .message.nova .message-bubble {
+      background: #f0f0f0;
+      color: #0E1410;
+      border-left: 3px solid #E8A33D;
+    }
+
+    .message.user .message-bubble {
+      background: #E8A33D;
+      color: #0E1410;
+    }
+
+    .nova-input-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .nova-input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 2px solid #E8A33D;
+      border-radius: 6px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.9rem;
+    }
+
+    .nova-input:focus {
+      outline: none;
+      background: #fffbf0;
+    }
+
+    .nova-send {
+      padding: 0.75rem 1rem;
+      background: #E8A33D;
+      color: #0E1410;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .nova-send:hover {
+      background: #d68f1f;
+    }
+
+    .info-box {
+      background: #fffbf0;
+      border-left: 4px solid #E8A33D;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <div class="logo">CODE CELLS®</div>
+    <div class="navbar-right">
+      <button onclick="location.href='/'">← Volver</button>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <div class="container">
+    <!-- LADO IZQUIERDO: Búsqueda Filtrada -->
+    <div class="search-panel">
+      <h2>🔍 Encuentra tu Médico</h2>
+      
+      <!-- Filtro por Especialidad -->
+      <div class="filter-group">
+        <label>Especialidad CODE Systems</label>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="spec-energy" value="ENERGY">
+            <label for="spec-energy">ENERGY</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="spec-repair" value="REPAIR">
+            <label for="spec-repair">REPAIR</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="spec-balance" value="BALANCE">
+            <label for="spec-balance">BALANCE</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="spec-neuro" value="NEURO">
+            <label for="spec-neuro">NEURO</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="spec-regen" value="REGEN">
+            <label for="spec-regen">REGEN</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="spec-dezawa" value="DEZAWA">
+            <label for="spec-dezawa">DEZAWA</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtro por Estado -->
+      <div class="filter-group">
+        <label for="estado">Estado</label>
+        <select id="estado">
+          <option value="">Todos los estados</option>
+          <option value="Sinaloa">Sinaloa</option>
+          <option value="Jalisco">Jalisco</option>
+          <option value="CDMX">CDMX</option>
+          <option value="Monterrey">Nuevo León</option>
+          <option value="Veracruz">Veracruz</option>
+          <option value="Yucatán">Yucatán</option>
+          <option value="Otros">Otros estados</option>
+        </select>
+      </div>
+
+      <!-- Filtro por Ciudad -->
+      <div class="filter-group">
+        <label for="ciudad">Ciudad (opcional)</label>
+        <input type="text" id="ciudad" placeholder="Ej. Culiacán, Guadalajara">
+      </div>
+
+      <!-- Filtro por Nivel -->
+      <div class="filter-group">
+        <label for="nivel">Nivel Clínico</label>
+        <select id="nivel">
+          <option value="">Todos los niveles</option>
+          <option value="Asociado">Asociado</option>
+          <option value="Certificado">Certificado</option>
+          <option value="Senior">Senior</option>
+        </select>
+      </div>
+
+      <!-- Botones -->
+      <div class="search-buttons">
+        <button class="btn-primary" onclick="filtrarMedicos()">🔎 Buscar</button>
+        <button class="btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+      </div>
+
+      <div class="info-box">
+        💡 <strong>Tip:</strong> O pregúntale a NOVA en el chat de la derecha qué médico es mejor para tu caso. NOVA te hará un triage inteligente.
+      </div>
+    </div>
+
+    <!-- LADO DERECHO: Resultados + NOVA -->
+    <div class="results-panel">
+      <!-- Resultados de búsqueda -->
+      <div class="results-container">
+        <h3>Médicos disponibles</h3>
+        <div id="resultados" class="no-results">
+          👉 Usa los filtros de la izquierda o pregúntale a NOVA
+        </div>
+      </div>
+
+      <!-- NOVA Triage -->
+      <div class="nova-panel">
+        <div class="nova-header">NOVA Triage Inteligente</div>
+        <div class="nova-messages" id="novaMessages"></div>
+        <div class="nova-input-group">
+          <input 
+            type="text" 
+            id="novaInput" 
+            class="nova-input" 
+            placeholder="Describe tu condición (ej: 'tengo dolor en rodillas')"
+            onkeypress="if(event.key==='Enter') enviarANova()"
+          >
+          <button class="nova-send" onclick="enviarANova()">↩️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let medicosData = [];
+    let conversacionNova = [];
+
+    // Cargar médicos desde Airtable
+    async function cargarMedicos() {
+      try {
+        const response = await fetch('/api/buscar-medicos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accion: 'listar' })
+        });
+        const data = await response.json();
+        medicosData = data.medicos || [];
+        console.log('Médicos cargados:', medicosData);
+      } catch (error) {
+        console.error('Error cargando médicos:', error);
+      }
+    }
+
+    // Filtrar médicos por criterios
+    function filtrarMedicos() {
+      const especialidades = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+      const estado = document.getElementById('estado').value;
+      const ciudad = document.getElementById('ciudad').value.toLowerCase();
+      const nivel = document.getElementById('nivel').value;
+
+      let filtered = medicosData.filter(m => {
+        // Especialidad
+        if (especialidades.length > 0) {
+          const tieneEspec = especialidades.some(e => 
+            m.especialidades && m.especialidades.includes(e)
+          );
+          if (!tieneEspec) return false;
+        }
+
+        // Estado
+        if (estado && m.estado !== estado) return false;
+
+        // Ciudad
+        if (ciudad && !m.ciudad.toLowerCase().includes(ciudad)) return false;
+
+        // Nivel
+        if (nivel && m.nivel !== nivel) return false;
+
+        return true;
+      });
+
+      mostrarResultados(filtered);
+    }
+
+    // Mostrar resultados
+    function mostrarResultados(medicos) {
+      const container = document.getElementById('resultados');
+      if (medicos.length === 0) {
+        container.innerHTML = '<div class="no-results">❌ No hay médicos que cumplan esos criterios. Intenta con otros filtros.</div>';
+        return;
+      }
+
+      container.innerHTML = medicos.map(m => `
+        <div class="doctor-card" onclick="seleccionarMedico('${m.codigo}', '${m.nombre}')">
+          <div class="doctor-name">Dr. ${m.nombre}</div>
+          <div class="doctor-meta">${m.estado} ${m.ciudad ? '• ' + m.ciudad : ''} • ${m.nivel}</div>
+          <div class="doctor-specialties">
+            ${(m.especialidades || []).map(e => `<span class="specialty-badge">${e}</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Seleccionar médico
+    function seleccionarMedico(codigo, nombre) {
+      agregarMensajeNova('user', `Me gustaría agendar con el Dr. ${nombre}`);
+      agregarMensajeNova('nova', `¡Excelente! El Dr. ${nombre} (${codigo}) es una excelente opción. Te conectaré con él. ¿Cuándo te gustaría agendar la cita?`);
+    }
+
+    // NOVA Triage
+    async function enviarANova() {
+      const input = document.getElementById('novaInput');
+      const mensaje = input.value.trim();
+      if (!mensaje) return;
+
+      input.value = '';
+      agregarMensajeNova('user', mensaje);
+
+      try {
+        const response = await fetch('/api/buscar-medicos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accion: 'triage',
+            mensaje,
+            historial: conversacionNova
+          })
+        });
+
+        const data = await response.json();
+        
+        // Agregar respuesta NOVA
+        agregarMensajeNova('nova', data.respuesta);
+
+        // Si NOVA sugiere médicos
+        if (data.medicos_sugeridos && data.medicos_sugeridos.length > 0) {
+          mostrarResultados(medicosData.filter(m => 
+            data.medicos_sugeridos.includes(m.codigo)
+          ));
+        }
+      } catch (error) {
+        console.error('Error en triage NOVA:', error);
+        agregarMensajeNova('nova', '❌ Hubo un error procesando tu solicitud. Intenta de nuevo.');
+      }
+    }
+
+    function agregarMensajeNova(role, mensaje) {
+      conversacionNova.push({ role, mensaje });
+      const container = document.getElementById('novaMessages');
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.innerHTML = `<div class="message-bubble">${mensaje}</div>`;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function limpiarFiltros() {
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      document.getElementById('estado').value = '';
+      document.getElementById('ciudad').value = '';
+      document.getElementById('nivel').value = '';
+      document.getElementById('resultados').innerHTML = '<div class="no-results">👉 Usa los filtros de la izquierda o pregúntale a NOVA</div>';
+    }
+
+    // Inicializar NOVA
+    function inicializarNova() {
+      agregarMensajeNova('nova', '¡Hola! Soy NOVA, tu asistente de diagnóstico. 👋 Cuéntame qué síntomas o condición tienes, y te sugeriré el médico especialista ideal de nuestra red.');
+    }
+
+    // Cargar al iniciar
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarMedicos();
+      inicializarNova();
+    });
+  </script>
+</body>
+</html>
