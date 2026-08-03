@@ -1135,11 +1135,11 @@
       setProgress(0);
       content.innerHTML =
         '<div class="test-intro">' +
-          '<p class="test-eyebrow"><span class="dot"></span>CODE CELLS™</p>' +
-          '<h3>' + TEST_DATA.title + '</h3>' +
-          '<p class="test-desc">' + TEST_DATA.description + '</p>' +
-          '<button class="btn-primary" type="button" id="testStartBtn">Comenzar</button>' +
-          '<div class="test-intro-meta"><span>' + total + ' preguntas</span><span>5 sistemas</span><span>~3 min</span></div>' +
+          '<p class="test-eyebrow"><span class="dot"></span>' + t('CODE CELLS™') + '</p>' +
+          '<h3>' + t(TEST_DATA.title) + '</h3>' +
+          '<p class="test-desc">' + t(TEST_DATA.description) + '</p>' +
+          '<button class="btn-primary" type="button" id="testStartBtn">' + t('Comenzar') + '</button>' +
+          '<div class="test-intro-meta"><span>' + total + ' ' + t('preguntas') + '</span><span>' + t('5 sistemas') + '</span><span>~3 min</span></div>' +
         '</div>';
       document.getElementById('testStartBtn').addEventListener('click', function(){
         step = 0; render();
@@ -1157,16 +1157,16 @@
 
       var optsHtml = q.options.map(function(opt){
         var isSel = selected !== undefined && selected.value === opt.value;
-        return '<button class="test-option' + (isSel ? ' is-selected' : '') + '" type="button" data-value="' + opt.value + '" data-text="' + opt.text.replace(/"/g,'&quot;') + '">' + opt.text + '</button>';
+        return '<button class="test-option' + (isSel ? ' is-selected' : '') + '" type="button" data-value="' + opt.value + '" data-text="' + opt.text.replace(/"/g,'&quot;') + '">' + t(opt.text) + '</button>';
       }).join('');
 
       content.innerHTML =
         '<div class="test-question">' +
-          '<p class="test-eyebrow"><span class="dot"></span>' + sys.icon + ' ' + sys.name + ' · Pregunta ' + (i+1) + ' de ' + total + '</p>' +
+          '<p class="test-eyebrow"><span class="dot"></span>' + sys.icon + ' ' + sys.name + ' · ' + t('Pregunta') + ' ' + (i+1) + ' ' + t('de') + ' ' + total + '</p>' +
           '<h3>' + q.text + '</h3>' +
           '<div class="test-options">' + optsHtml + '</div>' +
           '<div class="test-nav">' +
-            '<button class="test-back" type="button" id="testBackBtn"' + (i === 0 ? ' disabled' : '') + '>← Atrás</button>' +
+            '<button class="test-back" type="button" id="testBackBtn"' + (i === 0 ? ' disabled' : '') + '>' + t('← Atrás') + '</button>' +
           '</div>' +
         '</div>';
 
@@ -1256,30 +1256,30 @@
 
       content.innerHTML =
         '<div class="test-result">' +
-          '<p class="test-eyebrow"><span class="dot" style="background:' + top.sys.color + '; box-shadow:0 0 10px ' + top.sys.color + ';"></span>Tu mapa biol\u00f3gico</p>' +
-          '<h3>Tu sistema prioritario es ' + top.sys.name + '</h3>' +
+          '<p class="test-eyebrow"><span class="dot" style="background:' + top.sys.color + '; box-shadow:0 0 10px ' + top.sys.color + ';"></span>' + t('Tu mapa biológico') + '</p>' +
+          '<h3>' + t('Tu sistema prioritario es') + ' ' + top.sys.name + '</h3>' +
           '<div class="result-priority" style="border-color:' + top.sys.color + '44;">' +
             '<div class="icon">' + top.sys.icon + '</div>' +
-            '<div class="pct">' + top.pct + '% \u00b7 ' + riskLabel(top.pct) + '</div>' +
-            '<p>Esto explica que ' + top.sys.explanation + '</p>' +
-            '<p class="reco">Recomendaci\u00f3n: ' + top.sys.action + '</p>' +
+            '<div class="pct">' + top.pct + '% \u00b7 ' + t(riskLabel(top.pct)) + '</div>' +
+            '<p>' + t('Esto explica que') + ' ' + t(top.sys.explanation) + '</p>' +
+            '<p class="reco">' + t('Recomendación:') + ' ' + t(top.sys.action) + '</p>' +
           '</div>' +
           '<div class="result-bars">' + barsHtml + '</div>' +
           '<div class="result-followup">' +
-            '<h4 class="reco-question">\u00bfQuieres que un especialista revise tu mapa biol\u00f3gico?</h4>' +
+            '<h4 class="reco-question">' + t('¿Quieres que un especialista revise tu mapa biológico?') + '</h4>' +
             '<div class="capture-form" id="captureForm">' +
               '<div class="capture-row">' +
-                '<div class="capture-field"><label>Nombre *</label><input type="text" id="cf-nombre" placeholder="Tu nombre" autocomplete="given-name"></div>' +
-                '<div class="capture-field"><label>WhatsApp *</label><input type="tel" id="cf-wa" placeholder="+52 667 000 0000" autocomplete="tel"></div>' +
+                '<div class="capture-field"><label>' + t('Nombre *') + '</label><input type="text" id="cf-nombre" placeholder="' + t('Tu nombre') + '" autocomplete="given-name"></div>' +
+                '<div class="capture-field"><label>' + t('WhatsApp *') + '</label><input type="tel" id="cf-wa" placeholder="+52 667 000 0000" autocomplete="tel"></div>' +
               '</div>' +
-              '<p class="capture-error" id="captureError">Por favor completa tu nombre y WhatsApp.</p>' +
+              '<p class="capture-error" id="captureError">' + t('Por favor completa tu nombre y WhatsApp.') + '</p>' +
               '<p class="nova-pre-note">Completa tus datos para iniciar con NOVA, nuestra asistente IA que preparará tu consulta.</p>' +
               '<div class="capture-submit">' +
-                '<button class="btn-whatsapp" type="button" id="captureSubmit">' + waIcon + 'Enviar y continuar</button>' +
-                '<span class="capture-note">Tus datos solo se usan para contactarte.</span>' +
+                '<button class="btn-whatsapp" type="button" id="captureSubmit">' + waIcon + t('Enviar y continuar') + '</button>' +
+                '<span class="capture-note">' + t('Tus datos solo se usan para contactarte.') + '</span>' +
               '</div>' +
             '</div>' +
-            '<button class="btn-ghost" type="button" id="testRestartBtn" style="margin-top:1.2rem;">Repetir evaluaci\u00f3n</button>' +
+            '<button class="btn-ghost" type="button" id="testRestartBtn" style="margin-top:1.2rem;">' + t('Repetir evaluación') + '</button>' +
           '</div>' +
           '<p class="test-disclaimer">Este resultado es un mapa orientativo, no un diagn\u00f3stico m\u00e9dico. CODE CELLS\u2122 identifica posibilidades de mejora, no enfermedades.</p>' +
         '</div>';
