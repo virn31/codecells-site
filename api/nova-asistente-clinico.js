@@ -9,7 +9,18 @@
 // en uno solo, enrutando por "accion", es la forma correcta de resolverlo
 // sin perder funcionalidad ni pagar por el plan Pro.
 //
-// accion: "sugerir_cie10" | "completitud_expediente"
+// accion: "sugerir_cie10" | "completitud_expediente" | "traducir"
+//
+// "traducir" se agregó aquí, y no en un api/traducir.js propio, por la
+// misma razón: el repo ya tiene 15 funciones contadas por Vercel y un
+// archivo más solo empeora el problema. Ver la nota al final sobre el
+// conteo actual de funciones.
+//
+// A diferencia de las otras dos acciones, "traducir" es PÚBLICA (la usa
+// el landing, donde no hay sesión). Por eso la verificación de token se
+// hace por acción y no de forma global, y "traducir" trae sus propios
+// límites: origen permitido, tope de 60 textos, 400 caracteres por texto
+// y límite por IP.
 
 const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
 
@@ -114,20 +125,157 @@ async function completitudExpediente(req, res) {
   return res.status(200).json({ ok: true, completo: faltantes.length === 0, faltantes });
 }
 
-module.exports = async (req, res) => {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!AIRTABLE_TOKEN) return res.status(500).json({ error: 'AIRTABLE_TOKEN no configurado.' });
+// ── accion: traducir ─────────────────────────────────────────────
+// Relleno automático del sistema i18n. El diccionario de lib/i18n.js
+// cubre lo que ya existe en el HTML; esto cubre lo que se agregue
+// después, para que la página no se vuelva a ver mezclada en dos
+// idiomas cada vez que alguien edita una plantilla.
+//
+// Lo que este endpoint NUNCA debe recibir son datos de paciente. El
+// cliente ya lo impide (en portal-medico / mi-nivel / portal-vip /
+// kiosco / autorregistro solo se manda el texto estático de la
+// interfaz, nunca lo que se inyecta después con datos reales), pero
+// aquí abajo hay un segundo filtro por si algo se escapa.
 
-  const sesion = verificarToken(tokenDesdeRequest(req));
-  if (!sesion || sesion.tipo !== 'medico') {
-    return res.status(401).json({ error: 'Sesión de médico no válida.' });
+const IDIOMAS_TRADUCCION = {
+  en: 'inglés', fr: 'francés', pt: 'portugués (de Brasil)', de: 'alemán'
+};
+
+// Límite por IP, best-effort. En serverless la memoria no se comparte
+// entre instancias, así que esto frena el abuso casual, no un ataque
+// decidido. Para eso está además el filtro de origen.
+const golpesPorIp = new Map();
+function limiteExcedido(ip) {
+  const ahora = Date.now();
+  const ventana = 60 * 1000;
+  const maximo = 20;
+  const lista = (golpesPorIp.get(ip) || []).filter(t => ahora - t < ventana);
+  lista.push(ahora);
+  golpesPorIp.set(ip, lista);
+  if (golpesPorIp.size > 500) golpesPorIp.clear();
+  return lista.length > maximo;
+}
+
+// Segundo filtro anti-datos-de-paciente.
+const PATRON_SENSIBLE = /(CC-PAC-|CCMED-|DZW-|\b\d{10}\b|\b\d{4}-\d{2}-\d{2}\b|@[\w.-]+\.\w{2,})/;
+
+async function traducir(req, res) {
+  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurado.' });
+
+  const origen = req.headers.origin || '';
+  const permitido = !origen ||
+    origen.startsWith('https://codecells.mx') ||
+    origen.startsWith('https://www.codecells.mx') ||
+    origen.startsWith('http://localhost');
+  if (!permitido) return res.status(403).json({ error: 'Origen no permitido.' });
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'desconocida';
+  if (limiteExcedido(ip)) return res.status(429).json({ error: 'Demasiadas solicitudes.' });
+
+  const { idioma, textos } = req.body || {};
+  if (!IDIOMAS_TRADUCCION[idioma]) {
+    return res.status(400).json({ error: 'Idioma no soportado.' });
+  }
+  if (!Array.isArray(textos) || textos.length === 0) {
+    return res.status(400).json({ error: 'Falta el arreglo "textos".' });
   }
 
+  const limpios = textos
+    .filter(t => typeof t === 'string')
+    .map(t => t.trim())
+    .filter(t => t.length >= 2 && t.length <= 400 && !PATRON_SENSIBLE.test(t))
+    .slice(0, 60);
+
+  if (limpios.length === 0) return res.status(200).json({ ok: true, traducciones: {} });
+
+  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-5',
+      max_tokens: 4000,
+      system:
+        'Eres el traductor de la interfaz de CODE CELLS®, una red de medicina regenerativa. ' +
+        `Traduces del español al ${IDIOMAS_TRADUCCION[idioma]}.\n\n` +
+        'REGLAS:\n' +
+        '1. Registro clínico y profesional, tono sobrio. No coloquial, no publicitario de más.\n' +
+        '2. Conserva EXACTAMENTE, sin traducir: marcas y símbolos (CODE CELLS®, CODE ENERGY™, ' +
+        'CODE REPAIR™, CODE BALANCE™, CODE NEURO™, CODE REGEN™, DEZAWA PROTOCOL™, RESTORE™, ' +
+        'ACTIVATE™, GENESIS™, CONTINUUM™, NOVA, Regene Global), unidades (kg, cm, mmHg, °C, lpm), ' +
+        'códigos CIE-10, emojis, flechas y cualquier signo de puntuación decorativo.\n' +
+        '3. Conserva la puntuación y el formato de origen: si el texto abre con emoji o flecha, ' +
+        'la traducción también; si trae comillas tipográficas “ ”, se mantienen.\n' +
+        '4. Usa terminología clínica estándar del idioma destino (por ejemplo "Historia clínica" → ' +
+        '"Clinical history", no "Clinical story").\n' +
+        '5. Mantén longitudes parecidas: son etiquetas de interfaz y no deben desbordar botones.\n' +
+        '6. Si una cadena no tiene sentido traducirla (es un código, una sigla o ya está en el ' +
+        'idioma destino), devuélvela idéntica.\n\n' +
+        'FORMATO DE RESPUESTA: únicamente un objeto JSON válido cuyas llaves sean los textos ' +
+        'originales exactos y cuyos valores sean las traducciones. Sin comentarios, sin markdown, ' +
+        'sin ```json. Nada antes ni después del objeto.',
+      messages: [{ role: 'user', content: JSON.stringify(limpios, null, 0) }],
+    }),
+  });
+
+  if (!claudeRes.ok) {
+    console.error('[traducir] Anthropic respondió', claudeRes.status);
+    return res.status(502).json({ error: 'El servicio de traducción no respondió.' });
+  }
+
+  const data = await claudeRes.json();
+  const bruto = Array.isArray(data.content)
+    ? (data.content.find(b => b && b.type === 'text') || {}).text || ''
+    : '';
+
+  let traducciones = {};
   try {
-    const accion = req.body && req.body.accion;
+    const limpio = bruto.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    const inicio = limpio.indexOf('{');
+    const fin = limpio.lastIndexOf('}');
+    traducciones = JSON.parse(limpio.slice(inicio, fin + 1));
+  } catch (err) {
+    console.error('[traducir] No se pudo parsear la respuesta:', err.message);
+    return res.status(200).json({ ok: true, traducciones: {} });
+  }
+
+  // Solo devolvemos llaves que pedimos: evita que una respuesta rara
+  // meta texto que el cliente nunca solicitó.
+  const salida = {};
+  limpios.forEach(t => {
+    const v = traducciones[t];
+    if (typeof v === 'string' && v.trim() && v.length <= 600) salida[t] = v.trim();
+  });
+
+  return res.status(200).json({ ok: true, idioma, traducciones: salida });
+}
+
+// ── Enrutador ────────────────────────────────────────────────────
+module.exports = async (req, res) => {
+  const origen = req.headers.origin || '';
+  if (origen.startsWith('https://codecells.mx') || origen.startsWith('https://www.codecells.mx')) {
+    res.setHeader('Access-Control-Allow-Origin', origen);
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  }
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const accion = req.body && req.body.accion;
+
+  try {
+    // Pública: la usa el landing, donde no hay sesión iniciada.
+    if (accion === 'traducir') return await traducir(req, res);
+
+    // Todo lo demás sigue exigiendo sesión de médico, igual que antes.
+    if (!AIRTABLE_TOKEN) return res.status(500).json({ error: 'AIRTABLE_TOKEN no configurado.' });
+    const sesion = verificarToken(tokenDesdeRequest(req));
+    if (!sesion || sesion.tipo !== 'medico') {
+      return res.status(401).json({ error: 'Sesión de médico no válida.' });
+    }
+
     if (accion === 'sugerir_cie10') return await sugerirCie10(req, res);
     if (accion === 'completitud_expediente') return await completitudExpediente(req, res);
-    return res.status(400).json({ error: 'Falta "accion" válida (sugerir_cie10 | completitud_expediente).' });
+    return res.status(400).json({ error: 'Falta "accion" válida (sugerir_cie10 | completitud_expediente | traducir).' });
   } catch (err) {
     console.error('[nova-asistente-clinico] error:', err.message);
     return res.status(500).json({ error: 'Error interno.' });
