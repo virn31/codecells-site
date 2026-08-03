@@ -2682,6 +2682,8 @@
     </div>
     <div class="topbar-medico" id="topbar-nombre">—</div>
     <div class="topbar-code" id="topbar-code">—</div>
+    <!-- BOTÓN PRINCIPAL: Nueva Cita -->
+    <button class="btn-topbar btn-nueva-cita-topbar" id="btn-nueva-cita-topbar" title="Agendar nueva cita" style="background: linear-gradient(135deg, #E8A33D, #D4654A); font-weight: bold; padding: 8px 16px; border-radius: 6px; font-size: 14px;">+ Nueva Cita</button>
     <!-- Toggle modo claro/oscuro -->
     <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
     <!-- Botón conectar Google Calendar -->
@@ -6655,6 +6657,7 @@ function initCalendario() {
   document.getElementById('btn-guardar-horarios').addEventListener('click', guardarHorarios);
   document.getElementById('btn-conectar-gc').addEventListener('click', conectarGoogleCalendar);
   document.getElementById('btn-nueva-cita-toolbar').addEventListener('click', abrirModalNuevaCita);
+  document.getElementById('btn-nueva-cita-topbar').addEventListener('click', abrirModalNuevaCita);
   document.getElementById('btn-crear-cita').addEventListener('click', crearCita);
   document.getElementById('btn-mes-anterior').addEventListener('click', () => irAlMes(-1));
   document.getElementById('btn-mes-siguiente').addEventListener('click', () => irAlMes(1));
