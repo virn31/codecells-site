@@ -1,5 +1,4 @@
 {
-  "buildId": "i18n-selector-bottom-left-20260802",
   "functions": {
     "api/nova.js": { "maxDuration": 60 }
   },
