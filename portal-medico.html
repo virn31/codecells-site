@@ -2373,6 +2373,191 @@
     }
   }
 
+
+  /* ─── PANEL CITAS DEL DÍA ─── */
+  .panel-citas-dia {
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid #4FA8A0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 20px;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(79, 168, 160, 0.3);
+  }
+
+  .panel-header h4 {
+    margin: 0;
+    color: #E8A33D;
+    font-size: 16px;
+  }
+
+  .panel-close {
+    background: none;
+    border: none;
+    color: #CFD6D0;
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .panel-close:hover {
+    color: #E8A33D;
+  }
+
+  .lista-citas-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .cita-item-panel {
+    background: rgba(79, 168, 160, 0.15);
+    border: 1px solid rgba(79, 168, 160, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+  }
+
+  .cita-item-panel:hover {
+    background: rgba(79, 168, 160, 0.25);
+    border-color: #4FA8A0;
+  }
+
+  .cita-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .cita-item-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-weight: bold;
+  }
+
+  .cita-item-hora {
+    color: #E8A33D;
+    font-size: 14px;
+    min-width: 60px;
+  }
+
+  .cita-item-sistema {
+    color: #4FA8A0;
+    font-size: 13px;
+  }
+
+  .cita-item-codigo {
+    color: #CFD6D0;
+    font-size: 12px;
+    font-family: monospace;
+  }
+
+  .cita-item-acciones {
+    display: flex;
+    gap: 8px;
+    margin-left: 12px;
+  }
+
+  .btn-cita-accion {
+    background: #E8A33D;
+    color: #0E1410;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-cita-accion:hover {
+    background: #D4A33D;
+    transform: translateY(-2px);
+  }
+
+  .btn-cita-eliminar {
+    background: #D4654A;
+  }
+
+  .btn-cita-eliminar:hover {
+    background: #C45240;
+  }
+
+  .btn-agregar-cita-panel {
+    width: 100%;
+    background: rgba(232, 163, 61, 0.2);
+    color: #E8A33D;
+    border: 2px dashed #E8A33D;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+    font-size: 13px;
+  }
+
+  .btn-agregar-cita-panel:hover {
+    background: rgba(232, 163, 61, 0.3);
+    border-style: solid;
+  }
+
+  .panel-vacio {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-size: 14px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .cita-item-panel {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .cita-item-acciones {
+      margin-left: 0;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .btn-cita-accion {
+      flex: 1;
+      padding: 8px;
+    }
+  }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="/lib/i18n.js"></script>
@@ -3010,8 +3195,20 @@
       </div>
 
       <div id="calendario-dias" class="calendario-dias-grid"></div>
+  <!-- PANEL: Citas del Día -->
+  <div id="panel-citas-dia" class="panel-citas-dia" style="display:none;">
+    <div class="panel-header">
+      <h4 id="panel-titulo">📅 Citas del día</h4>
+      <button class="panel-close" id="btn-cerrar-panel">&times;</button>
     </div>
+    
+    <div id="lista-citas-panel" class="lista-citas-panel">
+      <!-- Se llena dinámicamente -->
+    </div>
+    
+    <button id="btn-agregar-cita-panel" class="btn-agregar-cita-panel">+ Agregar cita a este día</button>
   </div>
+
 
   <!-- MODALS -->
 
@@ -6470,6 +6667,9 @@ function initCalendario() {
   // Cargar datos iniciales
   renderizarCalendario();
   cargarCitasDelMes();
+  
+  // Inicializar panel
+  setupPanelCitas();
 }
 
 // ─── ABRIR MODAL HORARIOS ────────────────────────────────────────────────
@@ -6590,6 +6790,7 @@ async function crearCita() {
     document.getElementById('modal-nueva-cita').style.display = 'none';
     renderizarCalendario();
     cargarCitasDelMes();
+    actualizarPanelDespuesDeCrearCita();
   } catch (err) {
     console.error('Error:', err);
     showToast('Error al agendar cita', 'error');
@@ -6675,11 +6876,10 @@ function crearCeldaDia(día, otroMes, fecha, citas) {
     cell.appendChild(badge);
   }
 
-  // Click para abrir detalles
-  if (!otroMes && fecha && citas && citas.length > 0) {
+  // Click para abrir panel de citas del día
+  if (!otroMes && fecha) {
     cell.addEventListener('click', () => {
-      calendarioState.citaSeleccionada = citas[0];
-      actualizarCardDestacada(citas[0]);
+      mostrarPanelCitasDia(día, fecha);
     });
   }
 
@@ -6784,6 +6984,200 @@ async function eliminarCita(citaId) {
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(initCalendario, 500);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── PANEL DE CITAS DEL DÍA - JAVASCRIPT ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+let panelState = {
+  diaSeleccionado: null,
+  mesSeleccionado: null,
+  citasDelDiaSeleccionado: []
+};
+
+// ─── MOSTRAR PANEL CITAS DEL DÍA ──────────────────────────────────────────
+function mostrarPanelCitasDia(dia, fecha) {
+  panelState.diaSeleccionado = dia;
+  panelState.mesSeleccionado = fecha.getMonth();
+
+  const año = fecha.getFullYear();
+  const mes = fecha.getMonth();
+
+  // Filtrar citas de ese día específico
+  panelState.citasDelDiaSeleccionado = calendarioState.citasDelMes.filter(c => {
+    const citaFecha = new Date(c.fecha);
+    return citaFecha.getDate() === dia &&
+           citaFecha.getMonth() === mes &&
+           citaFecha.getFullYear() === año;
+  });
+
+  // Actualizar título del panel
+  const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const nombreDia = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  
+  const diaDelaSemana = nombreDia[fecha.getDay()];
+  document.getElementById('panel-titulo').textContent = 
+    `📅 ${diaDelaSemana}, ${dia} de ${nombreMes[mes]}`;
+
+  // Llenar el panel
+  llenarPanelCitas();
+
+  // Mostrar panel
+  document.getElementById('panel-citas-dia').style.display = 'block';
+
+  // Actualizar card destacada
+  if (panelState.citasDelDiaSeleccionado.length > 0) {
+    calendarioState.citaSeleccionada = panelState.citasDelDiaSeleccionado[0];
+    actualizarCardDestacada(panelState.citasDelDiaSeleccionado[0]);
+  }
+}
+
+// ─── LLENAR PANEL CON CITAS ──────────────────────────────────────────────
+function llenarPanelCitas() {
+  const contenedor = document.getElementById('lista-citas-panel');
+  contenedor.innerHTML = '';
+
+  if (panelState.citasDelDiaSeleccionado.length === 0) {
+    contenedor.innerHTML = '<div class="panel-vacio">Sin citas en este día</div>';
+    return;
+  }
+
+  panelState.citasDelDiaSeleccionado.forEach((cita, index) => {
+    const item = document.createElement('div');
+    item.className = 'cita-item-panel';
+    item.dataset.citaId = cita.id;
+
+    // Calcular hora de fin
+    const horaFin = new Date();
+    const [h, m] = cita.hora.split(':');
+    horaFin.setHours(parseInt(h), parseInt(m));
+    horaFin.setMinutes(horaFin.getMinutes() + calendarioState.duracionConsulta);
+    const horaFinStr = `${String(horaFin.getHours()).padStart(2, '0')}:${String(horaFin.getMinutes()).padStart(2, '0')}`;
+
+    item.innerHTML = `
+      <div class="cita-item-info">
+        <div class="cita-item-header">
+          <span class="cita-item-hora">🕐 ${cita.hora}</span>
+          <span class="cita-item-sistema">${cita.sistema}</span>
+        </div>
+        <div class="cita-item-codigo">${cita.codigo}</div>
+      </div>
+      <div class="cita-item-acciones">
+        <button class="btn-cita-accion" data-accion="detalles" data-cita-id="${cita.id}">
+          👁️ Detalles
+        </button>
+        <button class="btn-cita-accion btn-cita-eliminar" data-accion="eliminar" data-cita-id="${cita.id}">
+          🗑️ Eliminar
+        </button>
+      </div>
+    `;
+
+    // Event listeners para botones
+    item.querySelector('[data-accion="detalles"]').addEventListener('click', () => {
+      abrirModalDetalles(cita);
+    });
+
+    item.querySelector('[data-accion="eliminar"]').addEventListener('click', () => {
+      if (confirm('¿Eliminar esta cita?')) {
+        eliminarCitaDesdePanel(cita.id);
+      }
+    });
+
+    contenedor.appendChild(item);
+  });
+}
+
+// ─── ELIMINAR CITA DESDE PANEL ───────────────────────────────────────────
+async function eliminarCitaDesdePanel(citaId) {
+  try {
+    await fetch(`/api/airtable?tabla=consultas&recordId=${citaId}`, { method: 'DELETE' });
+    
+    // Remover de estado local
+    panelState.citasDelDiaSeleccionado = panelState.citasDelDiaSeleccionado.filter(c => c.id !== citaId);
+    calendarioState.citasDelMes = calendarioState.citasDelMes.filter(c => c.id !== citaId);
+
+    // Actualizar panel
+    llenarPanelCitas();
+
+    // Si no hay más citas en el día, cerrar panel
+    if (panelState.citasDelDiaSeleccionado.length === 0) {
+      cerrarPanelCitas();
+    }
+
+    // Actualizar calendario
+    renderizarCalendario();
+
+    showToast('✅ Cita eliminada', 'success');
+  } catch (err) {
+    console.error('Error:', err);
+    showToast('Error al eliminar cita', 'error');
+  }
+}
+
+// ─── CERRAR PANEL ────────────────────────────────────────────────────────
+function cerrarPanelCitas() {
+  document.getElementById('panel-citas-dia').style.display = 'none';
+  panelState.diaSeleccionado = null;
+  panelState.citasDelDiaSeleccionado = [];
+}
+
+// ─── EVENTO: CLICK FUERA DEL PANEL ───────────────────────────────────────
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('panel-citas-dia');
+  const calendario = document.getElementById('calendario-dias');
+  
+  // Si el panel está visible y el click NO es dentro del panel
+  if (panel && panel.style.display === 'block') {
+    if (!panel.contains(e.target) && !e.target.closest('.dia-cell')) {
+      cerrarPanelCitas();
+    }
+  }
+});
+
+// ─── INICIALIZAR EVENT LISTENERS DEL PANEL ───────────────────────────────
+function initPanelListeners() {
+  const btnCerrar = document.getElementById('btn-cerrar-panel');
+  if (btnCerrar) {
+    btnCerrar.addEventListener('click', cerrarPanelCitas);
+  }
+
+  const btnAgregarCita = document.getElementById('btn-agregar-cita-panel');
+  if (btnAgregarCita) {
+    btnAgregarCita.addEventListener('click', () => {
+      if (panelState.diaSeleccionado) {
+        const año = calendarioState.mesActual.getFullYear();
+        const mes = calendarioState.mesActual.getMonth();
+        const fecha = new Date(año, mes, panelState.diaSeleccionado);
+        
+        document.getElementById('nc-codigo-paciente').value = '';
+        document.getElementById('nc-fecha').value = fecha.toISOString().split('T')[0];
+        document.getElementById('nc-hora').value = calendarioState.horaInicio;
+        document.getElementById('nc-sistema').value = '';
+        document.getElementById('nc-notas').value = '';
+        document.getElementById('modal-nueva-cita').style.display = 'flex';
+      }
+    });
+  }
+}
+
+// ─── ACTUALIZAR PANEL DESPUÉS DE CREAR CITA ──────────────────────────────
+function actualizarPanelDespuesDeCrearCita() {
+  // Si el panel está abierto, recargar las citas
+  if (panelState.diaSeleccionado) {
+    const año = calendarioState.mesActual.getFullYear();
+    const mes = calendarioState.mesActual.getMonth();
+    const fecha = new Date(año, mes, panelState.diaSeleccionado);
+    mostrarPanelCitasDia(panelState.diaSeleccionado, fecha);
+  }
+}
+
+// Llamar cuando calendario esté listo
+function setupPanelCitas() {
+  initPanelListeners();
+}
+
+
 </script>
 </body>
 </html>
