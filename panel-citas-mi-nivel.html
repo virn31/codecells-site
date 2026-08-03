@@ -1,0 +1,264 @@
+<!-- PANEL: Mis Citas Agendadas (para mi-nivel.html) -->
+<div class="panel-mis-citas">
+  <div class="panel-mis-citas-header">
+    <h3>📅 Mis Citas Agendadas</h3>
+    <span id="contador-citas" class="contador-citas">0 citas</span>
+  </div>
+  
+  <div id="lista-citas-paciente" class="lista-citas-paciente">
+    <div class="citas-vacio">
+      <p>No tienes citas agendadas</p>
+      <small>Contacta a tu médico para agendar una</small>
+    </div>
+  </div>
+</div>
+
+<!-- CSS para panel de citas -->
+<style>
+  .panel-mis-citas {
+    background: rgba(0, 0, 0, 0.2);
+    border: 2px solid #4FA8A0;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+
+  .panel-mis-citas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(79, 168, 160, 0.3);
+  }
+
+  .panel-mis-citas-header h3 {
+    margin: 0;
+    color: #E8A33D;
+    font-size: 18px;
+  }
+
+  .contador-citas {
+    background: rgba(79, 168, 160, 0.3);
+    color: #4FA8A0;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .lista-citas-paciente {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .citas-vacio {
+    text-align: center;
+    color: #999;
+    padding: 30px 20px;
+  }
+
+  .citas-vacio p {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+  }
+
+  .citas-vacio small {
+    color: #666;
+    font-size: 12px;
+  }
+
+  /* Tarjeta de cita */
+  .cita-card {
+    background: rgba(79, 168, 160, 0.15);
+    border: 2px solid rgba(79, 168, 160, 0.3);
+    border-radius: 10px;
+    padding: 14px;
+    transition: all 0.3s;
+  }
+
+  .cita-card:hover {
+    background: rgba(79, 168, 160, 0.25);
+    border-color: #4FA8A0;
+    box-shadow: 0 4px 12px rgba(79, 168, 160, 0.2);
+  }
+
+  .cita-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .cita-fecha-hora {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cita-fecha {
+    font-size: 14px;
+    font-weight: bold;
+    color: #E8A33D;
+  }
+
+  .cita-hora {
+    font-size: 13px;
+    color: #CFD6D0;
+  }
+
+  .cita-status {
+    background: rgba(95, 174, 110, 0.3);
+    color: #5FAE6E;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+  }
+
+  .cita-status.pendiente {
+    background: rgba(232, 163, 61, 0.3);
+    color: #E8A33D;
+  }
+
+  .cita-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .cita-info-row {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .cita-info-label {
+    color: #4FA8A0;
+    font-weight: bold;
+    min-width: 80px;
+  }
+
+  .cita-info-valor {
+    color: #CFD6D0;
+  }
+
+  .cita-medico {
+    color: #E8A33D;
+    font-weight: 500;
+  }
+
+  .cita-card-acciones {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid rgba(79, 168, 160, 0.2);
+  }
+
+  .btn-cita-accion {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 12px;
+    background: rgba(232, 163, 61, 0.2);
+    color: #E8A33D;
+    border: 1px solid #E8A33D;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.2s;
+  }
+
+  .btn-cita-accion:hover {
+    background: #E8A33D;
+    color: #0E1410;
+  }
+
+  .btn-cita-confirmar {
+    background: rgba(95, 174, 110, 0.2);
+    color: #5FAE6E;
+    border-color: #5FAE6E;
+  }
+
+  .btn-cita-confirmar:hover {
+    background: #5FAE6E;
+    color: #fff;
+  }
+
+  /* Modal de indicaciones/receta */
+  .modal-info-cita {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .modal-info-content {
+    background: #1a1f1b;
+    border: 2px solid #4FA8A0;
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .modal-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(79, 168, 160, 0.3);
+  }
+
+  .modal-info-header h4 {
+    margin: 0;
+    color: #E8A33D;
+  }
+
+  .modal-info-close {
+    background: none;
+    border: none;
+    color: #CFD6D0;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  .modal-info-close:hover {
+    color: #E8A33D;
+  }
+
+  .modal-info-body {
+    color: #CFD6D0;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  @media (max-width: 768px) {
+    .cita-card-acciones {
+      flex-direction: column;
+    }
+
+    .btn-cita-accion {
+      min-width: auto;
+      width: 100%;
+    }
+
+    .modal-info-content {
+      max-width: 90vw;
+      margin: 20px;
+    }
+  }
+</style>

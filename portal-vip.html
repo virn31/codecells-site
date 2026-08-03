@@ -1365,5 +1365,136 @@ Para cualquier urgencia médica real, o cambios de dosis/plan, dile que contacte
   init();
 })();
 </script>
+
+<!-- NUEVA: PANEL MIS CITAS AGENDADAS (Portal VIP) -->
+<div id="panel-citas-vip" style="display:none;">
+  <div class="panel-mis-citas">
+    <div class="panel-mis-citas-header">
+      <h3>📅 Mis Citas Agendadas</h3>
+      <span id="contador-citas-vip" class="contador-citas">0 citas</span>
+    </div>
+    <div id="lista-citas-paciente-vip" class="lista-citas-paciente">
+      <div class="citas-vacio">
+        <p>No tienes citas agendadas</p>
+        <small>Contacta a tu médico para agendar una</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .panel-mis-citas {
+    background: rgba(0, 0, 0, 0.2);
+    border: 2px solid #4FA8A0;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+
+  .panel-mis-citas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(79, 168, 160, 0.3);
+  }
+
+  .panel-mis-citas-header h3 {
+    margin: 0;
+    color: #E8A33D;
+    font-size: 18px;
+  }
+
+  .contador-citas {
+    background: rgba(79, 168, 160, 0.3);
+    color: #4FA8A0;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .lista-citas-paciente {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .citas-vacio {
+    text-align: center;
+    color: #999;
+    padding: 30px 20px;
+  }
+
+  .cita-card {
+    background: rgba(79, 168, 160, 0.15);
+    border: 2px solid rgba(79, 168, 160, 0.3);
+    border-radius: 10px;
+    padding: 14px;
+    transition: all 0.3s;
+  }
+
+  .cita-card:hover {
+    background: rgba(79, 168, 160, 0.25);
+    border-color: #4FA8A0;
+  }
+
+  .cita-status {
+    background: rgba(95, 174, 110, 0.3);
+    color: #5FAE6E;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+  }
+
+  .cita-status.pendiente {
+    background: rgba(232, 163, 61, 0.3);
+    color: #E8A33D;
+  }
+
+  .btn-cita-accion {
+    padding: 8px 12px;
+    background: rgba(232, 163, 61, 0.2);
+    color: #E8A33D;
+    border: 1px solid #E8A33D;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .btn-cita-accion:hover {
+    background: #E8A33D;
+    color: #0E1410;
+  }
+
+  .modal-info-cita {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .modal-info-content {
+    background: #1a1f1b;
+    border: 2px solid #4FA8A0;
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+</style>
+
+<script src="./panel-citas-mi-nivel.js"></script>
+
 </body>
 </html>

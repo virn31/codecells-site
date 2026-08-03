@@ -1,0 +1,140 @@
+  /* ─── MODAL NUEVA CITA - ESTILOS MEJORADOS ─── */
+  
+  #sugerencias-pacientes {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #4FA8A0;
+    border-radius: 6px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 4px;
+  }
+
+  .sugerencia-paciente {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(79, 168, 160, 0.2);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .sugerencia-paciente:hover {
+    background: rgba(79, 168, 160, 0.2);
+  }
+
+  .sugerencia-paciente:last-child {
+    border-bottom: none;
+  }
+
+  .sugerencia-codigo {
+    font-size: 13px;
+    font-weight: bold;
+    color: #E8A33D;
+    font-family: monospace;
+  }
+
+  .sugerencia-nombre {
+    font-size: 14px;
+    color: #CFD6D0;
+    margin-top: 2px;
+  }
+
+  .sugerencia-detalle {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+  }
+
+  /* Datos del paciente seleccionado */
+  .datos-paciente-card {
+    background: rgba(79, 168, 160, 0.15);
+    border: 2px solid #4FA8A0;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dato-fila {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(79, 168, 160, 0.2);
+  }
+
+  .dato-fila:last-child {
+    border-bottom: none;
+  }
+
+  .dato-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #4FA8A0;
+    min-width: 120px;
+  }
+
+  .dato-valor {
+    font-size: 13px;
+    color: #CFD6D0;
+    font-weight: 500;
+  }
+
+  /* Selector de horarios */
+  .selector-horarios-container {
+    background: rgba(232, 163, 61, 0.1);
+    border: 2px dashed #E8A33D;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+  }
+
+  .selector-horarios-container label {
+    display: block;
+    margin-bottom: 12px;
+    color: #E8A33D;
+    font-weight: bold;
+    font-size: 13px;
+  }
+
+  .grid-horarios {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+  }
+
+  .horario-btn {
+    padding: 8px;
+    border: 2px solid #4FA8A0;
+    background: rgba(79, 168, 160, 0.2);
+    color: #CFD6D0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.2s;
+  }
+
+  .horario-disponible {
+    background: rgba(95, 174, 110, 0.3);
+    border-color: #5FAE6E;
+    color: #5FAE6E;
+  }
+
+  .horario-disponible:hover {
+    background: rgba(95, 174, 110, 0.5);
+    transform: scale(1.05);
+  }
+
+  .horario-ocupado {
+    background: rgba(212, 101, 74, 0.1);
+    border-color: rgba(212, 101, 74, 0.3);
+    color: rgba(212, 101, 74, 0.5);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
