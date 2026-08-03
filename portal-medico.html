@@ -1727,6 +1727,243 @@
     /* Pantalla de login/reconocimiento con menos aire en móvil */
     .login-logo-block { margin-bottom: 1rem; }
   }
+
+  /* ─── ESTILOS CALENDARIO ─── */
+  .calendario-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(79, 168, 160, 0.3);
+  }
+
+  .calendario-header h3 {
+    margin: 0;
+    color: #E8A33D;
+    font-size: 18px;
+  }
+
+  .calendario-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .calendario-container {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid rgba(79, 168, 160, 0.2);
+  }
+
+  .calendario-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .calendario-nav h4 {
+    margin: 0;
+    color: #fff;
+    min-width: 200px;
+    text-align: center;
+  }
+
+  .btn-nav {
+    background: #E8A33D;
+    color: #0E1410;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+  }
+
+  .btn-nav:hover {
+    background: #D4A33D;
+    transform: translateY(-1px);
+  }
+
+  .calendario-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .calendario-header-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .dia-header {
+    background: rgba(79, 168, 160, 0.2);
+    color: #4FA8A0;
+    padding: 8px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 12px;
+  }
+
+  .calendario-dias {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+
+  .dia-cell {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(79, 168, 160, 0.2);
+    border-radius: 6px;
+    padding: 10px;
+    min-height: 60px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .dia-cell:hover {
+    background: rgba(79, 168, 160, 0.1);
+    border-color: #4FA8A0;
+  }
+
+  .dia-cell.otro-mes {
+    opacity: 0.3;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .dia-cell.hoy {
+    background: rgba(232, 163, 61, 0.1);
+    border-color: #E8A33D;
+  }
+
+  .dia-numero {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .dia-citas-count {
+    font-size: 11px;
+    color: #4FA8A0;
+  }
+
+  .cita-badge {
+    display: inline-block;
+    background: #E8A33D;
+    color: #0E1410;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-top: 4px;
+  }
+
+  .cita-item {
+    background: rgba(232, 163, 61, 0.15);
+    border-left: 3px solid #E8A33D;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .cita-info {
+    flex: 1;
+  }
+
+  .cita-hora {
+    font-weight: bold;
+    color: #E8A33D;
+  }
+
+  .cita-paciente {
+    color: #fff;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .cita-sistema {
+    color: #4FA8A0;
+    font-size: 11px;
+  }
+
+  .cita-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .cita-actions button {
+    padding: 4px 8px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .modal-content {
+    background: #1a1f1b;
+    border: 1px solid #4FA8A0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid rgba(79, 168, 160, 0.2);
+  }
+
+  .modal-header h4 {
+    margin: 0;
+    color: #E8A33D;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .modal-footer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(79, 168, 160, 0.2);
+    justify-content: flex-end;
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="/lib/i18n.js"></script>
@@ -1988,6 +2225,7 @@
           <button class="tab-btn" data-tab="consultas">Consultas</button>
           <button class="tab-btn" data-tab="labs">NOVA LABS</button>
           <button class="tab-btn" data-tab="nutricion">Nutrición</button>
+          <button class="tab-btn" data-tab="calendario">📅 Mi Calendario</button>
         </div>
 
         <div class="exp-body">
@@ -2312,6 +2550,112 @@
                 <button class="btn-secondary" id="btn-copiar-plan">📋 Copiar para WhatsApp</button>
               </div>
               <pre id="nutri-texto-plan" class="nutri-texto-plan"></pre>
+            </div>
+          </div>
+
+          <!-- Tab: Mi Calendario -->
+          <div class="tab-pane" id="tab-calendario">
+            <div class="calendario-header">
+              <h3>Mi Calendario de Consultas</h3>
+              <div class="calendario-toolbar">
+                <button id="btn-conf-horarios" class="btn-secondary">⚙️ Configurar Horarios</button>
+                <button id="btn-conectar-gc" class="btn-secondary">📆 Conectar Google Calendar</button>
+                <span id="gc-status" style="font-size:12px;color:#999;margin-left:16px;"></span>
+              </div>
+            </div>
+
+            <!-- Modal Configurar Horarios -->
+            <div id="modal-conf-horarios" class="modal" style="display:none;">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h4>Configurar mis horarios de atención</h4>
+                  <button class="modal-close" onclick="document.getElementById('modal-conf-horarios').style.display='none';">&times;</button>
+                </div>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label>Hora de inicio de jornada</label>
+                    <input type="time" id="conf-hora-inicio" value="08:00">
+                  </div>
+                  <div class="form-group">
+                    <label>Hora de fin de jornada</label>
+                    <input type="time" id="conf-hora-fin" value="18:00">
+                  </div>
+                  <div class="form-group">
+                    <label>Duración de cada consulta (minutos)</label>
+                    <input type="number" id="conf-duracion-consulta" value="30" min="15" max="120" step="15">
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button class="btn-secondary" onclick="document.getElementById('modal-conf-horarios').style.display='none';">Cancelar</button>
+                  <button class="btn-primary" id="btn-guardar-horarios">Guardar Horarios</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Calendario Visual -->
+            <div class="calendario-container">
+              <div class="calendario-nav">
+                <button id="btn-mes-anterior" class="btn-nav">&laquo;</button>
+                <h4 id="calendario-titulo"></h4>
+                <button id="btn-mes-siguiente" class="btn-nav">&raquo;</button>
+              </div>
+
+              <div class="calendario-grid">
+                <div class="calendario-header-row">
+                  <div class="dia-header">Lunes</div>
+                  <div class="dia-header">Martes</div>
+                  <div class="dia-header">Miércoles</div>
+                  <div class="dia-header">Jueves</div>
+                  <div class="dia-header">Viernes</div>
+                </div>
+                <div id="calendario-dias" class="calendario-dias"></div>
+              </div>
+            </div>
+
+            <!-- Panel Citas del Día -->
+            <div id="panel-citas-dia" style="display:none;margin-top:20px;">
+              <h4 id="citas-dia-titulo">Citas del día</h4>
+              <div id="lista-citas-dia" style="display:flex;flex-direction:column;gap:8px;"></div>
+              <button id="btn-nueva-cita" class="btn-primary" style="margin-top:12px;">+ Nueva Cita</button>
+            </div>
+
+            <!-- Modal Nueva Cita -->
+            <div id="modal-nueva-cita" class="modal" style="display:none;">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h4>📅 Agendar Cita - CODE CELLS®</h4>
+                  <button class="modal-close" onclick="document.getElementById('modal-nueva-cita').style.display='none';">&times;</button>
+                </div>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label>Paciente (Código)</label>
+                    <input type="text" id="nc-codigo-paciente" placeholder="CC-PAC-XXXX">
+                  </div>
+                  <div class="form-group">
+                    <label>Hora</label>
+                    <input type="time" id="nc-hora">
+                  </div>
+                  <div class="form-group">
+                    <label>Sistema CODE CELLS®</label>
+                    <select id="nc-sistema">
+                      <option value="">Seleccionar...</option>
+                      <option value="ENERGY">CODE ENERGY™</option>
+                      <option value="REPAIR">CODE REPAIR™</option>
+                      <option value="BALANCE">CODE BALANCE™</option>
+                      <option value="NEURO">CODE NEURO™</option>
+                      <option value="REGEN">CODE REGEN™</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Notas (opcional)</label>
+                    <textarea id="nc-notas" rows="3" placeholder="Notas sobre la consulta..."></textarea>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button class="btn-secondary" onclick="document.getElementById('modal-nueva-cita').style.display='none';">Cancelar</button>
+                  <button class="btn-primary" id="btn-crear-cita">Agendar Cita</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -5595,6 +5939,339 @@ function iniciarApp() {
   actualizarLinksCapacitacion();
   iniciarTemporizador();
   cargarPacientes();
+  
+  // Inicializar calendario si está disponible
+  setTimeout(initCalendario, 500);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── CALENDARIO MÉDICO - JAVASCRIPT ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+let calendarioState = {
+  mesActual: new Date(),
+  horaInicio: '08:00',
+  horaFin: '18:00',
+  duracionConsulta: 30,
+  googleCalendarConectado: false,
+  citasDelMes: [],
+};
+
+function initCalendario() {
+  if (!document.getElementById('tab-calendario')) return;
+  
+  const horariosGuardados = localStorage.getItem(`medico_${medicoActual.id}_horarios`);
+  if (horariosGuardados) {
+    const horarios = JSON.parse(horariosGuardados);
+    calendarioState.horaInicio = horarios.inicio;
+    calendarioState.horaFin = horarios.fin;
+    calendarioState.duracionConsulta = horarios.duracion;
+  }
+
+  if (medicoActual['Google Calendar Email']) {
+    calendarioState.googleCalendarConectado = true;
+    document.getElementById('gc-status').textContent = `✅ Conectado: ${medicoActual['Google Calendar Email']}`;
+  } else {
+    document.getElementById('gc-status').textContent = '❌ No conectado';
+  }
+
+  document.getElementById('btn-conf-horarios').addEventListener('click', () => {
+    document.getElementById('conf-hora-inicio').value = calendarioState.horaInicio;
+    document.getElementById('conf-hora-fin').value = calendarioState.horaFin;
+    document.getElementById('conf-duracion-consulta').value = calendarioState.duracionConsulta;
+    document.getElementById('modal-conf-horarios').style.display = 'flex';
+  });
+
+  document.getElementById('btn-guardar-horarios').addEventListener('click', guardarHorarios);
+  document.getElementById('btn-conectar-gc').addEventListener('click', conectarGoogleCalendar);
+  document.getElementById('btn-mes-anterior').addEventListener('click', () => irAlMes(-1));
+  document.getElementById('btn-mes-siguiente').addEventListener('click', () => irAlMes(1));
+  document.getElementById('btn-crear-cita').addEventListener('click', crearCita);
+
+  renderizarCalendario();
+  cargarCitasDelMes();
+}
+
+function guardarHorarios() {
+  const inicio = document.getElementById('conf-hora-inicio').value;
+  const fin = document.getElementById('conf-hora-fin').value;
+  const duracion = parseInt(document.getElementById('conf-duracion-consulta').value);
+
+  if (!inicio || !fin || !duracion) {
+    showToast('Por favor completa todos los campos', 'error');
+    return;
+  }
+
+  calendarioState.horaInicio = inicio;
+  calendarioState.horaFin = fin;
+  calendarioState.duracionConsulta = duracion;
+
+  localStorage.setItem(`medico_${medicoActual.id}_horarios`, JSON.stringify({
+    inicio,
+    fin,
+    duracion
+  }));
+
+  const medID = medicoActual.id;
+  fetch(`/api/airtable?tabla=medicos&recordId=${medID}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fields: {
+        'Hora Inicio Jornada': inicio,
+        'Hora Fin Jornada': fin,
+        'Duración Consulta': duracion
+      }
+    })
+  }).then(() => {
+    showToast('Horarios guardados ✓', 'success');
+    document.getElementById('modal-conf-horarios').style.display = 'none';
+    renderizarCalendario();
+  }).catch(err => {
+    console.error('Error:', err);
+    showToast('Error al guardar horarios', 'error');
+  });
+}
+
+function conectarGoogleCalendar() {
+  if (isDemo) {
+    showToast('Demo no puede conectar Google Calendar', 'error');
+    return;
+  }
+
+  if (medicoActual['Google Calendar Email']) {
+    showToast(`Ya conectado: ${medicoActual['Google Calendar Email']}`, 'success');
+    return;
+  }
+
+  window.location.href = `/api/google-oauth?redirect=${encodeURIComponent(window.location.href)}`;
+}
+
+function renderizarCalendario() {
+  const año = calendarioState.mesActual.getFullYear();
+  const mes = calendarioState.mesActual.getMonth();
+
+  const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  document.getElementById('calendario-titulo').textContent = `${nombreMes[mes]} ${año}`;
+
+  const primerDia = new Date(año, mes, 1);
+  const ultimoDia = new Date(año, mes + 1, 0);
+  const diasTotal = ultimoDia.getDate();
+
+  let diaInicio = primerDia.getDay();
+  if (diaInicio === 0) diaInicio = 7;
+  const diasAnteriores = diaInicio - 1;
+
+  const contenedor = document.getElementById('calendario-dias');
+  contenedor.innerHTML = '';
+
+  if (diasAnteriores > 0) {
+    const mesAnterior = new Date(año, mes, 0);
+    const diasMesAnterior = mesAnterior.getDate();
+    for (let i = diasMesAnterior - diasAnteriores + 1; i <= diasMesAnterior; i++) {
+      const cell = crearCeldaDia(i, true, null, null);
+      contenedor.appendChild(cell);
+    }
+  }
+
+  for (let día = 1; día <= diasTotal; día++) {
+    const fecha = new Date(año, mes, día);
+    const citasDelDia = calendarioState.citasDelMes.filter(c => {
+      const citaFecha = new Date(c.fecha);
+      return citaFecha.getDate() === día &&
+             citaFecha.getMonth() === mes &&
+             citaFecha.getFullYear() === año;
+    });
+    const cell = crearCeldaDia(día, false, fecha, citasDelDia);
+    contenedor.appendChild(cell);
+  }
+
+  const celdasLlenas = diasAnteriores + diasTotal;
+  const celdasFaltantes = (Math.ceil(celdasLlenas / 5) * 5) - celdasLlenas;
+  for (let i = 1; i <= celdasFaltantes; i++) {
+    const cell = crearCeldaDia(i, true, null, null);
+    contenedor.appendChild(cell);
+  }
+}
+
+function crearCeldaDia(día, otroMes, fecha, citas) {
+  const cell = document.createElement('div');
+  cell.className = 'dia-cell';
+  if (otroMes) cell.classList.add('otro-mes');
+
+  const hoy = new Date();
+  if (fecha &&
+      fecha.getDate() === hoy.getDate() &&
+      fecha.getMonth() === hoy.getMonth() &&
+      fecha.getFullYear() === hoy.getFullYear()) {
+    cell.classList.add('hoy');
+  }
+
+  const numeroDiv = document.createElement('div');
+  numeroDiv.className = 'dia-numero';
+  numeroDiv.textContent = día;
+  cell.appendChild(numeroDiv);
+
+  if (citas && citas.length > 0) {
+    const citasDiv = document.createElement('div');
+    citasDiv.className = 'dia-citas-count';
+    citas.forEach(c => {
+      const badge = document.createElement('div');
+      badge.className = 'cita-badge';
+      badge.innerHTML = `🔬 ${c.hora}`;
+      citasDiv.appendChild(badge);
+    });
+    cell.appendChild(citasDiv);
+  }
+
+  if (!otroMes && fecha) {
+    cell.addEventListener('click', () => mostrarCitasDelDia(fecha, citas || []));
+  }
+
+  return cell;
+}
+
+function mostrarCitasDelDia(fecha, citas) {
+  const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const fechaFormato = fecha.toLocaleDateString('es-ES', opciones);
+  
+  document.getElementById('citas-dia-titulo').textContent = `Citas del ${fechaFormato}`;
+
+  const lista = document.getElementById('lista-citas-dia');
+  lista.innerHTML = '';
+
+  if (citas.length === 0) {
+    lista.innerHTML = '<p style="color:#999;font-size:12px;">No hay citas este día</p>';
+  } else {
+    citas.forEach(cita => {
+      const item = document.createElement('div');
+      item.className = 'cita-item';
+      item.innerHTML = `
+        <div class="cita-info">
+          <div class="cita-hora">🔬 ${cita.hora}</div>
+          <div class="cita-paciente">${cita.codigo}</div>
+          <div class="cita-sistema">${cita.sistema}</div>
+        </div>
+        <div class="cita-actions">
+          <button onclick="eliminarCita('${cita.id}')" class="btn-secondary" style="font-size:11px;padding:4px 8px;background:#D4654A;">🗑️ Eliminar</button>
+        </div>
+      `;
+      lista.appendChild(item);
+    });
+  }
+
+  document.getElementById('panel-citas-dia').style.display = 'block';
+  window.fechaSeleccionada = fecha;
+  document.getElementById('btn-nueva-cita').style.display = 'block';
+  document.getElementById('btn-nueva-cita').onclick = () => {
+    document.getElementById('nc-codigo-paciente').value = '';
+    document.getElementById('nc-hora').value = '';
+    document.getElementById('nc-sistema').value = '';
+    document.getElementById('nc-notas').value = '';
+    document.getElementById('modal-nueva-cita').style.display = 'flex';
+  };
+}
+
+async function crearCita() {
+  const codigoPaciente = document.getElementById('nc-codigo-paciente').value.trim();
+  const hora = document.getElementById('nc-hora').value;
+  const sistema = document.getElementById('nc-sistema').value;
+  const notas = document.getElementById('nc-notas').value.trim();
+
+  if (!codigoPaciente || !hora || !sistema) {
+    showToast('Completa código, hora y sistema', 'error');
+    return;
+  }
+
+  if (!codigoPaciente.startsWith('CC-PAC-')) {
+    showToast('Código debe ser CC-PAC-XXXX', 'error');
+    return;
+  }
+
+  const citaId = 'cita_' + Date.now();
+  const fecha = window.fechaSeleccionada || new Date();
+
+  const cita = {
+    id: citaId,
+    codigo: codigoPaciente,
+    paciente: 'Paciente',
+    sistema,
+    hora,
+    fecha: fecha.toISOString().split('T')[0],
+    notas,
+    creadaPor: 'CODE CELLS®'
+  };
+
+  try {
+    const consultaFields = {
+      'Código de paciente ref': [codigoPaciente],
+      'Fecha de consulta': cita.fecha,
+      'Motivo de consulta': `🔬 CODE CELLS® - ${cita.sistema}`,
+      'Médico': [medicoActual.id],
+      'Código de médico ref': medicoActual['Código de médico']
+    };
+
+    await fetch('/api/airtable?tabla=consultas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: consultaFields })
+    });
+
+    calendarioState.citasDelMes.push(cita);
+    showToast(`Cita agendada ✓ para ${codigoPaciente}`, 'success');
+    
+    document.getElementById('nc-codigo-paciente').value = '';
+    document.getElementById('nc-hora').value = '';
+    document.getElementById('nc-sistema').value = '';
+    document.getElementById('nc-notas').value = '';
+    document.getElementById('modal-nueva-cita').style.display = 'none';
+
+    renderizarCalendario();
+  } catch (err) {
+    console.error('Error:', err);
+    showToast('Error al agendar cita', 'error');
+  }
+}
+
+async function cargarCitasDelMes() {
+  try {
+    const año = calendarioState.mesActual.getFullYear();
+    const mes = String(calendarioState.mesActual.getMonth() + 1).padStart(2, '0');
+    
+    const formula = `AND({Código de médico ref} = '${medicoActual['Código de médico']}', MONTH({Fecha de consulta}) = ${mes}, YEAR({Fecha de consulta}) = ${año})`;
+    const response = await fetch(`/api/airtable?tabla=consultas&filterByFormula=${encodeURIComponent(formula)}`);
+    const data = await response.json();
+
+    calendarioState.citasDelMes = (data.records || []).map(r => ({
+      id: r.id,
+      codigo: r.fields['Código de paciente ref']?.[0] || 'CC-PAC-DESCONOCIDO',
+      paciente: 'Paciente',
+      sistema: r.fields['Motivo de consulta'] || 'Sin sistema',
+      hora: r.fields['Hora de consulta'] || '10:00',
+      fecha: r.fields['Fecha de consulta'],
+      notas: r.fields['Notas internas'] || ''
+    }));
+
+    renderizarCalendario();
+  } catch (err) {
+    console.error('Error cargando citas:', err);
+  }
+}
+
+function irAlMes(offset) {
+  calendarioState.mesActual.setMonth(calendarioState.mesActual.getMonth() + offset);
+  cargarCitasDelMes();
+}
+
+function eliminarCita(citaId) {
+  if (confirm('¿Eliminar esta cita?')) {
+    fetch(`/api/airtable?tabla=consultas&recordId=${citaId}`, { method: 'DELETE' })
+      .then(() => {
+        showToast('Cita eliminada', 'success');
+        cargarCitasDelMes();
+      });
+  }
 }
 </script>
 </body>
