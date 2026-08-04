@@ -1204,13 +1204,10 @@
       return 'Buen funcionamiento';
     }
 
-    var AT_TOKEN = 'patbYOl5BbVaTfFHb.6657f55ce7f4f09aec3670836d38867762b3ce858048355b8fea7b0ae01c0d09';
-    var AT_URL   = 'https://api.airtable.com/v0/app6jyD9pDlTLpknA/tblVOTed5MJSX1Vpy';
-
     function saveToAirtable(fields){
-      return fetch(AT_URL, {
+      return fetch('/api/airtable?tabla=temp', {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + AT_TOKEN, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields: fields })
       });
     }
