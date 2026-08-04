@@ -1727,6 +1727,11 @@
     /* Pantalla de login/reconocimiento con menos aire en móvil */
     .login-logo-block { margin-bottom: 1rem; }
   }
+  
+  /* Ocultar body hasta que se ingrese password correcto */
+  body.hidden-until-auth {
+    display: none;
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
@@ -2824,8 +2829,14 @@ NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
 <script>
 // ─── PASSWORD CHECK ─────────────────────────────────────────────
 (function() {
+  // Ocultar body por defecto
+  document.body.classList.add('hidden-until-auth');
+  
   const saved = localStorage.getItem('portalMedicoAuth');
-  if (saved === 'ok') return;
+  if (saved === 'ok') {
+    document.body.classList.remove('hidden-until-auth');
+    return;
+  }
   
   const pwd = prompt('Ingrese su contraseña de acceso:');
   if (pwd === null) {
@@ -2834,6 +2845,7 @@ NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
   }
   if (pwd === 'CCMED-VIRN01') {
     localStorage.setItem('portalMedicoAuth', 'ok');
+    document.body.classList.remove('hidden-until-auth');
   } else {
     alert('❌ Contraseña incorrecta.');
     location.reload();
