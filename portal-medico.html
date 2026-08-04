@@ -920,7 +920,7 @@
 
   <!-- FONDO VIDEO -->
   <div class="video-bg">
-    <video autoplay muted loop playsinline>
+    <video autoplay muted loop playsinline preload="metadata">
       <source src="bg-video.mp4" type="video/mp4">
     </video>
     <div class="video-overlay"></div>
@@ -1269,26 +1269,34 @@
     function logout() { if (confirm('¿Cerrar sesión?')) window.location.reload(); }
     function showNotif(msg) { alert(msg); }
 
-    window.addEventListener('DOMContentLoaded', init);
-    
-    /* SLIDE SELECTOR */
-    const slideSelectorModal = document.getElementById('slideSelectorModal');
-    const slideCapacitacion = document.getElementById('slideCapacitacion');
-    const slidePortal = document.getElementById('slidePortal');
-    
-    if (slideCapacitacion) {
-      slideCapacitacion.addEventListener('click', () => {
-        slideSelectorModal.classList.add('hidden');
-        // Aquí irá la lógica para navegar a capacitación
-      });
+    function initSlideSelector() {
+      const slideSelectorModal = document.getElementById('slideSelectorModal');
+      const slideCapacitacion = document.getElementById('slideCapacitacion');
+      const slidePortal = document.getElementById('slidePortal');
+      
+      if (slideCapacitacion) {
+        slideCapacitacion.addEventListener('click', () => {
+          if (slideSelectorModal) {
+            slideSelectorModal.classList.add('hidden');
+          }
+          // Aquí irá la lógica para navegar a capacitación
+        });
+      }
+      
+      if (slidePortal) {
+        slidePortal.addEventListener('click', () => {
+          if (slideSelectorModal) {
+            slideSelectorModal.classList.add('hidden');
+          }
+          // El portal ya está visible, solo ocultar el modal
+        });
+      }
     }
-    
-    if (slidePortal) {
-      slidePortal.addEventListener('click', () => {
-        slideSelectorModal.classList.add('hidden');
-        // El portal ya está visible, solo ocultar el modal
-      });
-    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      init();
+      initSlideSelector();
+    });
   </script>
 
 </body>
