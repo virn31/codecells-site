@@ -1159,32 +1159,9 @@
     // ─── INICIALIZAR ────────────────────────────────────────────
     
     function checkPassword() {
-      const savedAuth = localStorage.getItem('portalMedicoAuth');
-      
-      if (savedAuth === 'authenticated') {
-        // Ya está autenticado en esta sesión
-        init();
-        initSlideSelector();
-        return;
-      }
-      
-      // Mostrar prompt de contraseña
-      const password = prompt('Ingrese su contraseña de acceso:');
-      
-      if (password === null) {
-        // Usuario canceló - redirigir a home
-        window.location.href = '/';
-        return;
-      }
-      
-      if (password === 'CCMED-VIRN01') {
-        localStorage.setItem('portalMedicoAuth', 'authenticated');
-        init();
-        initSlideSelector();
-      } else {
-        alert('❌ Contraseña incorrecta. Intente de nuevo.');
-        checkPassword(); // Reintentar
-      }
+      // Simplemente inicializar
+      init();
+      initSlideSelector();
     }
 
     function init() {
