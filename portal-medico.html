@@ -2822,25 +2822,21 @@ NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
 </div>
 
 <script>
-// ─── PASSWORD CHECK (CCMED-VIRN01) ───────────────────────────────
-(function checkPassword() {
-  const savedAuth = localStorage.getItem('portalMedicoAuth');
-  if (savedAuth === 'authenticated') {
-    return; // Ya autenticado
-  }
+// ─── PASSWORD CHECK ─────────────────────────────────────────────
+(function() {
+  const saved = localStorage.getItem('portalMedicoAuth');
+  if (saved === 'ok') return;
   
-  const password = prompt('Ingrese su contraseña de acceso:');
-  
-  if (password === null) {
+  const pwd = prompt('Ingrese su contraseña de acceso:');
+  if (pwd === null) {
     window.location.href = '/';
     return;
   }
-  
-  if (password === 'CCMED-VIRN01') {
-    localStorage.setItem('portalMedicoAuth', 'authenticated');
+  if (pwd === 'CCMED-VIRN01') {
+    localStorage.setItem('portalMedicoAuth', 'ok');
   } else {
     alert('❌ Contraseña incorrecta.');
-    checkPassword(); // Reintentar
+    location.reload();
   }
 })();
 
