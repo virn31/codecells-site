@@ -130,20 +130,8 @@
       document.getElementById('loading').classList.add('active');
       document.getElementById('buttons').style.display = 'none';
 
-      const sesionRaw = sessionStorage.getItem('cc_medico_session');
-      if (!sesionRaw) {
-        alert('No estás autenticado. Redirigiendo al login...');
-        window.location.href = '../portal-medico.html';
-        return;
-      }
-
-      const sesion = JSON.parse(sesionRaw);
-      if (Date.now() > sesion.expira) {
-        sessionStorage.removeItem('cc_medico_session');
-        alert('Sesión expirada. Redirigiendo al login...');
-        window.location.href = '../portal-medico.html';
-        return;
-      }
+      const codigoMedico = localStorage.getItem('cc_agenda_medico');
+      if (!codigoMedico) { alert('No estás autenticado...'); window.location.href = '../portal-medico.html'; return; }
 
       await new Promise(r => setTimeout(r, 800));
       document.getElementById('loading').classList.remove('active');
