@@ -9,12 +9,11 @@ class AgendaAPI {
   }
 
   obtenerMedicoDelToken() {
-    // Extraer código médico de sessionStorage (guardado por lib/auth.js)
-    const codigo = sessionStorage.getItem('codigo_medico');
-    if (!codigo) {
-      throw new Error('No autenticado como médico');
-    }
-    return codigo;
+    const sesionRaw = sessionStorage.getItem('cc_medico_session');
+    if (!sesionRaw) throw new Error('No autenticado');
+    const sesion = JSON.parse(sesionRaw);
+    if (Date.now() > sesion.expira) throw new Error('Sesión expirada');
+    return sesion.medico['Código de médico'];
   }
 
   async hacer_request(body) {
@@ -23,7 +22,7 @@ class AgendaAPI {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('cc_medico_session')}`
         },
         body: JSON.stringify({
           ...body,
