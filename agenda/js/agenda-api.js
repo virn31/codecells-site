@@ -9,11 +9,7 @@ class AgendaAPI {
   }
 
   obtenerMedicoDelToken() {
-    const sesionRaw = sessionStorage.getItem('cc_medico_session');
-    if (!sesionRaw) throw new Error('No autenticado');
-    const sesion = JSON.parse(sesionRaw);
-    if (Date.now() > sesion.expira) throw new Error('Sesión expirada');
-    return sesion.medico['Código de médico'];
+    return localStorage.getItem('cc_agenda_medico');
   }
 
   async hacer_request(body) {
