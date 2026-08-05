@@ -1,0 +1,161 @@
+<!-- agenda/index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Módulo Agenda - CODE CELLS®</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="./css/agenda.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: #0E1410;
+      color: #E8E8E8;
+    }
+
+    .agenda-splash {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      gap: 2rem;
+    }
+
+    .agenda-splash h1 {
+      font-size: 2.5rem;
+      color: #E8A33D;
+      font-family: 'Fraunces', serif;
+      text-align: center;
+    }
+
+    .agenda-splash p {
+      font-size: 1.1rem;
+      color: #999;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .agenda-splash .buttons {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: #E8A33D;
+      color: #0E1410;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #F0B450;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: #E8A33D;
+      border: 2px solid #E8A33D;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(232, 163, 61, 0.1);
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+    }
+
+    .loading.active {
+      display: block;
+    }
+
+    .spinner {
+      border: 3px solid rgba(232, 163, 61, 0.2);
+      border-top: 3px solid #E8A33D;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Splash inicial -->
+    <div class="agenda-splash" id="splash">
+      <h1>📅 Calendario de Citas</h1>
+      <p>Gestiona tus citas médicas de forma inteligente con NOVA</p>
+      
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Verificando autenticación...</p>
+      </div>
+
+      <div class="buttons" id="buttons">
+        <button class="btn btn-primary" onclick="irAlCalendario()">Ver Calendario</button>
+        <button class="btn btn-secondary" onclick="volverAlPortal()">Volver al Portal</button>
+      </div>
+    </div>
+
+    <!-- Calendario (cargado dinámicamente) -->
+    <div id="calendario-container" style="display: none;"></div>
+  </div>
+
+  <script src="../lib/auth.js"></script>
+  <script>
+    async function inicializar() {
+      // Mostrar loading
+      document.getElementById('loading').classList.add('active');
+      document.getElementById('buttons').style.display = 'none';
+
+      // Verificar que médico esté autenticado
+      const token = sessionStorage.getItem('auth_token');
+      if (!token) {
+        alert('No estás autenticado. Redirigiendo al login...');
+        window.location.href = '../portal-medico.html';
+        return;
+      }
+
+      // Simular verificación (2 segundos)
+      await new Promise(r => setTimeout(r, 2000));
+
+      // Ocultar loading
+      document.getElementById('loading').classList.remove('active');
+      document.getElementById('buttons').style.display = 'flex';
+    }
+
+    function irAlCalendario() {
+      window.location.href = './calendario.html';
+    }
+
+    function volverAlPortal() {
+      window.location.href = '../portal-medico.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', inicializar);
+  </script>
+</body>
+</html>
