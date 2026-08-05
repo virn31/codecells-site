@@ -126,11 +126,51 @@
 
   <script src="../lib/auth.js"></script>
   <script>
+    function obtenerCodigoMedico() {
+      // Estrategia 1: clave directa escrita por portal-medico.html al iniciar sesión
+      let codigo = localStorage.getItem('cc_agenda_medico');
+      if (codigo) return codigo;
+
+      // Estrategia 2: respaldo de la sesión completa (por si 'cc_agenda_medico' no llegó a escribirse)
+      try {
+        const backup = localStorage.getItem('cc_medico_session_backup');
+        if (backup) {
+          const medico = (JSON.parse(backup).medico) || {};
+          codigo = medico['Código de médico'] || medico['Código'] || medico.codigo || medico.id;
+          if (codigo) return codigo;
+        }
+      } catch (e) {
+        console.warn('[Agenda] Backup de sesión inválido:', e.message);
+      }
+
+      // Estrategia 3: sessionStorage, por si la pestaña heredó el contexto del portal (window.open)
+      try {
+        const raw = sessionStorage.getItem('cc_medico_session');
+        if (raw) {
+          const medico = (JSON.parse(raw).medico) || {};
+          codigo = medico['Código de médico'] || medico['Código'] || medico.codigo || medico.id;
+          if (codigo) return codigo;
+        }
+      } catch (e) {
+        console.warn('[Agenda] sessionStorage inválido:', e.message);
+      }
+
+      return null;
+    }
+
     async function inicializar() {
       document.getElementById('loading').classList.add('active');
       document.getElementById('buttons').style.display = 'none';
 
-      const codigoMedico = localStorage.getItem('cc_agenda_medico');
+      // Reintentos: la escritura en localStorage desde la pestaña de origen puede llegar con retraso
+      let codigoMedico = obtenerCodigoMedico();
+      let intentos = 0;
+      while (!codigoMedico && intentos < 3) {
+        await new Promise(r => setTimeout(r, 500));
+        codigoMedico = obtenerCodigoMedico();
+        intentos++;
+      }
+
       if (!codigoMedico) { alert('No estás autenticado...'); window.location.href = '../portal-medico.html'; return; }
 
       await new Promise(r => setTimeout(r, 800));

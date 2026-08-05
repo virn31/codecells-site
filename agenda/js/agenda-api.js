@@ -9,7 +9,35 @@ class AgendaAPI {
   }
 
   obtenerMedicoDelToken() {
-    return localStorage.getItem('cc_agenda_medico');
+    // Estrategia 1: clave directa escrita por portal-medico.html al iniciar sesión
+    let codigo = localStorage.getItem('cc_agenda_medico');
+    if (codigo) return codigo;
+
+    // Estrategia 2: respaldo de la sesión completa (por si 'cc_agenda_medico' no llegó a escribirse)
+    try {
+      const backup = localStorage.getItem('cc_medico_session_backup');
+      if (backup) {
+        const medico = (JSON.parse(backup).medico) || {};
+        codigo = medico['Código de médico'] || medico['Código'] || medico.codigo || medico.id;
+        if (codigo) return codigo;
+      }
+    } catch (e) {
+      console.warn('[AgendaAPI] Backup de sesión inválido:', e.message);
+    }
+
+    // Estrategia 3: sessionStorage, por si la pestaña heredó el contexto del portal (window.open)
+    try {
+      const raw = sessionStorage.getItem('cc_medico_session');
+      if (raw) {
+        const medico = (JSON.parse(raw).medico) || {};
+        codigo = medico['Código de médico'] || medico['Código'] || medico.codigo || medico.id;
+        if (codigo) return codigo;
+      }
+    } catch (e) {
+      console.warn('[AgendaAPI] sessionStorage inválido:', e.message);
+    }
+
+    return null;
   }
 
   async hacer_request(body) {

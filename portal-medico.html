@@ -2044,7 +2044,13 @@ const SESSION_DURATION = 6 * 60 * 60 * 1000; // 6h en ms
 function guardarSesion(medico) {
   const sesion = { medico, expira: Date.now() + SESSION_DURATION };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(sesion));
-  localStorage.setItem('cc_agenda_medico', sesion.medico['Código de médico']);
+  const codigo = medico['Código de médico'] || medico['Código'] || medico.codigo || medico.id;
+  try {
+    localStorage.setItem('cc_agenda_medico', codigo);
+    localStorage.setItem('cc_medico_session_backup', JSON.stringify(sesion));
+  } catch (e) {
+    console.warn('[Portal] No se pudo escribir en localStorage:', e.message);
+  }
 }
 
 function cargarSesion() {
