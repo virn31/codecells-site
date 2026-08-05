@@ -127,22 +127,25 @@
   <script src="../lib/auth.js"></script>
   <script>
     async function inicializar() {
-      // Mostrar loading
       document.getElementById('loading').classList.add('active');
       document.getElementById('buttons').style.display = 'none';
 
-      // Verificar que médico esté autenticado
-      const token = sessionStorage.getItem('auth_token');
-      if (!token) {
+      const sesionRaw = sessionStorage.getItem('cc_medico_session');
+      if (!sesionRaw) {
         alert('No estás autenticado. Redirigiendo al login...');
         window.location.href = '../portal-medico.html';
         return;
       }
 
-      // Simular verificación (2 segundos)
-      await new Promise(r => setTimeout(r, 2000));
+      const sesion = JSON.parse(sesionRaw);
+      if (Date.now() > sesion.expira) {
+        sessionStorage.removeItem('cc_medico_session');
+        alert('Sesión expirada. Redirigiendo al login...');
+        window.location.href = '../portal-medico.html';
+        return;
+      }
 
-      // Ocultar loading
+      await new Promise(r => setTimeout(r, 800));
       document.getElementById('loading').classList.remove('active');
       document.getElementById('buttons').style.display = 'flex';
     }
