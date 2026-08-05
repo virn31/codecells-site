@@ -2,19 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portal Médico — CODE CELLS®</title>
-
-<!-- PWA: permite instalar el portal como app en el celular -->
-<link rel="manifest" href="manifest-portal-medico.json">
-<meta name="theme-color" content="#0a0a0a">
-<link rel="icon" href="assets/favicon-32.png" sizes="32x32">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="CODE CELLS">
-<meta name="mobile-web-app-capable" content="yes">
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -99,37 +88,11 @@
     position: relative;
     z-index: 1;
     display: flex;
-    gap: 16px;
+    gap: 20px;
     flex-wrap: wrap;
     justify-content: center;
     max-width: 700px;
     width: 100%;
-  }
-
-  @media (max-width: 600px) {
-    .selector-cards {
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-    }
-    .selector-card {
-      min-width: unset;
-      max-width: 100%;
-      width: 100%;
-      padding: 1.5rem 1.25rem;
-      flex-direction: row;
-      text-align: left;
-      gap: 1rem;
-    }
-    .selector-card-icon {
-      width: 48px;
-      height: 48px;
-      flex-shrink: 0;
-    }
-    .selector-card-desc { display: none; }
-    .selector-card-btn { margin-top: 0.25rem; }
-    .selector-logo-block { margin-bottom: 2rem; }
-    .selector-logo-img { width: 140px; }
   }
 
   .selector-card {
@@ -222,11 +185,7 @@
   }
 
   /* ─── TEMA CLARO ─── */
-  /* Se aplica a html.light Y body.light — hay elementos que resuelven sus
-     variables contra el <html> en vez de heredarlas de <body> (detectado:
-     un contenedor quedaba con --black/--text-1 en sus valores de modo oscuro
-     por defecto pese a que el resto de la página ya estaba en modo claro). */
-  html.light, body.light {
+  body.light {
     --black: #F5F0E8;
     --black-2: #EDEAE2;
     --black-3: #E4DDD0;
@@ -408,54 +367,6 @@
     border-top: 0.5px solid var(--border-dim);
   }
 
-  /* Modal instalar app */
-  .install-step {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    font-size: 13px;
-    color: var(--text-1);
-    line-height: 1.6;
-    padding: 8px 0;
-    border-bottom: 0.5px solid var(--border-dim);
-  }
-  .install-step:last-of-type { border-bottom: none; }
-  .install-step-num {
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--gold-pale);
-    border: 0.5px solid var(--border);
-    color: var(--gold);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .install-icon-share {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border: 1.5px solid var(--cyan);
-    border-radius: 3px;
-    color: var(--cyan);
-    font-size: 11px;
-  }
-  .install-note {
-    font-size: 11px;
-    color: var(--text-3);
-    background: var(--black-3);
-    border: 0.5px solid var(--border-dim);
-    border-radius: var(--radius);
-    padding: 8px 10px;
-    margin-top: 10px;
-    line-height: 1.6;
-  }
-
   /* Directorio de especialistas */
   .especialista-list { display: flex; flex-direction: column; gap: 8px; }
 
@@ -504,7 +415,6 @@
     right: -420px;
     width: 400px;
     height: 100vh;
-    height: 100dvh; /* en móvil, 100vh no se reduce cuando aparece el teclado — 100dvh sí, evitando que el input quede oculto */
     background: var(--black-2);
     border-left: 0.5px solid var(--border);
     z-index: 50;
@@ -800,60 +710,6 @@
     -webkit-box-shadow: 0 0 0 1000px #1a1a1a inset !important;
     background-color: #1a1a1a !important;
   }
-
-  /* ─── RECONOCIMIENTO DE DISPOSITIVO (login persistente) ─── */
-  #login-reconociendo {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    animation: fadeInRecon 0.35s ease;
-  }
-  @keyframes fadeInRecon { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-  .reconociendo-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--gold-pale);
-    border: 0.5px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-serif);
-    font-size: 21px;
-    font-weight: 300;
-    color: var(--gold);
-    margin-bottom: 6px;
-  }
-
-  .reconociendo-nombre {
-    font-family: var(--font-serif);
-    font-size: 20px;
-    font-weight: 300;
-    color: var(--text-1);
-    text-align: center;
-  }
-
-  .reconociendo-sub {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    color: var(--text-3);
-    text-transform: uppercase;
-  }
-
-  .reconociendo-link {
-    margin-top: 18px;
-    background: none;
-    border: none;
-    font-family: var(--font-sans);
-    font-size: 12px;
-    color: var(--text-3);
-    text-decoration: underline;
-    cursor: pointer;
-  }
-  .reconociendo-link:hover { color: var(--text-2); }
 
   .btn-primary {
     width: 100%;
@@ -1328,39 +1184,6 @@
   .tl-title { font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 2px; }
   .tl-note { font-size: 12px; color: var(--text-2); line-height: 1.5; }
 
-  /* Placeholder del tab Nutrición — espacio reservado, contenido pendiente de definir */
-  .nutri-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 0.85rem;
-    padding: 3rem 1.5rem;
-    color: var(--text-3);
-  }
-  .nutri-placeholder-glyph { font-size: 40px; line-height: 1; opacity: 0.85; }
-
-  .nutri-form .form-group label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block; }
-  .nutri-objetivos-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-  .nutri-chip {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--text-2);
-    border: 0.5px solid var(--border-dim); border-radius: 20px;
-    padding: 6px 12px; cursor: pointer; user-select: none;
-  }
-  .nutri-chip input { width: 13px; height: 13px; accent-color: var(--gold); }
-  .nutri-chip:has(input:checked) { border-color: var(--gold); color: var(--gold); background: var(--gold-pale2); }
-
-  .nutri-resultado-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .nutri-texto-plan {
-    white-space: pre-wrap; word-wrap: break-word;
-    font-family: var(--font-sans); font-size: 13px; line-height: 1.7; color: var(--text-1);
-    background: var(--black-3); border: 0.5px solid var(--border-dim); border-radius: var(--radius);
-    padding: 20px; max-height: 600px; overflow-y: auto;
-  }
-  .nutri-placeholder p { font-size: 13px; max-width: 320px; line-height: 1.7; }
-
   /* ─── FORMULARIO DE CONSULTA ─── */
   .consulta-section {
     margin: 0 2rem 2rem;
@@ -1425,17 +1248,6 @@
   .form-group input:focus,
   .form-group select:focus,
   .form-group textarea:focus { border-color: var(--gold-dim); }
-
-  /* Flash de "esto lo llenó NOVA" — se quita solo después de unos segundos */
-  .campo-nova-llenado {
-    border-color: var(--gold) !important;
-    background: var(--gold-pale2) !important;
-    animation: novaFillPulse 0.5s ease;
-  }
-  @keyframes novaFillPulse {
-    0% { box-shadow: 0 0 0 3px rgba(201,169,110,0.35); }
-    100% { box-shadow: 0 0 0 0 rgba(201,169,110,0); }
-  }
 
   .form-group select { appearance: none; cursor: pointer; }
 
@@ -1571,48 +1383,6 @@
   .tab-pane { display: none; }
   .tab-pane.active { display: block; }
 
-  .labs-subtab-btn {
-    background: var(--black-3); border: 1px solid var(--border); color: var(--text-3);
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
-    padding: 7px 14px; border-radius: 20px; cursor: pointer; transition: all 0.15s;
-  }
-  .labs-subtab-btn:hover { color: var(--text-2); }
-  .labs-subtab-btn.activo { background: var(--gold); border-color: var(--gold); color: #0a0a0a; font-weight: 700; }
-  .labs-comparativo-fila {
-    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
-    padding: 7px 0; border-bottom: 0.5px solid var(--border-dim); font-size: 12px;
-  }
-  .labs-comparativo-fila:last-child { border-bottom: none; }
-  .labs-comparativo-delta-alto { color: #E2574B; font-family: var(--font-mono); }
-  .labs-comparativo-delta-bajo { color: #4FA8A0; font-family: var(--font-mono); }
-
-  .labs-tarjeta {
-    background: var(--black-3); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
-  }
-  .labs-tarjeta-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; }
-  .labs-tarjeta-valor { font-size: 20px; font-weight: 600; }
-  .labs-tarjeta-valor.mejoria { color: #4FA8A0; }
-  .labs-tarjeta-valor.empeora { color: #E2574B; }
-
-  .labs-pivote-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  .labs-pivote-table th, .labs-pivote-table td { padding: 7px 10px; border-bottom: 0.5px solid var(--border-dim); text-align: left; white-space: nowrap; }
-  .labs-pivote-table th { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
-  .labs-pivote-cat-row td { background: var(--black-3); font-weight: 700; color: var(--gold); padding-top: 12px; }
-  .labs-valor-alto { color: #F0AD4E; font-weight: 600; }
-  .labs-valor-bajo { color: #4DA3FF; font-weight: 600; }
-  .labs-valor-critico { color: #fff; background: #E74C3C; font-weight: 700; border-radius: 4px; padding: 1px 6px; }
-  .labs-valor-normal { color: var(--text-1); }
-  .labs-valor-indeterminado { color: var(--text-3); }
-  .labs-pivote-table tbody tr:not(.labs-pivote-cat-row):hover { background: rgba(201,169,110,0.06); cursor: pointer; }
-  .labs-timeline-chip {
-    font-family: var(--font-mono); font-size: 10.5px; background: var(--black-3); border: 1px solid var(--border);
-    color: var(--text-2); padding: 6px 12px; border-radius: 16px; cursor: pointer;
-  }
-  .labs-timeline-chip.activo { background: var(--gold); border-color: var(--gold); color: #0a0a0a; font-weight: 700; }
-  .labs-cat-toggle { cursor: pointer; user-select: none; }
-  .labs-cat-toggle .flecha { display: inline-block; transition: transform 0.15s; margin-right: 6px; }
-  .labs-cat-toggle.colapsado .flecha { transform: rotate(-90deg); }
-
   /* Labs table */
   .labs-table {
     width: 100%;
@@ -1645,95 +1415,20 @@
   .val-alto { color: #e24b4a; }
   .val-bajo { color: var(--gold); }
 
-  /* Botón "volver" en expediente — solo visible en móvil */
-  .btn-volver-lista {
-    display: none;
-    background: none;
-    border: 0.5px solid var(--border-dim);
-    border-radius: var(--radius);
-    color: var(--text-2);
-    font-size: 16px;
-    width: 34px;
-    height: 34px;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    margin-right: 2px;
-  }
-
-  /* ─── DISEÑO MÓVIL (diseño propio, no solo el de escritorio comprimido) ─── */
+  /* Responsive básico */
   @media (max-width: 768px) {
-    body { overflow-x: hidden; }
-
-    /* Topbar compacta: solo marca, timer corto y salir */
-    .topbar { padding: 0 0.75rem; gap: 8px; height: 48px; }
-    .topbar-brand { font-size: 15px; }
-    .topbar-medico, .btn-capacitacion-topbar, #session-countdown { display: none; }
-    .session-timer { padding: 3px 6px; }
-    .topbar-code { font-size: 9px; padding: 2px 6px; }
-    .btn-nova-topbar span:not(.nova-dot) { display: none; }
-    .btn-theme, #btn-nova-open { width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; }
-    .btn-logout { padding: 5px 8px; font-size: 11px; }
-
-    .app-body { flex-direction: column; height: calc(100vh - 48px); overflow: hidden; }
-
-    /* Vista 1: lista de pacientes a pantalla completa */
-    .sidebar {
-      width: 100%;
-      height: 100%;
-      max-height: none;
-      border-right: none;
-      display: flex;
-    }
-    .sidebar-header { padding: 1rem 1rem 0.85rem; }
-    .patient-item { padding: 13px 1rem; gap: 12px; }
-    .avatar { width: 40px; height: 40px; font-size: 15px; }
-    .patient-name { font-size: 14px; }
-
-    /* Vista 2: expediente a pantalla completa — oculta por defecto en móvil */
-    .main-panel { display: none; width: 100%; }
-
-    /* Cuando se selecciona un paciente, la app cambia de "vista" en vez de apretar ambas */
-    .app-body.mostrando-expediente .sidebar { display: none; }
-    .app-body.mostrando-expediente .main-panel { display: flex; height: 100%; }
-
-    .btn-volver-lista { display: flex; }
-
-    .exp-header { padding: 1rem 1rem 0.85rem; gap: 0.75rem; }
-    .exp-nombre { font-size: 19px; }
-    .exp-avatar { width: 42px; height: 42px; font-size: 16px; }
-    .exp-header > div[style*="flex-shrink"] { flex-wrap: wrap; }
-
-    .tabs { margin: 0 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .tab-btn { padding: 10px 12px; font-size: 9px; white-space: nowrap; }
-
-    .exp-body { padding: 1.25rem 1rem; }
-    .consulta-section { margin: 0 1rem 1.5rem; }
-    .data-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
-
+    .app-body { flex-direction: column; height: auto; }
+    .sidebar { width: 100%; height: auto; max-height: 280px; }
     .vitals-grid { grid-template-columns: 1fr 1fr; }
     .form-row { grid-template-columns: 1fr; }
     .form-row-3 { grid-template-columns: 1fr; }
-
-    .form-actions { flex-wrap: wrap; }
-    .btn-save, .btn-secondary { flex: 1; justify-content: center; }
-
-    .toast { left: 1rem; right: 1rem; bottom: 1rem; }
-
-    .nova-panel { width: 100%; right: -100%; }
-    .nova-input-row { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
-
-    /* Pantalla de login/reconocimiento con menos aire en móvil */
-    .login-logo-block { margin-bottom: 1rem; }
   }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
 
 <!-- ─── SCREEN: SELECTOR DE RUTA ─── -->
-<div id="screen-selector" style="display:none;">
+<div id="screen-selector">
   <div class="selector-logo-block">
     <img
       class="selector-logo-img"
@@ -1755,7 +1450,7 @@
     </div>
 
     <!-- Capacitación -->
-    <a class="selector-card capacitacion" id="link-capacitacion-selector" href="/capacitacion/" target="_blank">
+    <a class="selector-card capacitacion" href="/capacitacion/" target="_blank">
       <div class="selector-card-icon">📚</div>
       <div class="selector-card-title">Capacitación</div>
       <div class="selector-card-desc">Programa de certificación médica CODE CELLS®. 9 módulos en 3 niveles clínicos.</div>
@@ -1766,16 +1461,7 @@
 </div>
 
 <!-- ─── SCREEN: LOGIN ─── -->
-<div id="screen-login">
-  <!-- Reconocimiento de dispositivo: se muestra en vez del login si ya hay un médico recordado en este dispositivo -->
-  <div id="login-reconociendo">
-    <div class="reconociendo-avatar" id="reconociendo-avatar">—</div>
-    <div class="reconociendo-nombre" id="reconociendo-nombre">Bienvenido de nuevo</div>
-    <div class="reconociendo-sub">Verificando acceso…</div>
-    <div class="loader" style="margin-top:14px;"></div>
-    <button class="reconociendo-link" id="btn-cambiar-medico">No soy yo — usar otro código</button>
-  </div>
-
+<div id="screen-login" style="display:none;">
   <!-- Logo block -->
   <div class="login-logo-block">
   <!-- Logo PNG — coloca el archivo en assets/logo-codecells.png -->
@@ -1852,12 +1538,11 @@
     <div class="topbar-code" id="topbar-code">—</div>
     <!-- Toggle modo claro/oscuro -->
     <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
-    <!-- Botón conectar Google Calendar -->
-    <button class="btn-topbar" id="btn-google-calendar" title="Conectar mi Google Calendar">📅</button>
     <!-- Botón Capacitación -->
-    <a class="btn-capacitacion-topbar" id="link-capacitacion-topbar" href="/capacitacion/" target="_blank" title="Programa de certificación médica">
+    <a class="btn-capacitacion-topbar" href="/capacitacion/" target="_blank" title="Programa de certificación médica">
       ◈ Capacitación
     </a>
+    <button class="btn-capacitacion-topbar" onclick="window.open('./agenda/index.html', '_blank')">📅 Agenda</button>
     <!-- Botón NOVA -->
     <button class="btn-nova-topbar" id="btn-nova-open" title="Consultar NOVA">
       <span class="nova-dot"></span> NOVA
@@ -1891,18 +1576,12 @@
     <!-- ─── SIDEBAR ─── -->
     <div class="sidebar">
       <div class="sidebar-header">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;gap:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
           <div class="sidebar-title" style="margin-bottom:0;">Mis pacientes</div>
-          <div style="display:flex;gap:6px;">
-            <button id="btn-link-autorregistro" title="Link para que el paciente se registre solo"
-              style="background:var(--black-3);border:0.5px solid var(--border-dim);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;padding:4px 10px;cursor:pointer;white-space:nowrap;">
-              🔗 Mi link
-            </button>
-            <button id="btn-nuevo-paciente" title="Registrar nuevo paciente"
-              style="background:var(--gold-pale);border:0.5px solid var(--border);border-radius:var(--radius);color:var(--gold);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;padding:4px 10px;cursor:pointer;white-space:nowrap;">
-              + Nuevo
-            </button>
-          </div>
+          <button id="btn-nuevo-paciente" title="Registrar nuevo paciente"
+            style="background:var(--gold-pale);border:0.5px solid var(--border);border-radius:var(--radius);color:var(--gold);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;padding:4px 10px;cursor:pointer;white-space:nowrap;">
+            + Nuevo
+          </button>
         </div>
 
         <div class="search-box">
@@ -1950,7 +1629,6 @@
 
         <!-- Header del paciente -->
         <div class="exp-header">
-          <button id="btn-volver-lista" class="btn-volver-lista" title="Volver a la lista de pacientes">←</button>
           <div class="exp-avatar" id="exp-avatar">—</div>
           <div class="exp-info">
             <div class="exp-nombre" id="exp-nombre">—</div>
@@ -1979,163 +1657,29 @@
           <button class="tab-btn" data-tab="historia">Historia clínica</button>
           <button class="tab-btn" data-tab="consultas">Consultas</button>
           <button class="tab-btn" data-tab="labs">NOVA LABS</button>
-          <button class="tab-btn" data-tab="nutricion">Nutrición</button>
         </div>
 
         <div class="exp-body">
 
           <!-- Tab: Datos generales -->
           <div class="tab-pane active" id="tab-datos">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div class="section-label" style="margin-bottom:0;">Información personal</div>
-              <button class="btn-secondary" id="btn-editar-datos" style="font-size:10px;padding:5px 12px;">✏️ Editar</button>
-            </div>
+            <div class="section-label">Información personal</div>
             <div class="data-grid" id="datos-grid">
               <div class="loading-row"><span class="loader"></span></div>
-            </div>
-
-            <div id="datos-edit-form" style="display:none;margin-top:12px;">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Nombre completo</label>
-                  <input type="text" id="dg-nombre">
-                </div>
-                <div class="form-group">
-                  <label>Fecha de nacimiento</label>
-                  <input type="date" id="dg-fecha-nacimiento">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Ciudad</label>
-                  <input type="text" id="dg-ciudad">
-                </div>
-                <div class="form-group">
-                  <label>Teléfono WhatsApp</label>
-                  <input type="text" id="dg-telefono">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" id="dg-email">
-                </div>
-                <div class="form-group">
-                  <label>Sexo biológico</label>
-                  <select id="dg-sexo">
-                    <option value="">Selecciona</option>
-                    <option>Femenino</option>
-                    <option>Masculino</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Estado civil</label>
-                  <input type="text" id="dg-estado-civil">
-                </div>
-                <div class="form-group">
-                  <label>Ocupación</label>
-                  <input type="text" id="dg-ocupacion">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Grupo sanguíneo</label>
-                  <select id="dg-grupo-sanguineo">
-                    <option value="">Selecciona</option>
-                    <option>O+</option><option>O-</option>
-                    <option>A+</option><option>A-</option>
-                    <option>B+</option><option>B-</option>
-                    <option>AB+</option><option>AB-</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Escolaridad</label>
-                  <select id="dg-escolaridad">
-                    <option value="">Selecciona</option>
-                    <option>Primaria</option>
-                    <option>Secundaria</option>
-                    <option>Preparatoria</option>
-                    <option>Licenciatura trunca</option>
-                    <option>Licenciatura terminada</option>
-                    <option>Posgrado</option>
-                  </select>
-                </div>
-              </div>
-              <p class="error-msg" id="datos-edit-error" style="color:#c0392b;font-size:12px;"></p>
-              <div class="form-actions">
-                <button class="btn-secondary" id="btn-cancelar-datos">Cancelar</button>
-                <button class="btn-save" id="btn-guardar-datos">
-                  <span id="dg-save-label">Guardar</span>
-                  <span id="dg-save-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
-                </button>
-              </div>
             </div>
           </div>
 
           <!-- Tab: Historia clínica -->
           <div class="tab-pane" id="tab-historia">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div class="section-label" style="margin-bottom:0;">Antecedentes y diagnóstico</div>
-              <button class="btn-secondary" id="btn-editar-historia" style="font-size:10px;padding:5px 12px;">✏️ Editar</button>
-            </div>
+            <div class="section-label">Antecedentes y diagnóstico</div>
             <div id="historia-content">
               <div class="loading-row"><span class="loader"></span></div>
-            </div>
-
-            <div id="historia-edit-form" style="display:none;margin-top:12px;">
-              <div class="form-group">
-                <label>Motivo de la entrevista</label>
-                <textarea id="he-motivo" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Antecedentes heredofamiliares</label>
-                <textarea id="he-ahf" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Alimentación</label>
-                <textarea id="he-alimentacion" rows="2"></textarea>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Tabaco</label>
-                  <input type="text" id="he-tabaco" placeholder="Ej. Nunca, Antes ya no, Sí actualmente">
-                </div>
-                <div class="form-group">
-                  <label>Alcohol</label>
-                  <input type="text" id="he-alcohol" placeholder="Ej. Nunca, Rara vez, Socialmente">
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Actividad física</label>
-                <input type="text" id="he-actividad" placeholder="Ej. Sedentario, 3x semana, Diario">
-              </div>
-              <div class="form-group">
-                <label>Alergias</label>
-                <textarea id="he-alergias" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Medicamentos actuales</label>
-                <textarea id="he-medicamentos" rows="2"></textarea>
-              </div>
-              <div id="historia-edit-error" style="font-family:var(--font-mono);font-size:11px;color:#e24b4a;min-height:16px;"></div>
-              <div class="form-actions">
-                <button class="btn-secondary" id="btn-cancelar-historia">Cancelar</button>
-                <button class="btn-save" id="btn-guardar-historia">
-                  <span id="he-save-label">Guardar corrección</span>
-                  <span id="he-save-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
-                </button>
-              </div>
             </div>
           </div>
 
           <!-- Tab: Consultas previas -->
           <div class="tab-pane" id="tab-consultas">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-              <div class="section-label" style="margin-bottom:0;" id="consultas-label">Historial de consultas (tuyas)</div>
-              <button class="btn-secondary" id="btn-toggle-interconsultas" style="font-size:10px;padding:5px 12px;">⇄ Ver interconsultas</button>
-            </div>
+            <div class="section-label">Historial de consultas</div>
             <div class="timeline" id="timeline-consultas">
               <div class="loading-row"><span class="loader"></span></div>
             </div>
@@ -2143,174 +1687,16 @@
 
           <!-- Tab: NOVA LABS -->
           <div class="tab-pane" id="tab-labs">
-            <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;" id="labs-subtabs">
-              <button class="labs-subtab-btn activo" data-tipo="Todos" onclick="cambiarSubtabLabs('Todos')">Todos</button>
-              <button class="labs-subtab-btn" data-tipo="Laboratorio" onclick="cambiarSubtabLabs('Laboratorio')">Laboratorios</button>
-              <button class="labs-subtab-btn" data-tipo="RX" onclick="cambiarSubtabLabs('RX')">RX</button>
-              <button class="labs-subtab-btn" data-tipo="USG" onclick="cambiarSubtabLabs('USG')">USG</button>
-              <button class="labs-subtab-btn" data-tipo="otros" onclick="cambiarSubtabLabs('otros')">Otros</button>
-            </div>
-
-            <div id="labs-pivote-wrap" style="display:none;">
-              <div id="labs-timeline" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
-
-              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end;">
-                <div class="form-group" style="min-width:220px;">
-                  <label>Rango de fechas</label>
-                  <div style="display:flex;gap:6px;">
-                    <input type="date" id="labs-fecha-desde" onchange="renderTablaPivoteLabs()">
-                    <input type="date" id="labs-fecha-hasta" onchange="renderTablaPivoteLabs()">
-                  </div>
-                </div>
-                <div class="form-group" style="min-width:160px;">
-                  <label>Buscar parámetro</label>
-                  <input type="text" id="labs-buscar" placeholder="ej. Glucosa…" oninput="renderTablaPivoteLabs()">
-                </div>
-                <div class="form-group" style="min-width:150px;">
-                  <label>Ordenar fechas</label>
-                  <select id="labs-orden-fecha" onchange="renderTablaPivoteLabs()">
-                    <option value="asc">Más antigua primero</option>
-                    <option value="desc">Más reciente primero</option>
-                  </select>
-                </div>
-                <div class="form-group" style="min-width:170px;">
-                  <label>Ver</label>
-                  <select id="labs-filtro-ver" onchange="renderTablaPivoteLabs()">
-                    <option value="todos">Todos los resultados</option>
-                    <option value="fuera">Solo fuera de rango</option>
-                  </select>
-                </div>
-                <button type="button" class="btn-secondary" id="btn-toggle-comparar" onclick="toggleModoComparar()" style="font-size:11px;padding:9px 14px;">⇄ Comparar fechas</button>
-                <button type="button" class="btn-secondary" onclick="copiarResumenLabs()" style="font-size:11px;padding:9px 14px;">📋 Copiar resumen</button>
-              </div>
-
-              <div id="labs-comparar-wrap" style="display:none;margin-bottom:18px;padding:14px 16px;background:var(--black-3);border:1px solid var(--border);border-radius:8px;">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end;">
-                  <div class="form-group" style="min-width:160px;">
-                    <label>Fecha inicial</label>
-                    <select id="labs-comparar-fecha-a" onchange="renderCompararFechas()"></select>
-                  </div>
-                  <div class="form-group" style="min-width:160px;">
-                    <label>Fecha final</label>
-                    <select id="labs-comparar-fecha-b" onchange="renderCompararFechas()"></select>
-                  </div>
-                </div>
-                <div id="labs-comparar-tabla"></div>
-              </div>
-
-              <div id="labs-tarjetas-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px;"></div>
-
-              <div id="labs-tabla-pivote" style="overflow-x:auto;"></div>
-            </div>
-
-            <div id="labs-cronologico-wrap">
-              <div class="section-label">Estudios en orden cronológico</div>
-              <div id="labs-content">
-                <div class="loading-row"><span class="loader"></span></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal: detalle de parámetro -->
-          <div id="labs-detalle-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:20px;">
-            <div style="background:var(--black-2);border:1px solid var(--border);border-radius:12px;padding:22px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
-                <div>
-                  <div id="labs-detalle-nombre" style="font-family:var(--font-serif,serif);font-size:20px;"></div>
-                  <div id="labs-detalle-rango" style="font-size:11px;color:var(--text-3);margin-top:4px;"></div>
-                </div>
-                <button type="button" onclick="document.getElementById('labs-detalle-modal').style.display='none'" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">×</button>
-              </div>
-              <div id="labs-detalle-estado" style="margin-bottom:14px;"></div>
-              <canvas id="labs-detalle-chart" height="160"></canvas>
-              <div id="labs-detalle-tabla" style="margin-top:16px;"></div>
-              <div id="labs-detalle-interpretacion" style="margin-top:14px;font-size:12.5px;color:var(--text-2);line-height:1.6;"></div>
-            </div>
-          </div>
-
-          <!-- Tab: Nutrición — generador conectado al Motor de Personalización -->
-          <div class="tab-pane" id="tab-nutricion">
-            <div class="section-label">Plan nutricional</div>
-
-            <div id="nutri-formulario" class="nutri-form">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Días del plan</label>
-                  <input type="number" id="nutri-dias" value="7" min="1" max="30">
-                </div>
-                <div class="form-group">
-                  <label>Tipo de dieta</label>
-                  <select id="nutri-tipo-dieta">
-                    <option value="">Automático (según diagnóstico)</option>
-                    <option value="hipocalorica">Hipocalórica</option>
-                    <option value="hiperproteica">Hiperproteica</option>
-                    <option value="cetogenica">Cetogénica</option>
-                    <option value="cetogenica_estricta">Cetogénica estricta</option>
-                    <option value="normocalorica">Normocalórica</option>
-                    <option value="mediterranea">Mediterránea</option>
-                    <option value="dash">DASH</option>
-                    <option value="diabetica">Diabética</option>
-                    <option value="renal">Renal</option>
-                    <option value="hepatica">Hepática</option>
-                    <option value="vegetariana">Vegetariana</option>
-                    <option value="vegana">Vegana</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Ayuno intermitente</label>
-                  <select id="nutri-ayuno">
-                    <option value="">Ninguno</option>
-                    <option value="12_12">12:12</option>
-                    <option value="14_10">14:10</option>
-                    <option value="16_8">16:8</option>
-                    <option value="18_6">18:6</option>
-                    <option value="20_4">20:4</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Peso actual (kg) — si no está en el expediente</label>
-                  <input type="number" id="nutri-peso" step="0.1" placeholder="Opcional">
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Objetivos de la semana</label>
-                <div class="nutri-objetivos-grid">
-                  <label class="nutri-chip"><input type="checkbox" value="Preservacion muscular"> Preservar músculo</label>
-                  <label class="nutri-chip"><input type="checkbox" value="Reducir grasa visceral"> Grasa visceral</label>
-                  <label class="nutri-chip"><input type="checkbox" value="Controlar glucosa"> Controlar glucosa</label>
-                  <label class="nutri-chip"><input type="checkbox" value="Disminuir inflamacion"> Antiinflamatorio</label>
-                  <label class="nutri-chip"><input type="checkbox" value="Controlar hipertension"> Controlar hipertensión</label>
-                  <label class="nutri-chip"><input type="checkbox" value="Mejorar saciedad"> Saciedad</label>
-                  <label class="nutri-chip"><input type="checkbox" value="Evitar estrenimiento"> Evitar estreñimiento</label>
-                  <label class="nutri-chip"><input type="checkbox" value="Mejorar energia"> Energía</label>
-                </div>
-              </div>
-              <button class="btn-save" id="btn-generar-nutricion" style="margin-top:8px;">
-                <span id="btn-nutri-label">Generar plan alimenticio</span>
-                <span class="loader" id="btn-nutri-loader" style="display:none;"></span>
-              </button>
-            </div>
-
-            <div class="nutri-placeholder" id="nutri-placeholder">
-              <div class="nutri-placeholder-glyph">🥗</div>
-              <p id="nutri-placeholder-msg">Este paciente aún no tiene un plan nutricional generado.</p>
-            </div>
-
-            <div id="nutri-contenido" style="display:none;">
-              <div class="nutri-resultado-header">
-                <span class="tag tag-gold" id="nutri-resumen-tag">—</span>
-                <button class="btn-secondary" id="btn-copiar-plan">📋 Copiar para WhatsApp</button>
-              </div>
-              <pre id="nutri-texto-plan" class="nutri-texto-plan"></pre>
+            <div class="section-label">Últimos laboratorios</div>
+            <div id="labs-content">
+              <div class="loading-row"><span class="loader"></span></div>
             </div>
           </div>
 
         </div>
 
         <!-- Formulario de consulta -->
-        <div class="consulta-section" style="display:none;">
+        <div class="consulta-section">
           <div class="consulta-header">
             <h3>Nueva consulta</h3>
             <span class="tag tag-gold" id="consulta-fecha">—</span>
@@ -2396,152 +1782,10 @@
               <textarea id="f-plan" placeholder="Indicaciones, ajustes al protocolo, próximos pasos…" rows="3"></textarea>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label>Próxima cita</label>
-                <input type="date" id="f-proxima-cita">
-              </div>
-              <div class="form-group">
-                <label>Hora</label>
-                <input type="time" id="f-proxima-cita-hora" value="10:00">
-              </div>
-            </div>
-
             <div class="form-group">
               <label>Notas internas (no visibles al paciente)</label>
               <textarea id="f-notas" placeholder="Observaciones del médico…" rows="2"></textarea>
             </div>
-
-            <details style="margin-top:0.5rem;">
-              <summary class="section-label" style="cursor:pointer;">Antecedentes y datos adicionales (opcional — se guarda en Historia Clínica)</summary>
-
-              <div class="vitals-grid" style="margin-top:0.75rem;">
-                <div class="form-group vital-input">
-                  <label>Frec. cardiaca</label>
-                  <input type="number" id="f-fc" placeholder="78">
-                  <span class="vital-unit">lpm</span>
-                </div>
-                <div class="form-group vital-input">
-                  <label>Frec. respiratoria</label>
-                  <input type="number" id="f-fr" placeholder="16">
-                  <span class="vital-unit">rpm</span>
-                </div>
-                <div class="form-group vital-input">
-                  <label>Sat. O2</label>
-                  <input type="number" id="f-sato2" placeholder="98">
-                  <span class="vital-unit">%</span>
-                </div>
-                <div class="form-group vital-input">
-                  <label>Cintura</label>
-                  <input type="number" id="f-cintura" placeholder="90">
-                  <span class="vital-unit">cm</span>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Estado civil</label>
-                  <input type="text" id="f-estado-civil" placeholder="Casado(a), soltero(a)…">
-                </div>
-                <div class="form-group">
-                  <label>Ocupación</label>
-                  <input type="text" id="f-ocupacion" placeholder="Contador, ingeniero…">
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Grupo sanguíneo</label>
-                  <select id="f-grupo-sanguineo">
-                    <option value="">Selecciona</option>
-                    <option>O+</option><option>O-</option>
-                    <option>A+</option><option>A-</option>
-                    <option>B+</option><option>B-</option>
-                    <option>AB+</option><option>AB-</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Escolaridad</label>
-                  <select id="f-escolaridad">
-                    <option value="">Selecciona</option>
-                    <option>Primaria</option>
-                    <option>Secundaria</option>
-                    <option>Preparatoria</option>
-                    <option>Licenciatura trunca</option>
-                    <option>Licenciatura terminada</option>
-                    <option>Posgrado</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Antecedentes heredofamiliares</label>
-                <textarea id="f-ahf" placeholder="Madre, padre, hermanos…" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Antecedentes personales patológicos</label>
-                <textarea id="f-app" placeholder="Enfermedades que el paciente mismo tiene o ha tenido…" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Antecedentes quirúrgicos</label>
-                <textarea id="f-quirurgicos" placeholder="Cirugías previas…" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Antecedentes gineco-obstétricos</label>
-                <textarea id="f-ago" placeholder="Menarca, ciclos, FUM, fórmula obstétrica…" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Medicamentos actuales</label>
-                <textarea id="f-medicamentos" placeholder="Medicamento, dosis, frecuencia…" rows="2"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Alergias</label>
-                <textarea id="f-alergias" placeholder="Medicamentosas, alimentarias…" rows="1"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Hábitos / estilo de vida</label>
-                <textarea id="f-habitos" placeholder="Actividad física, sueño, hidratación, alimentación…" rows="2"></textarea>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Panel de laboratorio</label>
-                  <select id="f-panel-lab">
-                    <option value="">Selecciona</option>
-                    <option>Panel básico</option>
-                    <option>Panel hormonal</option>
-                    <option>Panel metabólico avanzado</option>
-                    <option>Panel inflamatorio</option>
-                    <option>Panel NOVA completo</option>
-                    <option>Panel DEZAWA™</option>
-                    <option>Personalizado</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Valores rápidos — pruebas point-of-care (glucosa capilar, etc.)</label>
-                <div id="lab-rapido-filas"></div>
-                <button type="button" onclick="agregarFilaLabRapido()" style="margin-top:6px;background:none;border:1px solid var(--border);color:var(--text-2);border-radius:6px;padding:6px 12px;font-size:11.5px;cursor:pointer;">+ Agregar valor</button>
-                <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Cada fila alimenta el comparativo automático de NOVA LABS — no es obligatorio llenar todas las columnas.</div>
-              </div>
-
-              <div class="form-group">
-                <label>📎 Subir PDF o foto del estudio (lo que traiga el paciente o se tome en consultorio)</label>
-                <input type="file" id="f-lab-archivo" accept="application/pdf,image/*" style="display:none;">
-                <button type="button" id="btn-subir-lab-archivo" style="background:none;border:1px solid var(--border);color:var(--text-2);border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;">Elegir archivo…</button>
-                <div id="lab-archivo-estado" style="font-size:11.5px;margin-top:6px;min-height:16px;"></div>
-              </div>
-
-              <div class="form-group">
-                <label>Resultados de laboratorio — resumen en texto libre (opcional si ya llenaste valores rápidos)</label>
-                <textarea id="f-resultados-lab" placeholder="Resumen completo de resultados dictados por el médico…" rows="3"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Valores fuera de rango — texto libre (opcional, se genera solo desde los valores rápidos)</label>
-                <textarea id="f-fuera-rango-lab" placeholder="Solo los valores anormales (déjalo vacío si todo salió normal)…" rows="2"></textarea>
-              </div>
-            </details>
 
           </div>
 
@@ -2579,6 +1823,10 @@
       </div>
       <div class="form-row">
         <div class="form-group">
+          <label>Edad</label>
+          <input type="number" id="np-edad" placeholder="35" min="1" max="120">
+        </div>
+        <div class="form-group">
           <label>Sexo</label>
           <select id="np-sexo">
             <option value="">Seleccionar…</option>
@@ -2587,9 +1835,15 @@
             <option>Otro</option>
           </select>
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label>Teléfono / WhatsApp</label>
           <input type="text" id="np-telefono" placeholder="+52 667 000 0000">
+        </div>
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" id="np-correo" placeholder="paciente@email.com">
         </div>
       </div>
       <div class="form-row">
@@ -2607,6 +1861,10 @@
             <option>DEZAWA PROTOCOL™</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>Ciudad</label>
+          <input type="text" id="np-ciudad" placeholder="Culiacán, Sinaloa">
+        </div>
       </div>
       <div id="np-error" style="font-family:var(--font-mono);font-size:11px;color:#e24b4a;min-height:16px;"></div>
     </div>
@@ -2616,52 +1874,6 @@
         <span id="np-label">Registrar paciente</span>
         <span id="np-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
       </button>
-    </div>
-  </div>
-</div>
-
-<!-- ─── MODAL: LINK DE AUTORREGISTRO ─── -->
-<div class="modal-overlay" id="modal-autorregistro">
-  <div class="modal-box">
-    <div class="modal-header">
-      <h3>Tu link de autorregistro</h3>
-      <button class="modal-close" id="modal-auto-close">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-secondary,#9a9590);margin:0 0 14px;">
-        Este link es tuyo — cualquier paciente que lo abra queda registrado automáticamente como tu paciente, sin que vea tu código. Sirve igual en tu celular, en el de él, o en la tablet del consultorio.
-      </p>
-      <div style="display:flex;gap:8px;align-items:center;background:var(--black-3,#1a1a1a);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;">
-        <input type="text" id="auto-link-url" readonly style="flex:1;background:transparent;border:none;color:var(--gold,#c9a96e);font-family:var(--font-mono,monospace);font-size:12px;outline:none;">
-        <button class="btn-secondary" id="btn-copiar-auto" style="white-space:nowrap;">Copiar</button>
-      </div>
-      <div id="auto-link-copiado" style="font-size:11px;color:#5fae6e;min-height:16px;margin-top:6px;"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-save" id="btn-whatsapp-auto" style="background:#25D366;">Enviar por WhatsApp</button>
-    </div>
-  </div>
-</div>
-
-<!-- ─── MODAL: LINK PARA EL PACIENTE ─── -->
-<div class="modal-overlay" id="modal-link-paciente">
-  <div class="modal-box">
-    <div class="modal-header">
-      <h3>Paciente registrado ✓</h3>
-      <button class="modal-close" id="modal-link-close">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-secondary,#9a9590);margin:0 0 14px;">
-        Envía este link a <b id="link-pac-nombre"></b> — no lleva tu código de médico, así que el paciente entra directo a su propia información. También puedes abrirlo en la tablet del consultorio.
-      </p>
-      <div style="display:flex;gap:8px;align-items:center;background:var(--black-3,#1a1a1a);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;">
-        <input type="text" id="link-pac-url" readonly style="flex:1;background:transparent;border:none;color:var(--gold,#c9a96e);font-family:var(--font-mono,monospace);font-size:12px;outline:none;">
-        <button class="btn-secondary" id="btn-copiar-link" style="white-space:nowrap;">Copiar</button>
-      </div>
-      <div id="link-pac-copiado" style="font-size:11px;color:#5fae6e;min-height:16px;margin-top:6px;"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-save" id="btn-ir-expediente">Ir al expediente del paciente</button>
     </div>
   </div>
 </div>
@@ -2767,83 +1979,7 @@ NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
   </div>
 </div>
 
-<!-- ─── MODAL: INSTALAR APP EN EL CELULAR ─── -->
-<div class="modal-overlay" id="modal-instalar">
-  <div class="modal-box" style="max-width:440px;">
-    <div class="modal-header">
-      <h3>Instalar en tu celular</h3>
-      <button class="modal-close" id="modal-instalar-close">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-2);line-height:1.6;">
-        ¿Estás en tu celular? Te ayudo a poner el Portal Médico como app, con acceso directo desde tu pantalla de inicio — sin volver a abrir el navegador cada vez.
-      </p>
-
-      <!-- Paso iOS -->
-      <div id="pasos-ios" style="display:none;">
-        <div class="install-step">
-          <span class="install-step-num">1</span>
-          <span>Toca el ícono de <strong>Compartir</strong> <span class="install-icon-share">⬆</span> en la barra de Safari (abajo o arriba, según tu iPhone).</span>
-        </div>
-        <div class="install-step">
-          <span class="install-step-num">2</span>
-          <span>Desliza hacia abajo en el menú y toca <strong>"Agregar a pantalla de inicio"</strong>.</span>
-        </div>
-        <div class="install-step">
-          <span class="install-step-num">3</span>
-          <span>Toca <strong>"Agregar"</strong> arriba a la derecha. Listo — el ícono de CODE CELLS® quedará en tu pantalla de inicio.</span>
-        </div>
-        <div class="install-note">⚠ Este paso solo funciona en <strong>Safari</strong>. Si estás en Chrome en tu iPhone, abre este portal en Safari primero.</div>
-      </div>
-
-      <!-- Paso Android -->
-      <div id="pasos-android" style="display:none;">
-        <div class="install-step">
-          <span class="install-step-num">1</span>
-          <span>Toca el botón <strong>"Instalar app"</strong> de abajo.</span>
-        </div>
-        <div class="install-step">
-          <span class="install-step-num">2</span>
-          <span>Confirma en el mensaje que aparece. El ícono de CODE CELLS® quedará en tu pantalla de inicio.</span>
-        </div>
-        <button class="btn-save" id="btn-instalar-android" style="align-self:flex-start;margin-top:4px;">Instalar app</button>
-        <div class="install-note" id="android-manual-note" style="display:none;">Si no aparece el botón de instalación: toca el menú (⋮) de Chrome arriba a la derecha → <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.</div>
-      </div>
-
-      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3);margin-top:4px;cursor:pointer;">
-        <input type="checkbox" id="chk-no-mostrar-instalar" style="width:14px;height:14px;">
-        No volver a mostrar este mensaje
-      </label>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" id="btn-instalar-ahora-no">Ahora no</button>
-    </div>
-  </div>
-</div>
-
 <script>
-// ─── AUTENTICACIÓN REAL (jul 2026) ───────────────────────────────
-// Antes, /api/airtable no exigía ningún token — cualquiera podía leer o
-// modificar datos clínicos. Ahora exige un token de sesión firmado, emitido
-// por /api/auth-login tras validar el código CCMED- contra Airtable.
-//
-// En vez de editar cada una de las >10 llamadas a /api/airtable que ya
-// existían en este archivo, se envuelve fetch UNA sola vez aquí arriba —
-// así toda llamada existente (airtableFetch, airtablePost, y los PATCH
-// sueltos más abajo) atrapa el token automáticamente sin más cambios.
-const TOKEN_KEY = 'cc_medico_token';
-const _fetchOriginal = window.fetch.bind(window);
-window.fetch = function(url, opts = {}) {
-  const urlStr = typeof url === 'string' ? url : (url && url.url) || '';
-  if (urlStr.includes('/api/airtable')) {
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    if (token) {
-      opts = { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } };
-    }
-  }
-  return _fetchOriginal(url, opts);
-};
-
 // ─── CONFIGURACIÓN ───────────────────────────────────────────────
 // El token de Airtable YA NO vive aquí. Vive como variable de entorno
 // en Vercel (AIRTABLE_TOKEN) y solo el endpoint /api/airtable lo usa.
@@ -2866,32 +2002,10 @@ function initials(nombre) {
   return nombre.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
-// Capacitación abre en pestaña nueva (target="_blank"), así que nunca
-// comparte sessionStorage con este portal — sin esto, siempre mostraba
-// "Dr. Invitado". Se pasa el código por la URL para que esa página pueda
-// identificar al médico por su cuenta.
-function actualizarLinksCapacitacion() {
-  if (!medicoActual) return;
-  const codigo = medicoActual['Código de médico'] || medicoActual['Código'] || medicoActual['codigo'] || medicoActual.id;
-  if (!codigo || codigo === 'demo') return;
-  const url = '/capacitacion/?codigo=' + encodeURIComponent(codigo);
-  const a1 = document.getElementById('link-capacitacion-selector');
-  const a2 = document.getElementById('link-capacitacion-topbar');
-  if (a1) a1.href = url;
-  if (a2) a2.href = url;
-}
-
 function formatDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-// La "Edad" en Airtable es un campo fórmula — si el paciente no tiene
-// Fecha de nacimiento capturada, Airtable regresa un objeto de error en vez
-// de un número, y eso se veía como "[object Object] años". Esto lo blinda.
-function formatEdad(valor) {
-  return typeof valor === 'number' ? valor : null;
 }
 
 function showToast(msg, type = 'success') {
@@ -2949,105 +2063,6 @@ function borrarSesion() {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
-// ─── RECONOCIMIENTO DE DISPOSITIVO (persistente, no expira por cerrar pestaña) ──
-// A diferencia de la sesión (6h), esto vive en localStorage para que el médico
-// no tenga que volver a teclear su código cada vez que abre el portal en su
-// propio celular o PC. Se borra únicamente si el médico usa "Salir" a propósito.
-const DEVICE_KEY = 'cc_medico_device';
-const DEVICE_DURATION = 90 * 24 * 60 * 60 * 1000; // 90 días
-
-function guardarDispositivo(medico, codigo) {
-  const registro = { medico, codigo, expira: Date.now() + DEVICE_DURATION };
-  localStorage.setItem(DEVICE_KEY, JSON.stringify(registro));
-}
-
-function cargarDispositivo() {
-  try {
-    const raw = localStorage.getItem(DEVICE_KEY);
-    if (!raw) return null;
-    const registro = JSON.parse(raw);
-    if (Date.now() > registro.expira) {
-      localStorage.removeItem(DEVICE_KEY);
-      return null;
-    }
-    return registro;
-  } catch { return null; }
-}
-
-function borrarDispositivo() {
-  localStorage.removeItem(DEVICE_KEY);
-}
-
-function isMobile() {
-  return window.matchMedia('(max-width: 768px)').matches;
-}
-
-// ─── INSTALAR APP EN EL CELULAR ────────────────────────────────────
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw-portal-medico.js').catch(() => {});
-  });
-}
-
-let deferredInstallPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredInstallPrompt = e;
-  if (typeof evaluarModalInstalar === 'function') evaluarModalInstalar();
-});
-
-function esIOS() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
-function esAndroid() {
-  return /Android/.test(navigator.userAgent);
-}
-
-function esStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-}
-
-function evaluarModalInstalar() {
-  if (esStandalone()) return; // ya está instalada, corriendo como app
-  if (localStorage.getItem('cc_instalar_omitido') === '1') return;
-
-  var mostrarAndroid = esAndroid() || (!esIOS() && !!deferredInstallPrompt); // Android real, o cualquier Chrome (incl. escritorio) con prompt disponible
-  var mostrarIOS = esIOS();
-  if (!mostrarAndroid && !mostrarIOS) return; // navegador sin forma de instalar (ej. Firefox escritorio)
-
-  document.getElementById('pasos-ios').style.display = mostrarIOS ? 'block' : 'none';
-  document.getElementById('pasos-android').style.display = mostrarAndroid ? 'flex' : 'none';
-  if (mostrarAndroid) document.getElementById('pasos-android').style.flexDirection = 'column';
-
-  document.getElementById('modal-instalar').classList.add('active');
-}
-
-function cerrarModalInstalar() {
-  if (document.getElementById('chk-no-mostrar-instalar').checked) {
-    localStorage.setItem('cc_instalar_omitido', '1');
-  }
-  document.getElementById('modal-instalar').classList.remove('active');
-}
-
-document.getElementById('modal-instalar-close').addEventListener('click', cerrarModalInstalar);
-document.getElementById('btn-instalar-ahora-no').addEventListener('click', cerrarModalInstalar);
-document.getElementById('modal-instalar').addEventListener('click', function(e) {
-  if (e.target === this) cerrarModalInstalar();
-});
-
-document.getElementById('btn-instalar-android').addEventListener('click', async () => {
-  if (!deferredInstallPrompt) {
-    document.getElementById('android-manual-note').style.display = 'block';
-    return;
-  }
-  deferredInstallPrompt.prompt();
-  await deferredInstallPrompt.userChoice;
-  deferredInstallPrompt = null;
-  cerrarModalInstalar();
-});
-
 // ─── LOGIN ───────────────────────────────────────────────────────
 document.getElementById('input-codigo').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-login').click();
@@ -3081,40 +2096,33 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   errEl.textContent = '';
 
   try {
-    // El login ya NO pasa por /api/airtable (ese endpoint ahora exige un
-    // token que todavía no existe en este punto) — pasa por /api/auth-login,
-    // que valida el código directamente contra Airtable server-side y, si es
-    // válido, emite el token de sesión que se usará para todo lo demás.
-    const loginRes = await _fetchOriginal('/api/auth-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: 'medico', codigo }),
-    });
-    const loginData = await loginRes.json();
+    const encodedFormula = encodeURIComponent(`{Código de médico}="${codigo}"`);
+    const data = await airtableFetch(TBL_MEDICOS, `?filterByFormula=${encodedFormula}`);
 
-    if (!loginRes.ok || !loginData.ok) {
-      errEl.textContent = loginData.error || 'Código no encontrado. Verifica con administración.';
+    if (!data.records || data.records.length === 0) {
+      errEl.textContent = 'Código no encontrado. Verifica con administración.';
       btn.disabled = false;
       btn.textContent = 'Ingresar';
       return;
     }
 
-    sessionStorage.setItem(TOKEN_KEY, loginData.token);
-    medicoActual = { id: loginData.recordId, ...loginData.fields };
+    const rec = data.records[0];
+    if (rec.fields['Activo'] === false) {
+      errEl.textContent = 'Acceso desactivado. Contacta a administración.';
+      btn.disabled = false;
+      btn.textContent = 'Ingresar';
+      return;
+    }
+
+    medicoActual = { id: rec.id, ...rec.fields };
     guardarSesion(medicoActual);
-    guardarDispositivo(medicoActual, codigo);
-    mostrarSelector();
+    iniciarApp();
 
   } catch (err) {
     if (codigo === 'CCMED-DEMO01') {
-      // Último respaldo si /api/auth-login no responde (ej. SESSION_SECRET
-      // aún no configurado en Vercel): el demo renderiza, pero sin token
-      // válido las llamadas a /api/airtable fallarán — es un modo degradado,
-      // no el flujo normal.
       medicoActual = { id: 'demo', 'Nombre completo': 'Dr. Demo', Especialidad: 'Medicina Regenerativa', 'Código de médico': codigo };
       guardarSesion(medicoActual);
-      guardarDispositivo(medicoActual, codigo);
-      mostrarSelector();
+      iniciarApp();
     } else {
       errEl.textContent = 'Error de conexión. Usa CCMED-DEMO01 para modo demo.';
       btn.disabled = false;
@@ -3126,117 +2134,24 @@ document.getElementById('btn-login').addEventListener('click', async () => {
 // ─── NAVEGACIÓN SELECTOR ────────────────────────────────────────
 function irAPortal() {
   document.getElementById('screen-selector').style.display = 'none';
-  iniciarApp();
+  document.getElementById('screen-login').style.display = 'flex';
+  setTimeout(() => document.getElementById('input-codigo').focus(), 100);
 }
 
 // Revisar sesión guardada al cargar la página
 window.addEventListener('DOMContentLoaded', () => {
   const sesionGuardada = cargarSesion();
   if (sesionGuardada) {
-    // Sesión activa (últimas 6h) — saltar login, mostrar selector directo
+    // Sesión activa — saltar selector y login, ir directo a la app
     medicoActual = sesionGuardada;
-    document.getElementById('screen-login').style.display = 'none';
-    document.getElementById('screen-selector').style.display = 'flex';
-    return;
+    document.getElementById('screen-selector').style.display = 'none';
+    iniciarApp();
   }
-
-  // Sin sesión activa, pero puede haber un médico recordado en este dispositivo
-  const dispositivo = cargarDispositivo();
-  if (dispositivo) {
-    intentarAutoLogin(dispositivo);
-    return;
-  }
-  // Ni sesión ni dispositivo recordado — login en blanco (comportamiento por defecto)
-});
-
-// ─── AUTO-LOGIN POR DISPOSITIVO RECORDADO ──────────────────────────
-async function intentarAutoLogin(dispositivo) {
-  const nombre = dispositivo.medico?.['Nombre completo'] || dispositivo.medico?.['Nombre'] || 'Doctor';
-
-  document.getElementById('login-reconociendo').style.display = 'flex';
-  const logoBlock = document.querySelector('#screen-login > .login-logo-block');
-  const loginCard = document.querySelector('#screen-login > .login-card');
-  if (logoBlock) logoBlock.style.display = 'none';
-  if (loginCard) loginCard.style.display = 'none';
-
-  document.getElementById('reconociendo-avatar').textContent = initials(nombre);
-  document.getElementById('reconociendo-nombre').textContent = nombre;
-
-  try {
-    if (dispositivo.codigo === 'CCMED-DEMO01') {
-      medicoActual = dispositivo.medico;
-      // El demo no tiene sesión real de Airtable — sin token, las llamadas a
-      // /api/airtable fallarán. Es un modo degradado, igual que en btn-login.
-      guardarSesion(medicoActual);
-      guardarDispositivo(medicoActual, dispositivo.codigo);
-      mostrarSelector();
-      return;
-    }
-
-    // Igual que el login manual: el dispositivo recordado (localStorage, 90
-    // días) solo evita tener que volver a teclear el código — pero la sesión
-    // real de nuevo se obtiene por /api/auth-login, nunca por el proxy
-    // /api/airtable directamente (ese ahora exige el token que aquí mismo se
-    // está generando). Antes esta función llamaba a /api/airtable sin token,
-    // recibía 401, lo atrapaba en el catch, y seguía adelante con datos
-    // viejos SIN token real — causaba \"entra automático pero sin pacientes\".
-    const loginRes = await _fetchOriginal('/api/auth-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: 'medico', codigo: dispositivo.codigo }),
-    });
-    const loginData = await loginRes.json();
-
-    if (!loginRes.ok || !loginData.ok) {
-      borrarDispositivo();
-      borrarSesion();
-      mostrarLoginEnBlanco(loginData.error || 'Acceso desactivado. Contacta a administración.');
-      return;
-    }
-
-    sessionStorage.setItem(TOKEN_KEY, loginData.token);
-    medicoActual = { id: loginData.recordId, ...loginData.fields };
-    guardarSesion(medicoActual);
-    guardarDispositivo(medicoActual, dispositivo.codigo);
-    mostrarSelector();
-  } catch (err) {
-    // Solo llega aquí si /api/auth-login no respondió en absoluto (sin
-    // conexión) — no si el código fue rechazado. En ese caso sí seguimos
-    // adelante con los datos guardados para no dejar al médico varado, pero
-    // sin token real las llamadas a /api/airtable fallarán hasta que vuelva
-    // a haber conexión y se reintente el login.
-    medicoActual = dispositivo.medico;
-    guardarSesion(medicoActual);
-    mostrarSelector();
-  }
-}
-
-function mostrarLoginEnBlanco(mensaje) {
-  document.getElementById('login-reconociendo').style.display = 'none';
-  const logoBlock = document.querySelector('#screen-login > .login-logo-block');
-  const loginCard = document.querySelector('#screen-login > .login-card');
-  if (logoBlock) logoBlock.style.display = '';
-  if (loginCard) loginCard.style.display = '';
-  document.getElementById('input-codigo').value = '';
-  if (mensaje) document.getElementById('login-error').textContent = mensaje;
-}
-
-document.getElementById('btn-cambiar-medico').addEventListener('click', () => {
-  borrarDispositivo();
-  borrarSesion();
-  mostrarLoginEnBlanco();
+  // Si no hay sesión, mostrar selector (ya visible por defecto)
 });
 
 // ─── INIT APP ────────────────────────────────────────────────────
-function mostrarSelector() {
-  document.getElementById('screen-login').style.display = 'none';
-  document.getElementById('screen-selector').style.display = 'flex';
-  actualizarLinksCapacitacion();
-  setTimeout(evaluarModalInstalar, 400);
-}
-
 function iniciarApp() {
-  document.getElementById('screen-selector').style.display = 'none';
   document.getElementById('screen-login').style.display = 'none';
   document.getElementById('screen-app').style.display = 'flex';
 
@@ -3252,14 +2167,12 @@ function iniciarApp() {
 
 document.getElementById('btn-logout').addEventListener('click', () => {
   borrarSesion();
-  borrarDispositivo();
-  document.querySelector('.app-body')?.classList.remove('mostrando-expediente');
   medicoActual = null;
   pacienteActual = null;
   todosPacientes = [];
   document.getElementById('screen-app').style.display = 'none';
-  document.getElementById('screen-selector').style.display = 'none';
-  document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('screen-selector').style.display = 'flex';
+  document.getElementById('screen-login').style.display = 'none';
   document.getElementById('input-codigo').value = '';
   document.getElementById('login-error').textContent = '';
   document.getElementById('expediente').style.display = 'none';
@@ -3276,17 +2189,13 @@ async function cargarPacientes() {
 
   try {
     let formula, url;
-    if (medicoActual.id === 'demo' || medicoActual['Ver todos los pacientes'] === true) {
-      // Demo, o médico maestro (Ver todos los pacientes activo): sin filtro.
-      url = '?sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100';
+    if (medicoActual.id === 'demo') {
+      // Demo: sin filtro
+      url = '?sort[0][field]=Nombre&sort[0][direction]=asc&maxRecords=100';
     } else {
-      // ARRAYJOIN() sobre un campo de registros vinculados devuelve el valor del
-      // CAMPO PRIMARIO del registro vinculado — en la tabla MÉDICOS ese campo
-      // primario es "Código de médico" (verificado con datos reales), no el
-      // nombre ni el ID interno.
-      const codigoMedico = (medicoActual['Código de médico'] || '').replace(/"/g, '\\"');
-      formula = encodeURIComponent(`FIND("${codigoMedico}", ARRAYJOIN({Médico_principal}))`);
-      url = `?filterByFormula=${formula}&sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100`;
+      // Filtrar por Médico_principal vinculado al record ID del médico
+      formula = encodeURIComponent(`FIND("${medicoActual.id}", ARRAYJOIN({Médico_principal}))`);
+      url = `?filterByFormula=${formula}&sort[0][field]=Nombre&sort[0][direction]=asc&maxRecords=100`;
     }
 
     const data = await airtableFetch(TBL_PACIENTES, url);
@@ -3294,9 +2203,8 @@ async function cargarPacientes() {
     renderPacientes(todosPacientes);
 
   } catch (err) {
-    todosPacientes = [];
+    todosPacientes = demoPacientes();
     renderPacientes(todosPacientes);
-    showToast('No se pudo cargar la lista de pacientes. Verifica tu conexión.', 'error');
   }
 }
 
@@ -3364,13 +2272,11 @@ function demoPacientes() {
 
 function renderPacientes(records) {
   const lista = document.getElementById('patient-list');
-  const activos = records.filter(r => (r.fields['Estado del expediente'] || '').toLowerCase() === 'activo').length;
+  const activos = records.filter(r => (r.fields['Estado'] || r.fields['estado'] || '').toLowerCase() === 'activo').length;
 
   document.getElementById('stat-total').textContent = records.length;
   document.getElementById('stat-activos').textContent = activos;
-  const hoyStr = new Date().toISOString().slice(0, 10);
-  const hoy = records.filter(r => (r.fields['Última actividad'] || '').slice(0, 10) === hoyStr).length;
-  document.getElementById('stat-hoy').textContent = hoy;
+  document.getElementById('stat-hoy').textContent = Math.floor(Math.random() * 3); // placeholder
 
   if (records.length === 0) {
     lista.innerHTML = '<div class="empty-list">Sin pacientes registrados.</div>';
@@ -3379,8 +2285,8 @@ function renderPacientes(records) {
 
   lista.innerHTML = records.map(r => {
     const f = r.fields;
-    const nombre = f['Nombre completo'] || f['nombre'] || 'Sin nombre';
-    const estado = (f['Estado del expediente'] || 'inactivo').toLowerCase();
+    const nombre = f['Nombre'] || f['nombre'] || 'Sin nombre';
+    const estado = (f['Estado'] || f['estado'] || 'inactivo').toLowerCase();
     const protocolo = f['Protocolo'] || f['protocolo'] || '—';
     const ini = initials(nombre);
     return `
@@ -3388,7 +2294,7 @@ function renderPacientes(records) {
         <div class="avatar">${ini}</div>
         <div class="patient-info">
           <div class="patient-name">${nombre}</div>
-          <div class="patient-meta">${f['Código de paciente'] || r.id.slice(0,8)}${formatEdad(f['Edad']) ? ' · ' + formatEdad(f['Edad']) + ' años' : ''}</div>
+          <div class="patient-meta">${f['ID_Paciente'] || f['id_paciente'] || r.id.slice(0,8)} · ${f['Edad'] || '—'} años</div>
         </div>
         <div class="status-dot ${estado}"></div>
       </div>
@@ -3401,8 +2307,8 @@ document.getElementById('search-pacientes').addEventListener('input', function()
   const q = this.value.toLowerCase();
   const filtrados = todosPacientes.filter(r => {
     const f = r.fields;
-    const nombre = (f['Nombre completo'] || f['nombre'] || '').toLowerCase();
-    const id = (f['Código de paciente'] || '').toLowerCase();
+    const nombre = (f['Nombre'] || f['nombre'] || '').toLowerCase();
+    const id = (f['ID_Paciente'] || f['id_paciente'] || '').toLowerCase();
     return nombre.includes(q) || id.includes(q);
   });
   renderPacientes(filtrados);
@@ -3419,17 +2325,14 @@ async function seleccionarPaciente(pacienteId) {
   if (!pacienteActual) return;
 
   const f = pacienteActual.fields;
-  const nombre = f['Nombre completo'] || f['nombre'] || 'Sin nombre';
-  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteId;
-  const estado = (f['Estado del expediente'] || 'inactivo').toLowerCase();
+  const nombre = f['Nombre'] || f['nombre'] || 'Sin nombre';
+  const pacId = f['ID_Paciente'] || f['id_paciente'] || pacienteId;
+  const estado = (f['Estado'] || f['estado'] || 'inactivo').toLowerCase();
   const protocolo = f['Protocolo'] || f['protocolo'] || '—';
 
   // Mostrar expediente
   document.getElementById('no-patient').style.display = 'none';
   document.getElementById('expediente').style.display = 'flex';
-
-  // En móvil, el expediente ocupa la pantalla completa (vista tipo app, no panel apretado)
-  if (isMobile()) document.querySelector('.app-body').classList.add('mostrando-expediente');
 
   // Header
   document.getElementById('exp-avatar').textContent = initials(nombre);
@@ -3440,7 +2343,7 @@ async function seleccionarPaciente(pacienteId) {
   tagsEl.innerHTML = `
     <span class="tag tag-${estado === 'activo' ? 'cyan' : estado === 'pendiente' ? 'gold' : 'gray'}">${estado.charAt(0).toUpperCase() + estado.slice(1)}</span>
     <span class="tag tag-gold">${protocolo}</span>
-    ${formatEdad(f['Edad']) ? `<span class="tag tag-gray">${formatEdad(f['Edad'])} años · ${f['Sexo'] || f['sexo'] || '—'}</span>` : ''}
+    ${f['Edad'] ? `<span class="tag tag-gray">${f['Edad']} años · ${f['Sexo'] || f['sexo'] || '—'}</span>` : ''}
   `;
 
   // Activar tab de datos
@@ -3451,15 +2354,6 @@ async function seleccionarPaciente(pacienteId) {
   cargarLabs(pacId);
 }
 
-// ─── NAVEGACIÓN MÓVIL: LISTA ⇄ EXPEDIENTE ──────────────────────────
-document.getElementById('btn-volver-lista').addEventListener('click', () => {
-  document.querySelector('.app-body').classList.remove('mostrando-expediente');
-});
-
-window.addEventListener('resize', () => {
-  if (!isMobile()) document.querySelector('.app-body')?.classList.remove('mostrando-expediente');
-});
-
 // ─── TABS ─────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => activarTab(btn.dataset.tab));
@@ -3468,10 +2362,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 function activarTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
-  // El formulario "Nueva consulta" solo tiene sentido en la pestaña Consultas —
-  // en NOVA LABS y las demás debe verse únicamente el contenido de esa pestaña.
-  const seccionConsulta = document.querySelector('.consulta-section');
-  if (seccionConsulta) seccionConsulta.style.display = (tab === 'consultas') ? '' : 'none';
 }
 
 // ─── DATOS GENERALES ──────────────────────────────────────────────
@@ -3480,20 +2370,16 @@ function cargarDatosGenerales(record) {
   const grid = document.getElementById('datos-grid');
 
   const campos = [
-    { key: 'Nombre completo', val: f['Nombre completo'] || f['Nombre'] || f['nombre'] },
-    { key: 'ID Paciente', val: f['Código de paciente'] },
-    { key: 'Edad', val: formatEdad(f['Edad']) ? `${formatEdad(f['Edad'])} años` : null },
-    { key: 'Sexo biológico', val: f['Sexo biológico'] || f['Sexo'] || f['sexo'] },
-    { key: 'Fecha de ingreso', val: formatDate(f['Fecha de registro']) },
-    { key: 'Teléfono', val: f['Teléfono WhatsApp'] || f['Telefono'] || f['telefono'] || f['WhatsApp'] },
-    { key: 'Email', val: f['Correo electrónico'] || f['Email'] || f['email'] },
+    { key: 'Nombre completo', val: f['Nombre'] || f['nombre'] },
+    { key: 'ID Paciente', val: f['ID_Paciente'] || f['id_paciente'] },
+    { key: 'Edad', val: f['Edad'] ? `${f['Edad']} años` : null },
+    { key: 'Sexo', val: f['Sexo'] || f['sexo'] },
+    { key: 'Fecha de ingreso', val: formatDate(f['Fecha_ingreso'] || f['fecha_ingreso']) },
+    { key: 'Teléfono', val: f['Telefono'] || f['telefono'] || f['WhatsApp'] },
+    { key: 'Email', val: f['Email'] || f['email'] },
     { key: 'Ciudad', val: f['Ciudad'] || f['ciudad'] },
-    { key: 'Estado civil', val: f['Estado civil'] },
-    { key: 'Ocupación', val: f['Ocupación'] },
-    { key: 'Grupo sanguíneo', val: f['Grupo sanguíneo'] },
-    { key: 'Escolaridad', val: f['Escolaridad'] },
-    { key: 'Protocolo', val: f['Protocolo actual'] || f['Protocolo'] || f['protocolo'] },
-    { key: 'Estado', val: f['Estado del expediente'] },
+    { key: 'Protocolo', val: f['Protocolo'] || f['protocolo'] },
+    { key: 'Estado', val: f['Estado'] || f['estado'] },
   ].filter(c => c.val);
 
   grid.innerHTML = campos.map(c => `
@@ -3504,84 +2390,13 @@ function cargarDatosGenerales(record) {
   `).join('') || '<div class="data-cell"><div class="key">Info</div><div class="val">Sin datos adicionales</div></div>';
 }
 
-// ─── EDITAR DATOS GENERALES (corrección por el médico) ───────────
-document.getElementById('btn-editar-datos').addEventListener('click', () => {
-  if (!pacienteActual) return;
-  const f = pacienteActual.fields;
-  document.getElementById('dg-nombre').value = f['Nombre completo'] || '';
-  document.getElementById('dg-fecha-nacimiento').value = f['Fecha de nacimiento'] || '';
-  document.getElementById('dg-ciudad').value = f['Ciudad'] || '';
-  document.getElementById('dg-telefono').value = f['Teléfono WhatsApp'] || '';
-  document.getElementById('dg-email').value = f['Correo electrónico'] || '';
-  document.getElementById('dg-sexo').value = f['Sexo biológico'] || '';
-  document.getElementById('dg-estado-civil').value = f['Estado civil'] || '';
-  document.getElementById('dg-ocupacion').value = f['Ocupación'] || '';
-  document.getElementById('dg-grupo-sanguineo').value = f['Grupo sanguíneo'] || '';
-  document.getElementById('dg-escolaridad').value = f['Escolaridad'] || '';
-  document.getElementById('datos-edit-error').textContent = '';
-  document.getElementById('datos-grid').style.display = 'none';
-  document.getElementById('datos-edit-form').style.display = 'block';
-});
-
-document.getElementById('btn-cancelar-datos').addEventListener('click', () => {
-  document.getElementById('datos-edit-form').style.display = 'none';
-  document.getElementById('datos-grid').style.display = 'grid';
-});
-
-document.getElementById('btn-guardar-datos').addEventListener('click', async () => {
-  if (!pacienteActual) return;
-  const errEl = document.getElementById('datos-edit-error');
-  const btn = document.getElementById('btn-guardar-datos');
-  const lbl = document.getElementById('dg-save-label');
-  const loader = document.getElementById('dg-save-loader');
-  errEl.textContent = '';
-
-  const fields = {
-    'Nombre completo': document.getElementById('dg-nombre').value.trim() || null,
-    'Fecha de nacimiento': document.getElementById('dg-fecha-nacimiento').value || null,
-    'Ciudad': document.getElementById('dg-ciudad').value.trim() || null,
-    'Teléfono WhatsApp': document.getElementById('dg-telefono').value.trim() || null,
-    'Correo electrónico': document.getElementById('dg-email').value.trim() || null,
-    'Sexo biológico': document.getElementById('dg-sexo').value || null,
-    'Estado civil': document.getElementById('dg-estado-civil').value.trim() || null,
-    'Ocupación': document.getElementById('dg-ocupacion').value.trim() || null,
-    'Grupo sanguíneo': document.getElementById('dg-grupo-sanguineo').value || null,
-    'Escolaridad': document.getElementById('dg-escolaridad').value || null,
-  };
-  Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
-
-  btn.disabled = true; lbl.style.display = 'none'; loader.style.display = 'inline';
-
-  try {
-    await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields, typecast: true })
-    });
-    Object.assign(pacienteActual.fields, fields);
-    showToast('Datos actualizados ✓', 'success');
-    document.getElementById('datos-edit-form').style.display = 'none';
-    document.getElementById('datos-grid').style.display = 'grid';
-    cargarDatosGenerales(pacienteActual);
-  } catch (err) {
-    errEl.textContent = 'Error al guardar. Verifica conexión.';
-  } finally {
-    btn.disabled = false; lbl.style.display = 'inline'; loader.style.display = 'none';
-  }
-});
-
 // ─── HISTORIA CLÍNICA ─────────────────────────────────────────────
-let historiaActualId = null;
-let historiaActualFields = {};
-
 async function cargarHistoria(pacId) {
   const cont = document.getElementById('historia-content');
   cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
-  historiaActualId = null;
-  historiaActualFields = {};
 
   try {
-    const formula = encodeURIComponent(`{Código de paciente ref}="${pacId}"`);
+    const formula = encodeURIComponent(`{ID_Paciente}="${pacId}"`);
     const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1`);
 
     if (!data.records || data.records.length === 0) {
@@ -3589,18 +2404,14 @@ async function cargarHistoria(pacId) {
       return;
     }
 
-    historiaActualId = data.records[0].id;
-    historiaActualFields = data.records[0].fields;
-    const f = historiaActualFields;
+    const f = data.records[0].fields;
     const campos = [
-      { key: 'Motivo de la entrevista', val: f['Motivo de consulta'] },
-      { key: 'Antecedentes heredofamiliares', val: f['AHF — Heredo-familiares'] },
-      { key: 'Alimentación', val: f['APNP — Alimentación'] },
-      { key: 'Tabaco', val: f['APNP — Tabaco'] },
-      { key: 'Alcohol', val: f['APNP — Alcohol'] },
-      { key: 'Actividad física', val: f['APNP — Actividad física'] },
-      { key: 'Alergias', val: f['Alergias'] },
-      { key: 'Medicamentos actuales', val: f['Medicamentos actuales'] },
+      { key: 'Antecedentes heredofamiliares', val: f['AHF'] || f['Antecedentes_HF'] },
+      { key: 'Antecedentes personales no patológicos', val: f['APNP'] },
+      { key: 'Antecedentes personales patológicos', val: f['APP'] },
+      { key: 'Diagnóstico principal', val: f['Diagnostico'] || f['diagnostico'] },
+      { key: 'Alergias', val: f['Alergias'] || f['alergias'] },
+      { key: 'Medicamentos actuales', val: f['Medicamentos'] || f['medicamentos'] },
     ].filter(c => c.val);
 
     if (campos.length === 0) { cont.innerHTML = renderHistoriaDemo(); return; }
@@ -3617,78 +2428,6 @@ async function cargarHistoria(pacId) {
   }
 }
 
-// ─── EDITAR HISTORIA CLÍNICA (corrección por el médico) ──────────
-document.getElementById('btn-editar-historia').addEventListener('click', () => {
-  const f = historiaActualFields;
-  document.getElementById('he-motivo').value = f['Motivo de consulta'] || '';
-  document.getElementById('he-ahf').value = f['AHF — Heredo-familiares'] || '';
-  document.getElementById('he-alimentacion').value = f['APNP — Alimentación'] || '';
-  document.getElementById('he-tabaco').value = f['APNP — Tabaco'] || '';
-  document.getElementById('he-alcohol').value = f['APNP — Alcohol'] || '';
-  document.getElementById('he-actividad').value = f['APNP — Actividad física'] || '';
-  document.getElementById('he-alergias').value = f['Alergias'] || '';
-  document.getElementById('he-medicamentos').value = f['Medicamentos actuales'] || '';
-  document.getElementById('historia-edit-error').textContent = '';
-  document.getElementById('historia-content').style.display = 'none';
-  document.getElementById('historia-edit-form').style.display = 'block';
-});
-
-document.getElementById('btn-cancelar-historia').addEventListener('click', () => {
-  document.getElementById('historia-edit-form').style.display = 'none';
-  document.getElementById('historia-content').style.display = 'block';
-});
-
-document.getElementById('btn-guardar-historia').addEventListener('click', async () => {
-  if (!pacienteActual) return;
-  const errEl = document.getElementById('historia-edit-error');
-  const btn = document.getElementById('btn-guardar-historia');
-  const lbl = document.getElementById('he-save-label');
-  const loader = document.getElementById('he-save-loader');
-  errEl.textContent = '';
-
-  const f = pacienteActual.fields;
-  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-
-  const fields = {
-    'Motivo de consulta': document.getElementById('he-motivo').value.trim() || null,
-    'AHF — Heredo-familiares': document.getElementById('he-ahf').value.trim() || null,
-    'APNP — Alimentación': document.getElementById('he-alimentacion').value.trim() || null,
-    'APNP — Tabaco': document.getElementById('he-tabaco').value.trim() || null,
-    'APNP — Alcohol': document.getElementById('he-alcohol').value.trim() || null,
-    'APNP — Actividad física': document.getElementById('he-actividad').value.trim() || null,
-    'Alergias': document.getElementById('he-alergias').value.trim() || null,
-    'Medicamentos actuales': document.getElementById('he-medicamentos').value.trim() || null,
-  };
-  Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
-
-  btn.disabled = true; lbl.style.display = 'none'; loader.style.display = 'inline';
-
-  try {
-    if (historiaActualId) {
-      // Ya existe un registro (llenado por el paciente o el kiosco) — se corrige
-      await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields, typecast: true })
-      });
-    } else {
-      // No existía historia clínica todavía — el médico la crea de cero
-      fields['Código de paciente ref'] = pacId;
-      fields['Paciente'] = [pacienteActual.id];
-      fields['Fecha entrevista NOVA'] = new Date().toISOString();
-      await airtablePost(TBL_HISTORIA, fields);
-    }
-    showToast('Historia clínica actualizada ✓', 'success');
-    document.getElementById('historia-edit-form').style.display = 'none';
-    document.getElementById('historia-content').style.display = 'block';
-    cargarHistoria(pacId);
-  } catch (err) {
-    errEl.textContent = 'Error al guardar. Verifica conexión.';
-  } finally {
-    btn.disabled = false; lbl.style.display = 'inline'; loader.style.display = 'none';
-  }
-});
-
 function renderHistoriaDemo() {
   return `
     <div class="data-grid">
@@ -3704,26 +2443,16 @@ function renderHistoriaDemo() {
 }
 
 // ─── CONSULTAS PREVIAS ────────────────────────────────────────────
-let viendoInterconsultas = false;
-let pacIdActualConsultas = null;
-
-async function cargarConsultas(pacId, soloMias = true) {
-  pacIdActualConsultas = pacId;
+async function cargarConsultas(pacId) {
   const tl = document.getElementById('timeline-consultas');
   tl.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
 
   try {
-    let formula = `{Código de paciente ref}="${pacId}"`;
-    const miCodigo = medicoActual['Código de médico'] || medicoActual['codigo'];
-    if (soloMias && miCodigo) {
-      formula = `AND({Código de paciente ref}="${pacId}", {Código de médico ref}="${miCodigo}")`;
-    }
-    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=desc&maxRecords=30`);
+    const formula = encodeURIComponent(`{ID_Paciente}="${pacId}"`);
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${formula}&sort[0][field]=Fecha&sort[0][direction]=desc&maxRecords=20`);
 
     if (!data.records || data.records.length === 0) {
-      tl.innerHTML = soloMias
-        ? '<div class="data-cell"><div class="val">Aún no tienes consultas registradas para este paciente. Toca "Ver interconsultas" para ver el manejo de otros médicos.</div></div>'
-        : '<div class="data-cell"><div class="val">Ningún otro médico ha registrado consultas para este paciente.</div></div>';
+      tl.innerHTML = demoConsultas();
       return;
     }
 
@@ -3731,32 +2460,20 @@ async function cargarConsultas(pacId, soloMias = true) {
       const f = r.fields;
       return `
         <div class="timeline-item">
-          <div class="tl-date">${formatDate(f['Fecha de consulta'])}</div>
+          <div class="tl-date">${formatDate(f['Fecha'] || f['fecha'])}</div>
           <div class="tl-content">
-            <div class="tl-title">${f['Tipo de consulta'] || 'Consulta'} — Sesión ${f['Número de sesión'] || '—'}</div>
-            ${!soloMias ? `<div class="tl-note" style="color:var(--gold);font-weight:600;">${f['Médico'] || f['Código de médico ref'] || 'Médico'}</div>` : ''}
-            <div class="tl-note">${f['Motivo de consulta'] || f['Notas internas'] || '—'}</div>
+            <div class="tl-title">${f['Protocolo'] || f['protocolo'] || 'Consulta'} — Sesión ${f['Sesion'] || f['sesion'] || '—'}</div>
+            <div class="tl-note">${f['Motivo'] || f['motivo'] || f['Notas'] || '—'}</div>
           </div>
-          <span class="tag tag-${(f['Estado del protocolo']||'').toLowerCase() === 'completado' ? 'cyan' : 'gold'}" style="font-size:9px;">${f['Estado del protocolo'] || '—'}</span>
+          <span class="tag tag-${(f['Estado']||'').toLowerCase() === 'completado' ? 'cyan' : 'gold'}" style="font-size:9px;">${f['Estado'] || 'Completado'}</span>
         </div>
       `;
     }).join('');
 
   } catch (err) {
-    tl.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar las consultas. Verifica tu conexión e intenta de nuevo.</div></div>';
+    tl.innerHTML = demoConsultas();
   }
 }
-
-document.getElementById('btn-toggle-interconsultas').addEventListener('click', () => {
-  viendoInterconsultas = !viendoInterconsultas;
-  document.getElementById('consultas-label').textContent = viendoInterconsultas
-    ? 'Interconsultas (todos los médicos)'
-    : 'Historial de consultas (tuyas)';
-  document.getElementById('btn-toggle-interconsultas').textContent = viendoInterconsultas
-    ? '← Ver solo las mías'
-    : '⇄ Ver interconsultas';
-  if (pacIdActualConsultas) cargarConsultas(pacIdActualConsultas, !viendoInterconsultas);
-});
 
 function demoConsultas() {
   return `
@@ -3791,440 +2508,35 @@ function demoConsultas() {
 }
 
 // ─── NOVA LABS ────────────────────────────────────────────────────
-var labsEstudiosActuales = [];
-var labsSubtabActual = 'Todos';
-
 async function cargarLabs(pacId) {
   const cont = document.getElementById('labs-content');
   cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
-  labsSubtabActual = 'Todos';
-  document.querySelectorAll('.labs-subtab-btn').forEach(b => b.classList.toggle('activo', b.getAttribute('data-tipo') === 'Todos'));
-  document.getElementById('labs-pivote-wrap').style.display = 'none';
-  document.getElementById('labs-cronologico-wrap').style.display = 'block';
 
   try {
-    const r = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'medico_resumen_labs', pacienteCode: pacId }),
-    });
-    const data = await r.json();
+    const formula = encodeURIComponent(`{ID_Paciente}="${pacId}"`);
+    const data = await airtableFetch(TBL_LABS, `?filterByFormula=${formula}&sort[0][field]=Fecha&sort[0][direction]=desc&maxRecords=1`);
 
-    if (!data.ok) {
-      cont.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.</div></div>';
+    if (!data.records || data.records.length === 0) {
+      cont.innerHTML = demoLabs();
       return;
     }
 
-    labsEstudiosActuales = data.estudios || [];
-    renderLabsFiltrados();
+    const f = data.records[0].fields;
+    const ignorar = ['ID_Paciente', 'id_paciente', 'Paciente', 'Fecha', 'fecha', 'Notas'];
+    const filas = Object.entries(f)
+      .filter(([k]) => !ignorar.includes(k) && typeof f[k] !== 'object')
+      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td><td>—</td><td class="val-normal">Normal</td></tr>`)
+      .join('');
+
+    cont.innerHTML = `
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:8px;">Fecha: ${formatDate(f['Fecha'] || f['fecha'])}</div>
+      <table class="labs-table"><thead><tr><th>Parámetro</th><th>Resultado</th><th>Referencia</th><th>Estado</th></tr></thead>
+      <tbody>${filas}</tbody></table>
+    `;
+
   } catch (err) {
-    cont.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.</div></div>';
+    cont.innerHTML = demoLabs();
   }
-}
-
-function cambiarSubtabLabs(tipo) {
-  labsSubtabActual = tipo;
-  document.querySelectorAll('.labs-subtab-btn').forEach(b => b.classList.toggle('activo', b.getAttribute('data-tipo') === tipo));
-
-  const esLaboratorio = tipo === 'Laboratorio';
-  document.getElementById('labs-pivote-wrap').style.display = esLaboratorio ? 'block' : 'none';
-  document.getElementById('labs-cronologico-wrap').style.display = esLaboratorio ? 'none' : 'block';
-
-  if (esLaboratorio) {
-    cargarTablaPivoteLabs();
-  } else {
-    renderLabsFiltrados();
-  }
-}
-
-// ─── TABLA PIVOTE DE LABORATORIOS (analito × fecha, por categoría) ─
-var labsPivoteFilas = [];
-var labsPivoteFechas = [];
-var labsCategoriasColapsadas = new Set();
-var labsInterpretacionActual = '';
-
-async function cargarTablaPivoteLabs() {
-  if (!pacienteActual) return;
-  const f = pacienteActual.fields;
-  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-  const cont = document.getElementById('labs-tabla-pivote');
-  cont.innerHTML = '<div class="loading-row"><span class="loader"></span></div>';
-  labsInterpretacionActual = '';
-
-  try {
-    const [r, rInterp] = await Promise.all([
-      fetch('/api/nova', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'medico_tabla_labs', pacienteCode: pacId }),
-      }),
-      fetch('/api/nova', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'medico_resumen_labs', pacienteCode: pacId }),
-      }).catch(() => null),
-    ]);
-    const data = await r.json();
-    if (!data.ok) { cont.innerHTML = '<div class="data-cell"><div class="val">No se pudo cargar la tabla de laboratorios.</div></div>'; return; }
-
-    if (rInterp) {
-      try { const dataInterp = await rInterp.json(); labsInterpretacionActual = (dataInterp.ok && dataInterp.interpretacion) || ''; } catch {}
-    }
-
-    labsPivoteFilas = data.filas || [];
-    labsPivoteFechas = data.fechas || [];
-    labsCategoriasColapsadas = new Set();
-
-    if (labsPivoteFechas.length) {
-      document.getElementById('labs-fecha-desde').value = labsPivoteFechas[0];
-      document.getElementById('labs-fecha-hasta').value = labsPivoteFechas[labsPivoteFechas.length - 1];
-      const selA = document.getElementById('labs-comparar-fecha-a');
-      const selB = document.getElementById('labs-comparar-fecha-b');
-      const opciones = labsPivoteFechas.map(fch => `<option value="${fch}">${formatDate(fch)}</option>`).join('');
-      selA.innerHTML = opciones; selB.innerHTML = opciones;
-      selA.value = labsPivoteFechas[0]; selB.value = labsPivoteFechas[labsPivoteFechas.length - 1];
-    }
-    renderTimelineLabs();
-    renderTablaPivoteLabs();
-  } catch (err) {
-    cont.innerHTML = '<div class="data-cell"><div class="val">No se pudo cargar la tabla de laboratorios.</div></div>';
-  }
-}
-
-function renderTimelineLabs() {
-  const cont = document.getElementById('labs-timeline');
-  if (!labsPivoteFechas.length) { cont.innerHTML = ''; return; }
-  cont.innerHTML = `<button type="button" class="labs-timeline-chip activo" data-fecha="__todas__" onclick="filtrarPorFechaTimeline(null)">Todas</button>` +
-    labsPivoteFechas.map(f => `<button type="button" class="labs-timeline-chip" data-fecha="${f}" onclick="filtrarPorFechaTimeline('${f}')">${formatDate(f)}</button>`).join('');
-}
-
-function filtrarPorFechaTimeline(fecha) {
-  document.querySelectorAll('.labs-timeline-chip').forEach(b => b.classList.toggle('activo', b.getAttribute('data-fecha') === (fecha || '__todas__')));
-  if (fecha) {
-    document.getElementById('labs-fecha-desde').value = fecha;
-    document.getElementById('labs-fecha-hasta').value = fecha;
-  } else if (labsPivoteFechas.length) {
-    document.getElementById('labs-fecha-desde').value = labsPivoteFechas[0];
-    document.getElementById('labs-fecha-hasta').value = labsPivoteFechas[labsPivoteFechas.length - 1];
-  }
-  renderTablaPivoteLabs();
-}
-
-function sparklineSVG(puntos) {
-  const numericos = puntos.filter(p => typeof p.valorNum === 'number');
-  if (numericos.length < 2) return '';
-  const vals = numericos.map(p => p.valorNum);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const rango = (max - min) || 1;
-  const w = 84, h = 28, pad = 4;
-
-  const coords = numericos.map((p, i) => ({
-    x: pad + (i / (numericos.length - 1)) * (w - pad * 2),
-    y: h - pad - ((p.valorNum - min) / rango) * (h - pad * 2),
-  }));
-
-  // Curva suave tipo Catmull-Rom → Bézier, en vez de segmentos rectos.
-  let path = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
-  for (let i = 0; i < coords.length - 1; i++) {
-    const p0 = coords[i - 1] || coords[i];
-    const p1 = coords[i];
-    const p2 = coords[i + 1];
-    const p3 = coords[i + 2] || p2;
-    const cp1x = p1.x + (p2.x - p0.x) / 6, cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6, cp2y = p2.y - (p3.y - p1.y) / 6;
-    path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-  }
-  const areaPath = `${path} L ${coords[coords.length - 1].x.toFixed(1)} ${h} L ${coords[0].x.toFixed(1)} ${h} Z`;
-
-  const badness = b => (b === 'Alto' || b === 'Bajo') ? 1 : (b === 'Normal' ? 0 : 0.5);
-  const primero = badness(numericos[0].bandera), ultimo = badness(numericos[numericos.length - 1].bandera);
-  const color = ultimo < primero ? '#5FAE6E' : (ultimo > primero ? '#E2574B' : '#C9A96A');
-  const gid = 'spk' + Math.random().toString(36).slice(2, 9);
-  const finalPt = coords[coords.length - 1];
-  const finalCritico = numericos[numericos.length - 1].critico;
-
-  return `<svg width="${w}" height="${h}" style="display:block;pointer-events:none;">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${color}" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
-    </linearGradient></defs>
-    <path d="${areaPath}" fill="url(#${gid})" stroke="none"/>
-    <path d="${path}" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round"/>
-    <circle cx="${finalPt.x.toFixed(1)}" cy="${finalPt.y.toFixed(1)}" r="${finalCritico ? 3.5 : 2.5}" fill="${finalCritico ? '#E74C3C' : color}"/>
-  </svg>`;
-}
-
-function claseValorBandera(p) {
-  if (p.critico) return 'labs-valor-critico';
-  if (p.bandera === 'Alto') return 'labs-valor-alto';
-  if (p.bandera === 'Bajo') return 'labs-valor-bajo';
-  if (p.bandera === 'Normal') return 'labs-valor-normal';
-  return 'labs-valor-indeterminado';
-}
-
-function obtenerFilasVisibles() {
-  const desde = document.getElementById('labs-fecha-desde').value;
-  const hasta = document.getElementById('labs-fecha-hasta').value;
-  const soloFueraDeRango = document.getElementById('labs-filtro-ver').value === 'fuera';
-  const busqueda = (document.getElementById('labs-buscar').value || '').trim().toLowerCase();
-  const orden = document.getElementById('labs-orden-fecha').value;
-
-  let fechasVisibles = labsPivoteFechas.filter(f => (!desde || f >= desde) && (!hasta || f <= hasta));
-  if (orden === 'desc') fechasVisibles = [...fechasVisibles].reverse();
-
-  const filasVisibles = labsPivoteFilas
-    .map(fila => ({ ...fila, puntosVisibles: labsPivoteFechas.filter(f => fechasVisibles.includes(f)).map(f => ({ fecha: f, ...(fila.porFecha[f] || {}) })).filter(p => p.valor !== undefined) }))
-    .filter(fila => fila.puntosVisibles.length > 0)
-    .filter(fila => !soloFueraDeRango || fila.puntosVisibles.some(p => p.bandera === 'Alto' || p.bandera === 'Bajo'))
-    .filter(fila => !busqueda || fila.analito.toLowerCase().includes(busqueda));
-
-  return { fechasVisibles, filasVisibles };
-}
-
-function renderTablaPivoteLabs() {
-  const cont = document.getElementById('labs-tabla-pivote');
-  const tarjetasCont = document.getElementById('labs-tarjetas-resumen');
-  const { fechasVisibles, filasVisibles } = obtenerFilasVisibles();
-
-  if (!labsPivoteFilas.length || !fechasVisibles.length) {
-    tarjetasCont.innerHTML = '';
-    cont.innerHTML = '<div class="data-cell"><div class="val">Este paciente aún no tiene resultados de laboratorio estructurados en este rango.</div></div>';
-    return;
-  }
-
-  // Tarjetas resumen
-  const totalResultados = filasVisibles.reduce((acc, f) => acc + f.puntosVisibles.length, 0);
-  const totalFueraDeRango = filasVisibles.reduce((acc, f) => acc + f.puntosVisibles.filter(p => p.bandera === 'Alto' || p.bandera === 'Bajo').length, 0);
-  const badness = b => (b === 'Alto' || b === 'Bajo') ? 1 : (b === 'Normal' ? 0 : 0.5);
-  let mejoran = 0, empeoran = 0;
-  filasVisibles.forEach(fila => {
-    if (fila.puntosVisibles.length < 2) return;
-    const d = badness(fila.puntosVisibles[fila.puntosVisibles.length - 1].bandera) - badness(fila.puntosVisibles[0].bandera);
-    if (d < 0) mejoran++; else if (d > 0) empeoran++;
-  });
-  const tendenciaTexto = mejoran > empeoran ? 'Mejoría ↗' : (empeoran > mejoran ? 'Atención ↘' : 'Estable →');
-  const tendenciaClase = mejoran > empeoran ? 'mejoria' : (empeoran > mejoran ? 'empeora' : '');
-  const ultimoEstudio = labsPivoteFechas.length ? formatDate(labsPivoteFechas[labsPivoteFechas.length - 1]) : '—';
-
-  tarjetasCont.innerHTML = `
-    <div class="labs-tarjeta"><div class="labs-tarjeta-label">Estudios realizados</div><div class="labs-tarjeta-valor">${fechasVisibles.length}</div></div>
-    <div class="labs-tarjeta"><div class="labs-tarjeta-label">Último estudio</div><div class="labs-tarjeta-valor" style="font-size:15px;">${ultimoEstudio}</div></div>
-    <div class="labs-tarjeta"><div class="labs-tarjeta-label">Fuera de rango</div><div class="labs-tarjeta-valor" style="${totalFueraDeRango ? 'color:#E2574B;' : ''}">${totalFueraDeRango}</div></div>
-    <div class="labs-tarjeta"><div class="labs-tarjeta-label">Tendencia global</div><div class="labs-tarjeta-valor ${tendenciaClase}">${tendenciaTexto}</div></div>
-  `;
-
-  // Tabla agrupada por categoría, con colapsar/expandir
-  const grupos = {};
-  filasVisibles.forEach(fila => { (grupos[fila.categoria] ||= []).push(fila); });
-
-  const bloquesHTML = Object.keys(grupos).sort().map(categoria => {
-    const colapsado = labsCategoriasColapsadas.has(categoria);
-    const filasCategoria = grupos[categoria].map(fila => {
-      const celdas = fechasVisibles.map(f => {
-        const p = fila.porFecha[f];
-        if (!p || p.valor === undefined) return '<td>—</td>';
-        return `<td class="${claseValorBandera(p)}">${p.valor}</td>`;
-      }).join('');
-      return `<tr style="${colapsado ? 'display:none;' : ''}" data-categoria="${categoria}" onclick="abrirDetalleParametro('${fila.analito.replace(/'/g, "\\'")}')">
-        <td><strong>${fila.analito}</strong></td>
-        <td style="color:var(--text-3);">${fila.unidad}</td>
-        <td style="color:var(--text-3);">${fila.rango_texto}</td>
-        ${celdas}
-        <td>${sparklineSVG(fila.puntosVisibles)}</td>
-      </tr>`;
-    }).join('');
-    return `<tr class="labs-pivote-cat-row">
-      <td colspan="${3 + fechasVisibles.length + 1}">
-        <span class="labs-cat-toggle ${colapsado ? 'colapsado' : ''}" onclick="toggleCategoriaLabs('${categoria.replace(/'/g, "\\'")}')"><span class="flecha">▾</span>${categoria}</span>
-      </td>
-    </tr>${filasCategoria}`;
-  }).join('');
-
-  cont.innerHTML = `
-    <table class="labs-pivote-table">
-      <thead><tr>
-        <th>Estudio</th><th>Unidad</th><th>Valores de referencia</th>
-        ${fechasVisibles.map(f => `<th>${formatDate(f)}</th>`).join('')}
-        <th>Tendencia</th>
-      </tr></thead>
-      <tbody>${bloquesHTML}</tbody>
-    </table>
-    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">🔵 Bajo &nbsp; 🟢 Normal &nbsp; 🟠 Alto &nbsp; 🔴 Crítico — los resultados están sujetos a interpretación clínica. Clic en una fila para ver el detalle.</div>
-    ${labsInterpretacionActual ? `<div style="margin-top:16px;padding:14px 16px;background:var(--black-3);border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.6;color:var(--text-2);">${labsInterpretacionActual}</div>` : ''}
-  `;
-}
-
-function toggleCategoriaLabs(categoria) {
-  if (labsCategoriasColapsadas.has(categoria)) labsCategoriasColapsadas.delete(categoria);
-  else labsCategoriasColapsadas.add(categoria);
-  renderTablaPivoteLabs();
-}
-
-// ─── COMPARAR 2 FECHAS ─────────────────────────────────────────────
-function toggleModoComparar() {
-  const wrap = document.getElementById('labs-comparar-wrap');
-  const visible = wrap.style.display !== 'none';
-  wrap.style.display = visible ? 'none' : 'block';
-  if (!visible) renderCompararFechas();
-}
-
-function renderCompararFechas() {
-  const fechaA = document.getElementById('labs-comparar-fecha-a').value;
-  const fechaB = document.getElementById('labs-comparar-fecha-b').value;
-  const cont = document.getElementById('labs-comparar-tabla');
-  if (!fechaA || !fechaB) { cont.innerHTML = ''; return; }
-
-  const filas = labsPivoteFilas
-    .map(fila => ({ analito: fila.analito, unidad: fila.unidad, a: fila.porFecha[fechaA], b: fila.porFecha[fechaB] }))
-    .filter(f => f.a && f.b && f.a.valor !== undefined && f.b.valor !== undefined);
-
-  if (!filas.length) { cont.innerHTML = '<div style="font-size:12px;color:var(--text-3);">No hay parámetros con datos en ambas fechas.</div>'; return; }
-
-  cont.innerHTML = `
-    <table class="labs-pivote-table">
-      <thead><tr><th>Parámetro</th><th>${formatDate(fechaA)}</th><th>${formatDate(fechaB)}</th><th>Cambio</th><th>Interpretación</th></tr></thead>
-      <tbody>${filas.map(f => {
-        let cambioTexto = '—', interpretacion = 'Sin datos numéricos suficientes.';
-        if (typeof f.a.valorNum === 'number' && typeof f.b.valorNum === 'number' && f.a.valorNum !== 0) {
-          const pct = ((f.b.valorNum - f.a.valorNum) / Math.abs(f.a.valorNum)) * 100;
-          const abs = f.b.valorNum - f.a.valorNum;
-          cambioTexto = `${abs > 0 ? '+' : ''}${abs.toFixed(2)} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)`;
-          const badness = b => (b === 'Alto' || b === 'Bajo') ? 1 : (b === 'Normal' ? 0 : 0.5);
-          const d = badness(f.b.bandera) - badness(f.a.bandera);
-          interpretacion = d < 0 ? 'Mejoró — se acercó o entró al rango normal.' : d > 0 ? 'Empeoró — se alejó del rango normal.' : 'Se mantuvo estable.';
-        }
-        return `<tr>
-          <td><strong>${f.analito}</strong></td>
-          <td class="${claseValorBandera(f.a)}">${f.a.valor} ${f.unidad}</td>
-          <td class="${claseValorBandera(f.b)}">${f.b.valor} ${f.unidad}</td>
-          <td>${cambioTexto}</td>
-          <td style="color:var(--text-2);font-size:11.5px;">${interpretacion}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>
-  `;
-}
-
-// ─── DETALLE DE PARÁMETRO (modal con gráfica) ──────────────────────
-var labsChartInstancia = null;
-
-function abrirDetalleParametro(nombreAnalito) {
-  const fila = labsPivoteFilas.find(f => f.analito === nombreAnalito);
-  if (!fila) return;
-
-  const fechas = labsPivoteFechas.filter(f => fila.porFecha[f] && fila.porFecha[f].valor !== undefined);
-  const puntos = fechas.map(f => ({ fecha: f, ...fila.porFecha[f] }));
-
-  document.getElementById('labs-detalle-nombre').textContent = fila.analito;
-  document.getElementById('labs-detalle-rango').textContent = `Unidad: ${fila.unidad || 'n/d'} · Rango de referencia: ${fila.rango_texto || 'n/d'}`;
-
-  const ultimo = puntos[puntos.length - 1];
-  const estadoTexto = ultimo ? (ultimo.critico ? 'Crítico' : ultimo.bandera) : 'Sin datos';
-  document.getElementById('labs-detalle-estado').innerHTML = ultimo
-    ? `<span class="${claseValorBandera(ultimo)}" style="font-size:22px;font-weight:700;">${ultimo.valor} ${fila.unidad}</span> <span style="font-size:12px;color:var(--text-3);margin-left:8px;">(${estadoTexto}, ${formatDate(ultimo.fecha)})</span>`
-    : '';
-
-  // Gráfica
-  const ctx = document.getElementById('labs-detalle-chart').getContext('2d');
-  if (labsChartInstancia) labsChartInstancia.destroy();
-  const numericos = puntos.filter(p => typeof p.valorNum === 'number');
-  if (numericos.length >= 2) {
-    labsChartInstancia = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: numericos.map(p => formatDate(p.fecha)),
-        datasets: [{
-          label: fila.analito,
-          data: numericos.map(p => p.valorNum),
-          borderColor: '#C9A96A',
-          backgroundColor: 'rgba(201,169,106,0.12)',
-          pointBackgroundColor: numericos.map(p => p.critico ? '#E74C3C' : (p.bandera === 'Alto' ? '#F0AD4E' : p.bandera === 'Bajo' ? '#4DA3FF' : '#5CB85C')),
-          pointRadius: 5,
-          tension: 0.3,
-          fill: true,
-        }],
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: '#9a9590' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          y: { ticks: { color: '#9a9590' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        },
-      },
-    });
-  }
-
-  // Tabla histórica
-  document.getElementById('labs-detalle-tabla').innerHTML = `
-    <table class="labs-pivote-table">
-      <thead><tr><th>Fecha</th><th>Valor</th><th>Estado</th></tr></thead>
-      <tbody>${puntos.slice().reverse().map(p => `<tr><td>${formatDate(p.fecha)}</td><td class="${claseValorBandera(p)}">${p.valor} ${fila.unidad}</td><td>${p.critico ? 'Crítico' : p.bandera}</td></tr>`).join('')}</tbody>
-    </table>
-  `;
-
-  // Interpretación simple basada en % de cambio inicio→fin (regla, no IA por clic)
-  let interpretacionTexto = 'No hay suficientes valores numéricos para calcular tendencia.';
-  if (numericos.length >= 2) {
-    const primero = numericos[0], ultimoNum = numericos[numericos.length - 1];
-    const pct = primero.valorNum !== 0 ? ((ultimoNum.valorNum - primero.valorNum) / Math.abs(primero.valorNum)) * 100 : 0;
-    const direccion = pct > 0 ? 'aumentó' : pct < 0 ? 'disminuyó' : 'se mantuvo';
-    interpretacionTexto = `${fila.analito} ${direccion} ${Math.abs(pct).toFixed(1)}% entre ${formatDate(primero.fecha)} y ${formatDate(ultimoNum.fecha)}. Estado actual: ${estadoTexto}.`;
-  }
-  document.getElementById('labs-detalle-interpretacion').textContent = interpretacionTexto;
-
-  document.getElementById('labs-detalle-modal').style.display = 'flex';
-}
-
-// ─── COPIAR RESUMEN (en vez de generar PDF) ────────────────────────
-function copiarResumenLabs() {
-  const { fechasVisibles, filasVisibles } = obtenerFilasVisibles();
-  if (!filasVisibles.length) { showToast('No hay datos para copiar en este rango.', 'error'); return; }
-
-  let texto = `Resumen de laboratorios — ${pacienteActual?.fields?.['Nombre completo'] || 'Paciente'}\n`;
-  texto += `Rango: ${formatDate(fechasVisibles[0])} a ${formatDate(fechasVisibles[fechasVisibles.length - 1])}\n\n`;
-
-  let categoriaActual = null;
-  filasVisibles.forEach(fila => {
-    if (fila.categoria !== categoriaActual) {
-      categoriaActual = fila.categoria;
-      texto += `\n${categoriaActual.toUpperCase()}\n`;
-    }
-    const valores = fila.puntosVisibles.map(p => `${p.valor}${p.critico ? '‼' : (p.bandera === 'Alto' ? '↑' : p.bandera === 'Bajo' ? '↓' : '')}`).join(' → ');
-    texto += `${fila.analito} (${fila.unidad}): ${valores}\n`;
-  });
-
-  navigator.clipboard.writeText(texto)
-    .then(() => showToast('Resumen copiado al portapapeles.', 'success'))
-    .catch(() => showToast('No se pudo copiar — revisa permisos del navegador.', 'error'));
-}
-
-function renderLabsFiltrados() {
-  const cont = document.getElementById('labs-content');
-  const tiposConocidos = ['Laboratorio', 'RX', 'USG'];
-  const filtrados = labsEstudiosActuales.filter(e => {
-    if (labsSubtabActual === 'Todos') return true;
-    if (labsSubtabActual === 'otros') return !tiposConocidos.includes(e.tipo);
-    return e.tipo === labsSubtabActual;
-  });
-
-  if (!filtrados.length) {
-    cont.innerHTML = '<div class="data-cell"><div class="val">Este paciente aún no tiene estudios registrados en esta categoría.</div></div>';
-    return;
-  }
-
-  cont.innerHTML = filtrados.map(e => `
-    <div style="margin-bottom:12px;padding:10px 12px;background:var(--black-3);border:1px solid var(--border);border-radius:8px;${e.requiereSeguimiento ? 'border-left:3px solid #E2574B;' : ''}">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:6px;">
-        <span>${e.tipo}${e.panel ? ' · ' + e.panel : ''}</span>
-        <span>${formatDate(e.fecha)}</span>
-      </div>
-      <div style="font-size:12px;white-space:pre-wrap;line-height:1.5;margin-bottom:${e.fueraDeRango || e.interpretacionNova ? '8px' : '0'};">${e.resultadosTexto || 'Sin resultados capturados aún.'}</div>
-      ${e.fueraDeRango ? `<div style="font-size:11.5px;color:#E2574B;margin-bottom:6px;"><strong>Fuera de rango:</strong> ${e.fueraDeRango}</div>` : ''}
-      ${e.interpretacionNova ? `<div style="font-size:11.5px;color:var(--text-2);"><strong>NOVA:</strong> ${e.interpretacionNova}</div>` : ''}
-      ${e.archivos.length ? `<div style="margin-top:8px;"><a href="${e.archivos[0].url}" target="_blank" style="font-size:11px;color:var(--gold);">📎 Ver archivo adjunto</a></div>` : ''}
-    </div>
-  `).join('');
 }
 
 function demoLabs() {
@@ -4270,165 +2582,36 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   loader.style.display = 'inline';
 
   const f = pacienteActual.fields;
-  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-
-  // Signos vitales adicionales van juntos en el campo genérico "Signos vitales"
-  const vitalesExtra = [];
-  const fc = document.getElementById('f-fc').value;
-  const fr = document.getElementById('f-fr').value;
-  const satO2 = document.getElementById('f-sato2').value;
-  const cintura = document.getElementById('f-cintura').value;
-  if (fc) vitalesExtra.push(`FC: ${fc} lpm`);
-  if (fr) vitalesExtra.push(`FR: ${fr} rpm`);
-  if (satO2) vitalesExtra.push(`SatO2: ${satO2}%`);
-  if (cintura) vitalesExtra.push(`Cintura: ${cintura} cm`);
+  const pacId = f['ID_Paciente'] || f['id_paciente'] || pacienteActual.id;
 
   const fields = {
-    'Código de paciente ref': pacId,
-    Médico:       medicoActual['Nombre completo'] || medicoActual['nombre'] || 'Médico',
-    'Código de médico ref': medicoActual['Código de médico'] || medicoActual['Código'] || medicoActual['codigo'] || '—',
-    'Fecha de consulta': new Date().toISOString().split('T')[0],
-    'Tipo de consulta': protocolo,
-    'Número de sesión': parseInt(document.getElementById('f-sesion').value) || 1,
-    'Peso en consulta (kg)': parseFloat(document.getElementById('f-peso').value) || null,
-    'Talla en consulta (cm)': parseFloat(document.getElementById('f-talla').value) || null,
-    'Presión arterial en consulta': document.getElementById('f-presion').value || null,
-    'Temperatura en consulta (°C)': parseFloat(document.getElementById('f-temp').value) || null,
-    'Motivo de consulta': motivo,
-    'Exploración física': document.getElementById('f-exploracion').value || null,
-    'Diagnóstico (CIE-10)': document.getElementById('f-diagnostico').value || null,
-    'Estado del protocolo': document.getElementById('f-estado').value,
-    'Plan terapéutico': document.getElementById('f-plan').value || null,
-    'Notas internas': document.getElementById('f-notas').value || null,
-    'Próxima cita': document.getElementById('f-proxima-cita').value || null,
+    ID_Paciente:  pacId,
+    Médico:       medicoActual['Nombre'] || medicoActual['nombre'] || 'Médico',
+    Código_médico: medicoActual['Código'] || medicoActual['codigo'] || '—',
+    Fecha:        new Date().toISOString().split('T')[0],
+    Protocolo:    protocolo,
+    Sesion:       parseInt(document.getElementById('f-sesion').value) || 1,
+    Peso:         parseFloat(document.getElementById('f-peso').value) || null,
+    Talla:        parseFloat(document.getElementById('f-talla').value) || null,
+    Presion:      document.getElementById('f-presion').value || null,
+    Temperatura:  parseFloat(document.getElementById('f-temp').value) || null,
+    Motivo:       motivo,
+    Exploracion:  document.getElementById('f-exploracion').value || null,
+    Diagnostico:  document.getElementById('f-diagnostico').value || null,
+    Estado:       document.getElementById('f-estado').value,
+    Plan:         document.getElementById('f-plan').value || null,
+    Notas:        document.getElementById('f-notas').value || null,
   };
-  if (vitalesExtra.length > 0) fields['Signos vitales'] = vitalesExtra.join(' · ');
 
   // Limpiar nulls
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
 
   try {
-    const consultaCreada = await airtablePost(TBL_CONSULTAS, fields);
+    await airtablePost(TBL_CONSULTAS, fields);
     showToast('Consulta guardada en Airtable ✓', 'success');
-
-    // Si el médico capturó fecha de próxima cita, intenta crear el evento en
-    // su Google Calendar (si lo tiene conectado). Nunca bloquea ni falla el
-    // guardado de la consulta — es una comodidad adicional, no un requisito.
-    const proximaCitaFecha = document.getElementById('f-proxima-cita').value;
-    if (proximaCitaFecha) {
-      const proximaCitaHora = document.getElementById('f-proxima-cita-hora').value || '10:00';
-      fetch('/api/nova', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'medico_crear_evento_calendario',
-          medicoCode: medicoActual['Código de médico'] || medicoActual['codigo'] || '',
-          pacienteNombre: pacienteActual.fields['Nombre completo'] || 'Paciente',
-          fecha: proximaCitaFecha,
-          hora: proximaCitaHora,
-          motivo: motivo || 'Consulta de seguimiento',
-        }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.ok) showToast('Cita agregada a tu Google Calendar ✓', 'success');
-          // Si no hay calendario conectado o falla, no se muestra error — es opcional.
-        })
-        .catch(() => {});
-    }
-
-    // Antecedentes dictados van a HISTORIA CLÍNICA — crea o corrige el
-    // registro existente (mismo patrón que el botón "Editar historia").
-    const historiaFields = {
-      'AHF — Heredo-familiares': document.getElementById('f-ahf').value.trim() || null,
-      'APP — Enfermedades previas': document.getElementById('f-app').value.trim() || null,
-      'Antecedentes quirúrgicos': document.getElementById('f-quirurgicos').value.trim() || null,
-      'AGO — Ginecobstétrico': document.getElementById('f-ago').value.trim() || null,
-      'Medicamentos actuales': document.getElementById('f-medicamentos').value.trim() || null,
-      'Alergias': document.getElementById('f-alergias').value.trim() || null,
-      'APNP — Alimentación': document.getElementById('f-habitos').value.trim() || null,
-    };
-    Object.keys(historiaFields).forEach(k => !historiaFields[k] && delete historiaFields[k]);
-
-    if (Object.keys(historiaFields).length > 0) {
-      try {
-        if (historiaActualId) {
-          await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields: historiaFields, typecast: true })
-          });
-        } else {
-          historiaFields['Código de paciente ref'] = pacId;
-          historiaFields['Paciente'] = [pacienteActual.id];
-          historiaFields['Fecha entrevista NOVA'] = new Date().toISOString();
-          await airtablePost(TBL_HISTORIA, historiaFields);
-        }
-        cargarHistoria(pacId);
-      } catch (err) {
-        console.error('Error guardando antecedentes en Historia Clínica:', err);
-      }
-    }
-
-    // Datos sociodemográficos van directo a PACIENTES.
-    const estadoCivil = document.getElementById('f-estado-civil').value.trim();
-    const ocupacion = document.getElementById('f-ocupacion').value.trim();
-    const grupoSanguineo = document.getElementById('f-grupo-sanguineo').value;
-    const escolaridad = document.getElementById('f-escolaridad').value;
-    if (estadoCivil || ocupacion || grupoSanguineo || escolaridad) {
-      const pacienteFields = {};
-      if (estadoCivil) pacienteFields['Estado civil'] = estadoCivil;
-      if (ocupacion) pacienteFields['Ocupación'] = ocupacion;
-      if (grupoSanguineo) pacienteFields['Grupo sanguíneo'] = grupoSanguineo;
-      if (escolaridad) pacienteFields['Escolaridad'] = escolaridad;
-      try {
-        await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: pacienteFields, typecast: true })
-        });
-      } catch (err) {
-        console.error('Error guardando datos sociodemográficos:', err);
-      }
-    }
-
-    // Resultados de laboratorio — texto libre dictado por el médico y/o
-    // filas de valores rápidos capturadas en consultorio. Ambos se guardan
-    // vía nova.js para que los valores rápidos alimenten LAB_VALORES y el
-    // comparativo automático (no solo NOVA LABS como antes).
-    const panelLab = document.getElementById('f-panel-lab').value;
-    const resultadosLab = document.getElementById('f-resultados-lab').value.trim();
-    const fueraDeRangoLab = document.getElementById('f-fuera-rango-lab').value.trim();
-    const filasRapidas = leerFilasLabRapido();
-    if (resultadosLab || filasRapidas.length) {
-      try {
-        await fetch('/api/nova', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'medico_guardar_labs_rapidos',
-            pacienteCode: pacId,
-            panel: panelLab || 'Personalizado',
-            tipoEstudio: 'Laboratorio',
-            resultadosTexto: resultadosLab,
-            fueraDeRango: fueraDeRangoLab,
-            valoresRapidos: filasRapidas,
-            consultaId: (consultaCreada && consultaCreada.id) || null,
-          }),
-        });
-        cargarLabs(pacId);
-      } catch (err) {
-        console.error('Error guardando resultados en NOVA LABS:', err);
-      }
-    }
-
     limpiarFormulario();
     // Recargar consultas
     setTimeout(() => cargarConsultas(pacId), 800);
-
-    // Motor de Interpretación Clínica — no bloquea el guardado si falla,
-    // solo actualiza en segundo plano el perfil de patologías del paciente.
-    interpretarPerfilClinico(pacienteActual.id, fields['Diagnóstico (CIE-10)'], fields['Motivo de consulta'], fields['Plan terapéutico']);
   } catch (err) {
     showToast('Error al guardar. Verifica conexión.', 'error');
   } finally {
@@ -4438,155 +2621,17 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   }
 });
 
-// ─── MOTOR DE INTERPRETACIÓN CLÍNICA ────────────────────────────────
-// Se llama después de guardar una consulta. Traduce el texto libre a la
-// taxonomía fija de 30 patologías y actualiza el perfil del paciente en
-// Airtable. Nunca bloquea el guardado de la consulta si falla.
-async function interpretarPerfilClinico(pacienteRecordId, diagnostico, motivoConsulta, planTerapeutico) {
-  if (!diagnostico && !motivoConsulta && !planTerapeutico) return;
-  try {
-    const res = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'interpretar_perfil_clinico', pacienteRecordId, diagnostico, motivoConsulta, planTerapeutico }),
-    });
-    const data = await res.json();
-    if (!res.ok) { console.error('[perfil clínico] error:', data.error); return; }
-    if (data.patologias_nuevas?.length > 0) {
-      showToast(`Perfil actualizado: +${data.patologias_nuevas.join(', ')}`, 'success');
-    }
-    if (data.notas_revision) {
-      showToast('El motor dejó una nota para revisar en el expediente.', 'success');
-    }
-  } catch (err) {
-    console.error('[perfil clínico] error de red:', err);
-  }
-}
-
 document.getElementById('btn-limpiar').addEventListener('click', limpiarFormulario);
 
 function limpiarFormulario() {
   ['f-protocolo','f-sesion','f-peso','f-talla','f-presion','f-temp',
-   'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas',
-   'f-fc','f-fr','f-sato2','f-cintura','f-estado-civil','f-ocupacion',
-   'f-grupo-sanguineo','f-escolaridad',
-   'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos',
-   'f-panel-lab','f-resultados-lab','f-fuera-rango-lab','f-proxima-cita'].forEach(id => {
+   'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas'].forEach(id => {
     const el = document.getElementById(id);
-    if (!el) return;
     if (el.tagName === 'SELECT') el.selectedIndex = 0;
     else el.value = '';
   });
   document.getElementById('f-estado').value = 'activo';
-  document.getElementById('f-proxima-cita-hora').value = '10:00';
-  document.getElementById('lab-rapido-filas').innerHTML = '';
-  document.getElementById('lab-archivo-estado').textContent = '';
 }
-
-// ─── VALORES RÁPIDOS DE LABORATORIO (point-of-care) ────────────────
-function agregarFilaLabRapido() {
-  const cont = document.getElementById('lab-rapido-filas');
-  const fila = document.createElement('div');
-  fila.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;';
-  fila.innerHTML = `
-    <input type="text" placeholder="Analito (ej. Glucosa)" class="lr-analito" style="flex:1.4;min-width:110px;">
-    <input type="text" placeholder="Valor" class="lr-valor" style="flex:0.7;min-width:70px;">
-    <input type="text" placeholder="Unidad" class="lr-unidad" style="flex:0.7;min-width:70px;">
-    <select class="lr-bandera" style="flex:0.8;min-width:100px;">
-      <option value="Normal">Normal</option>
-      <option value="Alto">Alto</option>
-      <option value="Alto-critico">Alto (crítico)</option>
-      <option value="Bajo">Bajo</option>
-      <option value="Bajo-critico">Bajo (crítico)</option>
-      <option value="Indeterminado">Indeterminado</option>
-    </select>
-    <input type="text" placeholder="Rango ref. (opcional)" class="lr-rango" style="flex:1;min-width:90px;">
-    <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;padding:0 4px;">×</button>
-  `;
-  cont.appendChild(fila);
-}
-
-function leerFilasLabRapido() {
-  return Array.from(document.querySelectorAll('#lab-rapido-filas > div')).map(fila => {
-    const banderaRaw = fila.querySelector('.lr-bandera').value;
-    const esCritico = banderaRaw.endsWith('-critico');
-    return {
-      analito: fila.querySelector('.lr-analito').value.trim(),
-      valor: fila.querySelector('.lr-valor').value.trim(),
-      unidad: fila.querySelector('.lr-unidad').value.trim(),
-      bandera: esCritico ? banderaRaw.replace('-critico', '') : banderaRaw,
-      critico: esCritico,
-      rango: fila.querySelector('.lr-rango').value.trim(),
-    };
-  }).filter(f => f.analito);
-}
-
-// ─── SUBIR ESTUDIO EN CONSULTORIO (médico) ─────────────────────────
-document.getElementById('btn-subir-lab-archivo').addEventListener('click', () => {
-  document.getElementById('f-lab-archivo').click();
-});
-
-document.getElementById('f-lab-archivo').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
-
-  const estadoEl = document.getElementById('lab-archivo-estado');
-  const btn = document.getElementById('btn-subir-lab-archivo');
-  const tiposValidos = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic'];
-  if (tiposValidos.indexOf(file.type) === -1) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).';
-    return;
-  }
-  if (file.size > 8 * 1024 * 1024) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'Archivo muy grande (máximo 8MB).';
-    return;
-  }
-
-  const f = pacienteActual.fields;
-  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-
-  estadoEl.style.color = 'var(--text-2)';
-  estadoEl.textContent = 'Leyendo y extrayendo datos del estudio…';
-  btn.disabled = true;
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    const base64 = reader.result.split(',')[1];
-    fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'medico_subir_estudio',
-        pacienteCode: pacId,
-        fileBase64: base64,
-        fileName: file.name,
-        mediaType: file.type,
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        btn.disabled = false;
-        if (data.ok) {
-          estadoEl.style.color = '#5FAE6E';
-          estadoEl.textContent = `Estudio agregado (${data.tipoEstudio}${data.totalAnalitos ? ', ' + data.totalAnalitos + ' valores' : ''}${data.totalFueraDeRango ? ', ' + data.totalFueraDeRango + ' fuera de rango' : ''}) ✓`;
-          document.getElementById('f-lab-archivo').value = '';
-          cargarLabs(pacId);
-        } else {
-          estadoEl.style.color = '#E2574B';
-          estadoEl.textContent = data.error || 'No se pudo procesar el estudio.';
-        }
-      })
-      .catch(() => {
-        btn.disabled = false;
-        estadoEl.style.color = '#E2574B';
-        estadoEl.textContent = 'Error de conexión. Intenta de nuevo.';
-      });
-  };
-  reader.readAsDataURL(file);
-});
 
 // ─── TEMPORIZADOR DE SESIÓN ───────────────────────────────────────
 function iniciarTemporizador() {
@@ -4623,11 +2668,9 @@ const THEME_KEY = 'cc_portal_theme';
 function aplicarTema(tema) {
   if (tema === 'light') {
     document.body.classList.add('light');
-    document.documentElement.classList.add('light');
     document.getElementById('btn-theme').textContent = '🌙';
   } else {
     document.body.classList.remove('light');
-    document.documentElement.classList.remove('light');
     document.getElementById('btn-theme').textContent = '☀';
   }
   localStorage.setItem(THEME_KEY, tema);
@@ -4662,107 +2705,8 @@ function cerrarNova() {
 }
 
 document.getElementById('btn-nova-open').addEventListener('click', abrirNova);
-
-document.getElementById('btn-google-calendar').addEventListener('click', () => {
-  if (!medicoActual || medicoActual.id === 'demo') {
-    showToast('El modo demo no puede conectar Google Calendar.', 'error');
-    return;
-  }
-  if (medicoActual['Google Calendar Email']) {
-    showToast(`Ya tienes conectado: ${medicoActual['Google Calendar Email']}`, 'success');
-    return;
-  }
-  const GOOGLE_CLIENT_ID = '741625233877-n4i5n224o0mq7h2ao7cbnru470co7m9b.apps.googleusercontent.com';
-  const redirectUri = 'https://www.codecells.mx/api/google-oauth-callback';
-  const codigoMedico = medicoActual['Código de médico'] || medicoActual['codigo'];
-  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email',
-    access_type: 'offline',
-    prompt: 'consent',
-    state: codigoMedico,
-  }).toString();
-  window.location.href = authUrl;
-});
 document.getElementById('btn-nova-close').addEventListener('click', cerrarNova);
 novaOverlay.addEventListener('click', cerrarNova);
-
-// ─── GENERADOR DE PLAN NUTRICIONAL — conectado al motor real ──────
-document.getElementById('btn-generar-nutricion').addEventListener('click', async () => {
-  if (!pacienteActual) return;
-
-  const btn = document.getElementById('btn-generar-nutricion');
-  const lbl = document.getElementById('btn-nutri-label');
-  const loader = document.getElementById('btn-nutri-loader');
-  const medicoCode = medicoActual?.['Código de médico'] || medicoActual?.['Código'] || '';
-
-  const objetivosSemana = [...document.querySelectorAll('#tab-nutricion .nutri-chip input:checked')].map(c => c.value);
-  const dias = parseInt(document.getElementById('nutri-dias').value) || 7;
-  const tipoDietaSel = document.getElementById('nutri-tipo-dieta').value;
-  const ayunoSel = document.getElementById('nutri-ayuno').value;
-  const pesoManual = document.getElementById('nutri-peso').value;
-
-  btn.disabled = true;
-  lbl.style.display = 'none';
-  loader.style.display = 'inline';
-  document.getElementById('nutri-placeholder').style.display = 'none';
-  document.getElementById('nutri-contenido').style.display = 'none';
-
-  try {
-    const body = {
-      action: 'generar_plan_semanal',
-      pacienteRecordId: pacienteActual.id,
-      medicoCode,
-      dias,
-      objetivosSemana,
-    };
-    if (tipoDietaSel) body.planNutricional = tipoDietaSel;
-    if (ayunoSel) body.ayunoIntermitente = ayunoSel;
-    if (pesoManual) body.peso = parseFloat(pesoManual);
-
-    const res = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      document.getElementById('nutri-placeholder').style.display = 'flex';
-      document.getElementById('nutri-placeholder-msg').textContent = `⚠️ ${data.error || 'No se pudo generar el plan.'}`;
-      return;
-    }
-
-    document.getElementById('nutri-resumen-tag').textContent =
-      `${data.objetivo_nutricional.kcal_objetivo} kcal · ${data.preset_usado.replace(/_/g,' ')} · ${data.dias} días`;
-    document.getElementById('nutri-texto-plan').textContent = data.texto_formateado;
-    document.getElementById('nutri-contenido').style.display = 'block';
-    document.getElementById('nutri-contenido')._textoPlano = data.texto_formateado;
-
-    if (data.preset_seleccion_automatica?.auto) {
-      showToast(`Dieta elegida automáticamente: ${data.preset_seleccion_automatica.razon}`, 'success');
-    }
-  } catch (err) {
-    console.error('[nutrición] error:', err);
-    document.getElementById('nutri-placeholder').style.display = 'flex';
-    document.getElementById('nutri-placeholder-msg').textContent = '⚠️ Error de conexión. Intenta de nuevo.';
-  } finally {
-    btn.disabled = false;
-    lbl.style.display = 'inline';
-    loader.style.display = 'none';
-  }
-});
-
-document.getElementById('btn-copiar-plan').addEventListener('click', () => {
-  const texto = document.getElementById('nutri-contenido')._textoPlano || document.getElementById('nutri-texto-plan').textContent;
-  navigator.clipboard.writeText(texto).then(() => {
-    showToast('Plan copiado — listo para pegar en WhatsApp ✓', 'success');
-  }).catch(() => {
-    showToast('No se pudo copiar automáticamente, selecciona el texto manualmente.', 'error');
-  });
-});
 
 novaInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarNova(); }
@@ -4811,23 +2755,17 @@ async function enviarNova() {
   const especialidad = medicoActual?.['Especialidad'] || 'Medicina';
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s — dictados de backfill histórico (varias fechas + muchos analitos) tardan más que un mensaje normal
-
     const res = await fetch('/api/nova', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
       body: JSON.stringify({
         medicoCode:          codigo,       // servidor valida y construye el system prompt
         medicoNombre:        nombre,
         medicoEspecialidad:  especialidad,
-        pacienteCode:        pacienteActual ? (pacienteActual.fields['Código de paciente'] || pacienteActual.fields['ID_Paciente'] || pacienteActual.id) : null,
         messages:            novaHistorial,
-        max_tokens:          8000
+        max_tokens:          1024
       })
     });
-    clearTimeout(timeoutId);
 
     const data = await res.json();
     quitarTyping();
@@ -4837,100 +2775,16 @@ async function enviarNova() {
       return;
     }
 
-    // Buscar el primer bloque de texto en vez de asumir que content[0] siempre lo es
-    const bloqueTexto = Array.isArray(data.content)
-      ? data.content.find(b => b && b.type === 'text' && typeof b.text === 'string' && b.text.trim().length > 0)
-      : null;
-
-    if (!bloqueTexto) {
-      console.error('[NOVA] respuesta sin texto utilizable:', data);
-      agregarMensajeNova('assistant', '⚠️ NOVA no generó una respuesta legible. Intenta de nuevo.');
-      return;
-    }
-
-    const respuesta = bloqueTexto.text;
+    const respuesta = data.content?.[0]?.text || 'Sin respuesta de NOVA.';
     agregarMensajeNova('assistant', respuesta);
     novaHistorial.push({ role: 'assistant', content: respuesta });
 
-    // Si NOVA guardó un backfill de historial de labs directo en Airtable,
-    // refresca la pestaña NOVA LABS para que se vea sin recargar la página.
-    if (data.refrescarLabs && pacienteActual) {
-      const pacIdRefrescar = pacienteActual.fields['Código de paciente'] || pacienteActual.fields['ID_Paciente'] || pacienteActual.id;
-      cargarLabs(pacIdRefrescar);
-    }
-
-    // Si NOVA detectó dictado clínico, el servidor manda "ficha" además del
-    // texto — aquí se autorellena el formulario de Nueva consulta.
-    if (data.ficha) {
-      aplicarFichaNova(data.ficha);
-    }
-
   } catch (err) {
     quitarTyping();
-    if (err.name === 'AbortError') {
-      agregarMensajeNova('assistant', 'La respuesta tardó demasiado (conexión lenta). Intenta de nuevo.');
-    } else {
-      console.error('[NOVA] error de red:', err);
-      agregarMensajeNova('assistant', 'Error de conexión. Intenta de nuevo.');
-    }
+    agregarMensajeNova('assistant', 'Error de conexión. Intenta de nuevo.');
   } finally {
     novaSend.disabled = false;
     novaInput.focus();
-  }
-}
-
-// ─── NOVA: AUTORELLENO DE FICHA DE CONSULTA (modo médico) ──────────
-// El médico dicta ("recibo paciente de 52 años, DM2, HTA, TA 130/85...") y
-// NOVA manda los campos extraídos junto con su respuesta de texto. Aquí se
-// mapean a los inputs reales del formulario — el médico siempre revisa y
-// confirma antes de Guardar, esto nunca guarda solo.
-function aplicarFichaNova(ficha) {
-  if (!ficha || typeof ficha !== 'object') return;
-
-  const mapa = {
-    peso: 'f-peso',
-    talla: 'f-talla',
-    presion: 'f-presion',
-    temperatura: 'f-temp',
-    motivo_consulta: 'f-motivo',
-    exploracion_fisica: 'f-exploracion',
-    diagnostico: 'f-diagnostico',
-    plan_terapeutico: 'f-plan',
-    notas_internas: 'f-notas',
-    frecuencia_cardiaca: 'f-fc',
-    frecuencia_respiratoria: 'f-fr',
-    saturacion_oxigeno: 'f-sato2',
-    circunferencia_cintura: 'f-cintura',
-    estado_civil: 'f-estado-civil',
-    ocupacion: 'f-ocupacion',
-    grupo_sanguineo: 'f-grupo-sanguineo',
-    escolaridad: 'f-escolaridad',
-    antecedentes_heredofamiliares: 'f-ahf',
-    antecedentes_personales_patologicos: 'f-app',
-    antecedentes_quirurgicos: 'f-quirurgicos',
-    antecedentes_ginecoobstetricos: 'f-ago',
-    medicamentos_actuales: 'f-medicamentos',
-    alergias: 'f-alergias',
-    habitos_estilo_vida: 'f-habitos',
-    panel_laboratorio: 'f-panel-lab',
-    resultados_laboratorio: 'f-resultados-lab',
-    valores_fuera_rango: 'f-fuera-rango-lab',
-  };
-
-  let camposLlenados = 0;
-  for (const [clave, inputId] of Object.entries(mapa)) {
-    const valor = ficha[clave];
-    if (valor === undefined || valor === null || valor === '') continue;
-    const el = document.getElementById(inputId);
-    if (!el) continue;
-    el.value = valor;
-    el.classList.add('campo-nova-llenado');
-    setTimeout(() => el.classList.remove('campo-nova-llenado'), 2200);
-    camposLlenados++;
-  }
-
-  if (camposLlenados > 0) {
-    showToast(`NOVA llenó ${camposLlenados} campo${camposLlenados === 1 ? '' : 's'} de la ficha — revisa antes de guardar`, 'success');
   }
 }
 
@@ -4952,13 +2806,13 @@ async function generarPDF() {
   if (!pacienteActual) return;
 
   const f = pacienteActual.fields;
-  const nombre    = f['Nombre completo'] || f['nombre'] || 'Paciente';
+  const nombre    = f['Nombre'] || f['nombre'] || 'Paciente';
   const pacId     = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-  const edad      = formatEdad(f['Edad']) || '—';
+  const edad      = f['Edad'] || '—';
   const sexo      = f['Sexo'] || f['sexo'] || '—';
   const protocolo = f['Protocolo'] || f['protocolo'] || '—';
-  const estado    = f['Estado del expediente'] || '—';
-  const ingreso   = formatDate(f['Fecha de registro']);
+  const estado    = f['Estado'] || f['estado'] || '—';
+  const ingreso   = formatDate(f['Fecha_ingreso'] || f['fecha_ingreso']);
 
   const medNombre = medicoActual?.['Nombre completo'] || medicoActual?.['Nombre'] || 'Médico';
   const medCedula = medicoActual?.['Cédula profesional'] || medicoActual?.['Cedula'] || '—';
@@ -5063,7 +2917,7 @@ async function generarPDF() {
 function abrirModalReceta() {
   if (!pacienteActual) return;
   const f = pacienteActual.fields;
-  const nombre = f['Nombre completo'] || f['nombre'] || 'Paciente';
+  const nombre = f['Nombre'] || f['nombre'] || 'Paciente';
   const pacId  = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
   document.getElementById('rec-paciente-nombre').textContent = nombre;
   document.getElementById('rec-paciente-id').textContent = pacId;
@@ -5094,9 +2948,9 @@ document.getElementById('modal-receta').addEventListener('click', function(e) {
 
 document.getElementById('btn-imprimir-receta').addEventListener('click', () => {
   const f = pacienteActual?.fields || {};
-  const nombre     = f['Nombre completo'] || f['nombre'] || 'Paciente';
+  const nombre     = f['Nombre'] || f['nombre'] || 'Paciente';
   const pacId      = f['Código de paciente'] || f['ID_Paciente'] || '';
-  const edad       = formatEdad(f['Edad']) ? formatEdad(f['Edad']) + ' años' : '—';
+  const edad       = f['Edad'] ? f['Edad'] + ' años' : '—';
   const medNombre  = medicoActual?.['Nombre completo'] || medicoActual?.['Nombre'] || 'Médico';
   const medCedula  = medicoActual?.['Cédula profesional'] || medicoActual?.['Cedula'] || '—';
   const medEsp     = medicoActual?.['Especialidad'] || '—';
@@ -5211,96 +3065,6 @@ document.getElementById('btn-imprimir-receta').addEventListener('click', () => {
   }, 200);
 });
 
-// ─── LINK DE AUTORREGISTRO PERSONALIZADO ─────────────────────────
-document.getElementById('btn-link-autorregistro').addEventListener('click', async () => {
-  if (!medicoActual || medicoActual?.id === 'demo') {
-    showToast('Esta cuenta demo no puede generar un link real.', 'error');
-    return;
-  }
-  const btn = document.getElementById('btn-link-autorregistro');
-  let token = medicoActual['Token de autorregistro'];
-
-  if (!token) {
-    btn.textContent = '…';
-    btn.disabled = true;
-    token = 'REG-' + Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-    try {
-      await fetch(`/api/airtable?tabla=medicos&recordId=${medicoActual.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: { 'Token de autorregistro': token }, typecast: true })
-      });
-      medicoActual['Token de autorregistro'] = token;
-    } catch (err) {
-      showToast('No se pudo generar tu link. Intenta de nuevo.', 'error');
-      btn.textContent = '🔗 Mi link';
-      btn.disabled = false;
-      return;
-    }
-    btn.textContent = '🔗 Mi link';
-    btn.disabled = false;
-  }
-
-  const url = `https://codecells.mx/autorregistro.html?token=${encodeURIComponent(token)}`;
-  document.getElementById('auto-link-url').value = url;
-  document.getElementById('auto-link-copiado').textContent = '';
-  document.getElementById('modal-autorregistro').classList.add('active');
-});
-
-document.getElementById('modal-auto-close').addEventListener('click', () => {
-  document.getElementById('modal-autorregistro').classList.remove('active');
-});
-
-document.getElementById('btn-copiar-auto').addEventListener('click', () => {
-  const input = document.getElementById('auto-link-url');
-  input.select();
-  navigator.clipboard.writeText(input.value).then(() => {
-    document.getElementById('auto-link-copiado').textContent = 'Copiado ✓';
-  }).catch(() => {
-    document.execCommand('copy');
-    document.getElementById('auto-link-copiado').textContent = 'Copiado ✓';
-  });
-});
-
-document.getElementById('btn-whatsapp-auto').addEventListener('click', () => {
-  const url = document.getElementById('auto-link-url').value;
-  const mensaje = `Hola, te comparto tu registro con CODE CELLS®. Toca este link y regístrate en un minuto:\n${url}`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
-});
-
-// ─── MODAL: LINK PARA EL PACIENTE ────────────────────────────────
-let recordIdPacienteLink = null;
-
-function mostrarLinkPaciente(codigo, nombre, recordId) {
-  recordIdPacienteLink = recordId;
-  document.getElementById('link-pac-nombre').textContent = nombre;
-  document.getElementById('link-pac-url').value = `https://codecells.mx/mi-nivel.html?codigo=${codigo}`;
-  document.getElementById('link-pac-copiado').textContent = '';
-  document.getElementById('modal-link-paciente').classList.add('active');
-}
-
-function cerrarModalLinkPaciente() {
-  document.getElementById('modal-link-paciente').classList.remove('active');
-}
-
-document.getElementById('modal-link-close').addEventListener('click', cerrarModalLinkPaciente);
-
-document.getElementById('btn-copiar-link').addEventListener('click', () => {
-  const input = document.getElementById('link-pac-url');
-  input.select();
-  navigator.clipboard.writeText(input.value).then(() => {
-    document.getElementById('link-pac-copiado').textContent = 'Copiado ✓';
-  }).catch(() => {
-    document.execCommand('copy');
-    document.getElementById('link-pac-copiado').textContent = 'Copiado ✓';
-  });
-});
-
-document.getElementById('btn-ir-expediente').addEventListener('click', () => {
-  cerrarModalLinkPaciente();
-  if (recordIdPacienteLink) seleccionarPaciente(recordIdPacienteLink);
-});
-
 // ─── MODAL: NUEVO PACIENTE ────────────────────────────────────────
 function abrirModalNuevoPaciente() {
   document.getElementById('modal-nuevo-paciente').classList.add('active');
@@ -5342,13 +3106,16 @@ document.getElementById('btn-guardar-paciente').addEventListener('click', async 
   const medicoId = medicoActual?.id;
 
   const fields = {
-    'Nombre completo': nombre,
+    'Nombre': nombre,
     'Código de paciente': codigo,
-    'Sexo biológico': document.getElementById('np-sexo').value || undefined,
-    'Teléfono WhatsApp': document.getElementById('np-telefono').value || undefined,
-    'Protocolo actual': document.getElementById('np-protocolo').value || undefined,
-    'Última actividad': new Date().toISOString(),
-    'Estado del expediente': 'Activo',
+    'Edad': parseInt(document.getElementById('np-edad').value) || undefined,
+    'Sexo': document.getElementById('np-sexo').value || undefined,
+    'Telefono': document.getElementById('np-telefono').value || undefined,
+    'Email': document.getElementById('np-correo').value || undefined,
+    'Ciudad': document.getElementById('np-ciudad').value || undefined,
+    'Protocolo': document.getElementById('np-protocolo').value || undefined,
+    'Estado': 'activo',
+    'Fecha_ingreso': new Date().toISOString().split('T')[0],
   };
 
   // Vincular médico si no es demo
@@ -5368,11 +3135,12 @@ document.getElementById('btn-guardar-paciente').addEventListener('click', async 
     const data = await res.json();
 
     if (data.id) {
+      showToast('Paciente registrado ✓', 'success');
       cerrarModalNuevoPaciente();
-      mostrarLinkPaciente(codigo, nombre, data.id);
       // Agregar a la lista local
       todosPacientes.unshift({ id: data.id, fields });
       renderPacientes(todosPacientes);
+      setTimeout(() => seleccionarPaciente(data.id), 300);
     } else {
       errEl.textContent = data.error || 'Error al registrar.';
     }
@@ -5388,7 +3156,7 @@ let especialistaSeleccionado = null;
 
 function abrirModalInterconsulta() {
   if (!pacienteActual) return;
-  const nombre = pacienteActual.fields['Nombre completo'] || pacienteActual.fields['nombre'] || 'Paciente';
+  const nombre = pacienteActual.fields['Nombre'] || pacienteActual.fields['nombre'] || 'Paciente';
   document.getElementById('int-paciente-nombre').textContent = nombre;
   document.getElementById('modal-interconsulta').classList.add('active');
   cargarEspecialistas();
@@ -5480,14 +3248,14 @@ document.getElementById('btn-enviar-interconsulta').addEventListener('click', as
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: {
-        'Código de paciente ref': pacId,
+        'ID_Paciente': pacId,
         'Médico': medicoActual['Nombre completo'] || medicoActual['Nombre'] || '—',
-        'Código de médico ref': medicoActual['Código de médico'] || '—',
-        'Fecha de consulta': new Date().toISOString().split('T')[0],
-        'Tipo de consulta': 'INTERCONSULTA',
-        'Motivo de consulta': motivo,
-        'Estado del protocolo': 'Pendiente',
-        'Notas internas': `Interconsulta solicitada a especialista ID: ${especialistaSeleccionado}`,
+        'Código_médico': medicoActual['Código de médico'] || '—',
+        'Fecha': new Date().toISOString().split('T')[0],
+        'Protocolo': 'INTERCONSULTA',
+        'Motivo': motivo,
+        'Estado': 'Pendiente',
+        'Notas': `Interconsulta solicitada a especialista ID: ${especialistaSeleccionado}`,
       }, typecast: true })
     });
     const data = await res.json();
@@ -5535,7 +3303,6 @@ function iniciarApp() {
   document.getElementById('topbar-code').textContent = codigo;
   document.getElementById('consulta-fecha').textContent = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
 
-  actualizarLinksCapacitacion();
   iniciarTemporizador();
   cargarPacientes();
 }
