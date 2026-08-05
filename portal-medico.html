@@ -2114,6 +2114,497 @@ body.light .nova-input-row button {
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════
+   CODE CELLS® CLINICAL OS v2.1
+   Refinamientos sobre v2.0 — header compacto, data-grid cards, stats
+   (Se aplica DESPUÉS del bloque v2.0 dentro del mismo <style>; por
+   cascada, cualquier selector repetido aquí gana sobre v2.0. Los
+   selectores de v2.0 no mencionados aquí — modales, login, nova
+   panel, labs table, toast, etc. — se conservan intactos.)
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg-base:        #07090A;
+  --bg-surface:     #111417;
+  --bg-card:        #171B1F;
+  --bg-panel:       #1B2025;
+  --bg-overlay:     rgba(7,9,10,0.82);
+
+  --text-primary:   #F5F5F2;
+  --text-secondary: #A7A7A3;
+  --text-tertiary:  #76767A;
+
+  --border-color:   rgba(255,255,255,0.06);
+  --border-subtle:  rgba(255,255,255,0.03);
+
+  --shadow-soft:    0 10px 30px rgba(0,0,0,0.35);
+  --shadow-md:      0 20px 50px rgba(0,0,0,0.45);
+  --shadow-lg:      0 30px 70px rgba(0,0,0,0.55);
+
+  --glass-bg:       rgba(17,20,23,0.72);
+  --glass-border:   rgba(255,255,255,0.08);
+
+  --sys-energy:     #F5B13A;
+  --sys-repair:     #D96445;
+  --sys-balance:    #58B7B3;
+  --sys-neuro:      #8B7AD9;
+  --sys-regen:      #63B86E;
+
+  --ok:             #63B86E;
+  --alert:          #D96445;
+  --warn:           #F5B13A;
+
+  --sp-xs:    4px;
+  --sp-sm:    8px;
+  --sp-md:    16px;
+  --sp-lg:    24px;
+  --sp-xl:    32px;
+  --sp-xxl:   48px;
+  --sp-sec:   64px;
+
+  --r-input:  12px;
+  --r-button: 999px;
+  --r-card:   18px;
+  --r-modal:  22px;
+
+  --t-fast:   150ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-normal: 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --ff-serif: 'Cormorant Garamond', Georgia, serif;
+  --ff-sans:  'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ff-mono:  'JetBrains Mono', 'Monaco', monospace;
+}
+
+body.light {
+  --bg-base:        #F6F4F1;
+  --bg-surface:     #FFFFFF;
+  --bg-card:        #FAFAF8;
+  --bg-panel:       #FFFFFF;
+  --bg-overlay:     rgba(246,244,241,0.88);
+
+  --text-primary:   #181818;
+  --text-secondary: #6F6F6F;
+  --text-tertiary:  #A0A0A0;
+
+  --border-color:   rgba(0,0,0,0.08);
+  --border-subtle:  rgba(0,0,0,0.03);
+
+  --shadow-soft:    0 10px 30px rgba(0,0,0,0.08);
+  --shadow-md:      0 20px 50px rgba(0,0,0,0.12);
+  --shadow-lg:      0 30px 70px rgba(0,0,0,0.16);
+
+  --glass-bg:       rgba(255,255,255,0.78);
+  --glass-border:   rgba(0,0,0,0.08);
+
+  --sys-energy:     #D89A1A;
+  --sys-repair:     #B2482F;
+  --sys-balance:    #2E8880;
+  --sys-neuro:      #6558B8;
+  --sys-regen:      #3E8A4E;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--ff-sans);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(245,177,58,0.22);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+  transition: background var(--t-normal);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+:focus-visible {
+  outline: 2px solid var(--sys-energy);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+#screen-selector, #screen-login, #screen-app {
+  background:
+    radial-gradient(1200px 700px at 75% -15%, rgba(245,177,58,0.12), transparent 65%),
+    radial-gradient(900px 600px at 8% 110%, rgba(88,183,179,0.10), transparent 60%),
+    var(--bg-base);
+}
+
+#screen-selector, #screen-login {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-xl);
+  position: relative;
+  overflow: hidden;
+}
+
+#screen-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.topbar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 0 var(--sp-md);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow-soft);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.main-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER COMPACTO v2.1 */
+.exp-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: var(--sp-md) var(--sp-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-soft);
+  flex-wrap: wrap;
+}
+
+.exp-avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 0 !important;
+  color: transparent !important;
+  background: var(--sys-energy, var(--sys-regen));
+  border: none;
+  box-shadow: 0 0 0 4px rgba(245,177,58,0.08);
+}
+
+.exp-nombre {
+  font-family: var(--ff-serif);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.exp-id {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  display: inline-block;
+}
+
+.exp-tags {
+  display: flex;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+  margin: 0;
+  align-items: center;
+  width: 100%;
+  margin-top: var(--sp-sm);
+}
+
+.tag {
+  padding: 4px 10px;
+  border-radius: var(--r-button);
+  border: 1px solid var(--border-color);
+  background: var(--bg-panel);
+  font-family: var(--ff-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: all var(--t-normal);
+}
+
+.exp-header > [id="btn-interconsulta"],
+.exp-header > [id="btn-exportar-pdf"],
+.exp-header > [id="btn-receta"] {
+  margin-left: auto;
+  height: 32px !important;
+  padding: 0 var(--sp-md) !important;
+  font-size: 8px !important;
+  white-space: nowrap;
+}
+
+/* DATA GRID → MINI-CARDS v2.1 */
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-md);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.data-cell {
+  padding: var(--sp-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-card);
+  cursor: default;
+  transition: all var(--t-normal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.data-cell:hover {
+  background: var(--bg-panel);
+  border-color: var(--border-color);
+}
+
+.data-cell .key {
+  font-family: var(--ff-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  display: block;
+  margin: 0;
+}
+
+.data-cell .val {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* SIDEBAR STATS COMPACTAS v2.1 */
+.stats-row {
+  display: flex;
+  gap: var(--sp-sm);
+}
+
+.stat-chip {
+  flex: 1;
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--r-input);
+  transition: all var(--t-normal);
+  text-align: center;
+}
+
+.stat-chip:hover {
+  border-color: var(--border-color);
+  background: var(--bg-card);
+}
+
+.stat-chip .num {
+  font-family: var(--ff-serif);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  display: block;
+}
+
+.stat-chip .lbl {
+  font-family: var(--ff-mono);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  display: block;
+}
+
+.sidebar-header {
+  padding: var(--sp-lg) var(--sp-md) var(--sp-md);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+  flex-shrink: 0;
+}
+
+.search-box input {
+  height: 36px;
+  font-size: 12px;
+}
+
+.search-icon { font-size: 12px; }
+
+.tabs {
+  gap: 0;
+  padding: 0;
+  margin-bottom: var(--sp-lg);
+}
+
+.tab-btn {
+  padding: var(--sp-sm) var(--sp-md);
+  border-bottom: 1px solid transparent;
+  font-size: 9px;
+}
+
+.tab-btn.active { border-bottom-width: 1px; }
+
+#expediente { gap: var(--sp-lg); }
+
+.consulta-section { margin-top: var(--sp-lg); }
+
+.consulta-header {
+  padding: var(--sp-md);
+}
+
+.consulta-header h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.consulta-body {
+  padding: var(--sp-lg);
+  gap: var(--sp-lg);
+}
+
+.topbar-brand { font-size: 18px; }
+
+.session-timer {
+  font-size: 10px;
+  padding: 6px 12px;
+}
+
+.btn-topbar, .btn-capacitacion-topbar, .btn-nova-topbar, .btn-logout {
+  height: 32px;
+  font-size: 9px;
+  padding: 0 var(--sp-sm);
+}
+
+.btn-topbar { width: 32px; }
+
+.timeline { padding-left: var(--sp-md); }
+
+.timeline-item {
+  padding: var(--sp-md);
+  gap: var(--sp-md);
+}
+
+.tl-title, .tl-note { font-size: 12px; }
+
+.patient-list {
+  padding: var(--sp-sm);
+  gap: 2px;
+}
+
+.patient-item {
+  padding: var(--sp-sm);
+  gap: var(--sp-sm);
+}
+
+.patient-name { font-size: 12px; }
+.patient-meta { font-size: 8px; }
+
+.avatar {
+  width: 36px;
+  height: 36px;
+}
+
+@media (max-width: 1200px) {
+  .sidebar { width: 270px; }
+  .exp-nombre { font-size: 16px; }
+}
+
+@media (max-width: 900px) {
+  .sidebar { width: 100%; }
+  .main-panel { padding: var(--sp-md); }
+  .exp-header { flex-direction: column; align-items: flex-start; }
+  .exp-header > [id="btn-interconsulta"],
+  .exp-header > [id="btn-exportar-pdf"],
+  .exp-header > [id="btn-receta"] {
+    margin-left: 0;
+    width: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar { height: auto; padding: var(--sp-sm); }
+  .data-grid { grid-template-columns: 1fr; }
+  .exp-tags { flex-direction: column; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .topbar, .sidebar, .btn-logout, .btn-nova-topbar, .modal-overlay, .nova-overlay {
+    display: none !important;
+  }
+  body { background: white; color: black; }
+}
+
 </style>
 </head>
 <body>
