@@ -1,0 +1,597 @@
+/* agenda/css/agenda.css */
+/* Estilos para módulo Agenda - Desacoplado del portal */
+
+:root {
+  --color-bg: #0E1410;
+  --color-text: #E8E8E8;
+  --color-text-muted: #999;
+  --color-primary: #E8A33D;
+  --color-energy: #E8A33D;
+  --color-repair: #D4654A;
+  --color-balance: #4FA8A0;
+  --color-neuro: #8B7FD4;
+  --color-regen: #5FAE6E;
+  --color-border: #2A2E28;
+  --color-surface: #1A1E18;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.agenda-container {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.agenda-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.agenda-header h1 {
+  font-family: 'Fraunces', serif;
+  font-size: 2rem;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.btn-link:hover {
+  color: var(--color-text);
+}
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-bg);
+}
+
+.btn-primary:hover {
+  background: #F0B450;
+  transform: translateY(-2px);
+}
+
+/* ============================================================================
+   CONTROLES
+   ============================================================================ */
+
+.agenda-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  gap: 2rem;
+}
+
+.controls-left,
+.controls-center,
+.controls-right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.view-btn {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.view-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.view-btn.active {
+  background: var(--color-primary);
+  color: var(--color-bg);
+  border-color: var(--color-primary);
+}
+
+.mes-input,
+.estatus-filter {
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.mes-input:focus,
+.estatus-filter:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(232, 163, 61, 0.2);
+}
+
+/* ============================================================================
+   CALENDARIO GRID
+   ============================================================================ */
+
+.calendario-main {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.calendario-mes {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.mes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.mes-header h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.5rem;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.btn-nav {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.btn-nav:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.dias-semana {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.encabezado-dia {
+  text-align: center;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+.dias-mes {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.dia {
+  aspect-ratio: 1;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  min-height: 100px;
+}
+
+.dia:hover:not(.vacio) {
+  border-color: var(--color-primary);
+  background: rgba(232, 163, 61, 0.05);
+  transform: translateY(-2px);
+}
+
+.dia.hoy {
+  border-color: var(--color-primary);
+  background: rgba(232, 163, 61, 0.1);
+}
+
+.dia.vacio {
+  background: transparent;
+  border: none;
+  cursor: default;
+  pointer-events: none;
+}
+
+.numero-dia {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.dia.hoy .numero-dia {
+  color: var(--color-primary);
+}
+
+.citas-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.cita-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  text-align: center;
+  color: white;
+  font-weight: 500;
+}
+
+.cita-badge.scheduled {
+  background: var(--color-balance);
+}
+
+.cita-badge.completed {
+  background: var(--color-regen);
+}
+
+.cita-badge.no_show {
+  background: var(--color-repair);
+}
+
+.cita-badge.cancelled {
+  background: var(--color-text-muted);
+}
+
+.mas-citas {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ============================================================================
+   MODAL CITA
+   ============================================================================ */
+
+.modal-cita {
+  width: 100%;
+  max-width: 600px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 8px;
+  padding: 2rem;
+  position: relative;
+}
+
+.modal-cita::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+  position: relative;
+}
+
+.btn-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-close:hover {
+  color: var(--color-text);
+}
+
+.modal-cita h3 {
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+  font-family: 'Fraunces', serif;
+}
+
+.citas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cita-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.cita-item:hover {
+  border-color: var(--color-primary);
+}
+
+.cita-hora {
+  font-weight: 600;
+  color: var(--color-primary);
+  min-width: 50px;
+}
+
+.cita-info {
+  flex: 1;
+}
+
+.cita-motivo {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.cita-paciente {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.cita-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: white;
+}
+
+.cita-status.scheduled {
+  background: var(--color-balance);
+}
+
+.cita-status.completed {
+  background: var(--color-regen);
+}
+
+.cita-status.no_show {
+  background: var(--color-repair);
+}
+
+.cita-status.cancelled {
+  background: var(--color-text-muted);
+}
+
+.btn-icon {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.btn-icon:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ============================================================================
+   NOVA PANEL
+   ============================================================================ */
+
+.nova-panel {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 350px;
+  height: 500px;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s;
+  z-index: 1000;
+  margin: 1rem;
+  border-radius: 8px;
+}
+
+.nova-panel.open {
+  transform: translateX(0);
+}
+
+.nova-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nova-header h3 {
+  color: var(--color-primary);
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.nova-chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nova-welcome {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 1rem 0;
+}
+
+.nova-welcome p {
+  margin: 0.5rem 0;
+}
+
+.nova-welcome ul {
+  list-style: none;
+  padding: 0.5rem 0;
+  margin: 0.5rem 0;
+}
+
+.nova-welcome li {
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
+}
+
+.nova-message {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  word-wrap: break-word;
+  max-width: 90%;
+}
+
+.nova-message.user {
+  align-self: flex-end;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  text-align: right;
+}
+
+.nova-message.assistant {
+  align-self: flex-start;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.nova-form {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.nova-form input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.nova-form input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.btn-send {
+  padding: 0.5rem 1rem;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-send:hover {
+  background: #F0B450;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .agenda-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .header-left {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .agenda-controls {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dias-mes {
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .dia {
+    aspect-ratio: auto;
+    min-height: 80px;
+  }
+
+  .nova-panel {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+  }
+}
