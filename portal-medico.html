@@ -2044,6 +2044,7 @@ const SESSION_DURATION = 6 * 60 * 60 * 1000; // 6h en ms
 function guardarSesion(medico) {
   const sesion = { medico, expira: Date.now() + SESSION_DURATION };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(sesion));
+  localStorage.setItem('cc_agenda_medico', sesion.medico['Código de médico']);
 }
 
 function cargarSesion() {
@@ -2061,6 +2062,7 @@ function cargarSesion() {
 
 function borrarSesion() {
   sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem('cc_agenda_medico');
 }
 
 // ─── LOGIN ───────────────────────────────────────────────────────
