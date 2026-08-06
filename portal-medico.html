@@ -1372,6 +1372,31 @@
     line-height: 1.7;
   }
 
+  /* Dashboard de bienvenida dentro de .no-patient */
+  .dash-greeting-block { text-align: center; }
+  .dash-greeting {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-1);
+  }
+  .dash-date {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+  }
+  #no-patient .stats-row { max-width: 360px; width: 100%; margin-top: 0; }
+  .dash-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 460px;
+  }
+  .dash-actions .exp-action-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; flex-shrink: 0; }
+
   /* Expediente */
   #expediente { display: none; flex-direction: column; flex: 1; }
 
@@ -2120,27 +2145,80 @@
       function limpiarNombre(nombre){
         return (nombre || '').replace(/^Dr\.?a?\.?\s+/i, '').trim();
       }
+      // México: "Nombre(s) Apellido_Paterno Apellido_Materno" — el paterno
+      // es la penúltima palabra cuando hay materno; con 1-2 palabras no hay
+      // materno que restar, así que se usa la última tal cual.
+      function apellidoPaterno(nombreLimpio){
+        const partes = nombreLimpio.split(/\s+/).filter(Boolean);
+        if (partes.length >= 3) return partes[partes.length - 2];
+        return partes[partes.length - 1] || '';
+      }
+      function fechaFormateada(){
+        const f = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        return f.charAt(0).toUpperCase() + f.slice(1);
+      }
       function actualizarHeader(){
         const nombreEl = document.getElementById('topbar-nombre');
         const nombre = nombreEl ? nombreEl.textContent : '';
         const limpio = nombre && nombre !== '—' ? limpiarNombre(nombre) : '';
-        const partes = limpio.split(/\s+/).filter(Boolean);
-        const apellido = partes[partes.length - 1] || '';
+        const apellido = limpio ? apellidoPaterno(limpio) : '';
+        const saludo = apellido ? `${saludoPorHora()}, Dr. ${apellido}` : saludoPorHora();
+
         const txt = document.getElementById('topbar-greeting-text');
-        if (txt) txt.textContent = apellido ? `${saludoPorHora()}, Dr. ${apellido}` : saludoPorHora();
+        if (txt) txt.textContent = saludo;
         const avatar = document.getElementById('doc-avatar');
         if (avatar) avatar.textContent = limpio ? limpio[0].toUpperCase() : '—';
+        const dashGreeting = document.getElementById('dash-greeting');
+        if (dashGreeting) dashGreeting.textContent = saludo;
       }
+
       const fechaEl = document.getElementById('topbar-greeting-date');
-      if (fechaEl) {
-        const f = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        fechaEl.textContent = f.charAt(0).toUpperCase() + f.slice(1);
-      }
+      if (fechaEl) fechaEl.textContent = fechaFormateada();
+
       actualizarHeader();
       const nombreEl = document.getElementById('topbar-nombre');
       if (nombreEl && window.MutationObserver) {
         new MutationObserver(actualizarHeader).observe(nombreEl, { childList: true, characterData: true, subtree: true });
       }
+
+      // ─── Dashboard de bienvenida (#no-patient) ───
+      // Sus elementos viven más abajo en el DOM (dentro de .main-panel),
+      // así que se esperan al DOMContentLoaded en vez de leerse de una.
+      var FRASES_DASHBOARD = [
+        'Cada expediente cuenta una historia. Tu criterio clínico la completa.',
+        'La mejor herramienta del médico sigue siendo su juicio.',
+        'Bienvenido a tu espacio clínico.',
+        'Tu conocimiento, nuestras herramientas.',
+        'El mejor diagnóstico empieza con escuchar.',
+        'Cada paciente es una pregunta distinta. Tú traes las respuestas.',
+        'La tecnología acompaña; el criterio médico decide.',
+        'Un buen expediente empieza con una buena pregunta.',
+        'Aquí, la evidencia y la experiencia trabajan juntas.',
+        'Menos clics, más consulta.'
+      ];
+
+      document.addEventListener('DOMContentLoaded', function(){
+        actualizarHeader();
+        const dashDate = document.getElementById('dash-date');
+        if (dashDate) dashDate.textContent = fechaFormateada();
+
+        const dashQuote = document.getElementById('dash-quote');
+        if (dashQuote) dashQuote.textContent = FRASES_DASHBOARD[Math.floor(Math.random() * FRASES_DASHBOARD.length)];
+
+        var MAPA_STATS = { 'stat-total': 'dash-total', 'stat-activos': 'dash-activos', 'stat-hoy': 'dash-hoy' };
+        function sincronizarStats(){
+          Object.keys(MAPA_STATS).forEach(function(origenId){
+            const origen = document.getElementById(origenId);
+            const destino = document.getElementById(MAPA_STATS[origenId]);
+            if (origen && destino) destino.textContent = origen.textContent;
+          });
+        }
+        sincronizarStats();
+        const statsRow = document.getElementById('stats-row');
+        if (statsRow && window.MutationObserver) {
+          new MutationObserver(sincronizarStats).observe(statsRow, { childList: true, characterData: true, subtree: true });
+        }
+      });
     })();
     </script>
     <!-- Toggle modo claro/oscuro -->
@@ -2254,10 +2332,26 @@
     <!-- ─── MAIN PANEL ─── -->
     <div class="main-panel" id="main-panel">
 
-      <!-- Estado vacío -->
+      <!-- Estado vacío: dashboard de bienvenida -->
       <div class="no-patient" id="no-patient">
-        <div class="no-patient-glyph">CC</div>
-        <p>Selecciona un paciente del panel izquierdo para ver su expediente clínico completo.</p>
+        <div class="dash-greeting-block">
+          <div class="dash-greeting" id="dash-greeting">Buenos días</div>
+          <div class="dash-date" id="dash-date"></div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-chip"><span class="num" id="dash-total">—</span><span class="lbl">Total</span></div>
+          <div class="stat-chip"><span class="num" id="dash-activos">—</span><span class="lbl">Activos</span></div>
+          <div class="stat-chip"><span class="num" id="dash-hoy">—</span><span class="lbl">Hoy</span></div>
+        </div>
+
+        <div class="dash-actions">
+          <button class="exp-action-btn" onclick="document.querySelector('.sidebar').classList.toggle('collapsed')"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20a5 5 0 0 1 6-4"/></svg>Ver pacientes</button>
+          <button class="exp-action-btn" onclick="window.location.href='/agenda/'"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Abrir agenda</button>
+          <button class="exp-action-btn" onclick="document.getElementById('btn-nova-open').click()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg>Hablar con NOVA</button>
+        </div>
+
+        <p id="dash-quote"></p>
       </div>
 
       <!-- Expediente -->
