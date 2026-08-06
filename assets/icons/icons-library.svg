@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- ICONS LIBRARY — CODE CELLS / NOVA Premium Icon System -->
+  <!-- Stroke: 2-2.5px, stroke-linecap: round, stroke-linejoin: round -->
+  <!-- Colors: #FFFFFF (default), #D9A441 (active), #666666 (disabled) -->
+
+  <!-- NAVEGACIÓN PRINCIPAL -->
+  <defs>
+    <style>
+      .icon { stroke: #FFFFFF; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+      .icon.active { stroke: #D9A441; }
+      .icon.disabled { stroke: #666666; }
+    </style>
+  </defs>
+
+  <!-- 1. INICIO (Home) -->
+  <g id="icon-inicio">
+    <path class="icon" d="M3 12l9-9 9 9v9c0 .5-.4 1-1 1H4c-.6 0-1-.4-1-1z"/>
+    <path class="icon" d="M9 15h6v6H9z"/>
+  </g>
+
+  <!-- 2. PACIENTES (Users) -->
+  <g id="icon-pacientes">
+    <circle class="icon" cx="8" cy="8" r="3"/>
+    <path class="icon" d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
+    <circle class="icon" cx="16" cy="8" r="3"/>
+    <path class="icon" d="M10 20c0-2.2 1.8-4 4-4s4 1.8 4 4"/>
+  </g>
+
+  <!-- 3. AGENDA (Calendar) -->
+  <g id="icon-agenda">
+    <rect class="icon" x="3" y="4" width="18" height="18" rx="2"/>
+    <path class="icon" d="M16 2v4M8 2v4M3 10h18"/>
+  </g>
+
+  <!-- 4. PROTOCOLOS (Clipboard) -->
+  <g id="icon-protocolos">
+    <path class="icon" d="M9 3H5c-1 0-2 1-2 2v14c0 1 1 2 2 2h14c1 0 2-1 2-2V7c0-1-1-2-2-2h-4"/>
+    <path class="icon" d="M9 3c0-1 1-2 2-2s2 1 2 2-1 2-2 2-2-1-2-2z"/>
+    <path class="icon" d="M9 11h6M9 16h6"/>
+  </g>
+
+  <!-- 5. LABORATORIOS (Beaker) -->
+  <g id="icon-laboratorios">
+    <path class="icon" d="M4.5 3h15v7c0 2-1 3-2.25 3H6.75C5.5 13 4.5 12 4.5 10V3z"/>
+    <path class="icon" d="M8 21h8M10 13v8M14 13v8"/>
+  </g>
+
+  <!-- 6. INTERCONSULTAS (Share2) -->
+  <g id="icon-interconsultas">
+    <circle class="icon" cx="18" cy="5" r="3"/>
+    <circle class="icon" cx="6" cy="12" r="3"/>
+    <circle class="icon" cx="18" cy="19" r="3"/>
+    <path class="icon" d="M16.1 7.2L7.9 10.8M16.1 16.8L7.9 13.2"/>
+  </g>
+
+  <!-- 7. RECETAS (FileText) -->
+  <g id="icon-recetas">
+    <path class="icon" d="M14 2H6c-1 0-2 1-2 2v16c0 1 1 2 2 2h12c1 0 2-1 2-2V8z"/>
+    <path class="icon" d="M14 2v6h6M8 13h8M8 17h8"/>
+  </g>
+
+  <!-- 8. REPORTES (BarChart2) -->
+  <g id="icon-reportes">
+    <path class="icon" d="M3 3v18h18"/>
+    <rect class="icon" x="7" y="13" width="2" height="8"/>
+    <rect class="icon" x="13" y="9" width="2" height="12"/>
+    <rect class="icon" x="19" y="11" width="2" height="10"/>
+  </g>
+
+  <!-- 9. NOVA (Star/Sparkles) -->
+  <g id="icon-nova">
+    <circle class="icon" cx="12" cy="12" r="9"/>
+    <path class="icon" d="M12 7v10M7 12h10"/>
+  </g>
+
+  <!-- 10. CONFIGURACIÓN (Settings) -->
+  <g id="icon-config">
+    <circle class="icon" cx="12" cy="12" r="3"/>
+    <path class="icon" d="M12 1v3m7.1 1.9l-2.1 2.1m1.9 7.1l3 0m-3 7l-2.1-2.1m-7.1 2.1l-2.1-2.1m-1.9-7.1l-3 0m3-7l2.1 2.1"/>
+  </g>
+
+  <!-- GESTIÓN PACIENTE -->
+  <!-- 11. NUEVO PACIENTE (Plus) -->
+  <g id="icon-nuevo">
+    <path class="icon" d="M12 5v14M5 12h14"/>
+  </g>
+
+  <!-- 12. BUSCAR (Search) -->
+  <g id="icon-buscar">
+    <circle class="icon" cx="11" cy="11" r="8"/>
+    <path class="icon" d="M21 21l-4.4-4.4"/>
+  </g>
+
+  <!-- 13. EXPORTAR (Download) -->
+  <g id="icon-exportar">
+    <path class="icon" d="M21 15v4c0 1-1 2-2 2H5c-1 0-2-1-2-2v-4"/>
+    <path class="icon" d="M7 10l5 5 5-5M12 15V3"/>
+  </g>
+
+  <!-- 14. GENERAR RECETA (FileCheck) -->
+  <g id="icon-generar-receta">
+    <path class="icon" d="M14 2H6c-1 0-2 1-2 2v16c0 1 1 2 2 2h12c1 0 2-1 2-2V8z"/>
+    <path class="icon" d="M9 12l2 2 4-4"/>
+  </g>
+
+  <!-- 15. SOLICITAR INTERCONSULTA (MessageCircle) -->
+  <g id="icon-solicitar-interconsulta">
+    <path class="icon" d="M21 15a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+    <path class="icon" d="M10 10l2 2 4-4"/>
+  </g>
+
+  <!-- HISTORIA CLÍNICA TABS -->
+  <!-- 16. RESUMEN (FileText) -->
+  <g id="icon-resumen">
+    <path class="icon" d="M14 2H6c-1 0-2 1-2 2v16c0 1 1 2 2 2h12c1 0 2-1 2-2V8z"/>
+    <path class="icon" d="M8 10h8M8 14h6M8 18h4"/>
+  </g>
+
+  <!-- 17. DATOS GENERALES (User) -->
+  <g id="icon-datos-generales">
+    <circle class="icon" cx="12" cy="7" r="4"/>
+    <path class="icon" d="M3 20c0-3.3 3.6-6 9-6s9 2.7 9 6"/>
+  </g>
+
+  <!-- 18. HISTORIA CLÍNICA (BookOpen) -->
+  <g id="icon-historia-clinica">
+    <path class="icon" d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/>
+    <path class="icon" d="M8 10h8"/>
+  </g>
+
+  <!-- 19. CONSULTAS (MessageSquare) -->
+  <g id="icon-consultas">
+    <path class="icon" d="M21 15a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+  </g>
+
+  <!-- 20. NOVA LABS (Microscope/Beaker) -->
+  <g id="icon-nova-labs">
+    <path class="icon" d="M4.5 3h15v7c0 2-1 3-2.25 3H6.75C5.5 13 4.5 12 4.5 10V3z"/>
+  </g>
+
+  <!-- 21. EVOLUCIÓN (TrendingUp) -->
+  <g id="icon-evolucion">
+    <polyline class="icon" points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+    <polyline class="icon" points="17 6 23 6 23 12"/>
+  </g>
+
+  <!-- 22. ARCHIVOS (FileFolder) -->
+  <g id="icon-archivos">
+    <path class="icon" d="M22 19a2 2 0 0 1-2.2 2H4c-1.1 0-2-.9-2-2V5c0-1 .9-2 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+  </g>
+
+  <!-- SIGNOS VITALES -->
+  <!-- 23. PESO (BarChart) -->
+  <g id="icon-peso">
+    <path class="icon" d="M3 3v18h18"/>
+    <rect class="icon" x="7" y="10" width="2" height="11"/>
+    <rect class="icon" x="13" y="7" width="2" height="14"/>
+  </g>
+
+  <!-- 24. GLUCOSA (Droplet) -->
+  <g id="icon-glucosa">
+    <path class="icon" d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+  </g>
+
+  <!-- 25. PRESIÓN ARTERIAL (Heart) -->
+  <g id="icon-presion">
+    <path class="icon" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+  </g>
+
+  <!-- 26. TEMPERATURA (Thermometer) -->
+  <g id="icon-temperatura">
+    <path class="icon" d="M14 14.76v2.5a2.5 2.5 0 0 1-5 0v-2.5"/>
+    <path class="icon" d="M8.5 14a2.5 2.5 0 0 1 7 0"/>
+    <path class="icon" d="M12 2v8.76"/>
+  </g>
+
+  <!-- OPTIMIZACIÓN BIOLÓGICA (5 circles) -->
+  <!-- 27-31. CODE ENERGY/REPAIR/BALANCE/NEURO/REGEN (Circle + label) -->
+  <g id="icon-energy">
+    <circle class="icon" cx="12" cy="12" r="10"/>
+    <path class="icon" d="M12 7v10M7 12h10"/>
+  </g>
+
+  <g id="icon-repair">
+    <circle class="icon" cx="12" cy="12" r="10"/>
+    <path class="icon" d="M12 7l3 3-3 3-3-3 3-3z"/>
+  </g>
+
+  <g id="icon-balance">
+    <circle class="icon" cx="12" cy="12" r="10"/>
+    <path class="icon" d="M7 12h10M12 7v10"/>
+  </g>
+
+  <g id="icon-neuro">
+    <circle class="icon" cx="12" cy="12" r="10"/>
+    <path class="icon" d="M9 12l1.5-1.5L12 12l1.5-1.5L15 12"/>
+  </g>
+
+  <g id="icon-regen">
+    <circle class="icon" cx="12" cy="12" r="10"/>
+    <path class="icon" d="M12 7c2.8 0 5 2.2 5 5s-2.2 5-5 5-5-2.2-5-5 2.2-5 5-5z"/>
+  </g>
+
+  <!-- ESTADO CLÍNICO -->
+  <!-- 32. NORMAL (CheckCircle) -->
+  <g id="icon-normal">
+    <path class="icon" d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+    <path class="icon" d="M22 4l-7.5 7.5-3-3"/>
+  </g>
+
+  <!-- 33. CRÍTICO (AlertCircle) -->
+  <g id="icon-critico">
+    <circle class="icon" cx="12" cy="12" r="10"/>
+    <path class="icon" d="M12 8v4M12 16h.01"/>
+  </g>
+
+  <!-- 34. MEJORANDO (TrendingUp) -->
+  <g id="icon-mejorando">
+    <polyline class="icon" points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+    <polyline class="icon" points="17 6 23 6 23 12"/>
+  </g>
+
+  <!-- ACCIONES UNIVERSALES -->
+  <!-- 35. EDITAR (Edit) -->
+  <g id="icon-editar">
+    <path class="icon" d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+  </g>
+
+  <!-- 36. ELIMINAR (Trash) -->
+  <g id="icon-eliminar">
+    <path class="icon" d="M3 6h18M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M5 6l1 14c0 1 1 2 2 2h8c1 0 2-1 2-2l1-14M10 11v6M14 11v6"/>
+  </g>
+
+  <!-- 37. GUARDAR (Save) -->
+  <g id="icon-guardar">
+    <path class="icon" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+    <polyline class="icon" points="17 21 17 13 7 13 7 21"/>
+    <polyline class="icon" points="7 3 7 8 15 8"/>
+  </g>
+
+  <!-- 38. VOLVER (ArrowLeft) -->
+  <g id="icon-volver">
+    <path class="icon" d="M19 12H5M12 19l-7-7 7-7"/>
+  </g>
+
+  <!-- 39. VER (Eye) -->
+  <g id="icon-ver">
+    <path class="icon" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle class="icon" cx="12" cy="12" r="3"/>
+  </g>
+
+  <!-- 40. OCULTAR (EyeOff) -->
+  <g id="icon-ocultar">
+    <path class="icon" d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+    <path class="icon" d="M1 1l22 22"/>
+  </g>
+
+  <!-- DOCUMENTOS -->
+  <!-- 41. PDF (FileText) -->
+  <g id="icon-pdf">
+    <path class="icon" d="M14 2H6c-1 0-2 1-2 2v16c0 1 1 2 2 2h12c1 0 2-1 2-2V8z"/>
+  </g>
+
+  <!-- 42. IMAGEN (Image) -->
+  <g id="icon-imagen">
+    <rect class="icon" x="3" y="3" width="18" height="18" rx="2"/>
+    <circle class="icon" cx="8.5" cy="8.5" r="1.5"/>
+    <path class="icon" d="M21 15l-5-5L5 21"/>
+  </g>
+
+  <!-- 43. DESCARGAR (Download) -->
+  <g id="icon-descargar">
+    <path class="icon" d="M21 15v4c0 1-1 2-2 2H5c-1 0-2-1-2-2v-4"/>
+    <path class="icon" d="M7 10l5 5 5-5M12 15V3"/>
+  </g>
+
+  <!-- IA NOVA -->
+  <!-- 44. DIAGNÓSTICO IA (Zap) -->
+  <g id="icon-diagnostico-ia">
+    <polygon class="icon" points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+  </g>
+
+  <!-- 45. ANÁLISIS BIOLÓGICO (BarChart) -->
+  <g id="icon-analisis-biologico">
+    <path class="icon" d="M3 3v18h18"/>
+    <rect class="icon" x="7" y="10" width="2" height="11"/>
+  </g>
+
+  <!-- 46. RECOMENDACIONES (Lightbulb) -->
+  <g id="icon-recomendaciones">
+    <path class="icon" d="M21 15a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+    <path class="icon" d="M12 8v4M12 16h.01"/>
+  </g>
+
+  <!-- LABORATORIO -->
+  <!-- 47. QUÍMICA (Beaker) -->
+  <g id="icon-quimica">
+    <path class="icon" d="M4.5 3h15v7c0 2-1 3-2.25 3H6.75C5.5 13 4.5 12 4.5 10V3z"/>
+  </g>
+
+  <!-- MEDICINA REGENERATIVA -->
+  <!-- 48. CÉLULAS MADRE (Microscope) -->
+  <g id="icon-celulas-madre">
+    <path class="icon" d="M6 4h12M8 4v12M16 4v12M8 16l-2 2h12l-2-2M10 16v2M14 16v2"/>
+  </g>
+
+  <!-- 49. PÉPTIDOS (Hexagon) -->
+  <g id="icon-peptidos">
+    <path class="icon" d="M12 2l4.243 2.449v4.898L12 22l-4.243-12.25V4.45L12 2z"/>
+  </g>
+
+  <!-- ESTADÍSTICAS -->
+  <!-- 50. TENDENCIA UP (TrendingUp) -->
+  <g id="icon-tendencia-up">
+    <polyline class="icon" points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+    <polyline class="icon" points="17 6 23 6 23 12"/>
+  </g>
+
+  <!-- 51. TENDENCIA DOWN (TrendingDown) -->
+  <g id="icon-tendencia-down">
+    <polyline class="icon" points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+    <polyline class="icon" points="17 18 23 18 23 12"/>
+  </g>
+
+  <!-- 52. ESTABLE (Minus) -->
+  <g id="icon-estable">
+    <path class="icon" d="M5 12h14"/>
+  </g>
+
+  <!-- 53. META (Target) -->
+  <g id="icon-meta">
+    <circle class="icon" cx="12" cy="12" r="1"/>
+    <circle class="icon" cx="12" cy="12" r="5"/>
+    <circle class="icon" cx="12" cy="12" r="9"/>
+  </g>
+
+  <!-- 54. NOTA (MessageCircle) -->
+  <g id="icon-nota">
+    <path class="icon" d="M21 15a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+  </g>
+
+  <!-- 55. TIMER (Clock) -->
+  <g id="icon-timer">
+    <circle class="icon" cx="12" cy="12" r="10"/>
+    <path class="icon" d="M12 6v6l4 2"/>
+  </g>
+
+  <!-- 56. SINCRONIZAR (RefreshCw) -->
+  <g id="icon-sincronizar">
+    <polyline class="icon" points="23 4 23 10 17 10"/>
+    <path class="icon" d="M20.49 15a9 9 0 1 1-2-8.12"/>
+  </g>
+
+  <!-- 57. COMPARTIR (Share2) -->
+  <g id="icon-compartir">
+    <circle class="icon" cx="18" cy="5" r="3"/>
+    <circle class="icon" cx="6" cy="12" r="3"/>
+    <circle class="icon" cx="18" cy="19" r="3"/>
+    <path class="icon" d="M16.1 7.2L7.9 10.8M16.1 16.8L7.9 13.2"/>
+  </g>
+
+  <!-- 58. IMPRIMIR (Printer) -->
+  <g id="icon-imprimir">
+    <path class="icon" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+    <rect class="icon" x="6" y="14" width="12" height="8"/>
+  </g>
+
+  <!-- 59. NOTIFICACIÓN (Bell) -->
+  <g id="icon-notificacion">
+    <path class="icon" d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path class="icon" d="M13.73 21a2 2 0 0 1-3.46 0"/>
+  </g>
+
+  <!-- 60. MENU (Menu) -->
+  <g id="icon-menu">
+    <path class="icon" d="M3 12h18M3 6h18M3 18h18"/>
+  </g>
+
+</svg>
