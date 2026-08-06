@@ -7,7 +7,7 @@
 
 <!-- PWA: permite instalar el portal como app en el celular -->
 <link rel="manifest" href="manifest-portal-medico.json">
-<meta name="theme-color" content="#0a0a0a">
+<meta name="theme-color" content="#07090A">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,21 +22,21 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --black: #0a0a0a;
-    --black-2: #111111;
-    --black-3: #1a1a1a;
-    --black-4: #242424;
-    --gold: #C9A96E;
-    --gold-dim: #8a7050;
-    --gold-pale: rgba(201,169,110,0.12);
-    --gold-pale2: rgba(201,169,110,0.06);
+    --black: #07090A;
+    --black-2: #0D0F11;
+    --black-3: #14171A;
+    --black-4: #1D2124;
+    --gold: #D9A441;
+    --gold-dim: #A87A2E;
+    --gold-pale: rgba(217,164,65,0.12);
+    --gold-pale2: rgba(217,164,65,0.06);
     --cyan: #00D4FF;
     --cyan-dim: #0099bb;
     --cyan-pale: rgba(0,212,255,0.10);
     --text-1: #f0ede8;
     --text-2: #9a9590;
     --text-3: #5a5550;
-    --border: rgba(201,169,110,0.18);
+    --border: rgba(217,164,65,0.18);
     --border-dim: rgba(255,255,255,0.06);
     --radius: 4px;
     --font-serif: 'Cormorant Garamond', Georgia, serif;
@@ -253,7 +253,7 @@
     color: var(--text-3);
     padding: 4px 10px;
     background: var(--black-3);
-    border: 0.5px solid var(--border-dim);
+    border: 0.5px solid rgba(217,164,65,0.16);
     border-radius: var(--radius);
     letter-spacing: 0.06em;
     transition: color 0.3s;
@@ -316,7 +316,7 @@
     transition: background 0.2s;
     flex-shrink: 0;
   }
-  .btn-nova-topbar:hover { background: rgba(201,169,110,0.2); }
+  .btn-nova-topbar:hover { background: rgba(217,164,65,0.2); }
 
   .nova-dot {
     width: 7px;
@@ -674,12 +674,20 @@
     background-color: var(--black);
   }
 
-  /* Overlay oscuro sobre la imagen para legibilidad */
+  /* Overlay oscuro sobre la imagen para legibilidad + textura sutil de células */
   #screen-login::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.45);
+    background:
+      radial-gradient(circle at 18% 22%, transparent 28px, rgba(217,164,65,0.06) 29px, rgba(217,164,65,0.06) 30px, transparent 31px),
+      radial-gradient(circle at 76% 58%, transparent 40px, rgba(217,164,65,0.05) 41px, rgba(217,164,65,0.05) 42px, transparent 43px),
+      radial-gradient(circle at 42% 82%, transparent 22px, rgba(217,164,65,0.055) 23px, rgba(217,164,65,0.055) 24px, transparent 25px),
+      radial-gradient(circle at 88% 18%, transparent 16px, rgba(217,164,65,0.045) 17px, rgba(217,164,65,0.045) 18px, transparent 19px),
+      radial-gradient(circle at 8% 70%, transparent 34px, rgba(217,164,65,0.04) 35px, rgba(217,164,65,0.04) 36px, transparent 37px),
+      rgba(7,9,10,0.78);
+    background-size: 320px 320px, 380px 380px, 260px 260px, 220px 220px, 300px 300px, auto;
+    background-repeat: repeat;
     z-index: 0;
   }
 
@@ -698,7 +706,7 @@
     width: 210px;
     height: auto;
     margin-bottom: 0.5rem;
-    filter: drop-shadow(0 0 24px rgba(201,169,110,0.35));
+    filter: drop-shadow(0 0 24px rgba(217,164,65,0.35));
   }
 
   .login-brand-name {
@@ -726,12 +734,12 @@
     font-family: var(--font-mono);
     font-size: 9px;
     letter-spacing: 0.2em;
-    color: rgba(201,169,110,0.6);
+    color: rgba(217,164,65,0.65);
     text-transform: uppercase;
     text-align: center;
     margin-top: 11px;
     padding: 4px 14px;
-    border: 0.5px solid rgba(201,169,110,0.25);
+    border: 0.5px solid rgba(217,164,65,0.28);
     border-radius: 2px;
   }
 
@@ -740,12 +748,13 @@
     z-index: 1;
     width: 100%;
     max-width: 420px;
-    border: 0.5px solid rgba(201,169,110,0.2);
+    border: 0.5px solid rgba(217,164,65,0.22);
     border-radius: 10px;
     padding: 2.5rem 2.75rem;
-    background: rgba(14,12,10,0.82);
+    background: rgba(7,9,10,0.86);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.55);
   }
 
   .login-card h2 {
@@ -777,7 +786,7 @@
   .field-input {
     width: 100%;
     background: #1a1a1a;
-    border: 0.5px solid rgba(201,169,110,0.22);
+    border: 0.5px solid rgba(217,164,65,0.24);
     border-radius: var(--radius);
     color: #f0ede8 !important;
     -webkit-text-fill-color: #f0ede8 !important;
@@ -787,7 +796,7 @@
     outline: none;
     transition: border-color 0.2s;
     letter-spacing: 0.08em;
-    caret-color: #C9A96E;
+    caret-color: #D9A441;
   }
 
   .field-input::placeholder { color: rgba(240,237,232,0.3); letter-spacing: 0.06em; }
@@ -872,7 +881,7 @@
     transition: background 0.2s, transform 0.1s;
   }
 
-  .btn-primary:hover { background: #d4b07a; }
+  .btn-primary:hover { background: #E5B968; }
   .btn-primary:active { transform: scale(0.98); }
   .btn-primary:disabled { background: var(--gold-dim); cursor: not-allowed; }
 
@@ -895,7 +904,7 @@
   /* ─── TOP BAR ─── */
   .topbar {
     height: 52px;
-    border-bottom: 0.5px solid var(--border-dim);
+    border-bottom: 0.5px solid rgba(217,164,65,0.14);
     display: flex;
     align-items: center;
     padding: 0 1.5rem;
@@ -918,10 +927,11 @@
     font-family: var(--font-serif);
     font-size: 18px;
     font-weight: 300;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     color: var(--text-1);
     flex-shrink: 0;
     line-height: 1;
+    text-shadow: 0 0 20px rgba(217,164,65,0.15);
   }
 
   .topbar-brand sup {
