@@ -1361,20 +1361,6 @@
     background: transparent;
   }
 
-  /* Marca de agua decorativa detrás del dashboard */
-  .dash-watermark {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 300px;
-    height: 300px;
-    transform: translate(-50%, -50%);
-    object-fit: contain;
-    opacity: 0.04;
-    pointer-events: none;
-    z-index: -1;
-  }
-
   .no-patient-glyph {
     font-family: var(--font-serif);
     font-size: 64px;
@@ -2366,7 +2352,6 @@
 
       <!-- Estado vacío: dashboard de bienvenida -->
       <div class="no-patient" id="no-patient">
-        <img class="dash-watermark" src="assets/logo-codecells.png" alt="" aria-hidden="true" onerror="this.style.display='none'">
         <div class="dash-greeting-block">
           <div class="dash-greeting" id="dash-greeting">Buenos días</div>
           <div class="dash-date" id="dash-date"></div>
