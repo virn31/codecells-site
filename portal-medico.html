@@ -983,7 +983,7 @@
     align-items: center;
     padding: 0 1.5rem;
     gap: 1rem;
-    background: var(--black-2);
+    background: linear-gradient(to bottom, rgba(201,169,110,0.03), transparent), var(--black-2);
     flex-shrink: 0;
     position: sticky;
     top: 0;
@@ -1015,17 +1015,49 @@
     letter-spacing: 0;
   }
 
+  .topbar-brand small {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+    margin-top: 1px;
+    text-shadow: none;
+  }
+
   .topbar-sep { flex: 1; }
 
   .doc-pill {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 1px;
+    align-items: center;
+    gap: 10px;
     padding: 6px 14px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: rgba(217,164,65,0.03);
+  }
+
+  .doc-pill-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+  }
+
+  .doc-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 13px;
+    color: #07090A;
   }
 
   .topbar-medico {
@@ -2053,7 +2085,10 @@
   <!-- Top Bar -->
   <div class="topbar">
     <img class="topbar-dna" src="assets/logo-codecells.png" alt="Code Cells" onerror="this.style.display='none'">
-    <div class="topbar-brand">Code Cells<sup>®</sup></div>
+    <div class="topbar-brand" id="topbar-greeting">
+      <span id="topbar-greeting-text">Buenos días</span>
+      <small id="topbar-greeting-date"></small>
+    </div>
     <div class="topbar-sep"></div>
     <!-- Temporizador de sesión -->
     <div class="session-timer" id="session-timer" title="Tiempo restante de sesión">
@@ -2061,9 +2096,47 @@
       <span id="session-countdown">6:00:00</span>
     </div>
     <div class="doc-pill">
-      <div class="topbar-medico" id="topbar-nombre">—</div>
-      <div class="topbar-code" id="topbar-code">—</div>
+      <div class="doc-avatar" id="doc-avatar">—</div>
+      <div class="doc-pill-info">
+        <div class="topbar-medico" id="topbar-nombre">—</div>
+        <div class="topbar-code" id="topbar-code">—</div>
+      </div>
     </div>
+    <!-- Saludo dinámico + inicial del médico (Pieza E) — script corto y aparte del <script> principal, solo lee #topbar-nombre -->
+    <script>
+    (function(){
+      function saludoPorHora(){
+        const h = new Date().getHours();
+        if (h < 12) return 'Buenos días';
+        if (h < 19) return 'Buenas tardes';
+        return 'Buenas noches';
+      }
+      function limpiarNombre(nombre){
+        return (nombre || '').replace(/^Dr\.?a?\.?\s+/i, '').trim();
+      }
+      function actualizarHeader(){
+        const nombreEl = document.getElementById('topbar-nombre');
+        const nombre = nombreEl ? nombreEl.textContent : '';
+        const limpio = nombre && nombre !== '—' ? limpiarNombre(nombre) : '';
+        const partes = limpio.split(/\s+/).filter(Boolean);
+        const apellido = partes[partes.length - 1] || '';
+        const txt = document.getElementById('topbar-greeting-text');
+        if (txt) txt.textContent = apellido ? `${saludoPorHora()}, Dr. ${apellido}` : saludoPorHora();
+        const avatar = document.getElementById('doc-avatar');
+        if (avatar) avatar.textContent = limpio ? limpio[0].toUpperCase() : '—';
+      }
+      const fechaEl = document.getElementById('topbar-greeting-date');
+      if (fechaEl) {
+        const f = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        fechaEl.textContent = f.charAt(0).toUpperCase() + f.slice(1);
+      }
+      actualizarHeader();
+      const nombreEl = document.getElementById('topbar-nombre');
+      if (nombreEl && window.MutationObserver) {
+        new MutationObserver(actualizarHeader).observe(nombreEl, { childList: true, characterData: true, subtree: true });
+      }
+    })();
+    </script>
     <!-- Toggle modo claro/oscuro -->
     <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
     <!-- Botón conectar Google Calendar -->
