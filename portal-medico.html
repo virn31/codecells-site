@@ -705,7 +705,10 @@
 
   /* ─── FONDO DE CÉLULAS (global, capa 2) ───
      Imagen real detrás de todo el app shell, con velo encima para no
-     competir con el contenido. */
+     competir con el contenido. La imagen tiene una franja oscura propia
+     en el centro-abajo; "center 15%" recorta más hacia arriba, donde
+     el degradado dorado es parejo en todo el ancho, para que esa franja
+     no quede justo detrás del dashboard. */
   body::before {
     content: '';
     position: fixed;
@@ -713,7 +716,7 @@
     z-index: -2;
     background-image: url('/assets/backgrounds/bg-celulas.png');
     background-size: cover;
-    background-position: center;
+    background-position: center 15%;
     opacity: 0.35;
     pointer-events: none;
   }
