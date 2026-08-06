@@ -1346,6 +1346,7 @@
 
   /* Estado vacío */
   .no-patient {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1354,6 +1355,20 @@
     color: var(--text-3);
     gap: 1rem;
     padding: 3rem;
+  }
+
+  /* Marca de agua decorativa detrás del dashboard */
+  .dash-watermark {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 300px;
+    height: 300px;
+    transform: translate(-50%, -50%);
+    object-fit: contain;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: -1;
   }
 
   .no-patient-glyph {
@@ -1373,7 +1388,19 @@
   }
 
   /* Dashboard de bienvenida dentro de .no-patient */
-  .dash-greeting-block { text-align: center; }
+  .dash-greeting-block { position: relative; z-index: 1; text-align: center; }
+  .dash-greeting-block::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 400px;
+    height: 300px;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(300px 300px at 50% 40%, rgba(201,169,110,0.08), transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
   .dash-greeting {
     font-family: var(--font-serif);
     font-size: 28px;
@@ -1388,6 +1415,7 @@
     margin-top: 4px;
   }
   #no-patient .stats-row { max-width: 360px; width: 100%; margin-top: 0; }
+  #no-patient .stat-chip { border: 1px solid var(--border); background: var(--black-2); }
   .dash-actions {
     display: flex;
     gap: 10px;
@@ -2334,6 +2362,7 @@
 
       <!-- Estado vacío: dashboard de bienvenida -->
       <div class="no-patient" id="no-patient">
+        <img class="dash-watermark" src="assets/logo-codecells.png" alt="" aria-hidden="true" onerror="this.style.display='none'">
         <div class="dash-greeting-block">
           <div class="dash-greeting" id="dash-greeting">Buenos días</div>
           <div class="dash-date" id="dash-date"></div>
