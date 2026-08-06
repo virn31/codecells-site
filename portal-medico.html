@@ -1135,6 +1135,12 @@
   }
 
   /* ─── SIDEBAR: DASHBOARD ─── */
+  /* Colapsable desde el nav-rail (Fix 1) — acotado a escritorio: en
+     móvil .sidebar usa su propio mecanismo de vista (.mostrando-expediente)
+     y no hay nav-rail para destogglearla. */
+  @media (min-width: 769px) {
+    .sidebar.collapsed { display: none; }
+  }
   .sidebar {
     width: 280px;
     flex-shrink: 0;
@@ -2185,7 +2191,7 @@
     <!-- ─── NAV RAIL (Pieza D) ─── -->
     <nav class="nav-rail">
       <button class="nav-rail-item" title="Inicio" onclick="showToast('Próximamente')"><svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-6h6v6"/></svg></button>
-      <button class="nav-rail-item active" title="Pacientes"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20a5 5 0 0 1 6-4"/></svg></button>
+      <button class="nav-rail-item" title="Pacientes" onclick="document.querySelector('.sidebar').classList.toggle('collapsed')"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20a5 5 0 0 1 6-4"/></svg></button>
       <a class="nav-rail-item" href="/agenda/" title="Agenda"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></a>
       <button class="nav-rail-item" title="Protocolos" onclick="showToast('Próximamente')"><svg viewBox="0 0 24 24"><path d="M9 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-4-4h-1"/><path d="M9 3a2 2 0 0 0 4 0"/><path d="M9 12h6M9 16h4"/></svg></button>
       <button class="nav-rail-item" title="Laboratorios" onclick="showToast('Próximamente')"><svg viewBox="0 0 24 24"><path d="M5 3h14v6l-5 5v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-5L5 9z"/></svg></button>
@@ -2198,7 +2204,7 @@
     </nav>
 
     <!-- ─── SIDEBAR ─── -->
-    <div class="sidebar">
+    <div class="sidebar collapsed">
       <div class="sidebar-brand">
         <div class="sidebar-brand-name">CODE CELLS<sup>®</sup></div>
         <div class="sidebar-brand-sub">Medicina Regenerativa</div>
@@ -3445,10 +3451,11 @@ function irAPortal() {
 window.addEventListener('DOMContentLoaded', () => {
   const sesionGuardada = cargarSesion();
   if (sesionGuardada) {
-    // Sesión activa (últimas 6h) — saltar login, mostrar selector directo
+    // Sesión activa (últimas 6h) — saltar login y selector, ir directo al portal
     medicoActual = sesionGuardada;
     document.getElementById('screen-login').style.display = 'none';
-    document.getElementById('screen-selector').style.display = 'flex';
+    document.getElementById('screen-selector').style.display = 'none';
+    iniciarApp();
     return;
   }
 
