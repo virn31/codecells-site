@@ -1634,6 +1634,32 @@
   .nutri-placeholder-glyph { font-size: 40px; line-height: 1; opacity: 0.85; }
 
   .nutri-form .form-group label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block; }
+  /* ─── NUTRICIÓN: evolución y seguimiento ─── */
+  .nutri-evolucion { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 2rem; }
+  .nutri-stats { grid-template-columns: repeat(4, 1fr); }
+  .nutri-card { border: 1px solid var(--border); background: var(--black-3); border-radius: 8px; padding: 16px; }
+  .nutri-chart-wrap svg { width: 100%; height: auto; display: block; }
+  .nutri-chart-wrap text { font-family: var(--font-mono); font-size: 9px; fill: var(--text-3); }
+  .nutri-chart-wrap .linea-peso { fill: none; stroke: var(--gold); stroke-width: 2; }
+  .nutri-chart-wrap .punto-peso { fill: var(--gold); stroke: var(--black-3); stroke-width: 1.5; cursor: pointer; }
+  .nutri-chart-wrap .punto-inicio { fill: var(--gold); stroke: var(--text-1); stroke-width: 1.5; }
+  .nutri-chart-wrap .linea-guia { stroke: var(--border-dim); stroke-width: 1; }
+  .nutri-chart-wrap .linea-meta { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; }
+
+  .nutri-adherencia { display: flex; flex-direction: column; gap: 12px; }
+  .adherencia-row { display: flex; align-items: center; gap: 10px; }
+  .adherencia-lbl { width: 76px; flex-shrink: 0; font-size: 12px; color: var(--text-2); }
+  .adherencia-track { flex: 1; height: 8px; border-radius: 4px; background: var(--black-4); overflow: hidden; }
+  .adherencia-fill { height: 100%; border-radius: 4px; width: 0; transition: width 0.4s ease; }
+  .adherencia-fill.ok { background: var(--regen); }
+  .adherencia-fill.warn { background: var(--energy); }
+  .adherencia-fill.bad { background: var(--repair); }
+  .adherencia-pct { width: 38px; flex-shrink: 0; text-align: right; font-family: var(--font-mono); font-size: 11px; color: var(--text-2); }
+
+  .objetivo-lista { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-top: 0.5rem; }
+  .objetivo-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2); padding: 8px 12px; border: 1px solid var(--border-dim); border-radius: 6px; background: var(--black-4); }
+  .objetivo-item .chk { color: var(--gold); flex-shrink: 0; font-size: 13px; }
+
   .nutri-objetivos-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .nutri-chip {
     display: flex; align-items: center; gap: 6px;
@@ -2659,6 +2685,45 @@
 
           <!-- Tab: Nutrición — generador conectado al Motor de Personalización -->
           <div class="tab-pane" id="tab-nutricion">
+
+            <!-- Evolución y seguimiento — datos reales de CONSULTAS (campo
+                 "Peso en consulta (kg)" por sesión). Ver cargarNutricion()
+                 en el script principal. El campo "Ejercicio" no tiene columna
+                 propia en Airtable todavía — se infiere de "Notas internas"
+                 como mejor esfuerzo hasta que exista un campo dedicado. -->
+            <div class="nutri-evolucion">
+              <div class="section-label">Evolución del paciente</div>
+
+              <div class="stats-row nutri-stats">
+                <div class="stat-chip"><span class="num" id="nutri-peso-inicial">—</span><span class="lbl">Peso inicial</span></div>
+                <div class="stat-chip"><span class="num" id="nutri-peso-actual">—</span><span class="lbl">Peso actual</span></div>
+                <div class="stat-chip"><span class="num" id="nutri-perdida">—</span><span class="lbl">Pérdida total</span></div>
+                <div class="stat-chip"><span class="num" id="nutri-semanas">—</span><span class="lbl">Semanas</span></div>
+              </div>
+
+              <div class="nutri-card nutri-chart-wrap">
+                <svg id="nutri-chart-peso" viewBox="0 0 560 200" preserveAspectRatio="none" role="img" aria-label="Evolución de peso"></svg>
+              </div>
+
+              <div class="nutri-card nutri-adherencia">
+                <div class="adherencia-row">
+                  <span class="adherencia-lbl">Nutrición</span>
+                  <div class="adherencia-track"><div class="adherencia-fill" id="adherencia-nutricion-fill"></div></div>
+                  <span class="adherencia-pct" id="adherencia-nutricion-pct">—</span>
+                </div>
+                <div class="adherencia-row">
+                  <span class="adherencia-lbl">Ejercicio</span>
+                  <div class="adherencia-track"><div class="adherencia-fill" id="adherencia-ejercicio-fill"></div></div>
+                  <span class="adherencia-pct" id="adherencia-ejercicio-pct">—</span>
+                </div>
+              </div>
+
+              <div class="nutri-card">
+                <div class="section-label">Objetivos activos</div>
+                <ul id="nutri-objetivos-lista" class="objetivo-lista"></ul>
+              </div>
+            </div>
+
             <div class="section-label">Plan nutricional</div>
 
             <div id="nutri-formulario" class="nutri-form">
@@ -3925,6 +3990,161 @@ function activarTab(tab) {
   // en NOVA LABS y las demás debe verse únicamente el contenido de esa pestaña.
   const seccionConsulta = document.querySelector('.consulta-section');
   if (seccionConsulta) seccionConsulta.style.display = (tab === 'consultas') ? '' : 'none';
+  if (tab === 'nutricion') cargarNutricion();
+}
+
+// ─── NUTRICIÓN: evolución y seguimiento (conectado a CONSULTAS) ────
+// Lee las consultas del paciente actual, usa "Peso en consulta (kg)" para
+// la gráfica y "Adherencia (1-10)" para la barra de nutrición. No hay
+// campo dedicado de adherencia de ejercicio en Airtable todavía — se
+// infiere de "Notas internas" (patrón "Xd/semana") como mejor esfuerzo.
+async function cargarNutricion() {
+  if (!pacienteActual) return;
+  const f = pacienteActual.fields;
+  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
+
+  const lista = document.getElementById('nutri-objetivos-lista');
+  if (lista) lista.innerHTML = '<li class="objetivo-item">Cargando…</li>';
+
+  try {
+    const formula = `{Código de paciente ref}="${pacId}"`;
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=asc&maxRecords=100`);
+    const registros = (data.records || []).filter(r => typeof r.fields['Peso en consulta (kg)'] === 'number');
+
+    if (!registros.length) {
+      ['nutri-peso-inicial', 'nutri-peso-actual', 'nutri-perdida', 'nutri-semanas'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.textContent = '—';
+      });
+      renderGraficaPeso([], null);
+      renderAdherencia('adherencia-nutricion', null);
+      renderAdherencia('adherencia-ejercicio', null);
+      if (lista) lista.innerHTML = '<li class="objetivo-item">Sin consultas con peso registrado todavía para este paciente.</li>';
+      return;
+    }
+
+    const pesos = registros.map(r => {
+      const numSesion = r.fields['Número de sesión'];
+      return {
+        semana: numSesion,
+        etiqueta: numSesion === 0 ? 'Inicio' : `Semana ${numSesion ?? ''}`,
+        kg: r.fields['Peso en consulta (kg)'],
+      };
+    });
+
+    const pesoInicial = pesos[0].kg;
+    const pesoActual = pesos[pesos.length - 1].kg;
+    const perdidaKg = pesoInicial - pesoActual;
+
+    document.getElementById('nutri-peso-inicial').textContent = pesoInicial.toFixed(1) + ' kg';
+    document.getElementById('nutri-peso-actual').textContent = pesoActual.toFixed(1) + ' kg';
+    document.getElementById('nutri-perdida').textContent = (perdidaKg >= 0 ? '-' : '+') + Math.abs(perdidaKg).toFixed(1) + ' kg';
+    document.getElementById('nutri-semanas').textContent = pesos.length - 1;
+
+    renderGraficaPeso(pesos, null);
+
+    const conAdherencia = [...registros].reverse().find(r => typeof r.fields['Adherencia (1-10)'] === 'number');
+    renderAdherencia('adherencia-nutricion', conAdherencia ? conAdherencia.fields['Adherencia (1-10)'] * 10 : null);
+
+    let pctEjercicio = null;
+    for (const r of [...registros].reverse()) {
+      const m = (r.fields['Notas internas'] || '').match(/(\d)\s*d\/semana/i);
+      if (m) { pctEjercicio = Math.round(Number(m[1]) / 7 * 100); break; }
+    }
+    renderAdherencia('adherencia-ejercicio', pctEjercicio);
+
+    const objetivos = [];
+    if (f['GLP-1 medicamento y dosis']) objetivos.push(`Aplicación semanal de ${f['GLP-1 medicamento y dosis']}`);
+    if (pctEjercicio) objetivos.push(`Ejercicio funcional ${Math.round(pctEjercicio / 100 * 7)} días por semana`);
+    objetivos.push('Adherencia nutricional ≥ 85%');
+    if (perdidaKg > 0) objetivos.push('Meta: continuar tendencia descendente sostenida');
+    if (lista) lista.innerHTML = objetivos.map(o => `<li class="objetivo-item"><span class="chk">✓</span>${o}</li>`).join('');
+
+  } catch (err) {
+    if (lista) lista.innerHTML = '<li class="objetivo-item">No se pudo cargar la evolución nutricional. Verifica tu conexión.</li>';
+  }
+}
+
+function renderAdherencia(prefijo, pct) {
+  const fill = document.getElementById(prefijo + '-fill');
+  const pctEl = document.getElementById(prefijo + '-pct');
+  if (!fill || !pctEl) return;
+  if (pct == null || isNaN(pct)) {
+    fill.className = 'adherencia-fill';
+    fill.style.width = '0%';
+    pctEl.textContent = '—';
+    return;
+  }
+  const nivel = pct >= 90 ? 'ok' : pct >= 70 ? 'warn' : 'bad';
+  fill.className = 'adherencia-fill ' + nivel;
+  fill.style.width = Math.min(100, pct) + '%';
+  pctEl.textContent = pct + '%';
+}
+
+function renderGraficaPeso(pesos, metaKg) {
+  const svg = document.getElementById('nutri-chart-peso');
+  if (!svg) return;
+  const NS = 'http://www.w3.org/2000/svg';
+  svg.innerHTML = '';
+  if (!pesos.length) return;
+
+  const W = 560, H = 200, ML = 40, MR = 12, MT = 15, MB = 25;
+  const plotW = W - ML - MR, plotH = H - MT - MB;
+  const kgs = pesos.map(p => p.kg);
+  const minY = Math.floor(Math.min(...kgs)) - 1;
+  const maxY = Math.ceil(Math.max(...kgs)) + 1;
+
+  const x = i => pesos.length > 1 ? ML + (i / (pesos.length - 1)) * plotW : ML;
+  const y = kg => MT + (1 - (kg - minY) / (maxY - minY)) * plotH;
+
+  // Guías horizontales (min/max) con su valor
+  [minY, maxY].forEach(val => {
+    const linea = document.createElementNS(NS, 'line');
+    linea.setAttribute('x1', ML); linea.setAttribute('x2', W - MR);
+    linea.setAttribute('y1', y(val)); linea.setAttribute('y2', y(val));
+    linea.setAttribute('class', 'linea-guia');
+    svg.appendChild(linea);
+
+    const texto = document.createElementNS(NS, 'text');
+    texto.setAttribute('x', 4); texto.setAttribute('y', y(val) + 3);
+    texto.textContent = val + ' kg';
+    svg.appendChild(texto);
+  });
+
+  // Línea de meta, si existe
+  if (metaKg) {
+    const linea = document.createElementNS(NS, 'line');
+    linea.setAttribute('x1', ML); linea.setAttribute('x2', W - MR);
+    linea.setAttribute('y1', y(metaKg)); linea.setAttribute('y2', y(metaKg));
+    linea.setAttribute('class', 'linea-meta');
+    svg.appendChild(linea);
+  }
+
+  // Línea de evolución
+  const puntos = pesos.map((p, i) => `${x(i)},${y(p.kg)}`).join(' ');
+  const polilinea = document.createElementNS(NS, 'polyline');
+  polilinea.setAttribute('points', puntos);
+  polilinea.setAttribute('class', 'linea-peso');
+  svg.appendChild(polilinea);
+
+  // Puntos + etiquetas de semana + tooltip nativo
+  pesos.forEach((p, i) => {
+    const circulo = document.createElementNS(NS, 'circle');
+    circulo.setAttribute('cx', x(i));
+    circulo.setAttribute('cy', y(p.kg));
+    circulo.setAttribute('r', i === 0 ? 5 : 4);
+    circulo.setAttribute('class', i === 0 ? 'punto-inicio' : 'punto-peso');
+    const titulo = document.createElementNS(NS, 'title');
+    titulo.textContent = `${p.etiqueta} — ${p.kg.toFixed(2)} kg`;
+    circulo.appendChild(titulo);
+    svg.appendChild(circulo);
+
+    const etiqueta = document.createElementNS(NS, 'text');
+    etiqueta.setAttribute('x', x(i));
+    etiqueta.setAttribute('y', H - 6);
+    etiqueta.setAttribute('text-anchor', 'middle');
+    etiqueta.textContent = i === 0 ? 'Inicio' : 'S' + p.semana;
+    svg.appendChild(etiqueta);
+  });
 }
 
 // ─── DATOS GENERALES ──────────────────────────────────────────────
