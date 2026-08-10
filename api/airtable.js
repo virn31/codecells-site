@@ -55,11 +55,11 @@ const TABLAS_LECTURA_PUBLICA = new Set(['protocolos']);
 const DIRECTORIO_CAMPOS_PUBLICOS = [
   'Name',
   'Especialidades visibles',
+  'Tratamientos que ofrece',
   'Ciudad de consulta',
   'Bio corta',
   'Horarios',
   'WhatsApp público',
-  'Nivel CODE CELLS®',
 ];
 
 function escaparFormula(valor) {
@@ -175,12 +175,15 @@ module.exports = async (req, res) => {
   if (esLecturaDirectorioPublico) {
     const params = new URLSearchParams();
     const filtros = ['{Publicado}=1'];
-    const { ciudad, especialidad } = req.query;
+    const { ciudad, especialidad, tratamiento } = req.query;
     if (ciudad) {
       filtros.push(`{Ciudad de consulta}="${escaparFormula(ciudad)}"`);
     }
     if (especialidad) {
       filtros.push(`FIND("${escaparFormula(especialidad)}", ARRAYJOIN({Especialidades visibles}, ", "))>0`);
+    }
+    if (tratamiento) {
+      filtros.push(`FIND("${escaparFormula(tratamiento)}", ARRAYJOIN({Tratamientos que ofrece}, ", "))>0`);
     }
     params.set(
       'filterByFormula',
