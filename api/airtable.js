@@ -29,6 +29,7 @@ const TABLAS_PERMITIDAS = {
   temp: 'tblVOTed5MJSX1Vpy',
   pacientes_vip: 'tblquF2fzFgUC5nll',
   solicitudes_medico: 'tblDpqi2XJqoR4QiE',
+  directorio_medico: 'tblkUNPwu1sQgZBPJ',
 };
 
 // Campo que, en cada tabla, identifica a qué paciente/vip pertenece un
@@ -46,8 +47,39 @@ const CAMPO_DUENIO = {
 // (nunca escritura) incluso sin token, porque no exponen nada sensible.
 const TABLAS_LECTURA_PUBLICA = new Set(['protocolos']);
 
+// Campos que el DIRECTORIO expone al público. TODO campo no listado aquí
+// (Médico linkado, Fecha de alta, Última actualización) queda BLOQUEADO
+// en la respuesta pública — se aplica como fields[]= en la petición a
+// Airtable, no en post-procesado JS, para que un bug de serialización no
+// pueda filtrar campos sensibles.
+const DIRECTORIO_CAMPOS_PUBLICOS = [
+  'Name',
+  'Especialidades visibles',
+  'Ciudad de consulta',
+  'Bio corta',
+  'Horarios',
+  'WhatsApp público',
+  'Nivel CODE CELLS®',
+];
+
 function escaparFormula(valor) {
   return String(valor).replace(/"/g, '\\"');
+}
+
+// Resuelve el recordId del médico a partir de su código CCMED-. Se usa en
+// las ramas POST/PATCH de directorio_medico porque el link 'Médico' de la
+// tabla DIRECTORIO_MEDICO guarda recordIds, no códigos.
+async function obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN) {
+  const formula = `{Código de médico}="${escaparFormula(codigo)}"`;
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLAS_PERMITIDAS.medicos}?filterByFormula=${encodeURIComponent(formula)}&maxRecords=1&fields%5B%5D=${encodeURIComponent('Código de médico')}`;
+  try {
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.records?.[0]?.id || null;
+  } catch {
+    return null;
+  }
 }
 
 // Tablas donde, ANTES de que exista sesión, el propio código/token que el
@@ -123,14 +155,48 @@ module.exports = async (req, res) => {
       ? await esEscrituraPreAuthValida(req, tabla, tableId, AIRTABLE_TOKEN)
       : false;
 
+  const esLecturaDirectorioPublico =
+    !sesion && req.method === 'GET' && tabla === 'directorio_medico';
+
   if (
     !sesion &&
     !esLecturaPublicaPermitida &&
     !esLecturaPreAuth &&
     !esCreacionInvitacionPublica &&
-    !esEscrituraPreAuth
+    !esEscrituraPreAuth &&
+    !esLecturaDirectorioPublico
   ) {
     return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+  }
+
+  // ── Directorio público: forwarding dedicado con filtro forzado y
+  //    whitelist estricta de campos. El cliente NO puede mandar
+  //    filterByFormula ni fields[] arbitrarios en este path. ──
+  if (esLecturaDirectorioPublico) {
+    const params = new URLSearchParams();
+    const filtros = ['{Publicado}=1'];
+    const { ciudad, especialidad } = req.query;
+    if (ciudad) {
+      filtros.push(`{Ciudad de consulta}="${escaparFormula(ciudad)}"`);
+    }
+    if (especialidad) {
+      filtros.push(`FIND("${escaparFormula(especialidad)}", ARRAYJOIN({Especialidades visibles}, ", "))>0`);
+    }
+    params.set(
+      'filterByFormula',
+      filtros.length === 1 ? filtros[0] : `AND(${filtros.join(',')})`
+    );
+    DIRECTORIO_CAMPOS_PUBLICOS.forEach(f => params.append('fields[]', f));
+    params.set('maxRecords', '50');
+
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
+    try {
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const data = await r.json();
+      return res.status(r.status).json(data);
+    } catch (err) {
+      return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
+    }
   }
 
   // El marcador "credencialPreAuth" es solo la credencial de esta petición —
@@ -153,6 +219,57 @@ module.exports = async (req, res) => {
       }
       if (tabla === 'solicitudes_medico' && req.method !== 'GET' && req.method !== 'POST') {
         return res.status(403).json({ error: 'No permitido.' });
+      }
+
+      // ── Directorio médico: cada médico solo ve/edita SU propio perfil ──
+      if (tabla === 'directorio_medico') {
+        if (req.method === 'GET') {
+          req.query.filterByFormula = `{Médico}="${escaparFormula(codigo)}"`;
+          req.query.maxRecords = '1';
+        } else if (req.method === 'POST') {
+          const recordIdMedico = await obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN);
+          if (!recordIdMedico) {
+            return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
+          }
+          const fields = (req.body && req.body.fields) || {};
+          delete fields['Fecha de alta']; // solo se estampa al primer publish
+          req.body.fields = {
+            ...fields,
+            'Médico': [recordIdMedico],
+            'Publicado': false,
+            'Última actualización': new Date().toISOString(),
+          };
+        } else if (req.method === 'PATCH') {
+          const { recordId } = req.query;
+          if (!recordId) return res.status(400).json({ error: 'Falta recordId.' });
+          const recordIdMedico = await obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN);
+          if (!recordIdMedico) {
+            return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
+          }
+          try {
+            const check = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${tableId}/${recordId}`, {
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+            });
+            const checkData = await check.json();
+            const linkado = checkData.fields?.['Médico'] || [];
+            if (!check.ok || !linkado.includes(recordIdMedico)) {
+              return res.status(403).json({ error: 'No puedes modificar un perfil que no es tuyo.' });
+            }
+            const fields = (req.body && req.body.fields) || {};
+            // Campos que el médico NO puede tocar por este endpoint
+            delete fields['Médico'];
+            delete fields['Fecha de alta'];
+            // Si va a publicar por primera vez, estampar Fecha de alta
+            const yaTieneFecha = !!checkData.fields?.['Fecha de alta'];
+            if (fields['Publicado'] === true && !yaTieneFecha) {
+              fields['Fecha de alta'] = new Date().toISOString();
+            }
+            fields['Última actualización'] = new Date().toISOString();
+            req.body.fields = fields;
+          } catch (err) {
+            return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
+          }
+        }
       }
     } else if (tipo === 'paciente' || tipo === 'vip') {
       const tablasPermitidasRol =
