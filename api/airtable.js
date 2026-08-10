@@ -56,6 +56,7 @@ const DIRECTORIO_CAMPOS_PUBLICOS = [
   'Name',
   'Especialidades visibles',
   'Tratamientos que ofrece',
+  'Otras terapias',
   'Ciudad de consulta',
   'Bio corta',
   'Horarios',
