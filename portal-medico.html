@@ -2085,6 +2085,193 @@
   color: rgba(232, 228, 221, 0.5);
   font-style: italic;
 }
+
+/* Estado 1: card "Crear perfil" */
+#mi-directorio .mi-dir-empty {
+  padding: 48px 32px;
+  text-align: center;
+  border: 1px solid rgba(232, 163, 61, 0.2);
+  border-radius: 12px;
+  background: rgba(232, 163, 61, 0.03);
+}
+#mi-directorio .mi-dir-empty h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+  color: var(--gold, #E8A33D);
+  margin: 0 0 12px 0;
+}
+#mi-directorio .mi-dir-empty p {
+  font-size: 14px;
+  color: rgba(232, 228, 221, 0.7);
+  max-width: 480px;
+  margin: 0 auto 24px auto;
+  line-height: 1.6;
+}
+#mi-directorio .mi-dir-empty button {
+  padding: 12px 28px;
+  background: var(--gold, #E8A33D);
+  color: #0E1410;
+  border: none;
+  border-radius: 6px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+#mi-directorio .mi-dir-empty button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(232, 163, 61, 0.25);
+}
+#mi-directorio .mi-dir-empty button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* Estado 2: formulario editable */
+#mi-directorio .mi-dir-form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 720px;
+}
+#mi-directorio .mi-dir-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+#mi-directorio .mi-dir-block-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold, #E8A33D);
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(232, 163, 61, 0.12);
+}
+#mi-directorio .mi-dir-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+#mi-directorio .mi-dir-field label {
+  font-size: 12px;
+  color: rgba(232, 228, 221, 0.65);
+  letter-spacing: 0.02em;
+}
+#mi-directorio .mi-dir-field .mi-dir-saved {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 11px;
+  color: #5FAE6E;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+#mi-directorio .mi-dir-field .mi-dir-saved.visible {
+  opacity: 1;
+}
+#mi-directorio .mi-dir-field input[type="text"],
+#mi-directorio .mi-dir-field input[type="url"],
+#mi-directorio .mi-dir-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(232, 228, 221, 0.04);
+  border: 1px solid rgba(232, 228, 221, 0.12);
+  border-radius: 6px;
+  color: var(--foreground, #E8E4DD);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+#mi-directorio .mi-dir-field input:focus,
+#mi-directorio .mi-dir-field textarea:focus {
+  outline: none;
+  border-color: rgba(232, 163, 61, 0.5);
+}
+#mi-directorio .mi-dir-field textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+#mi-directorio .mi-dir-field .mi-dir-hint {
+  font-size: 11px;
+  color: rgba(232, 228, 221, 0.4);
+  font-style: italic;
+}
+
+/* Multiselect de chips */
+#mi-directorio .mi-dir-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#mi-directorio .mi-dir-chip {
+  padding: 6px 12px;
+  border: 1px solid rgba(232, 228, 221, 0.15);
+  border-radius: 20px;
+  background: rgba(232, 228, 221, 0.03);
+  color: rgba(232, 228, 221, 0.7);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+#mi-directorio .mi-dir-chip:hover {
+  border-color: rgba(232, 163, 61, 0.4);
+  color: var(--foreground, #E8E4DD);
+}
+#mi-directorio .mi-dir-chip.selected {
+  background: rgba(232, 163, 61, 0.15);
+  border-color: var(--gold, #E8A33D);
+  color: var(--gold, #E8A33D);
+}
+
+/* Leyenda de responsabilidad clínica */
+#mi-directorio .mi-dir-legal {
+  padding: 12px 16px;
+  background: rgba(212, 101, 74, 0.06);
+  border-left: 3px solid rgba(212, 101, 74, 0.4);
+  border-radius: 4px;
+  font-size: 12px;
+  color: rgba(232, 228, 221, 0.7);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+/* Bloque de estado (arriba) */
+#mi-directorio .mi-dir-status {
+  padding: 16px 20px;
+  background: rgba(232, 228, 221, 0.03);
+  border: 1px solid rgba(232, 228, 221, 0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#mi-directorio .mi-dir-status .mi-dir-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(232, 228, 221, 0.3);
+  flex-shrink: 0;
+}
+#mi-directorio .mi-dir-status.published .mi-dir-status-dot {
+  background: #5FAE6E;
+  box-shadow: 0 0 8px rgba(95, 174, 110, 0.5);
+}
+#mi-directorio .mi-dir-status-text {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(232, 228, 221, 0.75);
+}
+#mi-directorio .mi-dir-status-text strong {
+  color: var(--foreground, #E8E4DD);
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="/lib/i18n.js"></script>
@@ -3097,7 +3284,7 @@
         </div>
 
         <div id="mi-dir-content" class="mi-dir-content">
-          <!-- Estado de carga inicial. Reemplazado por JS del mini-brief 2. -->
+          <!-- El estado inicial se renderiza por JS: cargarMiDirectorio() -->
           <div class="mi-dir-loading">Cargando tu perfil…</div>
         </div>
       </div>
@@ -6312,6 +6499,294 @@ function salirMiDirectorio() {
   if (expediente) expediente.style.display = 'none';
   if (noPatient) noPatient.style.display = 'flex';
   document.querySelector('.app-body')?.classList.remove('mostrando-expediente');
+}
+
+// ── Mi directorio: estado global y helpers ──
+const MI_DIR_ESPECIALIDADES = [
+  'Medicina Regenerativa', 'Medicina Interna', 'Endocrinología',
+  'Ginecología y Obstetricia', 'Gastroenterología', 'Otorrinolaringología',
+  'Nutriología', 'Cardiología', 'Nefrología', 'Reumatología',
+  'Dermatología', 'Neumología', 'Psiquiatría', 'Urología',
+  'Oftalmología', 'Cirugía Plástica'
+];
+
+const MI_DIR_TRATAMIENTOS = [
+  'Células madre', 'Exosomas', 'Sueroterapia IV', 'Peptidoterapia',
+  'GLP-1 / Pérdida de peso', 'MUSE Cells', 'Rejuvenecimiento facial',
+  'Terapia hormonal', 'Ozonoterapia', 'Homotoxicología',
+  'Biohacking / Longevidad', 'NK Cells', 'MSC Placental', 'DEZAWA (VIP)'
+];
+
+let miDirEstado = {
+  recordId: null,
+  campos: {},
+  cargando: false,
+  aborters: {} // AbortControllers activos por campo, para cancelar autosaves obsoletos
+};
+
+// Hook: cuando abrimos el panel, disparamos la carga
+const _origMostrarMiDirectorio = mostrarMiDirectorio;
+mostrarMiDirectorio = function() {
+  _origMostrarMiDirectorio();
+  cargarMiDirectorio();
+};
+
+async function cargarMiDirectorio() {
+  const content = document.getElementById('mi-dir-content');
+  if (!content) return;
+  content.innerHTML = '<div class="mi-dir-loading">Cargando tu perfil…</div>';
+  miDirEstado.cargando = true;
+
+  try {
+    const r = await fetch('/api/airtable?tabla=directorio_medico');
+    if (!r.ok) throw new Error('Error ' + r.status);
+    const data = await r.json();
+
+    if (!data.records || data.records.length === 0) {
+      renderMiDirEstadoVacio();
+    } else {
+      miDirEstado.recordId = data.records[0].id;
+      miDirEstado.campos = data.records[0].fields || {};
+      renderMiDirFormulario();
+    }
+  } catch (err) {
+    content.innerHTML = '<div class="mi-dir-loading" style="color:#D4654A">No se pudo cargar tu perfil. Reintenta desde ← Volver.</div>';
+    console.error('cargarMiDirectorio:', err);
+  } finally {
+    miDirEstado.cargando = false;
+  }
+}
+
+// Estado 1: no tiene perfil
+function renderMiDirEstadoVacio() {
+  const content = document.getElementById('mi-dir-content');
+  if (!content) return;
+  content.innerHTML = `
+    <div class="mi-dir-empty">
+      <h3>Tu presencia pública en la Red CODE CELLS®</h3>
+      <p>Publica un perfil breve para que los pacientes que buscan medicina regenerativa te encuentren. Puedes escribir lo mínimo y publicar más adelante. Nada aparece público hasta que tú lo actives.</p>
+      <button onclick="crearMiDirectorioPerfil(this)">Crear mi perfil</button>
+    </div>
+  `;
+}
+
+// Heurística: apellido paterno = 3er token de "Nombre completo"
+function heuristicaNombrePublico() {
+  const nombre = (
+    (typeof medicoActual !== 'undefined' && medicoActual)
+      ? (medicoActual['Nombre completo'] || medicoActual['Nombre'] || '')
+      : ''
+  ).trim();
+  if (!nombre) return '';
+  const partes = nombre.replace(/^Dr(a)?\.?\s+/i, '').split(/\s+/);
+  if (partes.length >= 3) return 'Dr. ' + partes[2];
+  return 'Dr. ' + (partes[partes.length - 1] || '');
+}
+
+async function crearMiDirectorioPerfil(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando…'; }
+  try {
+    const prellenadoNombre = heuristicaNombrePublico();
+    const prellenadoCiudad = (
+      (typeof medicoActual !== 'undefined' && medicoActual)
+        ? (medicoActual['Ciudad'] || '').trim()
+        : ''
+    );
+
+    const body = { fields: {} };
+    if (prellenadoNombre) body.fields['Name'] = prellenadoNombre;
+    if (prellenadoCiudad) body.fields['Ciudad de consulta'] = prellenadoCiudad;
+
+    const r = await fetch('/api/airtable?tabla=directorio_medico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('Error ' + r.status);
+    const data = await r.json();
+    miDirEstado.recordId = data.id;
+    miDirEstado.campos = data.fields || {};
+    renderMiDirFormulario();
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear mi perfil'; }
+    alert('No se pudo crear el perfil. Intenta de nuevo en un momento.');
+    console.error('crearMiDirectorioPerfil:', err);
+  }
+}
+
+// Estado 2: formulario editable
+function renderMiDirFormulario() {
+  const content = document.getElementById('mi-dir-content');
+  if (!content) return;
+  const c = miDirEstado.campos || {};
+  const espSel = new Set(c['Especialidades visibles'] || []);
+  const tratSel = new Set(c['Tratamientos que ofrece'] || []);
+  const publicado = !!c['Publicado'];
+  const fechaAlta = c['Fecha de alta'] || '';
+
+  const statusHtml = publicado
+    ? `<div class="mi-dir-status published">
+         <div class="mi-dir-status-dot"></div>
+         <div class="mi-dir-status-text"><strong>Perfil publicado.</strong> Visible para pacientes${fechaAlta ? ' desde ' + fechaAlta.substring(0,10) : ''}.</div>
+       </div>`
+    : `<div class="mi-dir-status">
+         <div class="mi-dir-status-dot"></div>
+         <div class="mi-dir-status-text"><strong>Solo tú ves este perfil.</strong> El toggle para publicar llegará en la próxima actualización.</div>
+       </div>`;
+
+  content.innerHTML = `
+    <div class="mi-dir-form">
+      ${statusHtml}
+
+      <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Cómo apareces</div>
+        <div class="mi-dir-field">
+          <label>Nombre público</label>
+          <input type="text" data-campo="Name" value="${escaparHtml(c['Name'] || '')}" placeholder="Ej. Dr. Rodríguez">
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>
+        <div class="mi-dir-field">
+          <label>Ciudad de consulta</label>
+          <input type="text" data-campo="Ciudad de consulta" value="${escaparHtml(c['Ciudad de consulta'] || '')}" placeholder="Ej. Culiacán">
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>
+        <div class="mi-dir-field">
+          <label>Bio corta (opcional)</label>
+          <textarea data-campo="Bio corta" placeholder="2-3 líneas de presentación pública">${escaparHtml(c['Bio corta'] || '')}</textarea>
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>
+      </div>
+
+      <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Qué ofreces</div>
+        <div class="mi-dir-field">
+          <label>Especialidad clínica</label>
+          <div class="mi-dir-chips" data-campo="Especialidades visibles">
+            ${MI_DIR_ESPECIALIDADES.map(e => `<div class="mi-dir-chip${espSel.has(e) ? ' selected' : ''}" onclick="toggleMiDirChip(this,'Especialidades visibles','${escaparHtml(e).replace(/'/g, "\\'")}')">${escaparHtml(e)}</div>`).join('')}
+          </div>
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>
+        <div class="mi-dir-field">
+          <label>Herramientas regenerativas que ofreces</label>
+          <div class="mi-dir-chips" data-campo="Tratamientos que ofrece">
+            ${MI_DIR_TRATAMIENTOS.map(t => `<div class="mi-dir-chip${tratSel.has(t) ? ' selected' : ''}" onclick="toggleMiDirChip(this,'Tratamientos que ofrece','${escaparHtml(t).replace(/'/g, "\\'")}')">${escaparHtml(t)}</div>`).join('')}
+          </div>
+          <div class="mi-dir-legal">Al marcar una herramienta declaras bajo tu responsabilidad clínica que la ofreces en tu práctica. La Red CODE CELLS® no verifica capacitación individual por herramienta. Para tratamientos bajo licencia (MUSE, NK, MSC Placental), la responsabilidad del acceso comercial es del médico.</div>
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>
+        <div class="mi-dir-field">
+          <label>Otras terapias (opcional)</label>
+          <textarea data-campo="Otras terapias" placeholder="Ej. Medicina funcional, Biohormonas idénticas, Fotobiomodulación">${escaparHtml(c['Otras terapias'] || '')}</textarea>
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>
+      </div>
+
+      <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Cómo te contactan</div>
+        <div class="mi-dir-field">
+          <label>Horarios</label>
+          <input type="text" data-campo="Horarios" value="${escaparHtml(c['Horarios'] || '')}" placeholder="Ej. Lun-Vie 9:00-14:00">
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>
+        <div class="mi-dir-field">
+          <label>WhatsApp (solo número, se normaliza a wa.me)</label>
+          <input type="text" data-campo="WhatsApp público" value="${escaparHtml(c['WhatsApp público'] || '')}" placeholder="Ej. 6671234567" data-normalizar="whatsapp">
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">Se convierte a https://wa.me/52... automáticamente</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Conectar autosave a inputs de texto
+  content.querySelectorAll('input[type="text"], input[type="url"], textarea').forEach(el => {
+    el.addEventListener('input', () => programarGuardadoMiDir(el));
+    el.addEventListener('blur', () => guardarCampoMiDir(el)); // forzar guardado al desenfocar
+  });
+}
+
+// Helper HTML escape
+function escaparHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Toggle de chip (multiselect)
+function toggleMiDirChip(el, campo, valor) {
+  el.classList.toggle('selected');
+  const contenedor = el.parentElement;
+  const seleccionados = Array.from(contenedor.querySelectorAll('.mi-dir-chip.selected'))
+    .map(c => c.textContent.trim());
+  guardarValorMiDir(campo, seleccionados, contenedor.parentElement);
+}
+
+// Debounce por campo
+const _miDirDebounce = {};
+function programarGuardadoMiDir(el) {
+  const campo = el.dataset.campo;
+  if (!campo) return;
+  clearTimeout(_miDirDebounce[campo]);
+  _miDirDebounce[campo] = setTimeout(() => guardarCampoMiDir(el), 800);
+}
+
+function normalizarWhatsApp(valor) {
+  const soloNumeros = String(valor || '').replace(/\D/g, '');
+  if (!soloNumeros) return '';
+  // Si empieza con 52, dejarlo; si no, anteponer 521 (formato MX WhatsApp)
+  let n = soloNumeros;
+  if (n.startsWith('521')) { /* ok */ }
+  else if (n.startsWith('52')) { n = '521' + n.substring(2); }
+  else { n = '521' + n; }
+  return 'https://wa.me/' + n;
+}
+
+async function guardarCampoMiDir(el) {
+  const campo = el.dataset.campo;
+  if (!campo) return;
+  let valor = el.value;
+  if (el.dataset.normalizar === 'whatsapp' && valor.trim()) {
+    valor = normalizarWhatsApp(valor);
+  }
+  await guardarValorMiDir(campo, valor, el.closest('.mi-dir-field'));
+}
+
+async function guardarValorMiDir(campo, valor, campoContainer) {
+  if (!miDirEstado.recordId) return;
+
+  // Cancelar cualquier request anterior de este campo (race condition guard)
+  if (miDirEstado.aborters[campo]) {
+    miDirEstado.aborters[campo].abort();
+  }
+  const ctrl = new AbortController();
+  miDirEstado.aborters[campo] = ctrl;
+
+  try {
+    const body = { fields: { [campo]: valor } };
+    const r = await fetch('/api/airtable?tabla=directorio_medico&recordId=' + miDirEstado.recordId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    });
+    if (!r.ok) throw new Error('Error ' + r.status);
+    miDirEstado.campos[campo] = valor;
+    mostrarGuardadoMiDir(campoContainer);
+  } catch (err) {
+    if (err.name === 'AbortError') return; // canceled — expected
+    console.error('guardarValorMiDir:', campo, err);
+  }
+}
+
+function mostrarGuardadoMiDir(campoContainer) {
+  if (!campoContainer) return;
+  const marca = campoContainer.querySelector('.mi-dir-saved');
+  if (!marca) return;
+  marca.classList.add('visible');
+  clearTimeout(marca._timer);
+  marca._timer = setTimeout(() => marca.classList.remove('visible'), 2000);
 }
 </script>
 </body>
