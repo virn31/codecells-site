@@ -15,7 +15,8 @@
 // paciente, aunque tenga un token válido, porque su token está atado a su
 // propio código.
 
-const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
+const { verificarToken, tokenDesdeRequest, generarTokenVisitante } = require('../lib/auth');
+const { sendTelegramMessage } = require('../lib/telegram');
 
 const BASE_ID = 'app6jyD9pDlTLpknA';
 
@@ -30,6 +31,7 @@ const TABLAS_PERMITIDAS = {
   pacientes_vip: 'tblquF2fzFgUC5nll',
   solicitudes_medico: 'tblDpqi2XJqoR4QiE',
   directorio_medico: 'tblkUNPwu1sQgZBPJ',
+  solicitudes_paciente: 'tblUsc72JO2BaqT6d',
 };
 
 // Campo que, en cada tabla, identifica a qué paciente/vip pertenece un
@@ -62,6 +64,10 @@ const DIRECTORIO_CAMPOS_PUBLICOS = [
   'Horarios',
   'WhatsApp público',
 ];
+
+// Campos que solo se revelan a visitantes registrados (gate suave).
+// NUNCA fusionar con la lista de campos públicos de arriba.
+const DIRECTORIO_CAMPOS_PRIVADOS = ['Teléfono de consultorio'];
 
 function escaparFormula(valor) {
   return String(valor).replace(/"/g, '\\"');
@@ -126,6 +132,70 @@ async function esEscrituraPreAuthValida(req, tabla, tableId, AIRTABLE_TOKEN) {
   }
 }
 
+// Avisa al médico por Telegram. Si el médico no tiene chat vinculado,
+// le llega a Víctor para reenvío manual. Devuelve el destino real,
+// que se guarda en el campo 'Alerta enviada a'.
+async function notificarSolicitudPaciente(registro, body) {
+  const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+  let chatMedico = null;
+  let nombreMedico = 'un médico de la red';
+
+  if (body.medicoId) {
+    try {
+      // 1) Perfil público → 2) expediente en MÉDICOS → 3) Telegram Chat ID
+      const rDir = await fetch(
+        `https://api.airtable.com/v0/${BASE_ID}/tblkUNPwu1sQgZBPJ/${body.medicoId}`,
+        { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
+      );
+      const dir = await rDir.json();
+      nombreMedico = dir.fields?.['Name'] || nombreMedico;
+      const links = dir.fields?.['Médico'] || [];
+      if (links.length) {
+        const rMed = await fetch(
+          `https://api.airtable.com/v0/${BASE_ID}/tbl87DsuBMmb4DjFM/${links[0]}`,
+          { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
+        );
+        const med = await rMed.json();
+        chatMedico = med.fields?.['Telegram Chat ID'] || null;
+      }
+    } catch (e) { /* cae al fallback */ }
+  }
+
+  const consintio = body.consentimiento === true;
+  const lineas = [
+    '🔔 *Nueva solicitud de contacto*',
+    '',
+    `*Para:* ${nombreMedico}`,
+    `*Paciente:* ${body.nombre || '—'}`,
+    `*Teléfono:* ${body.telefono || '—'}`,
+    `*Ciudad:* ${body.ciudad || '—'}`,
+    `*Busca:* ${body.especialidad || '—'}`
+  ];
+  if (consintio && body.motivo) {
+    lineas.push(`*Motivo:* ${body.motivo}`);
+  } else {
+    lineas.push('_El paciente no autorizó compartir su motivo de consulta._');
+  }
+  lineas.push('', 'Contáctalo directamente. Registro en Airtable → SOLICITUDES_PACIENTE.');
+
+  const mensaje = lineas.join('\n');
+
+  if (chatMedico) {
+    await sendTelegramMessage(chatMedico, mensaje);
+    return 'Médico (directo)';
+  }
+
+  const chatVictor = process.env.TELEGRAM_CHAT_ID;
+  if (chatVictor) {
+    await sendTelegramMessage(
+      chatVictor,
+      mensaje + '\n\n⚠️ _Este médico aún no vinculó su Telegram. Reenvíaselo a mano._'
+    );
+    return 'Fallback a Víctor';
+  }
+  return 'No enviada';
+}
+
 module.exports = async (req, res) => {
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
   if (!AIRTABLE_TOKEN) {
@@ -161,6 +231,89 @@ module.exports = async (req, res) => {
   const esListaCiudadesPublica =
     !sesion && req.method === 'GET' && tabla === 'directorio_medico' && req.query.accion === 'ciudades';
 
+  // ── Registro público de un lead del directorio (crea el lead + token) ──
+  const esRegistroPacientePublico =
+    req.method === 'POST' &&
+    tabla === 'solicitudes_paciente' &&
+    req.query.accion === 'registrar';
+
+  if (esRegistroPacientePublico) {
+    const b = req.body || {};
+    const nombre = String(b.nombre || '').trim().slice(0, 120);
+    const telefono = String(b.telefono || '').trim().slice(0, 30);
+    if (!nombre || !telefono) {
+      return res.status(400).json({ error: 'Nombre y teléfono son obligatorios.' });
+    }
+
+    const consintio = b.consentimiento === true;
+
+    const fields = {
+      'Nombre del paciente': nombre,
+      'Teléfono/WhatsApp': telefono,
+      'Email': String(b.email || '').trim().slice(0, 120),
+      'Ciudad': String(b.ciudad || '').trim().slice(0, 80),
+      'Especialidad de interés': String(b.especialidad || '').trim().slice(0, 120),
+      'Fecha solicitud': new Date().toISOString(),
+      'Estado': 'Nueva',
+      'Origen': 'Formulario /directorio',
+      'Consentimiento datos sensibles': consintio,
+      'Versión aviso de privacidad': 'v1.0 2026-08-11',
+      'Alerta enviada a': 'No enviada'
+    };
+
+    // CANDADO LEGAL: el motivo (dato de salud) SOLO se guarda con
+    // consentimiento expreso. Sin checkbox, el lead entra sin motivo.
+    if (consintio && b.motivo) {
+      fields['Motivo declarado'] = String(b.motivo).trim().slice(0, 2000);
+    }
+
+    if (b.medicoId) {
+      fields['Médico solicitado'] = [String(b.medicoId)];
+    }
+
+    try {
+      const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblUsc72JO2BaqT6d`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ fields })
+      });
+      const creado = await r.json();
+      if (!r.ok) {
+        return res.status(500).json({ error: 'No se pudo guardar la solicitud.' });
+      }
+
+      // Token de visitante: desbloquea los teléfonos por 2h.
+      const token = generarTokenVisitante();
+
+      // Alerta Telegram — NO debe tumbar la respuesta si falla.
+      let destino = 'No enviada';
+      try {
+        destino = await notificarSolicitudPaciente(creado, b);
+      } catch (e) {
+        destino = 'Falló el envío';
+      }
+
+      // Best-effort: registrar a dónde se avisó. Si falla, no importa.
+      try {
+        await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblUsc72JO2BaqT6d/${creado.id}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ fields: { 'Alerta enviada a': destino } })
+        });
+      } catch (e) { /* silencioso */ }
+
+      return res.status(200).json({ ok: true, token });
+    } catch (err) {
+      return res.status(500).json({ error: 'Error al registrar la solicitud.' });
+    }
+  }
+
   if (
     !sesion &&
     !esLecturaPublicaPermitida &&
@@ -175,6 +328,39 @@ module.exports = async (req, res) => {
   // ── Directorio público: forwarding dedicado con filtro forzado y
   //    whitelist estricta de campos. El cliente NO puede mandar
   //    filterByFormula ni fields[] arbitrarios en este path. ──
+  // Devuelve SOLO los teléfonos de consultorio, a visitantes registrados.
+  // Requiere token de visitante emitido al dejar datos en /directorio.
+  const esContactosDirectorio =
+    req.method === 'GET' &&
+    tabla === 'directorio_medico' &&
+    req.query.accion === 'contactos';
+
+  if (esContactosDirectorio) {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const payload = verificarToken(token);
+    if (!payload || payload.rol !== 'visitante') {
+      return res.status(401).json({ error: 'Registro requerido.' });
+    }
+    const params = new URLSearchParams();
+    params.set('filterByFormula', '{Publicado}=1');
+    params.append('fields[]', 'Teléfono de consultorio');
+    params.set('maxRecords', '200');
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
+    try {
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const data = await r.json();
+      const contactos = {};
+      (data.records || []).forEach(rec => {
+        const tel = rec.fields?.['Teléfono de consultorio'];
+        if (tel) contactos[rec.id] = tel;
+      });
+      return res.status(200).json({ contactos });
+    } catch (err) {
+      return res.status(500).json({ error: 'Error al conectar con Airtable.' });
+    }
+  }
+
   if (esListaCiudadesPublica) {
     // Devolver array de ciudades únicas de médicos publicados
     const params = new URLSearchParams();
@@ -224,6 +410,14 @@ module.exports = async (req, res) => {
     } catch (err) {
       return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
     }
+  }
+
+  // Un token de VISITANTE no es una sesión con rol: su único permiso es
+  // ?accion=contactos (ya resuelto arriba). Si llega aquí, es una ruta que
+  // no le corresponde — sin este corte caería al reenvío genérico y podría
+  // leer directorio_medico en crudo (sin whitelist de campos ni {Publicado}=1).
+  if (sesion && sesion.rol === 'visitante') {
+    return res.status(403).json({ error: 'Tu registro solo permite ver los contactos del directorio.' });
   }
 
   // El marcador "credencialPreAuth" es solo la credencial de esta petición —

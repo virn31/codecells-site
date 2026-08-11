@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aviso de Privacidad — CODE CELLS®</title>
+  <meta name="description" content="Aviso de privacidad integral de CODE CELLS® (GALONAVA GROUP) conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.">
+  <meta name="robots" content="index, follow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0E1410;
+      --bg-alt: #121810;
+      --surface: #1A211B;
+      --ink: #F2EFE6;
+      --ink-muted: #A9B3A4;
+      --ink-dim: #6E786C;
+      --line: rgba(242,239,230,0.12);
+      --c-energy: #E8A33D;
+      --c-repair: #D4654A;
+      --font-display: "Fraunces", serif;
+      --font-body: "IBM Plex Sans", sans-serif;
+      --font-mono: "IBM Plex Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--c-energy); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      background: rgba(14, 20, 16, 0.92);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    header .logo {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--c-energy);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+    header .header-cta {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      padding: 8px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      text-decoration: none;
+    }
+    header .header-cta:hover { color: var(--c-energy); text-decoration: none; }
+
+    .doc {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 60px 40px 100px;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--c-energy);
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(30px, 4.5vw, 44px);
+      font-weight: 500;
+      line-height: 1.15;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.01em;
+    }
+    .meta {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--ink-dim);
+      letter-spacing: 0.06em;
+      margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--c-energy);
+      margin: 48px 0 14px 0;
+      line-height: 1.3;
+    }
+    h3 {
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 28px 0 8px 0;
+    }
+    p { margin: 0 0 14px 0; color: var(--ink-muted); }
+    p strong { color: var(--ink); font-weight: 500; }
+    ul { margin: 0 0 14px 0; padding-left: 20px; color: var(--ink-muted); }
+    li { margin-bottom: 7px; }
+
+    .pendiente {
+      display: inline-block;
+      background: rgba(212,101,74,0.14);
+      border: 1px solid rgba(212,101,74,0.45);
+      color: var(--c-repair);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .callout {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--c-energy);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 24px 0;
+    }
+    .callout p:last-child { margin-bottom: 0; }
+
+    .aviso-borrador {
+      background: rgba(212,101,74,0.08);
+      border: 1px dashed rgba(212,101,74,0.5);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 0 0 40px 0;
+    }
+    .aviso-borrador p { color: var(--ink); margin-bottom: 0; font-size: 14px; }
+    .aviso-borrador strong { color: var(--c-repair); }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 32px 40px 60px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+
+    @media (max-width: 720px) {
+      header { padding: 16px 20px; }
+      .doc { padding: 40px 20px 70px; }
+      footer { padding: 28px 20px 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="/" class="logo">CODE CELLS®</a>
+    <a href="/directorio" class="header-cta">Directorio</a>
+  </header>
+
+  <main class="doc">
+
+    <div class="eyebrow">Documento legal</div>
+    <h1>Aviso de Privacidad Integral</h1>
+    <div class="meta">Versión v1.0 · Última actualización: 11 de agosto de 2026</div>
+
+    <div class="aviso-borrador">
+      <p><strong>⚠ BORRADOR — NO PUBLICAR AÚN.</strong> Falta <strong>un</strong> campo, marcado en rojo: el domicilio fiscal de GALONAVA GROUP. El documento tampoco ha sido revisado por un abogado. Debe completarse y validarse legalmente antes de ponerse en producción. Elimina este bloque completo (<code>div.aviso-borrador</code>) al publicar.</p>
+    </div>
+
+    <h2>1. Identidad y domicilio del responsable</h2>
+    <p><strong>GALONAVA GROUP</strong> (en adelante, “el Responsable”), que opera comercialmente bajo la marca <strong>CODE CELLS®</strong>, es responsable del tratamiento de sus datos personales conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), su Reglamento y los Lineamientos del Aviso de Privacidad.</p>
+    <p>Domicilio para efectos de este aviso: <span class="pendiente">[DOMICILIO FISCAL — PENDIENTE]</span></p>
+    <p>Correo electrónico de contacto en materia de datos personales: <a href="mailto:privacidad@codecells.mx">privacidad@codecells.mx</a></p>
+
+    <h2>2. Datos personales que recabamos</h2>
+    <p>A través del directorio público de médicos disponible en codecells.mx/directorio y de los formularios asociados, recabamos las siguientes categorías de datos:</p>
+
+    <h3>Datos de identificación y contacto</h3>
+    <ul>
+      <li>Nombre</li>
+      <li>Número telefónico o de WhatsApp</li>
+      <li>Correo electrónico</li>
+      <li>Ciudad de residencia o de interés para la consulta</li>
+    </ul>
+
+    <h3>Datos personales sensibles</h3>
+    <p>De manera opcional y únicamente si usted lo autoriza de forma expresa, recabamos:</p>
+    <ul>
+      <li>Motivo de consulta, padecimiento o condición de salud que usted decida describir</li>
+      <li>Especialidad médica o tipo de tratamiento de su interés</li>
+    </ul>
+
+    <div class="callout">
+      <p><strong>Sobre los datos de salud.</strong> La LFPDPPP clasifica la información referente al estado de salud presente o futuro como <strong>dato personal sensible</strong>. Por ello, su tratamiento requiere el consentimiento expreso de usted, otorgado mediante la casilla de aceptación que aparece antes de enviar cualquier formulario que solicite este tipo de información.</p>
+      <p>Usted puede utilizar el directorio y solicitar contacto con un médico <strong>sin proporcionar ningún dato de salud</strong>. Si decide no describir su motivo de consulta, su solicitud se procesará igualmente.</p>
+    </div>
+
+    <h3>Datos que NO recabamos por esta vía</h3>
+    <p>El directorio público no solicita ni almacena datos patrimoniales o financieros, CURP, RFC, número de seguridad social, ni documentos de identificación oficial. Estos datos, cuando resultan necesarios, se recaban únicamente dentro de la relación clínica formal con el médico tratante, la cual se rige por un aviso de privacidad distinto y específico.</p>
+
+    <h2>3. Finalidades del tratamiento</h2>
+
+    <h3>Finalidades primarias</h3>
+    <p>Son necesarias para el servicio que usted solicita. Si se opone a ellas, no será posible atender su solicitud:</p>
+    <ul>
+      <li>Poner en contacto a usted con el médico de la Red CODE CELLS® que haya seleccionado</li>
+      <li>Transmitir su solicitud de contacto y, en su caso, el motivo de consulta que usted haya autorizado compartir, al médico seleccionado</li>
+      <li>Dar seguimiento al estado de su solicitud y confirmar que fue atendida</li>
+      <li>Atender dudas, aclaraciones o el ejercicio de sus derechos ARCO</li>
+    </ul>
+
+    <h3>Finalidades secundarias</h3>
+    <p>No son necesarias para el servicio solicitado. Usted puede oponerse a estas finalidades sin que ello afecte la atención de su solicitud:</p>
+    <ul>
+      <li>Elaborar estadísticas agregadas y disociadas sobre demanda por ciudad y por especialidad, con el fin de decidir la expansión geográfica de la red</li>
+      <li>Enviarle información sobre servicios, contenidos educativos o novedades de CODE CELLS®</li>
+      <li>Evaluar y mejorar la calidad de la plataforma y del proceso de contacto</li>
+    </ul>
+    <p>Para manifestar su negativa a las finalidades secundarias, escriba a <a href="mailto:privacidad@codecells.mx">privacidad@codecells.mx</a> indicando su nombre y la finalidad a la que se opone. Su negativa no será motivo para negarle los servicios solicitados.</p>
+
+    <h2>4. Transferencias de datos personales</h2>
+    <p>Sus datos personales, incluidos los sensibles que usted haya autorizado, <strong>se transfieren al médico de la Red CODE CELLS® que usted seleccione</strong>, con la finalidad exclusiva de que dicho profesional pueda contactarle y valorar su caso. Esta transferencia es indispensable para el servicio y se realiza con su consentimiento al enviar el formulario.</p>
+    <p>Los médicos de la Red CODE CELLS® son profesionales independientes con cédula profesional vigente. Una vez que se establece la relación médico-paciente, el tratamiento de sus datos clínicos queda sujeto al aviso de privacidad y a las obligaciones profesionales del médico tratante, así como a la NOM-004-SSA3-2012 en materia de expediente clínico.</p>
+    <p>Salvo lo anterior, el Responsable no transfiere sus datos personales a terceros sin su consentimiento, con excepción de los casos previstos en el artículo 37 de la LFPDPPP, entre ellos los requerimientos de autoridad competente.</p>
+    <p>El Responsable se apoya en proveedores de servicios tecnológicos que actúan como encargados del tratamiento (alojamiento de la plataforma, base de datos y servicios de mensajería), los cuales tratan los datos únicamente por cuenta y bajo instrucciones del Responsable, sin facultad de utilizarlos para fines propios.</p>
+
+    <h2>5. Medios para ejercer los derechos ARCO</h2>
+    <p>Usted tiene derecho a conocer qué datos personales tenemos de usted, para qué los utilizamos y las condiciones del uso que les damos (<strong>Acceso</strong>); solicitar la corrección de su información cuando esté desactualizada, sea inexacta o incompleta (<strong>Rectificación</strong>); pedir que la eliminemos de nuestros registros cuando considere que no está siendo utilizada conforme a los principios y deberes de la ley (<strong>Cancelación</strong>); y oponerse al uso de sus datos personales para fines específicos (<strong>Oposición</strong>).</p>
+    <p>Para ejercer cualquiera de estos derechos, envíe su solicitud a <a href="mailto:privacidad@codecells.mx">privacidad@codecells.mx</a>, o preséntela en el domicilio señalado en el punto 1, incluyendo:</p>
+    <ul>
+      <li>Su nombre completo y un medio para comunicarle la respuesta</li>
+      <li>Copia de una identificación oficial que acredite su identidad, o la del representante legal, en su caso</li>
+      <li>Descripción clara de los datos respecto de los que busca ejercer el derecho y del derecho que desea ejercer</li>
+      <li>Cualquier elemento o documento que facilite la localización de sus datos</li>
+    </ul>
+    <p>El Responsable dará respuesta en un plazo máximo de veinte días hábiles contados desde la recepción de la solicitud. De resultar procedente, se hará efectiva dentro de los quince días hábiles siguientes a la comunicación de la respuesta.</p>
+
+    <h2>6. Revocación del consentimiento</h2>
+    <p>Usted puede revocar en cualquier momento el consentimiento que nos otorgó para el tratamiento de sus datos personales, incluidos los sensibles, mediante solicitud dirigida al correo señalado en el punto anterior.</p>
+    <p>Tenga presente que la revocación no será posible cuando exista una obligación legal de conservación. En particular, si su solicitud derivó en una consulta médica efectiva, el expediente clínico correspondiente debe conservarse por un plazo mínimo de cinco años conforme a la NOM-004-SSA3-2012, con independencia de la revocación de su consentimiento para las finalidades de esta plataforma.</p>
+
+    <h2>7. Conservación de los datos</h2>
+    <p>Las solicitudes de contacto que no derivan en una relación clínica se conservan por el tiempo necesario para dar seguimiento y acreditar el consentimiento otorgado, tras lo cual se cancelan y suprimen conforme a la ley. Los datos que forman parte de un expediente clínico se rigen por los plazos de conservación de la normativa sanitaria aplicable.</p>
+
+    <h2>8. Medidas de seguridad</h2>
+    <p>El Responsable implementa medidas de seguridad administrativas, técnicas y físicas razonables para proteger sus datos personales contra daño, pérdida, alteración, destrucción o uso, acceso o tratamiento no autorizado. El acceso a la información se restringe al personal y a los médicos que requieren conocerla para las finalidades descritas.</p>
+
+    <h2>9. Uso de cookies y tecnologías de rastreo</h2>
+    <p>El sitio puede utilizar cookies y tecnologías similares con fines de funcionamiento y de medición de uso agregado. Usted puede deshabilitarlas desde la configuración de su navegador; hacerlo puede afectar algunas funciones del sitio.</p>
+
+    <h2>10. Cambios al presente aviso</h2>
+    <p>Este aviso de privacidad puede sufrir modificaciones derivadas de nuevos requerimientos legales, de nuestras propias necesidades, de cambios en nuestro modelo de negocio o de otras causas. Cualquier modificación se publicará en esta misma página, indicando el número de versión y la fecha de última actualización. Le recomendamos revisarla periódicamente.</p>
+    <p>La versión vigente de este aviso se identifica en la parte superior de este documento y queda registrada junto con cada consentimiento otorgado, de modo que sea posible acreditar qué versión aceptó usted en su momento.</p>
+
+    <h2>11. Autoridad en materia de protección de datos</h2>
+    <p>Si usted considera que su derecho a la protección de datos personales ha sido vulnerado, o presume alguna violación a las disposiciones de la LFPDPPP, puede acudir ante la autoridad competente en materia de protección de datos personales para interponer la denuncia o queja correspondiente.</p>
+
+  </main>
+
+  <footer>
+    CODE CELLS® — GALONAVA GROUP · Aviso de Privacidad v1.0
+  </footer>
+
+</body>
+</html>

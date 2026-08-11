@@ -3,7 +3,8 @@
     "api/nova.js": { "maxDuration": 60 }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/aviso-privacidad", "destination": "/aviso-privacidad.html" }
   ],
   "headers": [
     {

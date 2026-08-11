@@ -310,6 +310,133 @@
       .filtros-wrap, .resumen, .medicos-grid { padding-left: 20px; padding-right: 20px; }
       .filtros { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
     }
+
+    .medico-tel {
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+    .medico-tel-lock {
+      color: var(--ink-dim);
+      font-size: 12px;
+      font-style: italic;
+    }
+    .btn-contacto {
+      margin-top: 10px;
+      width: 100%;
+      padding: 9px 14px;
+      background: transparent;
+      color: var(--c-energy);
+      border: 1px solid rgba(232,163,61,0.45);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-contacto:hover { background: rgba(232,163,61,0.08); }
+
+    .modal-fondo {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-fondo.abierto { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 460px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h3 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      color: var(--c-energy);
+      margin: 0 0 6px 0;
+    }
+    .modal .sub {
+      color: var(--ink-muted);
+      font-size: 13px;
+      margin: 0 0 20px 0;
+    }
+    .campo { margin-bottom: 14px; }
+    .campo label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-bottom: 5px;
+    }
+    .campo input, .campo textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-alt);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 14px;
+    }
+    .campo input:focus, .campo textarea:focus {
+      outline: none;
+      border-color: rgba(232,163,61,0.5);
+    }
+    .campo textarea { resize: vertical; min-height: 70px; }
+    .consent {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: var(--bg-alt);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 16px 0;
+    }
+    .consent input { margin-top: 3px; flex-shrink: 0; }
+    .consent label {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--ink-muted);
+    }
+    .consent a { color: var(--c-energy); text-decoration: underline; }
+    .modal-acciones { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-acciones button {
+      flex: 1;
+      padding: 11px;
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink-muted);
+    }
+    .modal-acciones .primario {
+      background: var(--c-energy);
+      color: var(--bg);
+      border-color: var(--c-energy);
+      font-weight: 500;
+    }
+    .modal-acciones button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-error {
+      color: var(--c-repair);
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 18px;
+    }
   </style>
 </head>
 <body>
@@ -401,6 +528,91 @@
       return copia;
     }
 
+    let TOKEN_VISITANTE = sessionStorage.getItem('cc_visitante') || null;
+    let CONTACTOS = {};
+    let medicoSolicitado = null;
+
+    async function cargarContactos() {
+      if (!TOKEN_VISITANTE) return;
+      try {
+        const r = await fetch('/api/airtable?tabla=directorio_medico&accion=contactos', {
+          headers: { Authorization: 'Bearer ' + TOKEN_VISITANTE }
+        });
+        if (r.status === 401) {
+          TOKEN_VISITANTE = null;
+          sessionStorage.removeItem('cc_visitante');
+          return;
+        }
+        const data = await r.json();
+        CONTACTOS = data.contactos || {};
+      } catch (err) {
+        console.error('Error cargando contactos:', err);
+      }
+    }
+
+    function abrirModal(medicoId, nombre) {
+      medicoSolicitado = medicoId || null;
+      document.getElementById('modal-titulo').textContent =
+        nombre ? 'Contactar a ' + nombre : 'Solicitar contacto';
+      document.getElementById('modal-error').textContent = '';
+      document.getElementById('modal-fondo').classList.add('abierto');
+      document.getElementById('m-nombre').focus();
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal-fondo').classList.remove('abierto');
+    }
+
+    async function enviarSolicitud() {
+      const btn = document.getElementById('btn-enviar');
+      const err = document.getElementById('modal-error');
+      const nombre = document.getElementById('m-nombre').value.trim();
+      const telefono = document.getElementById('m-telefono').value.trim();
+
+      if (!nombre || !telefono) {
+        err.textContent = 'Escribe tu nombre y teléfono para continuar.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+      err.textContent = '';
+
+      try {
+        const r = await fetch('/api/airtable?tabla=solicitudes_paciente&accion=registrar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre,
+            telefono,
+            email: document.getElementById('m-email').value.trim(),
+            ciudad: document.getElementById('m-ciudad').value.trim() ||
+                    document.getElementById('f-ciudad').value.trim(),
+            especialidad: document.getElementById('f-especialidad').value.trim() ||
+                          document.getElementById('f-tratamiento').value.trim(),
+            motivo: document.getElementById('m-motivo').value.trim(),
+            consentimiento: document.getElementById('m-consent').checked,
+            medicoId: medicoSolicitado
+          })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Error');
+
+        if (data.token) {
+          TOKEN_VISITANTE = data.token;
+          sessionStorage.setItem('cc_visitante', data.token);
+          await cargarContactos();
+        }
+        cerrarModal();
+        buscarDirectorio();
+      } catch (e) {
+        err.textContent = 'No pudimos enviar tu solicitud. Intenta de nuevo.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar';
+      }
+    }
+
     async function cargarCiudades() {
       try {
         const r = await fetch('/api/airtable?tabla=directorio_medico&accion=ciudades');
@@ -483,6 +695,7 @@
         const tratamientos = f['Tratamientos que ofrece'] || [];
         const horarios = escaparHtml(f['Horarios'] || '');
         const wa = f['WhatsApp público'] || '';
+        const tel = CONTACTOS[m.id] || null;
 
         return `
           <div class="medico-card">
@@ -493,7 +706,11 @@
             ${tratamientos.length ? `<div class="medico-tratamientos">${tratamientos.map(t => `<span class="medico-tratamiento">${escaparHtml(t)}</span>`).join('')}</div>` : ''}
             <div class="medico-contacto">
               ${horarios ? `<div class="medico-horarios">🕐 ${horarios}</div>` : ''}
-              ${wa ? `<a class="medico-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">Contactar por WhatsApp →</a>` : ''}
+              ${tel ? `<div class="medico-tel">📞 ${escaparHtml(tel)}</div>` : ''}
+              ${(!tel && TOKEN_VISITANTE) ? '' : ''}
+              ${wa && TOKEN_VISITANTE ? `<a class="medico-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">Contactar por WhatsApp →</a>` : ''}
+              ${!TOKEN_VISITANTE ? `<div class="medico-tel-lock">Deja tus datos para ver los contactos</div>` : ''}
+              <button class="btn-contacto" onclick="abrirModal('${m.id}', '${nombre.replace(/'/g, "\\'")}')">Solicitar contacto</button>
             </div>
           </div>
         `;
@@ -509,8 +726,53 @@
 
     // Arranque
     cargarCiudades();
-    buscarDirectorio();
+    cargarContactos().then(buscarDirectorio);
   </script>
+
+  <div class="modal-fondo" id="modal-fondo">
+    <div class="modal">
+      <h3 id="modal-titulo">Solicitar contacto</h3>
+      <p class="sub" id="modal-sub">Déjanos tus datos y el médico te contactará. Es gratis y sin compromiso.</p>
+      <div class="campo">
+        <label for="m-nombre">Tu nombre *</label>
+        <input id="m-nombre" type="text" autocomplete="name">
+      </div>
+      <div class="campo">
+        <label for="m-telefono">Teléfono o WhatsApp *</label>
+        <input id="m-telefono" type="tel" autocomplete="tel">
+      </div>
+      <div class="campo">
+        <label for="m-email">Correo (opcional)</label>
+        <input id="m-email" type="email" autocomplete="email">
+      </div>
+      <div class="campo">
+        <label for="m-ciudad">Tu ciudad</label>
+        <input id="m-ciudad" type="text">
+      </div>
+      <div class="campo">
+        <label for="m-motivo">¿Qué te gustaría atender? (opcional)</label>
+        <textarea id="m-motivo" placeholder="Describe brevemente lo que buscas"></textarea>
+      </div>
+
+      <div class="consent">
+        <input type="checkbox" id="m-consent">
+        <label for="m-consent">
+          Autorizo que CODE CELLS® trate mis datos, incluida la información
+          de salud que yo decida escribir, y la comparta con el médico que
+          seleccioné, conforme al
+          <a href="/aviso-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>.
+          Puedo enviar mi solicitud sin marcar esta casilla; en ese caso no
+          se guardará lo que escribí en el último campo.
+        </label>
+      </div>
+
+      <div class="modal-acciones">
+        <button onclick="cerrarModal()">Cancelar</button>
+        <button class="primario" id="btn-enviar" onclick="enviarSolicitud()">Enviar</button>
+      </div>
+      <div class="modal-error" id="modal-error"></div>
+    </div>
+  </div>
 
 </body>
 </html>
