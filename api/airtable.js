@@ -493,13 +493,28 @@ module.exports = async (req, res) => {
         }
       }
     } else if (tipo === 'paciente' || tipo === 'vip') {
+      // NOTA DE SEGURIDAD: `temp` NO está en estas whitelists a propósito.
+      // TEMP guarda PII del funnel comercial (leads, WhatsApp, códigos DZW/
+      // invitación) y no tiene CAMPO_DUENIO que ate una fila a un paciente/vip;
+      // si estuviera aquí, un token autenticado caería al reenvío genérico y
+      // podría volcar toda la tabla con un filterByFormula arbitrario. El único
+      // acceso legítimo a temp es la vía PRE-AUTH de match exacto (invitaciones
+      // DZW/referidos), que vive fuera de este bloque `if (sesion)`. NO reañadir.
       const tablasPermitidasRol =
         tipo === 'paciente'
-          ? ['pacientes', 'historia', 'consultas', 'labs', 'protocolos', 'temp']
-          : ['pacientes_vip', 'temp'];
+          ? ['pacientes', 'historia', 'consultas', 'labs', 'protocolos']
+          : ['pacientes_vip'];
 
       if (!tablasPermitidasRol.includes(tabla)) {
         return res.status(403).json({ error: 'Tu sesión no tiene acceso a esta información.' });
+      }
+
+      // `protocolos` es catálogo de referencia de SOLO LECTURA (ver líneas
+      // 48-50). No tiene CAMPO_DUENIO, así que sin este corte caería al reenvío
+      // genérico y aceptaría POST/PATCH — un paciente podría alterar
+      // indicaciones/contraindicaciones del catálogo clínico.
+      if (tabla === 'protocolos' && req.method !== 'GET') {
+        return res.status(403).json({ error: 'No permitido: el catálogo de protocolos es de solo lectura.' });
       }
 
       const campoDuenio = CAMPO_DUENIO[tabla];
