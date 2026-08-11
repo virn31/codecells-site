@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Encuentra tu médico — Red CODE CELLS®</title>
+  <meta name="description" content="Directorio público de médicos certificados de la Red CODE CELLS®. Encuentra especialistas en medicina regenerativa por ciudad, especialidad o tratamiento en México.">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Encuentra tu médico — Red CODE CELLS®">
+  <meta property="og:description" content="Especialistas certificados en medicina regenerativa por ciudad, especialidad o tratamiento.">
+  <meta property="og:url" content="https://codecells.mx/directorio">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Encuentra tu médico — Red CODE CELLS®">
+
+  <!-- Fonts (mismo patrón que la landing) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0E1410;
+      --bg-alt: #121810;
+      --surface: #1A211B;
+      --surface-2: #202820;
+      --ink: #F2EFE6;
+      --ink-muted: #A9B3A4;
+      --ink-dim: #6E786C;
+      --line: rgba(242,239,230,0.12);
+      --c-energy: #E8A33D;
+      --c-repair: #D4654A;
+      --c-balance: #4FA8A0;
+      --c-neuro: #8B7FD4;
+      --c-regen: #5FAE6E;
+      --font-display: "Fraunces", serif;
+      --font-body: "IBM Plex Sans", sans-serif;
+      --font-mono: "IBM Plex Mono", monospace;
+      --ease: cubic-bezier(.16,.84,.44,1);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      background: rgba(14, 20, 16, 0.92);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    header .logo {
+      font-family: var(--font-display);
+      font-size: 20px;
+      color: var(--c-energy);
+      letter-spacing: 0.02em;
+    }
+    header .header-cta {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      padding: 8px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      transition: all 0.2s;
+    }
+    header .header-cta:hover {
+      color: var(--c-energy);
+      border-color: rgba(232,163,61,0.4);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 80px 40px 40px;
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .hero .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--c-energy);
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 500;
+      line-height: 1.15;
+      margin: 0 0 20px 0;
+      letter-spacing: -0.01em;
+    }
+    .hero p {
+      font-size: 16px;
+      color: var(--ink-muted);
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    /* Filtros */
+    .filtros-wrap {
+      max-width: 1100px;
+      margin: 40px auto 0;
+      padding: 0 40px;
+    }
+    .filtros {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .filtro label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-bottom: 6px;
+    }
+    .filtro select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-alt);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23A9B3A4' stroke-width='1.5' fill='none'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+    .filtro select:focus {
+      outline: none;
+      border-color: rgba(232,163,61,0.5);
+    }
+
+    /* Resumen resultados */
+    .resumen {
+      max-width: 1100px;
+      margin: 24px auto 0;
+      padding: 0 40px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+
+    /* Grid de cards */
+    .medicos-grid {
+      max-width: 1100px;
+      margin: 24px auto 80px;
+      padding: 0 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .medico-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .medico-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(232,163,61,0.3);
+    }
+    .medico-nombre {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--c-energy);
+      margin: 0 0 4px 0;
+    }
+    .medico-ciudad {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-bottom: 16px;
+    }
+    .medico-especialidad {
+      font-size: 13px;
+      color: var(--ink-muted);
+      margin-bottom: 12px;
+    }
+    .medico-bio {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--ink-muted);
+      margin-bottom: 16px;
+      border-left: 2px solid rgba(232,163,61,0.2);
+      padding-left: 12px;
+    }
+    .medico-tratamientos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .medico-tratamiento {
+      padding: 4px 10px;
+      background: rgba(232,163,61,0.08);
+      border: 1px solid rgba(232,163,61,0.2);
+      color: var(--c-energy);
+      border-radius: 12px;
+      font-size: 11px;
+    }
+    .medico-contacto {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+    }
+    .medico-horarios {
+      color: var(--ink-muted);
+    }
+    .medico-wa {
+      color: var(--c-regen);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: color 0.15s;
+    }
+    .medico-wa:hover {
+      color: #7BC99A;
+    }
+
+    /* Empty state */
+    .empty {
+      max-width: 500px;
+      margin: 60px auto;
+      padding: 40px 24px;
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+    }
+    .empty h3 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      color: var(--c-energy);
+      margin: 0 0 12px 0;
+    }
+    .empty p {
+      color: var(--ink-muted);
+      font-size: 14px;
+      margin: 0 0 20px 0;
+    }
+    .empty button {
+      padding: 10px 22px;
+      background: transparent;
+      color: var(--c-energy);
+      border: 1px solid var(--c-energy);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .empty button:hover {
+      background: rgba(232,163,61,0.08);
+    }
+
+    .cargando {
+      text-align: center;
+      padding: 60px;
+      color: var(--ink-dim);
+      font-style: italic;
+    }
+
+    @media (max-width: 720px) {
+      header { padding: 16px 20px; }
+      .hero { padding: 60px 20px 30px; }
+      .filtros-wrap, .resumen, .medicos-grid { padding-left: 20px; padding-right: 20px; }
+      .filtros { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="/" class="logo">CODE CELLS®</a>
+    <a href="/portal-medico.html" class="header-cta">Acceso médico</a>
+  </header>
+
+  <section class="hero">
+    <div class="eyebrow">Red CODE CELLS®</div>
+    <h1>Encuentra a tu médico</h1>
+    <p>Especialistas certificados en medicina regenerativa en toda la República. Filtra por ciudad, especialidad o herramienta específica.</p>
+  </section>
+
+  <div class="filtros-wrap">
+    <div class="filtros">
+      <div class="filtro">
+        <label for="f-ciudad">Ciudad</label>
+        <select id="f-ciudad" onchange="buscarDirectorio()">
+          <option value="">Todas las ciudades</option>
+        </select>
+      </div>
+      <div class="filtro">
+        <label for="f-especialidad">Especialidad</label>
+        <select id="f-especialidad" onchange="buscarDirectorio()">
+          <option value="">Todas las especialidades</option>
+          <option>Medicina Regenerativa</option>
+          <option>Medicina Interna</option>
+          <option>Endocrinología</option>
+          <option>Ginecología y Obstetricia</option>
+          <option>Gastroenterología</option>
+          <option>Otorrinolaringología</option>
+          <option>Nutriología</option>
+          <option>Cardiología</option>
+          <option>Nefrología</option>
+          <option>Reumatología</option>
+          <option>Dermatología</option>
+          <option>Neumología</option>
+          <option>Psiquiatría</option>
+          <option>Urología</option>
+          <option>Oftalmología</option>
+          <option>Cirugía Plástica</option>
+        </select>
+      </div>
+      <div class="filtro">
+        <label for="f-tratamiento">Herramienta</label>
+        <select id="f-tratamiento" onchange="buscarDirectorio()">
+          <option value="">Todas las herramientas</option>
+          <option>Células madre</option>
+          <option>Exosomas</option>
+          <option>Sueroterapia IV</option>
+          <option>Peptidoterapia</option>
+          <option>GLP-1 / Pérdida de peso</option>
+          <option>MUSE Cells</option>
+          <option>Rejuvenecimiento facial</option>
+          <option>Terapia hormonal</option>
+          <option>Ozonoterapia</option>
+          <option>Homotoxicología</option>
+          <option>Biohacking / Longevidad</option>
+          <option>NK Cells</option>
+          <option>MSC Placental</option>
+          <option>DEZAWA (VIP)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="resumen" class="resumen"></div>
+
+  <div id="resultados">
+    <div class="cargando">Cargando médicos…</div>
+  </div>
+
+  <script>
+    // Randomizador estable por sesión — se genera al cargar la página
+    const SEED = Math.random();
+
+    function shuffleConSeed(arr, seed) {
+      const copia = arr.slice();
+      let m = copia.length;
+      let s = seed * 1000000;
+      while (m > 0) {
+        s = (s * 9301 + 49297) % 233280;
+        const idx = Math.floor((s / 233280) * m);
+        m--;
+        [copia[m], copia[idx]] = [copia[idx], copia[m]];
+      }
+      return copia;
+    }
+
+    async function cargarCiudades() {
+      try {
+        const r = await fetch('/api/airtable?tabla=directorio_medico&accion=ciudades');
+        if (!r.ok) return;
+        const data = await r.json();
+        const sel = document.getElementById('f-ciudad');
+        (data.ciudades || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          sel.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Error cargando ciudades:', err);
+      }
+    }
+
+    async function buscarDirectorio() {
+      const ciudad = document.getElementById('f-ciudad').value.trim();
+      const especialidad = document.getElementById('f-especialidad').value.trim();
+      const tratamiento = document.getElementById('f-tratamiento').value.trim();
+
+      const resultados = document.getElementById('resultados');
+      const resumen = document.getElementById('resumen');
+      resultados.innerHTML = '<div class="cargando">Buscando médicos…</div>';
+      resumen.textContent = '';
+
+      const params = new URLSearchParams();
+      params.set('tabla', 'directorio_medico');
+      if (ciudad) params.set('ciudad', ciudad);
+      if (especialidad) params.set('especialidad', especialidad);
+      if (tratamiento) params.set('tratamiento', tratamiento);
+
+      try {
+        const r = await fetch('/api/airtable?' + params.toString());
+        if (!r.ok) throw new Error('Error ' + r.status);
+        const data = await r.json();
+        const medicos = shuffleConSeed(data.records || [], SEED);
+        renderResultados(medicos);
+      } catch (err) {
+        resultados.innerHTML = '<div class="empty"><h3>Error al buscar</h3><p>No pudimos consultar el directorio. Intenta de nuevo en un momento.</p></div>';
+        console.error(err);
+      }
+    }
+
+    function escaparHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderResultados(medicos) {
+      const resultados = document.getElementById('resultados');
+      const resumen = document.getElementById('resumen');
+
+      if (!medicos.length) {
+        resumen.textContent = '';
+        resultados.innerHTML = `
+          <div class="empty">
+            <h3>Ningún médico coincide con esos filtros</h3>
+            <p>Prueba con menos filtros o cambia la ciudad. Nuestra red sigue creciendo.</p>
+            <button onclick="limpiarFiltros()">Limpiar filtros</button>
+          </div>
+        `;
+        return;
+      }
+
+      resumen.textContent = medicos.length === 1
+        ? '1 médico encontrado'
+        : medicos.length + ' médicos encontrados';
+
+      resultados.innerHTML = '<div class="medicos-grid">' + medicos.map(m => {
+        const f = m.fields || {};
+        const nombre = escaparHtml(f['Name'] || 'Sin nombre');
+        const ciudad = escaparHtml(f['Ciudad de consulta'] || '');
+        const especialidades = (f['Especialidades visibles'] || []).map(escaparHtml).join(' · ');
+        const bio = escaparHtml(f['Bio corta'] || '');
+        const tratamientos = f['Tratamientos que ofrece'] || [];
+        const horarios = escaparHtml(f['Horarios'] || '');
+        const wa = f['WhatsApp público'] || '';
+
+        return `
+          <div class="medico-card">
+            <h3 class="medico-nombre">${nombre}</h3>
+            <div class="medico-ciudad">${ciudad}</div>
+            ${especialidades ? `<div class="medico-especialidad">${especialidades}</div>` : ''}
+            ${bio ? `<div class="medico-bio">${bio}</div>` : ''}
+            ${tratamientos.length ? `<div class="medico-tratamientos">${tratamientos.map(t => `<span class="medico-tratamiento">${escaparHtml(t)}</span>`).join('')}</div>` : ''}
+            <div class="medico-contacto">
+              ${horarios ? `<div class="medico-horarios">🕐 ${horarios}</div>` : ''}
+              ${wa ? `<a class="medico-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">Contactar por WhatsApp →</a>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('') + '</div>';
+    }
+
+    function limpiarFiltros() {
+      document.getElementById('f-ciudad').value = '';
+      document.getElementById('f-especialidad').value = '';
+      document.getElementById('f-tratamiento').value = '';
+      buscarDirectorio();
+    }
+
+    // Arranque
+    cargarCiudades();
+    buscarDirectorio();
+  </script>
+
+</body>
+</html>

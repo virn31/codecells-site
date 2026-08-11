@@ -158,6 +158,8 @@ module.exports = async (req, res) => {
 
   const esLecturaDirectorioPublico =
     !sesion && req.method === 'GET' && tabla === 'directorio_medico';
+  const esListaCiudadesPublica =
+    !sesion && req.method === 'GET' && tabla === 'directorio_medico' && req.query.accion === 'ciudades';
 
   if (
     !sesion &&
@@ -173,6 +175,27 @@ module.exports = async (req, res) => {
   // ── Directorio público: forwarding dedicado con filtro forzado y
   //    whitelist estricta de campos. El cliente NO puede mandar
   //    filterByFormula ni fields[] arbitrarios en este path. ──
+  if (esListaCiudadesPublica) {
+    // Devolver array de ciudades únicas de médicos publicados
+    const params = new URLSearchParams();
+    params.set('filterByFormula', '{Publicado}=1');
+    params.append('fields[]', 'Ciudad de consulta');
+    params.set('maxRecords', '100');
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
+    try {
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const data = await r.json();
+      const set = new Set();
+      (data.records || []).forEach(rec => {
+        const c = rec.fields?.['Ciudad de consulta']?.trim();
+        if (c) set.add(c);
+      });
+      return res.status(200).json({ ciudades: Array.from(set).sort() });
+    } catch (err) {
+      return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
+    }
+  }
+
   if (esLecturaDirectorioPublico) {
     const params = new URLSearchParams();
     const filtros = ['{Publicado}=1'];
