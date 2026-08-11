@@ -2475,6 +2475,7 @@ module.exports = async function handler(req, res) {
     let systemPrompt;
     let herramientaPaciente = null; // solo se llena en modo paciente/VIP
     let herramientaMedico = null;   // solo se llena en modo médico (opcional, tool_choice auto)
+    let herramientaDirectorio = null; // solo modo público — búsqueda directorio
     let herramientaAltaPaciente = null; // alta de paciente nuevo por dictado
     let herramientaInvitarMedico = null; // generar invitación pre-cargada para un colega
     let herramientaAvisarMedico = null; // avisar a otro médico por Telegram
@@ -2633,6 +2634,7 @@ module.exports = async function handler(req, res) {
       systemPrompt = typeof clientSystem === 'string'
         ? clientSystem.slice(0, 8000)
         : buildSystemPrompt('publico');
+      herramientaDirectorio = buildHerramientaBuscarDirectorio();
     }
 
     // Techo más alto que antes (era 2048) — un dictado de ficha + una petición
@@ -2657,6 +2659,9 @@ module.exports = async function handler(req, res) {
       // paciente nuevo para darlo de alta.
       anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente, herramientaInvitarMedico, herramientaAvisarMedico, herramientaAutorizarDZW, herramientaSeriesLab];
       anthropicBody.tool_choice = { type: 'auto' };
+    } else if (herramientaDirectorio) {
+      anthropicBody.tools = [herramientaDirectorio];
+      anthropicBody.tool_choice = { type: 'auto' };
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -2669,11 +2674,50 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify(anthropicBody),
     });
 
-    const data = await response.json();
+    let data = await response.json();
 
     if (!response.ok) {
       console.error('[nova] Anthropic error:', JSON.stringify(data));
       return res.status(502).json({ error: 'Error del servicio de IA. Intenta de nuevo.' });
+    }
+
+    // 5B: loop tool_use → tool_result (solo público)
+    if (herramientaDirectorio && data.stop_reason === 'tool_use') {
+      const toolUse = Array.isArray(data.content)
+        ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'buscar_medicos_directorio')
+        : null;
+      if (toolUse) {
+        let resultadoTool;
+        try {
+          const out = await ejecutarBuscarMedicosDirectorio(toolUse.input || {});
+          resultadoTool = { content: JSON.stringify(out), is_error: false };
+        } catch (err) {
+          console.error('[nova] buscar_medicos_directorio falló:', err.message);
+          resultadoTool = { content: JSON.stringify({ error: 'No se pudo consultar el directorio en este momento.' }), is_error: true };
+        }
+        const segundoBody = {
+          model: 'claude-sonnet-5',
+          max_tokens: safeTokens,
+          system: systemPrompt,
+          tools: [herramientaDirectorio],
+          messages: [
+            ...messages,
+            { role: 'assistant', content: data.content },
+            { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: resultadoTool.content, is_error: resultadoTool.is_error }] },
+          ],
+        };
+        const resp2 = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify(segundoBody),
+        });
+        const data2 = await resp2.json();
+        if (resp2.ok) data = data2;
+      }
     }
 
     // ─── MODO PACIENTE/VIP CON HERRAMIENTA: extraer reply + ejecutar acciones ──
@@ -3380,6 +3424,69 @@ function buildHerramientaInvitarMedico() {
       required: ['mensaje', 'nombre_completo'],
     },
   };
+}
+
+function buildHerramientaBuscarDirectorio() {
+  return {
+    name: 'buscar_medicos_directorio',
+    description: 'Búscala cuando un paciente pida encontrar, localizar o que le recomiendes un médico/especialista de la Red CODE CELLS® — por ciudad, especialidad o herramienta regenerativa (ej. "¿hay algún médico de células madre en Culiacán?", "busco un cardiólogo"). NO la uses para preguntas generales sobre CODE CELLS® o protocolos, ni cuando el paciente no busca un médico concreto. Llámala con uno, dos o los tres filtros; si no dio ciudad, ómitela.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ciudad: { type: 'string', description: 'Ciudad de consulta como la dijo el paciente (ej. "Culiacán").' },
+        especialidad: {
+          type: 'string',
+          description: 'Especialidad clínica canónica. Mapea lo que pida el paciente al valor más cercano.',
+          enum: ['Medicina Regenerativa','Medicina Interna','Endocrinología','Ginecología y Obstetricia','Gastroenterología','Otorrinolaringología','Nutriología','Cardiología','Nefrología','Reumatología','Dermatología','Neumología','Psiquiatría','Urología','Oftalmología','Cirugía Plástica']
+        },
+        tratamiento: {
+          type: 'string',
+          description: 'Herramienta regenerativa canónica. Mapea lo que pida el paciente al valor más cercano.',
+          enum: ['Células madre','Exosomas','Sueroterapia IV','Peptidoterapia','GLP-1 / Pérdida de peso','MUSE Cells','Rejuvenecimiento facial','Terapia hormonal','Ozonoterapia','Homotoxicología','Biohacking / Longevidad','NK Cells','MSC Placental','DEZAWA (VIP)']
+        }
+      },
+      required: []
+    }
+  };
+}
+
+async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamiento }) {
+  const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+  const BASE_ID = 'app6jyD9pDlTLpknA';
+  const TABLA_DIRECTORIO = 'tblkUNPwu1sQgZBPJ';
+  const esc = (v) => String(v || '').replace(/"/g, '\\"');
+
+  const filtros = ['{Publicado}=1'];
+  if (ciudad)       filtros.push(`{Ciudad de consulta}="${esc(ciudad)}"`);
+  if (especialidad) filtros.push(`FIND("${esc(especialidad)}", ARRAYJOIN({Especialidades visibles}, ", "))>0`);
+  if (tratamiento)  filtros.push(`FIND("${esc(tratamiento)}", ARRAYJOIN({Tratamientos que ofrece}, ", "))>0`);
+  const formula = filtros.length === 1 ? filtros[0] : `AND(${filtros.join(',')})`;
+
+  const CAMPOS_PUBLICOS = ['Name','Especialidades visibles','Tratamientos que ofrece','Otras terapias','Ciudad de consulta','Bio corta','Horarios','WhatsApp público'];
+  const params = new URLSearchParams();
+  params.set('filterByFormula', formula);
+  params.set('maxRecords', '5');
+  CAMPOS_PUBLICOS.forEach(c => params.append('fields[]', c));
+
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLA_DIRECTORIO}?${params.toString()}`;
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  if (!r.ok) throw new Error('Airtable ' + r.status);
+  const data = await r.json();
+
+  const medicos = (data.records || []).map(rec => {
+    const f = rec.fields || {};
+    return {
+      nombre: f['Name'] || null,
+      ciudad: f['Ciudad de consulta'] || null,
+      especialidades: f['Especialidades visibles'] || [],
+      tratamientos: f['Tratamientos que ofrece'] || [],
+      otras_terapias: f['Otras terapias'] || null,
+      bio: f['Bio corta'] || null,
+      horarios: f['Horarios'] || null,
+      whatsapp: f['WhatsApp público'] || null,
+    };
+  });
+  return { total: medicos.length, medicos };
 }
 
 function buildHerramientaAltaPaciente() {
