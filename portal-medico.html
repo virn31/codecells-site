@@ -2272,6 +2272,339 @@
 #mi-directorio .mi-dir-status-text strong {
   color: var(--foreground, #E8E4DD);
 }
+
+/* Bloque de estado + toggle */
+#mi-directorio .mi-dir-status-block {
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(232, 228, 221, 0.04), rgba(232, 228, 221, 0.02));
+  border: 1px solid rgba(232, 228, 221, 0.1);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.3s;
+}
+#mi-directorio .mi-dir-status-block.published {
+  background: linear-gradient(135deg, rgba(95, 174, 110, 0.08), rgba(95, 174, 110, 0.02));
+  border-color: rgba(95, 174, 110, 0.35);
+  box-shadow: 0 0 24px rgba(95, 174, 110, 0.06);
+}
+#mi-directorio .mi-dir-status-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+#mi-directorio .mi-dir-status-block .mi-dir-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(232, 228, 221, 0.3);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+#mi-directorio .mi-dir-status-block.published .mi-dir-status-dot {
+  background: #5FAE6E;
+  box-shadow: 0 0 12px rgba(95, 174, 110, 0.6);
+  animation: mi-dir-pulse 2.5s ease-in-out infinite;
+}
+@keyframes mi-dir-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(95, 174, 110, 0.6); }
+  50% { box-shadow: 0 0 20px rgba(95, 174, 110, 0.9); }
+}
+#mi-directorio .mi-dir-status-block .mi-dir-status-text {
+  flex: 1;
+  font-size: 14px;
+  color: var(--foreground, #E8E4DD);
+  line-height: 1.5;
+}
+#mi-directorio .mi-dir-status-sub {
+  font-size: 12px;
+  color: rgba(232, 228, 221, 0.6);
+  font-weight: normal;
+}
+#mi-directorio .mi-dir-toggle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(232, 228, 221, 0.06);
+}
+#mi-directorio .mi-dir-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+#mi-directorio .mi-dir-toggle.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+#mi-directorio .mi-dir-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+#mi-directorio .mi-dir-toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: rgba(232, 228, 221, 0.15);
+  border-radius: 12px;
+  transition: background 0.25s;
+  flex-shrink: 0;
+}
+#mi-directorio .mi-dir-toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: #E8E4DD;
+  border-radius: 50%;
+  transition: transform 0.25s, background 0.25s;
+}
+#mi-directorio .mi-dir-toggle input:checked ~ .mi-dir-toggle-slider {
+  background: #5FAE6E;
+}
+#mi-directorio .mi-dir-toggle input:checked ~ .mi-dir-toggle-slider::after {
+  transform: translateX(20px);
+  background: #ffffff;
+}
+#mi-directorio .mi-dir-toggle-label {
+  font-size: 13px;
+  color: rgba(232, 228, 221, 0.85);
+  letter-spacing: 0.02em;
+}
+#mi-directorio .mi-dir-toggle-hint {
+  font-size: 11px;
+  color: rgba(212, 101, 74, 0.85);
+  padding-left: 56px;
+  font-style: italic;
+}
+
+/* Botón flotante preview */
+#mi-dir-preview-btn {
+  position: fixed;
+  bottom: 100px;
+  right: 24px;
+  z-index: 900;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(14, 20, 16, 0.92);
+  color: var(--gold, #E8A33D);
+  border: 1px solid rgba(232, 163, 61, 0.4);
+  border-radius: 999px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+#mi-dir-preview-btn.visible {
+  display: inline-flex;
+}
+#mi-dir-preview-btn:hover {
+  background: rgba(232, 163, 61, 0.12);
+  border-color: var(--gold, #E8A33D);
+  transform: translateY(-1px);
+}
+
+/* En móvil o cuando el nav-rail está estrecho, moverlo un poco arriba
+   para no chocar con el selector de idiomas o el botón NOVA */
+@media (max-width: 900px) {
+  #mi-dir-preview-btn {
+    bottom: 90px;
+    right: 16px;
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+}
+
+/* Modal (preview + confirm comparten skeleton) */
+#mi-directorio .mi-dir-modal,
+#mi-dir-preview-modal,
+#mi-dir-confirm-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 20, 16, 0.75);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: mi-dir-fadein 0.2s;
+}
+@keyframes mi-dir-fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.mi-dir-modal .mi-dir-modal-card {
+  background: #0E1410;
+  border: 1px solid rgba(232, 163, 61, 0.25);
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  color: var(--foreground, #E8E4DD);
+  font-family: 'IBM Plex Sans', sans-serif;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.mi-dir-modal .mi-dir-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: rgba(232, 228, 221, 0.5);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 10px;
+  line-height: 1;
+}
+.mi-dir-modal .mi-dir-modal-close:hover {
+  color: var(--gold, #E8A33D);
+}
+.mi-dir-modal .mi-dir-modal-eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold, #E8A33D);
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(232, 163, 61, 0.15);
+}
+.mi-dir-modal .mi-dir-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.mi-dir-modal .mi-dir-btn-primary {
+  padding: 10px 22px;
+  background: var(--gold, #E8A33D);
+  color: #0E1410;
+  border: none;
+  border-radius: 6px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.mi-dir-modal .mi-dir-btn-primary:hover {
+  transform: translateY(-1px);
+}
+.mi-dir-modal .mi-dir-btn-secondary {
+  padding: 10px 22px;
+  background: transparent;
+  color: rgba(232, 228, 221, 0.7);
+  border: 1px solid rgba(232, 228, 221, 0.2);
+  border-radius: 6px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mi-dir-modal .mi-dir-btn-secondary:hover {
+  border-color: rgba(232, 228, 221, 0.4);
+  color: var(--foreground, #E8E4DD);
+}
+
+/* Contenido del preview */
+#mi-dir-preview-body {
+  padding-top: 16px;
+}
+.mi-dir-preview-render h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  color: var(--gold, #E8A33D);
+  margin: 0 0 4px 0;
+}
+.mi-dir-preview-render .mi-dir-preview-city {
+  font-size: 13px;
+  color: rgba(232, 228, 221, 0.6);
+  margin-bottom: 20px;
+}
+.mi-dir-preview-render .mi-dir-preview-section {
+  margin-top: 20px;
+}
+.mi-dir-preview-render .mi-dir-preview-section-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 163, 61, 0.75);
+  margin-bottom: 8px;
+}
+.mi-dir-preview-render .mi-dir-preview-bio {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(232, 228, 221, 0.85);
+}
+.mi-dir-preview-render .mi-dir-preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mi-dir-preview-render .mi-dir-preview-chip {
+  padding: 4px 10px;
+  border: 1px solid rgba(232, 163, 61, 0.35);
+  background: rgba(232, 163, 61, 0.06);
+  color: var(--gold, #E8A33D);
+  border-radius: 12px;
+  font-size: 11px;
+}
+.mi-dir-preview-render .mi-dir-preview-otras {
+  font-size: 13px;
+  color: rgba(232, 228, 221, 0.75);
+  font-style: italic;
+  padding: 10px 12px;
+  background: rgba(232, 228, 221, 0.03);
+  border-left: 2px solid rgba(232, 163, 61, 0.3);
+  border-radius: 4px;
+  margin-top: 8px;
+}
+.mi-dir-preview-render .mi-dir-preview-contact {
+  font-size: 13px;
+  color: rgba(232, 228, 221, 0.8);
+  line-height: 1.7;
+}
+.mi-dir-preview-render .mi-dir-preview-wa {
+  color: #5FAE6E;
+  text-decoration: none;
+  word-break: break-all;
+}
+.mi-dir-preview-empty {
+  padding: 20px;
+  color: rgba(232, 228, 221, 0.5);
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+}
+.mi-dir-preview-legal {
+  margin-top: 24px;
+  padding: 10px 14px;
+  background: rgba(212, 101, 74, 0.06);
+  border-left: 2px solid rgba(212, 101, 74, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  color: rgba(232, 228, 221, 0.55);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* Fix padding inferior — evita que selector de idiomas tape el último campo */
+#mi-directorio {
+  padding-bottom: 120px !important;
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="/lib/i18n.js"></script>
@@ -3286,6 +3619,35 @@
         <div id="mi-dir-content" class="mi-dir-content">
           <!-- El estado inicial se renderiza por JS: cargarMiDirectorio() -->
           <div class="mi-dir-loading">Cargando tu perfil…</div>
+        </div>
+
+        <!-- Botón flotante preview: aparece solo cuando el formulario está renderizado -->
+        <button id="mi-dir-preview-btn" onclick="abrirPreviewMiDir()" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/></svg>
+          Ver como paciente
+        </button>
+
+        <!-- Modal preview: overlay con render del perfil público -->
+        <div id="mi-dir-preview-modal" class="mi-dir-modal" style="display:none;" onclick="cerrarPreviewMiDir(event)">
+          <div class="mi-dir-modal-card" onclick="event.stopPropagation()">
+            <button class="mi-dir-modal-close" onclick="cerrarPreviewMiDir()">×</button>
+            <div class="mi-dir-modal-eyebrow">Cómo te ven los pacientes en la Red</div>
+            <div id="mi-dir-preview-body"></div>
+          </div>
+        </div>
+
+        <!-- Modal confirmación publicar -->
+        <div id="mi-dir-confirm-modal" class="mi-dir-modal" style="display:none;">
+          <div class="mi-dir-modal-card">
+            <div class="mi-dir-modal-eyebrow">Publicar perfil</div>
+            <p style="margin: 12px 0 24px 0; line-height: 1.6; color: rgba(232,228,221,0.85); font-size: 14px;">
+              Al confirmar, tu perfil será visible para pacientes que busquen en la Red CODE CELLS® — por ciudad, especialidad o herramienta. Puedes despublicar en cualquier momento.
+            </p>
+            <div class="mi-dir-modal-actions">
+              <button class="mi-dir-btn-secondary" onclick="cancelarPublicarMiDir()">Cancelar</button>
+              <button class="mi-dir-btn-primary" onclick="confirmarPublicarMiDir()">Publicar</button>
+            </div>
+          </div>
         </div>
       </div>
     </div><!-- /main-panel -->
@@ -6624,15 +6986,30 @@ function renderMiDirFormulario() {
   const publicado = !!c['Publicado'];
   const fechaAlta = c['Fecha de alta'] || '';
 
-  const statusHtml = publicado
-    ? `<div class="mi-dir-status published">
-         <div class="mi-dir-status-dot"></div>
-         <div class="mi-dir-status-text"><strong>Perfil publicado.</strong> Visible para pacientes${fechaAlta ? ' desde ' + fechaAlta.substring(0,10) : ''}.</div>
-       </div>`
-    : `<div class="mi-dir-status">
-         <div class="mi-dir-status-dot"></div>
-         <div class="mi-dir-status-text"><strong>Solo tú ves este perfil.</strong> El toggle para publicar llegará en la próxima actualización.</div>
-       </div>`;
+  const puedePublicar = validarPuedePublicarMiDir(c);
+  const fechaAltaFormateada = fechaAlta ? formatearFechaMiDir(fechaAlta) : '';
+
+  const statusHtml = `
+    <div class="mi-dir-status-block${publicado ? ' published' : ''}">
+      <div class="mi-dir-status-row">
+        <div class="mi-dir-status-dot"></div>
+        <div class="mi-dir-status-text">
+          ${publicado
+            ? `<strong>Publicado en la Red CODE CELLS®</strong><br><span class="mi-dir-status-sub">Visible desde: ${fechaAltaFormateada}</span>`
+            : `<strong>Solo tú ves este perfil</strong><br><span class="mi-dir-status-sub">Al activar el toggle, tu perfil será visible para pacientes que busquen en la Red.</span>`
+          }
+        </div>
+      </div>
+      <div class="mi-dir-toggle-row">
+        <label class="mi-dir-toggle${!puedePublicar.ok ? ' disabled' : ''}" title="${!puedePublicar.ok ? escaparHtml(puedePublicar.razon) : ''}">
+          <input type="checkbox" ${publicado ? 'checked' : ''} ${!puedePublicar.ok && !publicado ? 'disabled' : ''} onchange="alternarPublicadoMiDir(this)">
+          <span class="mi-dir-toggle-slider"></span>
+          <span class="mi-dir-toggle-label">Publicar en el directorio</span>
+        </label>
+        ${!puedePublicar.ok && !publicado ? `<div class="mi-dir-toggle-hint">${escaparHtml(puedePublicar.razon)}</div>` : ''}
+      </div>
+    </div>
+  `;
 
   content.innerHTML = `
     <div class="mi-dir-form">
@@ -6787,6 +7164,152 @@ function mostrarGuardadoMiDir(campoContainer) {
   marca.classList.add('visible');
   clearTimeout(marca._timer);
   marca._timer = setTimeout(() => marca.classList.remove('visible'), 2000);
+}
+
+// ── Validación de si puede publicar ──
+function validarPuedePublicarMiDir(campos) {
+  const ciudad = (campos['Ciudad de consulta'] || '').trim();
+  const espArr = campos['Especialidades visibles'] || [];
+  if (!ciudad) return { ok: false, razon: 'Falta ciudad de consulta' };
+  if (!espArr.length) return { ok: false, razon: 'Marca al menos una especialidad' };
+  return { ok: true };
+}
+
+// ── Formateo de fecha para humanos ──
+function formatearFechaMiDir(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch { return iso.substring(0, 10); }
+}
+
+// ── Mostrar/ocultar botón flotante según estado del formulario ──
+const _origRenderMiDirFormulario = renderMiDirFormulario;
+renderMiDirFormulario = function() {
+  _origRenderMiDirFormulario();
+  const btn = document.getElementById('mi-dir-preview-btn');
+  if (btn) btn.classList.add('visible');
+};
+
+const _origRenderMiDirEstadoVacio = renderMiDirEstadoVacio;
+renderMiDirEstadoVacio = function() {
+  _origRenderMiDirEstadoVacio();
+  const btn = document.getElementById('mi-dir-preview-btn');
+  if (btn) btn.classList.remove('visible');
+};
+
+const _origSalirMiDirectorio = salirMiDirectorio;
+salirMiDirectorio = function() {
+  const btn = document.getElementById('mi-dir-preview-btn');
+  if (btn) btn.classList.remove('visible');
+  _origSalirMiDirectorio();
+};
+
+// ── Toggle publicar ──
+function alternarPublicadoMiDir(input) {
+  const quierePublicar = input.checked;
+  const yaEstabaPublicado = !!miDirEstado.campos['Publicado'];
+
+  // Publicando por primera vez o después de despublicar → mostrar modal de confirmación
+  if (quierePublicar && !yaEstabaPublicado) {
+    input.checked = false; // revertimos hasta que confirme
+    document.getElementById('mi-dir-confirm-modal').style.display = 'flex';
+    return;
+  }
+
+  // Despublicando → directo, sin modal
+  if (!quierePublicar) {
+    guardarValorMiDir('Publicado', false, null).then(() => {
+      miDirEstado.campos['Publicado'] = false;
+      renderMiDirFormulario();
+    });
+  }
+}
+
+function cancelarPublicarMiDir() {
+  document.getElementById('mi-dir-confirm-modal').style.display = 'none';
+}
+
+async function confirmarPublicarMiDir() {
+  document.getElementById('mi-dir-confirm-modal').style.display = 'none';
+  await guardarValorMiDir('Publicado', true, null);
+  miDirEstado.campos['Publicado'] = true;
+  // Recargar para pillar Fecha de alta que el backend estampó
+  await cargarMiDirectorio();
+}
+
+// ── Preview modal ──
+function abrirPreviewMiDir() {
+  const c = miDirEstado.campos || {};
+  const body = document.getElementById('mi-dir-preview-body');
+  if (!body) return;
+
+  const nombre = c['Name'] || '';
+  const ciudad = c['Ciudad de consulta'] || '';
+  const bio = c['Bio corta'] || '';
+  const esp = c['Especialidades visibles'] || [];
+  const trat = c['Tratamientos que ofrece'] || [];
+  const otras = c['Otras terapias'] || '';
+  const horarios = c['Horarios'] || '';
+  const wa = c['WhatsApp público'] || '';
+
+  if (!nombre && !ciudad && !esp.length) {
+    body.innerHTML = '<div class="mi-dir-preview-empty">Completa al menos tu nombre público y ciudad para ver el preview.</div>';
+    document.getElementById('mi-dir-preview-modal').style.display = 'flex';
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="mi-dir-preview-render">
+      <h2>${escaparHtml(nombre || 'Sin nombre')}</h2>
+      <div class="mi-dir-preview-city">${escaparHtml(ciudad || 'Sin ciudad')}</div>
+
+      ${bio ? `<div class="mi-dir-preview-section"><div class="mi-dir-preview-bio">${escaparHtml(bio)}</div></div>` : ''}
+
+      ${esp.length ? `
+        <div class="mi-dir-preview-section">
+          <div class="mi-dir-preview-section-title">Especialidad</div>
+          <div class="mi-dir-preview-chips">
+            ${esp.map(e => `<span class="mi-dir-preview-chip">${escaparHtml(e)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      ${trat.length ? `
+        <div class="mi-dir-preview-section">
+          <div class="mi-dir-preview-section-title">Herramientas regenerativas</div>
+          <div class="mi-dir-preview-chips">
+            ${trat.map(t => `<span class="mi-dir-preview-chip">${escaparHtml(t)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      ${otras ? `
+        <div class="mi-dir-preview-section">
+          <div class="mi-dir-preview-section-title">Otras terapias</div>
+          <div class="mi-dir-preview-otras">${escaparHtml(otras)}</div>
+        </div>` : ''}
+
+      ${(horarios || wa) ? `
+        <div class="mi-dir-preview-section">
+          <div class="mi-dir-preview-section-title">Contacto</div>
+          <div class="mi-dir-preview-contact">
+            ${horarios ? escaparHtml(horarios) + '<br>' : ''}
+            ${wa ? `<a class="mi-dir-preview-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">${escaparHtml(wa)}</a>` : ''}
+          </div>
+        </div>` : ''}
+
+      <div class="mi-dir-preview-legal">
+        Este contenido no sustituye la consulta médica presencial. El médico declara bajo su responsabilidad las herramientas que ofrece.
+      </div>
+    </div>
+  `;
+  document.getElementById('mi-dir-preview-modal').style.display = 'flex';
+}
+
+function cerrarPreviewMiDir(ev) {
+  // Si el evento vino del overlay (no del card), cierra. Si vino del × también.
+  if (!ev || ev.currentTarget.id === 'mi-dir-preview-modal' || ev.target.classList.contains('mi-dir-modal-close')) {
+    document.getElementById('mi-dir-preview-modal').style.display = 'none';
+  }
 }
 </script>
 </body>
