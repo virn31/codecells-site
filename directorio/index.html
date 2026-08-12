@@ -45,12 +45,28 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: var(--bg);
+      /* Fondo celular reusado de mi-nivel.html — ruta ABSOLUTA porque este
+         archivo vive en /directorio/ y una relativa daría 404. */
+      background: #0E1410 url('/assets/nebula-nova.jpg') center/cover fixed no-repeat;
       color: var(--ink);
       font-family: var(--font-body);
       font-size: 15px;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
+    }
+    /* Velo verdoso que garantiza contraste del texto sobre la imagen.
+       z-index:-1 lo deja detrás de todo el flujo normal sin tocar el
+       z-index de header/hero/cards. */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg,
+        rgba(14,20,16,0.72) 0%,
+        rgba(14,20,16,0.88) 55%,
+        rgba(14,20,16,0.96) 100%);
+      z-index: -1;
+      pointer-events: none;
     }
     a { color: inherit; text-decoration: none; }
 
@@ -192,6 +208,8 @@
       border-radius: 12px;
       padding: 24px;
       transition: transform 0.2s, border-color 0.2s;
+      opacity: 0;
+      animation: fadeUp 0.55s var(--ease) forwards;
     }
     .medico-card:hover {
       transform: translateY(-2px);
@@ -238,6 +256,8 @@
       color: var(--c-energy);
       border-radius: 12px;
       font-size: 11px;
+      opacity: 0;
+      animation: chipIn 0.32s var(--ease) forwards;
     }
     .medico-contacto {
       display: flex;
@@ -437,6 +457,90 @@
       margin-top: 12px;
       min-height: 18px;
     }
+
+    /* ─── Capa cinemática (mini-brief 2.5) ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes chipIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* Reveal escalonado del hero: eyebrow → h1 → párrafo → credenciales → filtros */
+    .hero .eyebrow {
+      opacity: 0;
+      animation: fadeUp 0.6s var(--ease) 0.05s forwards;
+    }
+    .hero h1 {
+      opacity: 0;
+      animation: fadeUp 0.75s var(--ease) 0.15s forwards;
+    }
+    .hero p {
+      opacity: 0;
+      animation: fadeUp 0.7s var(--ease) 0.25s forwards;
+    }
+    .filtros-wrap {
+      opacity: 0;
+      animation: fadeUp 0.7s var(--ease) 0.45s forwards;
+    }
+
+    /* Barra de credenciales (texto estático, sin dependencia de Airtable) */
+    .credenciales {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 28px;
+      margin: 32px auto 0;
+      padding: 0 40px;
+      max-width: 900px;
+      opacity: 0;
+      animation: fadeUp 0.7s var(--ease) 0.35s forwards;
+    }
+    .credencial {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .credencial::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--c-energy);
+      opacity: 0.65;
+      flex-shrink: 0;
+    }
+
+    /* Scrollbar del modal acorde al tema */
+    .modal {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(232,163,61,0.35) transparent;
+    }
+
+    /* Accesibilidad: respeta "reducir movimiento". El opacity:1 es
+       imprescindible — sin él la página quedaría en blanco para quien
+       tenga la preferencia activa (los elementos arrancan en opacity 0). */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .hero .eyebrow, .hero h1, .hero p,
+      .filtros-wrap, .credenciales, .medico-card {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -451,6 +555,12 @@
     <h1>Encuentra a tu médico</h1>
     <p>Especialistas certificados en medicina regenerativa en toda la República. Filtra por ciudad, especialidad o herramienta específica.</p>
   </section>
+
+  <div class="credenciales">
+    <span class="credencial">5 sistemas CODE</span>
+    <span class="credencial">3 niveles de certificación</span>
+    <span class="credencial">Cobertura nacional</span>
+  </div>
 
   <div class="filtros-wrap">
     <div class="filtros">
@@ -555,8 +665,11 @@
       document.getElementById('modal-titulo').textContent =
         nombre ? 'Contactar a ' + nombre : 'Solicitar contacto';
       document.getElementById('modal-error').textContent = '';
-      document.getElementById('modal-fondo').classList.add('abierto');
-      document.getElementById('m-nombre').focus();
+      const fondo = document.getElementById('modal-fondo');
+      fondo.classList.add('abierto');
+      const caja = fondo.querySelector('.modal');
+      if (caja) caja.scrollTop = 0;
+      document.getElementById('m-nombre').focus({ preventScroll: true });
     }
 
     function cerrarModal() {
@@ -686,7 +799,7 @@
         ? '1 médico encontrado'
         : medicos.length + ' médicos encontrados';
 
-      resultados.innerHTML = '<div class="medicos-grid">' + medicos.map(m => {
+      resultados.innerHTML = '<div class="medicos-grid">' + medicos.map((m, i) => {
         const f = m.fields || {};
         const nombre = escaparHtml(f['Name'] || 'Sin nombre');
         const ciudad = escaparHtml(f['Ciudad de consulta'] || '');
@@ -698,12 +811,12 @@
         const tel = CONTACTOS[m.id] || null;
 
         return `
-          <div class="medico-card">
+          <div class="medico-card" style="animation-delay: ${i * 0.07}s">
             <h3 class="medico-nombre">${nombre}</h3>
             <div class="medico-ciudad">${ciudad}</div>
             ${especialidades ? `<div class="medico-especialidad">${especialidades}</div>` : ''}
             ${bio ? `<div class="medico-bio">${bio}</div>` : ''}
-            ${tratamientos.length ? `<div class="medico-tratamientos">${tratamientos.map(t => `<span class="medico-tratamiento">${escaparHtml(t)}</span>`).join('')}</div>` : ''}
+            ${tratamientos.length ? `<div class="medico-tratamientos">${tratamientos.map((t, j) => `<span class="medico-tratamiento" style="animation-delay: ${(i * 0.07) + 0.18 + (j * 0.025)}s">${escaparHtml(t)}</span>`).join('')}</div>` : ''}
             <div class="medico-contacto">
               ${horarios ? `<div class="medico-horarios">🕐 ${horarios}</div>` : ''}
               ${tel ? `<div class="medico-tel">📞 ${escaparHtml(tel)}</div>` : ''}
@@ -723,6 +836,25 @@
       document.getElementById('f-tratamiento').value = '';
       buscarDirectorio();
     }
+
+    // Cerrar el modal con Escape (document siempre existe, seguro aquí)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const f = document.getElementById('modal-fondo');
+        if (f && f.classList.contains('abierto')) cerrarModal();
+      }
+    });
+
+    // Cerrar con clic FUERA de la caja. El #modal-fondo se define más abajo
+    // en el DOM que este script, así que se enlaza en DOMContentLoaded para
+    // no leer un elemento aún inexistente. El check de e.target.id evita que
+    // un clic DENTRO del modal lo cierre y borre lo escrito.
+    document.addEventListener('DOMContentLoaded', () => {
+      const mf = document.getElementById('modal-fondo');
+      if (mf) mf.addEventListener('click', (e) => {
+        if (e.target.id === 'modal-fondo') cerrarModal();
+      });
+    });
 
     // Arranque
     cargarCiudades();
