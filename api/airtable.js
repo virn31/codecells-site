@@ -34,6 +34,25 @@ const TABLAS_PERMITIDAS = {
   solicitudes_paciente: 'tblUsc72JO2BaqT6d',
 };
 
+// Motor de gráficas: tablas de configuración (fuera de TABLAS_PERMITIDAS a
+// propósito). Se leen SOLO por las rutas dedicadas accion=graficas_* — nunca
+// por el reenvío genérico, así no aceptan POST/PATCH ni filterByFormula
+// arbitrario. Son catálogo de referencia, no datos de paciente.
+const TBL_GRAFICAS_CATALOGO   = 'tblA51aUeYypWQMQV'; // CATALOGO_PARAMETROS
+const TBL_GRAFICAS_PLANTILLAS = 'tbl1cpvSQkzo5r9UA'; // PLANTILLAS_ESPECIALIDAD
+// SUPUESTO A CONFIRMAR: LAB_VALORES = tbl6y1ZfsmPPhrlFk (el que tiene el
+// backfill de `Parametro`/`Confianza` del SPEC §1), NO el alias `labs`
+// (tblhKp4uE1NdXXqLh), que es otra tabla sin esos campos.
+const TBL_GRAFICAS_LABVALORES = 'tbl6y1ZfsmPPhrlFk'; // LAB_VALORES
+
+// El catálogo NO guarda el nombre de la columna de origen en cada tabla, así
+// que el mapeo código → campo de CONSULTAS es explícito aquí. En esta pasada
+// solo `peso` (prueba de aceptación §5). Un código con Fuente=CONSULTAS que no
+// esté en este mapa se reporta en `excluidos`, nunca se adivina.
+const CAMPO_CONSULTAS_POR_CODIGO = {
+  peso: 'Peso en consulta (kg)',
+};
+
 // Campo que, en cada tabla, identifica a qué paciente/vip pertenece un
 // registro — usado para restringir el acceso de los roles "paciente" y "vip"
 // a SOLO sus propios datos. AJUSTAR si el nombre real del campo difiere.
@@ -194,6 +213,45 @@ async function notificarSolicitudPaciente(registro, body) {
     return 'Fallback a Víctor';
   }
   return 'No enviada';
+}
+
+// `Zonas` vive como string JSON en Airtable. Se parsea en el servidor (no en
+// el cliente). Un JSON mal escrito en UN registro no debe reventar toda la
+// respuesta del catálogo: se loguea y ese parámetro sale con zonas: [].
+function parsearZonasGrafica(raw, codigo) {
+  if (!raw) return [];
+  try {
+    const z = JSON.parse(raw);
+    return Array.isArray(z) ? z : [];
+  } catch (e) {
+    console.error(`[graficas] Zonas JSON inválido en "${codigo}": ${e.message}`);
+    return [];
+  }
+}
+
+// Lee TODOS los registros de una tabla siguiendo la paginación por `offset`.
+// `paramsIniciales` es un objeto de query (filterByFormula, sort[0][field]…).
+// Lanza un Error con .status/.data si Airtable responde no-OK.
+async function airtableLeerTodo(tableId, token, paramsIniciales = {}) {
+  const registros = [];
+  let offset;
+  do {
+    const params = new URLSearchParams(paramsIniciales);
+    params.set('pageSize', '100');
+    if (offset) params.set('offset', offset);
+    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await r.json();
+    if (!r.ok) {
+      const e = new Error('airtable_no_ok');
+      e.status = r.status;
+      e.data = data;
+      throw e;
+    }
+    registros.push(...(data.records || []));
+    offset = data.offset;
+  } while (offset);
+  return registros;
 }
 
 module.exports = async (req, res) => {
@@ -418,6 +476,286 @@ module.exports = async (req, res) => {
   // leer directorio_medico en crudo (sin whitelist de campos ni {Publicado}=1).
   if (sesion && sesion.rol === 'visitante') {
     return res.status(403).json({ error: 'Tu registro solo permite ver los contactos del directorio.' });
+  }
+
+  // ── MOTOR DE GRÁFICAS · accion=graficas_catalogo ──────────────────
+  // Devuelve el catálogo de parámetros graficables (registros activos).
+  // Cachear en cliente: cambia muy poco. Llega con un `tabla` cualquiera
+  // válido (el guard de arriba lo exige); esta ruta lo ignora y resuelve
+  // directo contra CATALOGO_PARAMETROS, retornando antes del reenvío
+  // genérico. Requiere sesión real — es referencia clínica, no dato público.
+  if (req.query.accion === 'graficas_catalogo') {
+    if (!sesion) {
+      return res.status(401).json({ error: 'Sesión requerida para el catálogo de gráficas.' });
+    }
+    try {
+      const parametros = [];
+      let offset;
+      do {
+        const params = new URLSearchParams();
+        params.set('filterByFormula', '{Activo}=1');
+        params.set('pageSize', '100');
+        if (offset) params.set('offset', offset);
+        const url = `https://api.airtable.com/v0/${BASE_ID}/${TBL_GRAFICAS_CATALOGO}?${params.toString()}`;
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        const data = await r.json();
+        if (!r.ok) {
+          return res.status(502).json({ error: 'No se pudo leer el catálogo de gráficas.' });
+        }
+        (data.records || []).forEach(rec => {
+          const c = rec.fields || {};
+          if (!c['Codigo']) return; // sin código no sirve como llave del sistema
+          parametros.push({
+            codigo: c['Codigo'],
+            nombre: c['Nombre'] || null,
+            unidad: c['Unidad'] || null,
+            tipoGrafica: c['Tipo de grafica'] || null,
+            grupo: c['Grupo de grafica'] || null,
+            zonas: parsearZonasGrafica(c['Zonas'], c['Codigo']),
+            origen: c['Origen'] || null,
+            formula: c['Formula'] || null,
+            decimales: typeof c['Decimales'] === 'number' ? c['Decimales'] : null,
+            escalaX: c['Escala X'] || 'indice',
+            fuente: c['Fuente actual'] || null,
+          });
+        });
+        offset = data.offset;
+      } while (offset);
+      return res.status(200).json({ parametros });
+    } catch (err) {
+      return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
+    }
+  }
+
+  // ── MOTOR DE GRÁFICAS · accion=graficas_plantillas ────────────────
+  // Devuelve las plantillas activas con sus códigos de parámetro resueltos.
+  // `Parametros` es un link a CATALOGO_PARAMETROS: aunque su primario es
+  // `Codigo` (y ARRAYJOIN devolvería códigos), se resuelve por record ID
+  // contra un mapa del catálogo — más explícito y menos frágil (SPEC §3).
+  if (req.query.accion === 'graficas_plantillas') {
+    if (!sesion) {
+      return res.status(401).json({ error: 'Sesión requerida para las plantillas de gráficas.' });
+    }
+    try {
+      // 1. Mapa recordId → Codigo. Incluye TODO el catálogo (no solo activos)
+      //    para que ningún link quede sin resolver por estar inactivo.
+      const codigoPorId = {};
+      let offCat;
+      do {
+        const p = new URLSearchParams();
+        p.set('pageSize', '100');
+        p.append('fields[]', 'Codigo');
+        if (offCat) p.set('offset', offCat);
+        const url = `https://api.airtable.com/v0/${BASE_ID}/${TBL_GRAFICAS_CATALOGO}?${p.toString()}`;
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        const data = await r.json();
+        if (!r.ok) {
+          return res.status(502).json({ error: 'No se pudo leer el catálogo para resolver plantillas.' });
+        }
+        (data.records || []).forEach(rec => {
+          const cod = rec.fields && rec.fields['Codigo'];
+          if (cod) codigoPorId[rec.id] = cod;
+        });
+        offCat = data.offset;
+      } while (offCat);
+
+      // 2. Plantillas activas, con sus links resueltos a códigos.
+      const plantillas = [];
+      let offPl;
+      do {
+        const p = new URLSearchParams();
+        p.set('filterByFormula', '{Activo}=1');
+        p.set('pageSize', '100');
+        if (offPl) p.set('offset', offPl);
+        const url = `https://api.airtable.com/v0/${BASE_ID}/${TBL_GRAFICAS_PLANTILLAS}?${p.toString()}`;
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        const data = await r.json();
+        if (!r.ok) {
+          return res.status(502).json({ error: 'No se pudo leer las plantillas de gráficas.' });
+        }
+        (data.records || []).forEach(rec => {
+          const f = rec.fields || {};
+          const links = Array.isArray(f['Parametros']) ? f['Parametros'] : [];
+          // Preserva el orden en que la plantilla lista sus parámetros; descarta
+          // links que no resuelven (registro borrado del catálogo).
+          const codigos = links.map(id => codigoPorId[id]).filter(Boolean);
+          plantillas.push({
+            id: rec.id,
+            nombre: f['Nombre'] || null,
+            especialidad: f['Especialidad sugerida'] || null,
+            orden: typeof f['Orden'] === 'number' ? f['Orden'] : null,
+            descripcion: f['Descripcion'] || null,
+            codigos,
+          });
+        });
+        offPl = data.offset;
+      } while (offPl);
+
+      // Orden estable por `Orden`; las sin número van al final.
+      plantillas.sort((a, b) => (a.orden ?? Infinity) - (b.orden ?? Infinity));
+      return res.status(200).json({ plantillas });
+    } catch (err) {
+      return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
+    }
+  }
+
+  // ── MOTOR DE GRÁFICAS · accion=graficas_series ────────────────────
+  // El corazón: devuelve las series de datos de un paciente para los códigos
+  // pedidos. Entrada por query: codigoPaciente + codigos (coma-separados).
+  // Respeta el scoping por rol existente: un paciente/vip SOLO puede leer su
+  // propio código; el médico (acceso amplio por interconsulta) puede pedir
+  // cualquier paciente por su código.
+  if (req.query.accion === 'graficas_series') {
+    if (!sesion) {
+      return res.status(401).json({ error: 'Sesión requerida.' });
+    }
+
+    let codigoPaciente = String(req.query.codigoPaciente || '').trim();
+    if (sesion.tipo === 'paciente' || sesion.tipo === 'vip') {
+      codigoPaciente = sesion.codigo; // no puede leer expediente ajeno
+    }
+    if (!codigoPaciente) {
+      return res.status(400).json({ error: 'Falta codigoPaciente.' });
+    }
+
+    const codigos = String(req.query.codigos || '')
+      .split(',').map(s => s.trim()).filter(Boolean);
+    if (!codigos.length) {
+      return res.status(400).json({ error: 'Falta la lista de codigos.' });
+    }
+
+    try {
+      // Catálogo activo → config por código + mapa recId→código (para labs).
+      const catRegs = await airtableLeerTodo(TBL_GRAFICAS_CATALOGO, AIRTABLE_TOKEN, {
+        filterByFormula: '{Activo}=1',
+      });
+      const cfgPorCodigo = {};
+      const codigoPorRecId = {};
+      catRegs.forEach(rec => {
+        const c = rec.fields || {};
+        if (!c['Codigo']) return;
+        cfgPorCodigo[c['Codigo']] = {
+          origen: c['Origen'] || null,
+          fuente: c['Fuente actual'] || null,
+          unidad: c['Unidad'] || null,
+        };
+        codigoPorRecId[rec.id] = c['Codigo'];
+      });
+
+      const series = {};
+      const excluidos = [];
+      const pedidosConsultas = [];
+      const pedidosLabs = [];
+
+      // Clasificar cada código pedido según Origen/Fuente.
+      for (const codigo of codigos) {
+        const cfg = cfgPorCodigo[codigo];
+        if (!cfg) {
+          excluidos.push({ codigo, motivo: 'codigo_desconocido' });
+          continue;
+        }
+        // Toda serie pedida existe en la respuesta, aunque quede vacía.
+        series[codigo] = { puntos: [], unidad: cfg.unidad };
+
+        // REGLA §2.5 + nota de datos: Derivado sin campo directo NO se parsea
+        // aquí (ta_sistolica/ta_diastolica viven en texto "145/92"). Serie
+        // vacía y se reporta — el split es tarea aparte.
+        if (cfg.origen === 'Derivado') {
+          excluidos.push({ codigo, motivo: 'requiere_split' });
+          continue;
+        }
+        // Calculado lo deriva el motor, pero los scores (FIB-4, TFG, IMC,
+        // HOMA-IR) están fuera de alcance en esta pasada (§7).
+        if (cfg.origen === 'Calculado') {
+          excluidos.push({ codigo, motivo: 'calculo_no_implementado' });
+          continue;
+        }
+
+        switch (cfg.fuente) {
+          case 'CONSULTAS':    pedidosConsultas.push(codigo); break;
+          case 'LAB_VALORES':  pedidosLabs.push(codigo); break;
+          case 'PACIENTES':
+            // Historial de peso es texto libre; migrarlo es tarea aparte (§7).
+            excluidos.push({ codigo, motivo: 'fuente_no_migrada' });
+            break;
+          default:
+            excluidos.push({ codigo, motivo: 'fuente_inexistente' });
+        }
+      }
+
+      // ── Lectura de CONSULTAS (solo si hace falta) ──
+      if (pedidosConsultas.length) {
+        const consultasRegs = await airtableLeerTodo(TABLAS_PERMITIDAS.consultas, AIRTABLE_TOKEN, {
+          filterByFormula: `{Código de paciente ref}="${escaparFormula(codigoPaciente)}"`,
+          'sort[0][field]': 'Fecha de consulta',
+          'sort[0][direction]': 'asc',
+        });
+        for (const codigo of pedidosConsultas) {
+          const campo = CAMPO_CONSULTAS_POR_CODIGO[codigo];
+          if (!campo) {
+            excluidos.push({ codigo, motivo: 'campo_consulta_no_mapeado' });
+            continue;
+          }
+          const puntos = [];
+          for (const reg of consultasRegs) {
+            const v = reg.fields[campo];
+            if (typeof v !== 'number') continue; // descartar puntos sin valor
+            const numSesion = reg.fields['Número de sesión'];
+            puntos.push({
+              fecha: reg.fields['Fecha de consulta'] || null,
+              valor: v,
+              // `semana` es metadato de CONSULTAS que el render usa para las
+              // etiquetas (Inicio / S{n}); ausente en otras fuentes.
+              semana: typeof numSesion === 'number' ? numSesion : null,
+            });
+          }
+          series[codigo].puntos = puntos;
+        }
+      }
+
+      // ── Lectura de LAB_VALORES (solo si hace falta) ──
+      if (pedidosLabs.length) {
+        const setLabs = new Set(pedidosLabs);
+        const labRegs = await airtableLeerTodo(TBL_GRAFICAS_LABVALORES, AIRTABLE_TOKEN, {
+          filterByFormula: `{Código de paciente ref}="${escaparFormula(codigoPaciente)}"`,
+          'sort[0][field]': 'Fecha del estudio',
+          'sort[0][direction]': 'asc',
+        });
+        for (const reg of labRegs) {
+          const f = reg.fields || {};
+          const fecha = f['Fecha del estudio'] || null;
+          const analito = f['Analito'] || null;
+          const paramLink = Array.isArray(f['Parametro']) ? f['Parametro'] : [];
+          // §2.2: sin Parametro NO grafica; va a excluidos (no se adivina).
+          if (!paramLink.length) {
+            excluidos.push({ analito, motivo: 'sin_parametro', fecha });
+            continue;
+          }
+          const codigo = codigoPorRecId[paramLink[0]];
+          if (!codigo) {
+            excluidos.push({ analito, motivo: 'parametro_desconocido', fecha });
+            continue;
+          }
+          if (!setLabs.has(codigo)) continue; // no fue pedido: ignorar
+          // §2.3: solo grafican Alta o Media; "Requiere revision" se excluye.
+          if (f['Confianza'] === 'Requiere revision') {
+            excluidos.push({ analito, codigo, motivo: 'requiere_revision', fecha });
+            continue;
+          }
+          const v = f['Valor numérico'];
+          if (typeof v !== 'number') {
+            excluidos.push({ analito, codigo, motivo: 'sin_valor_numerico', fecha });
+            continue;
+          }
+          series[codigo].puntos.push({ fecha, valor: v });
+        }
+      }
+
+      return res.status(200).json({ series, excluidos });
+    } catch (err) {
+      const status = err && err.status ? 502 : 500;
+      return res.status(status).json({ error: 'Error al leer las series de gráficas.', detail: String(err && err.message || err) });
+    }
   }
 
   // El marcador "credencialPreAuth" es solo la credencial de esta petición —
