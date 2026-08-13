@@ -1111,9 +1111,14 @@ module.exports = async function handler(req, res) {
             categoria: clasificar(f['Analito']),
             unidad: f['Unidad'] || '',
             rango_texto: f['Rango de referencia'] || '',
+            // graficable: tiene Parametro enlazado en al menos un corte. Sin
+            // Parametro nunca entra al motor de gráficas (§3.5) — se marca en la
+            // tabla para que el médico sepa cuáles no van a graficar jamás.
+            graficable: false,
             porFecha: {},
           };
         }
+        if (Array.isArray(f['Parametro']) && f['Parametro'].length) porAnalito[f['Analito']].graficable = true;
         porAnalito[f['Analito']].porFecha[fecha] = {
           valor: f['Valor'] || '', valorNum: f['Valor numérico'], bandera: f['Bandera'] || 'Indeterminado',
           critico: !!f['Es crítico'], estudioId: (f['Estudio (NOVA LABS)'] || [])[0] || null,

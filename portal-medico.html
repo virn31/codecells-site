@@ -3983,7 +3983,14 @@ function actualizarLinksCapacitacion() {
 
 function formatDate(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
+  // Un campo date de Airtable ("2026-04-15") es un día calendario, sin hora ni
+  // zona. `new Date("2026-04-15")` lo interpreta como medianoche UTC y, al
+  // formatear en zona local (Mazatlán UTC-7), retrocede un día. Para fechas
+  // solo-día se construye la fecha en hora LOCAL; los datetimes ISO con hora
+  // (con "T") sí se parsean normal, que ahí la zona sí aplica.
+  const soloDia = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso).trim());
+  const d = soloDia ? new Date(+soloDia[1], +soloDia[2] - 1, +soloDia[3]) : new Date(iso);
+  if (isNaN(d)) return String(iso);
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
@@ -5575,8 +5582,11 @@ function renderTablaPivoteLabs() {
         if (!p || p.valor === undefined) return '<td>—</td>';
         return `<td class="${claseValorBandera(p)}">${p.valor}</td>`;
       }).join('');
+      const marcaNoGraf = fila.graficable === false
+        ? ` <span title="Sin parámetro de catálogo — este analito no entra al motor de gráficas (§3.5)" style="color:var(--text-3);font-size:9.5px;font-weight:400;letter-spacing:.02em;white-space:nowrap;">◦ no graficable</span>`
+        : '';
       return `<tr style="${colapsado ? 'display:none;' : ''}" data-categoria="${categoria}" onclick="abrirDetalleParametro('${fila.analito.replace(/'/g, "\\'")}')">
-        <td><strong>${fila.analito}</strong></td>
+        <td><strong>${fila.analito}</strong>${marcaNoGraf}</td>
         <td style="color:var(--text-3);">${fila.unidad}</td>
         <td style="color:var(--text-3);">${fila.rango_texto}</td>
         ${celdas}
@@ -5599,7 +5609,7 @@ function renderTablaPivoteLabs() {
       </tr></thead>
       <tbody>${bloquesHTML}</tbody>
     </table>
-    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">🔵 Bajo &nbsp; 🟢 Normal &nbsp; 🟠 Alto &nbsp; 🔴 Crítico — los resultados están sujetos a interpretación clínica. Clic en una fila para ver el detalle.</div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">🔵 Bajo &nbsp; 🟢 Normal &nbsp; 🟠 Alto &nbsp; 🔴 Crítico — los resultados están sujetos a interpretación clínica. Clic en una fila para ver el detalle.<br>◦ no graficable = sin parámetro de catálogo; queda en el expediente pero no entra a las gráficas.</div>
     ${labsInterpretacionActual ? `<div style="margin-top:16px;padding:14px 16px;background:var(--black-3);border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.6;color:var(--text-2);">${labsInterpretacionActual}</div>` : ''}
   `;
 }
