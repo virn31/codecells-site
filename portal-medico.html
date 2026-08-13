@@ -3720,6 +3720,32 @@
   </div>
 </div>
 
+<!-- ─── MODAL: FASE C · DOBLE VALIDACIÓN DE IDENTIDAD (§3) ─── -->
+<div class="modal-overlay" id="modal-fc-identidad">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Subir estudio — verificar paciente</h3>
+      <button class="modal-close" id="fc-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-2);">Archivo: <strong id="fc-archivo-nombre">—</strong></div>
+      <div class="form-group">
+        <label>Código del paciente destinatario *</label>
+        <input type="text" id="fc-codigo" placeholder="CC-PAC-XXXXXX" maxlength="14" autocomplete="off" spellcheck="false">
+        <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Tecléalo tú. No se prellena a propósito — es la verificación: el nombre impreso en el estudio se compara contra el registrado bajo este código.</div>
+      </div>
+      <div id="fc-resultado" style="min-height:16px;font-size:12.5px;line-height:1.5;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="fc-cancel">Cancelar</button>
+      <button class="btn-save" id="fc-validar">
+        <span id="fc-validar-label">Validar identidad</span>
+        <span id="fc-validar-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── MODAL: LINK DE AUTORREGISTRO ─── -->
 <div class="modal-overlay" id="modal-autorregistro">
   <div class="modal-box">
@@ -6134,6 +6160,12 @@ function leerFilasLabRapido() {
 }
 
 // ─── SUBIR ESTUDIO EN CONSULTORIO (médico) ─────────────────────────
+// ─── FASE C · subida de estudio con doble validación de identidad (§3) ──
+// El botón ya NO sube directo. Abre el gate donde el médico TECLEA el código
+// (no prellenado, ni con el expediente abierto) y se valida el nombre impreso
+// del documento contra el registrado ANTES de cualquier extracción o escritura.
+var fcArchivo = null; // { base64, name, type } del estudio en validación
+
 document.getElementById('btn-subir-lab-archivo').addEventListener('click', () => {
   document.getElementById('f-lab-archivo').click();
 });
@@ -6141,64 +6173,110 @@ document.getElementById('btn-subir-lab-archivo').addEventListener('click', () =>
 document.getElementById('f-lab-archivo').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
-
   const estadoEl = document.getElementById('lab-archivo-estado');
-  const btn = document.getElementById('btn-subir-lab-archivo');
   const tiposValidos = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic'];
-  if (tiposValidos.indexOf(file.type) === -1) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).';
-    return;
-  }
-  if (file.size > 8 * 1024 * 1024) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'Archivo muy grande (máximo 8MB).';
-    return;
-  }
-
-  const f = pacienteActual.fields;
-  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-
-  estadoEl.style.color = 'var(--text-2)';
-  estadoEl.textContent = 'Leyendo y extrayendo datos del estudio…';
-  btn.disabled = true;
-
+  if (tiposValidos.indexOf(file.type) === -1) { estadoEl.style.color = '#E2574B'; estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).'; e.target.value = ''; return; }
+  if (file.size > 8 * 1024 * 1024) { estadoEl.style.color = '#E2574B'; estadoEl.textContent = 'Archivo muy grande (máximo 8MB).'; e.target.value = ''; return; }
+  estadoEl.textContent = '';
   const reader = new FileReader();
   reader.onload = () => {
-    const base64 = reader.result.split(',')[1];
-    fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'medico_subir_estudio',
-        pacienteCode: pacId,
-        fileBase64: base64,
-        fileName: file.name,
-        mediaType: file.type,
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        btn.disabled = false;
-        if (data.ok) {
-          estadoEl.style.color = '#5FAE6E';
-          estadoEl.textContent = `Estudio agregado (${data.tipoEstudio}${data.totalAnalitos ? ', ' + data.totalAnalitos + ' valores' : ''}${data.totalFueraDeRango ? ', ' + data.totalFueraDeRango + ' fuera de rango' : ''}) ✓`;
-          document.getElementById('f-lab-archivo').value = '';
-          cargarLabs(pacId);
-        } else {
-          estadoEl.style.color = '#E2574B';
-          estadoEl.textContent = data.error || 'No se pudo procesar el estudio.';
-        }
-      })
-      .catch(() => {
-        btn.disabled = false;
-        estadoEl.style.color = '#E2574B';
-        estadoEl.textContent = 'Error de conexión. Intenta de nuevo.';
-      });
+    fcArchivo = { base64: reader.result.split(',')[1], name: file.name, type: file.type };
+    abrirGateIdentidad();
   };
   reader.readAsDataURL(file);
 });
+
+function abrirGateIdentidad() {
+  document.getElementById('fc-archivo-nombre').textContent = fcArchivo ? fcArchivo.name : '—';
+  const codigoEl = document.getElementById('fc-codigo');
+  codigoEl.value = ''; // §3: NUNCA prellenado — es la verificación
+  document.getElementById('fc-resultado').innerHTML = '';
+  fcSetValidarVisible(true);
+  fcSetValidarLoading(false);
+  document.getElementById('modal-fc-identidad').classList.add('active');
+  setTimeout(() => codigoEl.focus(), 50);
+}
+
+function cerrarGateIdentidad() {
+  document.getElementById('modal-fc-identidad').classList.remove('active');
+  document.getElementById('f-lab-archivo').value = '';
+  fcArchivo = null;
+}
+
+function fcSetValidarLoading(loading) {
+  document.getElementById('fc-validar').disabled = loading;
+  document.getElementById('fc-validar-label').style.display = loading ? 'none' : 'inline';
+  document.getElementById('fc-validar-loader').style.display = loading ? 'inline' : 'none';
+}
+function fcSetValidarVisible(visible) {
+  document.getElementById('fc-validar').style.display = visible ? 'inline-flex' : 'none';
+}
+
+document.getElementById('fc-close').addEventListener('click', cerrarGateIdentidad);
+document.getElementById('fc-cancel').addEventListener('click', cerrarGateIdentidad);
+
+document.getElementById('fc-validar').addEventListener('click', async () => {
+  const codigo = document.getElementById('fc-codigo').value.trim().toUpperCase();
+  const resEl = document.getElementById('fc-resultado');
+  if (!/^CC-PAC-[0-9]{4,8}$/.test(codigo)) { resEl.innerHTML = `<span style="color:#E2574B;">Código inválido. Formato: CC-PAC- seguido de 4 a 8 dígitos.</span>`; return; }
+  if (!fcArchivo) { resEl.innerHTML = `<span style="color:#E2574B;">No hay archivo cargado. Vuelve a elegirlo.</span>`; return; }
+  resEl.innerHTML = `<span style="color:var(--text-3);">Leyendo el nombre del documento y comparando…</span>`;
+  fcSetValidarLoading(true);
+  try {
+    const r = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_validar_identidad_estudio', pacienteCode: codigo, fileBase64: fcArchivo.base64, mediaType: fcArchivo.type }),
+    });
+    const data = await r.json();
+    fcSetValidarLoading(false);
+    if (!r.ok || !data.ok) { resEl.innerHTML = `<span style="color:#E2574B;">${(data && data.error) || 'No se pudo validar. Verifica el código y el archivo.'}</span>`; return; }
+    renderVeredictoIdentidad(codigo, data);
+  } catch (err) {
+    fcSetValidarLoading(false);
+    resEl.innerHTML = `<span style="color:#E2574B;">Error de conexión. Intenta de nuevo.</span>`;
+  }
+});
+
+function renderVeredictoIdentidad(codigo, data) {
+  const resEl = document.getElementById('fc-resultado');
+  const esc = s => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  if (data.veredicto === 'coincide') {
+    fcSetValidarVisible(false);
+    resEl.innerHTML = `<div style="color:#5FAE6E;">✓ Identidad verificada: <strong>${esc(data.nombreRegistrado)}</strong>.</div>`;
+    procederExtraccion(codigo, data.nombreRegistrado);
+  } else if (data.veredicto === 'no_coincide') {
+    // §3: DETENER. Sin botón de "continuar de todos modos" — a propósito: si
+    // existe, alguien lo usa con prisa. Solo se puede corregir el código o cancelar.
+    resEl.innerHTML = `
+      <div style="border:1px solid #E2574B;background:rgba(226,87,75,0.08);border-radius:8px;padding:12px;">
+        <div style="color:#E2574B;font-weight:600;margin-bottom:6px;">⛔ Detenido — no se procesó nada.</div>
+        <div style="color:var(--text-2);">El nombre del documento no coincide con el registrado bajo <strong>${esc(codigo)}</strong>.</div>
+        <div style="margin-top:8px;color:var(--text-2);">Documento: <strong>${esc(data.nombreDocumento)}</strong><br>${esc(codigo)}: <strong>${esc(data.nombreRegistrado)}</strong></div>
+        <div style="margin-top:8px;color:var(--text-3);font-size:11.5px;">Corrige el código arriba y vuelve a validar, o cancela. No hay forma de continuar con estos datos.</div>
+      </div>`;
+  } else if (data.veredicto === 'ilegible') {
+    // §3: nombre ilegible -> confirmación EXPLÍCITA del médico, nunca automática.
+    fcSetValidarVisible(false);
+    resEl.innerHTML = `
+      <div style="border:1px solid #E2A33D;background:rgba(226,163,61,0.08);border-radius:8px;padding:12px;">
+        <div style="color:#E2A33D;font-weight:600;margin-bottom:6px;">Nombre ilegible en el documento</div>
+        <div style="color:var(--text-2);">${esc(data.mensaje || '')}</div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn-secondary" onclick="cerrarGateIdentidad()">Cancelar</button>
+          <button type="button" class="btn-save" id="fc-confirmar-ilegible">Sí, es de ${esc(data.nombreRegistrado)} — continuar</button>
+        </div>
+      </div>`;
+    document.getElementById('fc-confirmar-ilegible').addEventListener('click', () => procederExtraccion(codigo, data.nombreRegistrado));
+  }
+}
+
+// Parte 3 reemplaza esto con la extracción por visión + pantalla de confirmación
+// (§2 paso 4) antes de escribir. Por ahora la identidad quedó verificada y se
+// detiene aquí: nada se escribe sin confirmación.
+function procederExtraccion(codigo, nombre) {
+  document.getElementById('fc-resultado').innerHTML +=
+    `<div style="margin-top:10px;color:var(--text-3);font-size:11.5px;">Identidad verificada para ${nombre} (${codigo}). La extracción de analitos y la pantalla de confirmación llegan en la siguiente parte — todavía no se guarda nada.</div>`;
+}
 
 // ─── TEMPORIZADOR DE SESIÓN ───────────────────────────────────────
 function iniciarTemporizador() {
