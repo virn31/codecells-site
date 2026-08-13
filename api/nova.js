@@ -463,6 +463,7 @@ DICTADO DE LABORATORIOS/ESTUDIOS — CUÁL HERRAMIENTA USAR (CRÍTICO, no confun
 - Si el médico dicta UN solo corte (los resultados de HOY, de la consulta que está haciendo ahora): usa rellenar_ficha_consulta. Esto NO guarda nada en Airtable todavía — solo llena el formulario en pantalla, y el médico debe presionar "Guardar consulta". Nunca digas "guardé" o "actualicé el expediente" con esta herramienta — di que quedó listo en el formulario para revisar.
 - Si el médico dicta resultados de DOS O MÁS fechas distintas del pasado (reconstruyendo el historial de labs/imagen de un paciente, ej. "el 15 de abril tenía esto, el 18 de mayo esto otro, el 21 de junio esto"): usa guardar_series_historicas_laboratorio. Esta SÍ escribe de inmediato en NOVA LABS y LAB_VALORES, una por cada fecha — solo confirma que se guardó DESPUÉS de que la herramienta te devuelva el resultado, nunca antes.
 - NUNCA afirmes que datos quedaron guardados, reflejados en la ficha, o disponibles en NOVA LABS si no llamaste a la herramienta correspondiente y confirmaste su resultado — eso desinforma al médico sobre el estado real del expediente.
+- Si el médico menciona un PDF/foto/archivo de un estudio, o pide que lo "cargues", "subas", "leas" o "guardes" en el expediente: NO recibes archivos en el chat y NUNCA escribes un estudio a LAB_VALORES desde aquí — sería saltarse la validación del paciente destinatario. Dirígelo al botón "Subir estudio" en la pestaña de laboratorios del portal: ahí se teclea el código del paciente y se compara el nombre impreso del documento antes de guardar. Sí puedes comentar clínicamente los valores si el médico te los describe en texto.
 
 PACIENTE DEMO (para practicar el uso del portal):
 Existe un paciente de práctica compartido para todos los médicos: código CC-PAC-DEMO01, nombre "Paciente Demo". Si el médico es nuevo, pregunta cómo funciona el portal, o parece confundido usándolo, sugiérele con naturalidad escribir ese código en la sección "Paciente compartido" del portal (barra lateral, junto a "Ver") — ahí puede ver un expediente real, crear una consulta de prueba, generar un plan nutricional, etc., sin tocar información de un paciente real. Aclara que es el mismo paciente para todos los médicos (no es privado de nadie), así que no debe registrar información sensible real ahí.
@@ -1468,167 +1469,6 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ─── MÉDICO: SUBIR ESTUDIO EN CONSULTORIO (PDF/foto, sin verificación) ──
-  // El médico ya tiene al paciente seleccionado en el portal — no aplica la
-  // verificación de identidad por nombre que sí se exige cuando el propio
-  // paciente sube un estudio desde mi-nivel.html. Corre síncrono (a diferencia
-  // del flujo de paciente) para que el médico vea de inmediato qué se extrajo.
-  if (action === 'medico_subir_estudio') {
-    try {
-      const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
-      if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
-      const esPDF = mediaType === 'application/pdf';
-      const esImagen = mediaType.startsWith('image/');
-      if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
-
-      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
-      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
-      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
-
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
-
-      const contentBlock = esPDF
-        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
-        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
-
-      const patologiasActivas = pacRecord.fields['Patologías activas'] || [];
-      const panelesValidos = ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'];
-      const tiposEstudioValidos = ['Laboratorio', 'RX', 'USG', 'Tomografía', 'Resonancia', 'Otro estudio'];
-
-      const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-5',
-          max_tokens: 2000,
-          messages: [{
-            role: 'user',
-            content: [
-              contentBlock,
-              { type: 'text', text:
-                `Extrae los resultados de este estudio médico en JSON puro, sin texto adicional ni backticks.\n` +
-                `Patologías activas conocidas del paciente: ${patologiasActivas.length ? patologiasActivas.join(', ') : 'ninguna registrada'}.\n` +
-                `Formato exacto:\n` +
-                `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","critico":true o false — SOLO true si el valor está MUY fuera del rango de referencia, "relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
-                `"tipo_estudio" clasifica el documento (Laboratorio si trae analitos con valores numéricos; RX/USG/Tomografía/Resonancia si es un estudio de imagen; Otro estudio si no encaja).\n` +
-                `Si el documento es un estudio de imagen sin analitos numéricos, responde con "analitos":[] y deja "panel_sugerido":"Personalizado".`
-              }
-            ]
-          }]
-        })
-      });
-      const extractData = await extractRes.json();
-      let extraido;
-      try { extraido = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { extraido = { tipo_estudio: 'Otro estudio', fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
-      const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
-      const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
-      const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
-      // §0.1: fecha del documento; si no es legible, la confirma el médico
-      // (fechaConfirmada en el body). Nunca new Date(). Sin fecha no se vuelca a
-      // LAB_VALORES, pero el adjunto sí queda como evidencia en NOVA LABS.
-      const fechaEstudio = esFechaISO(extraido.fecha_estudio) ? extraido.fecha_estudio.trim()
-                         : (esFechaISO(req.body.fechaConfirmada) ? req.body.fechaConfirmada.trim() : null);
-      const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
-      const relevantes = analitos.filter(a => a.relevante);
-
-      const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          typecast: true,
-          fields: {
-            'Código de paciente ref': pacienteCode,
-            ...(fechaEstudio ? { 'Fecha de resultados': fechaEstudio } : {}),
-            'Panel solicitado': panel,
-            'Tipo de estudio': tipoEstudio,
-            'Resultados (texto)': analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Estudio de imagen — ver archivo adjunto.',
-            'Valores fuera de rango': fueraDeRango.length
-              ? fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'}, ref ${a.rango_texto || 'n/d'})`).join('\n')
-              : 'Sin valores fuera de rango detectados.',
-            'Interpretación NOVA': relevantes.length ? `Relevante a patologías activas: ${relevantes.map(a => a.nombre).join(', ')}.` : '',
-            'Requiere seguimiento': fueraDeRango.some(a => a.relevante),
-            'Paciente': [pacRecord.id],
-          },
-        }),
-      });
-      const crearData = await crearRes.json();
-      if (!crearData.id) {
-        console.error('[nova] error creando NOVA LABS (subida médico):', JSON.stringify(crearData));
-        return res.status(502).json({ error: 'No se pudo guardar el estudio.' });
-      }
-
-      fetch(`https://content.airtable.com/v0/${BASE_ID}/${crearData.id}/fldxrF2w5I4cc3MNF/uploadAttachment`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
-      }).catch(() => {});
-
-      let creados = 0, duplicados = 0, conflictos = [], labValoresError = null;
-      if (analitos.length && fechaEstudio) {
-        const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
-        const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
-        const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
-        const registrosValores = analitos.filter(a => a.nombre).map(a => {
-          const banderaCap = capitalizar(a.bandera);
-          const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
-          const cat = matchAnalito(a.nombre); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
-          return {
-            fields: {
-              'Analito': a.nombre,
-              'Valor': String(a.valor ?? ''),
-              ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
-              'Unidad': a.unidad || '',
-              'Rango de referencia': a.rango_texto || '',
-              'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-              [LV_CRITICO]: !!a.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
-              [LV_RELEVANTE]: !!a.relevante,   // §0.3: sin hardcode a true
-              'Fecha del estudio': fechaEstudio,
-              'Código de paciente ref': pacienteCode,
-              'Paciente': [pacRecord.id],
-              'Estudio (NOVA LABS)': [crearData.id],
-              ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
-            },
-          };
-        });
-        // §6: idempotencia por paciente+fecha+analito antes de crear.
-        const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fechaEstudio);
-        if (!existentes) {
-          labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
-          console.error(`[nova] LAB_VALORES (subida médico): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fechaEstudio}.`);
-        } else {
-          const sep = separarNuevosYConflictos(registrosValores, existentes);
-          duplicados = sep.duplicados.length;
-          conflictos = sep.conflictos;
-          for (let i = 0; i < sep.nuevos.length; i += 50) {
-            await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
-            }).catch(e => console.error('[nova] error creando LAB_VALORES (subida médico):', e.message));
-          }
-          creados = sep.nuevos.length;
-        }
-      }
-
-      return res.status(200).json({
-        ok: true, tipoEstudio, panel, fecha: fechaEstudio,
-        totalAnalitos: analitos.length, totalFueraDeRango: fueraDeRango.length,
-        analitosGuardados: creados, duplicados, conflictos,
-        ...(fechaEstudio ? {} : { necesitaFecha: true }),
-        ...(labValoresError ? { labValoresError } : {}),
-      });
-    } catch (err) {
-      console.error('[nova] medico_subir_estudio error:', err.message);
-      return res.status(500).json({ error: 'Error interno al procesar el estudio.' });
-    }
-  }
-
   // ─── REGISTRO PÚBLICO: alta de paciente desde el test de index.html ──
   // Antes esto se calculaba y escribía 100% del lado del cliente (sin
   // ninguna verificación de colisión). Ahora vive en el servidor y usa
@@ -2604,6 +2444,12 @@ module.exports = async function handler(req, res) {
     }
     const esMedicoPreliminar = typeof medicoCode === 'string' && /^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode);
     const limiteCaracteres = esMedicoPreliminar ? 12000 : 4000;
+    // Límite de seguridad (Fase C §3): el chat es SOLO texto. Rechazar contenido
+    // no-string bloquea que un PDF/imagen entre por aquí y se procese por visión
+    // — la lectura de documentos y la escritura a LAB_VALORES ocurren únicamente
+    // por el endpoint de subida con doble validación de identidad, nunca desde el
+    // chat. No relajar esta comprobación a bloques de contenido sin re-evaluar ese
+    // gate.
     for (const m of messages) {
       if (!['user','assistant'].includes(m.role)) {
         return res.status(400).json({ error: 'Role inválido.' });
