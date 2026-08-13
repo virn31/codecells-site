@@ -1580,8 +1580,22 @@ Formato exacto:
           relevante_sugerido: estado === 'alto' || estado === 'bajo', // §2: relevante solo si el reporte lo lista fuera de rango
           parametro,                                    // null si sin match
           confianza_sugerida: parametro ? 'Media' : '', // §4.4/§5: visión = Media máximo (el médico sube a Alta)
+          verificacion_texto: null,                     // §5: se llena abajo si hay capa de texto ('coincide'|'revisar')
         };
       });
+
+      // §5: si el PDF trae capa de texto, cotejar cada valor numérico de la visión
+      // contra los números de esa capa. Coincide -> sólido; no coincide -> revisar.
+      // Solo si la capa da suficientes números (si no, no se anota nada).
+      if (esPDF && !esEscaneado) {
+        const numsTexto = numerosDeCapaTextoPDF(Buffer.from(fileBase64, 'base64'));
+        if (numsTexto.size >= 3) {
+          analitos.forEach(a => {
+            const nm = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+            a.verificacion_texto = nm ? (numsTexto.has(parseFloat(nm[0])) ? 'coincide' : 'revisar') : null;
+          });
+        }
+      }
 
       const ilegibles = Array.isArray(ext.ilegibles) ? ext.ilegibles.filter(x => x && (x.etiqueta || x.motivo)).map(x => ({ etiqueta: x.etiqueta || 'valor', motivo: x.motivo || 'ilegible' })) : [];
       const totalIntentado = analitos.length + ilegibles.length;
@@ -1590,6 +1604,22 @@ Formato exacto:
       const fechaEstudio = esFechaISO(ext.fecha_estudio) ? ext.fecha_estudio.trim() : null;
       const tipoEstudio = tiposEstudioValidos.includes(ext.tipo_estudio) ? ext.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
       const panel = panelesValidos.includes(ext.panel_sugerido) ? ext.panel_sugerido : 'Personalizado';
+
+      // Momento sugerido = fecha del estudio vs inicio de tratamiento. No hay campo
+      // "inicio de tratamiento"; se deriva de la consulta MÁS ANTIGUA del paciente
+      // (la valoración inicial). Sin consultas -> "Sin clasificar". El front lo
+      // recalcula si el médico corrige la fecha (por eso se devuelve inicioTratamiento).
+      const TBL_CONSULTAS = 'tbl1Xp2IGxdV178Ky';
+      let inicioTratamiento = null;
+      try {
+        const cRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_CONSULTAS}?filterByFormula=${encodeURIComponent(`{Código de paciente ref}="${pacienteCode}"`)}&sort[0][field]=Fecha de consulta&sort[0][direction]=asc&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        const cData = await cRes.json();
+        const f0 = (cData.records?.[0]?.fields?.['Fecha de consulta'] || '').slice(0, 10);
+        if (esFechaISO(f0)) inicioTratamiento = f0;
+      } catch (e) { console.error('[nova] inicio de tratamiento (consultas):', e.message); }
+      const momentoSugerido = !inicioTratamiento ? 'Sin clasificar'
+        : (fechaEstudio && fechaEstudio < inicioTratamiento ? 'Basal'
+        : (fechaEstudio ? 'En tratamiento' : 'Sin clasificar'));
 
       return res.status(200).json({
         ok: true,
@@ -1602,6 +1632,8 @@ Formato exacto:
         fechaAmbigua: !!ext.fecha_ambigua,
         tipoEstudio,
         panel,
+        inicioTratamiento,
+        momentoSugerido,
         analitos,
         ilegibles,
         resumenExtraccion,
@@ -1609,6 +1641,139 @@ Formato exacto:
     } catch (err) {
       console.error('[nova] medico_extraer_estudio error:', err.message);
       return res.status(500).json({ error: 'Error interno al extraer el estudio.' });
+    }
+  }
+
+  // ─── FASE C · §2 paso 6: ESCRITURA tras la pantalla de confirmación ──
+  // Recibe las filas YA revisadas/corregidas por el médico. Re-valida identidad
+  // (defensa: la escritura no debe poder ir a otro paciente por una llamada
+  // directa), crea el registro de NOVA LABS (evidencia + adjunto) y escribe
+  // LAB_VALORES por field ID con el mapeo §2, reusando idempotencia (§6) de B1.
+  if (action === 'medico_confirmar_estudio') {
+    try {
+      const { pacienteCode, fileBase64, fileName, mediaType, fecha, momento, tipoEstudio, panel, filas, identidadConfirmada } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!esFechaISO(fecha)) return res.status(400).json({ error: 'Falta la fecha del estudio (YYYY-MM-DD). No se asume la fecha de hoy.', necesitaFecha: true });
+      if (!Array.isArray(filas) || !filas.length) return res.status(400).json({ error: 'No hay valores que guardar.' });
+      if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo para re-verificar identidad.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_PAC = 'tblyUcCfueFLJuvIv';
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+      const authHeaders = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacData = await pacRes.json();
+      const pacRecord = pacData.records?.[0];
+      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
+      const nombreRegistrado = pacRecord.fields['Nombre completo'] || '';
+
+      // Re-gate de identidad con el nombre impreso (mismatch definitivo -> bloquea;
+      // ilegible sin confirmación explícita -> bloquea; si la visión no responde,
+      // se registra y continúa porque el gate ya corrió aguas arriba dos veces).
+      try {
+        const esPDF = mediaType === 'application/pdf';
+        const contentBlock = esPDF
+          ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+          : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
+        const vRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 200, messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Responde ÚNICAMENTE con el nombre del paciente impreso en el documento, sin texto adicional. Si no hay nombre legible, responde exactamente: SIN_NOMBRE' }] }] }),
+        });
+        const vData = await vRes.json();
+        const nombreDoc = (vData.content?.[0]?.text || '').trim();
+        if (nombreDoc && nombreDoc !== 'SIN_NOMBRE') {
+          if (!compararNombres(nombreRegistrado, nombreDoc).coincide) {
+            return res.status(409).json({ ok: false, veredicto: 'no_coincide', nombreRegistrado, nombreDocumento: nombreDoc, error: `El documento ("${nombreDoc}") no coincide con ${pacienteCode} ("${nombreRegistrado}"). No se guardó nada.` });
+          }
+        } else if (!identidadConfirmada) {
+          return res.status(409).json({ ok: false, veredicto: 'ilegible', nombreRegistrado, error: 'No se pudo confirmar el nombre del documento. Repite la validación de identidad antes de guardar.' });
+        }
+      } catch (gErr) {
+        console.error('[nova] confirmar_estudio: re-gate de identidad no disponible, continúa (ya gateado aguas arriba):', gErr.message);
+      }
+
+      // Registro de NOVA LABS (evidencia) + adjunto.
+      const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+      const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
+      const filasLimpias = filas.filter(v => v && v.analito && String(v.analito).trim());
+      if (!filasLimpias.length) return res.status(400).json({ error: 'No hay analitos válidos que guardar.' });
+      const fueraDeRango = filasLimpias.filter(v => ['Alto', 'Bajo'].includes(capitalizar(v.estado)));
+
+      const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+        method: 'POST', headers: authHeaders,
+        body: JSON.stringify({ typecast: true, fields: {
+          'Código de paciente ref': pacienteCode,
+          'Paciente': [pacRecord.id],
+          'Fecha de resultados': fecha,
+          'Tipo de estudio': tipoEstudio || 'Laboratorio',
+          'Panel solicitado': panel || 'Personalizado',
+          'Resultados (texto)': filasLimpias.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''}`.trim()).join('\n'),
+          ...(fueraDeRango.length ? { 'Valores fuera de rango': fueraDeRango.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''} (${capitalizar(v.estado)})`).join('\n') } : {}),
+        } }),
+      });
+      const crearData = await crearRes.json();
+      if (!crearData.id) { console.error('[nova] NOVA LABS (confirmar estudio):', JSON.stringify(crearData)); return res.status(502).json({ error: 'No se pudo crear el estudio en NOVA LABS.' }); }
+      const novaLabsId = crearData.id;
+      fetch(`https://content.airtable.com/v0/${BASE_ID}/${novaLabsId}/fldxrF2w5I4cc3MNF/uploadAttachment`, {
+        method: 'POST', headers: authHeaders,
+        body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
+      }).catch(() => {});
+
+      // Filas de LAB_VALORES con el mapeo §2 (Analito/Valor por nombre para la
+      // idempotencia; el resto por field ID). Origen=Laboratorio, Momento confirmado.
+      const momentoValidos = ['Basal', 'En tratamiento', 'Seguimiento', 'Sin clasificar'];
+      const momentoFinal = momentoValidos.includes(momento) ? momento : 'Sin clasificar';
+      const registros = filasLimpias.map(v => {
+        const banderaCap = capitalizar(v.estado);
+        const numMatch = String(v.valor || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+        const confianza = ['Alta', 'Media'].includes(v.confianza) ? v.confianza : null;
+        const parametroRecId = (typeof v.parametroRecId === 'string' && /^rec[a-zA-Z0-9]{5,}$/.test(v.parametroRecId)) ? v.parametroRecId : null;
+        return { fields: {
+          'Analito': String(v.analito),
+          'Valor': String(v.valor ?? ''),
+          ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+          'Unidad': v.unidad || '',
+          'Rango de referencia': v.rango || '',
+          'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+          [LV_RELEVANTE]: !!v.relevante,  // §2: solo lo que el reporte lista fuera de rango (editable por el médico)
+          [LV_CRITICO]: !!v.critico,      // §2: criterio clínico sugerido, editable
+          [LV_ORIGEN]: 'Laboratorio',     // §4.4
+          [LV_MOMENTO]: momentoFinal,     // §2 Momento
+          'Fecha del estudio': fecha,
+          'Código de paciente ref': pacienteCode,
+          'Paciente': [pacRecord.id],
+          'Estudio (NOVA LABS)': [novaLabsId],
+          ...(parametroRecId ? { [LV_PARAMETRO]: [parametroRecId], ...(confianza ? { [LV_CONFIANZA]: confianza } : {}) } : {}),
+        } };
+      });
+
+      // §6: idempotencia por paciente+fecha+analito antes de crear.
+      let creados = 0, duplicados = 0, conflictos = [], labValoresError = null;
+      const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fecha);
+      if (!existentes) {
+        labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
+        console.error(`[nova] LAB_VALORES (confirmar estudio): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fecha}.`);
+      } else {
+        const sep = separarNuevosYConflictos(registros, existentes);
+        duplicados = sep.duplicados.length;
+        conflictos = sep.conflictos;
+        for (let i = 0; i < sep.nuevos.length; i += 50) {
+          await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+            method: 'POST', headers: authHeaders,
+            body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
+          }).catch(e => console.error('[nova] error creando LAB_VALORES (confirmar estudio):', e.message));
+        }
+        creados = sep.nuevos.length;
+      }
+
+      return res.status(200).json({ ok: true, novaLabsId, analitosGuardados: creados, duplicados, conflictos, ...(labValoresError ? { labValoresError } : {}) });
+    } catch (err) {
+      console.error('[nova] medico_confirmar_estudio error:', err.message);
+      return res.status(500).json({ error: 'Error interno al guardar el estudio.' });
     }
   }
 
@@ -3370,6 +3535,8 @@ const LV_ANALITO   = 'fldOCskUJcaJZPo42'; // LAB_VALORES · primary · texto lit
 const LV_VALOR     = 'fld5rcAgx1Jti8aoN'; // LAB_VALORES · valor como texto
 const LV_RELEVANTE = 'fldsHApnN6uJv3p1r'; // LAB_VALORES · checkbox clínico "Relevante a patología"
 const LV_CRITICO   = 'fldq7n3GoSgwgjtLo'; // LAB_VALORES · checkbox clínico "Es crítico"
+const LV_ORIGEN    = 'fldhxDOtqdsGosB0h'; // LAB_VALORES · select Origen del dato (Laboratorio/…)
+const LV_MOMENTO   = 'fldygDaS9Nif42H5C'; // LAB_VALORES · select Momento (Basal/En tratamiento/Seguimiento/Sin clasificar)
 
 // Fecha del estudio (fldXzMqyF96HhCFUG). §0.1: NUNCA new Date() — se extrae del
 // documento o la confirma el médico. Sin fecha válida no se escribe LAB_VALORES.
@@ -3412,6 +3579,45 @@ function pdfTieneCapaDeTexto(buffer) {
     console.error('[nova] pdfTieneCapaDeTexto error:', e.message);
     return false; // ante duda, tratar como escaneado (§5, más cuidadoso)
   }
+}
+
+// §5 (verificación más barata disponible): cuando el PDF tiene capa de texto,
+// extrae los NÚMEROS de esa capa (literales PDF entre paréntesis) para cotejarlos
+// contra los valores que leyó la visión. Coinciden -> sólido; difiere -> se marca
+// para revisión. Best-effort: si la capa no da números usables (p.ej. fuentes CID
+// sin ToUnicode), devuelve un set chico y el llamador NO anota nada (no sobre-marca).
+function numerosDeCapaTextoPDF(buffer) {
+  const nums = new Set();
+  try {
+    const zlib = require('zlib');
+    const streamKw = Buffer.from('stream');
+    const endKw = Buffer.from('endstream');
+    let i = 0, texto = '';
+    while (texto.length < 200000) {
+      const s = buffer.indexOf(streamKw, i);
+      if (s < 0) break;
+      const e = buffer.indexOf(endKw, s + streamKw.length);
+      if (e < 0) break;
+      let start = s + streamKw.length;
+      if (buffer[start] === 0x0d) start++;
+      if (buffer[start] === 0x0a) start++;
+      const chunk = buffer.slice(start, e);
+      let inf = null;
+      try { inf = zlib.inflateSync(chunk); } catch { try { inf = zlib.inflateRawSync(chunk); } catch {} }
+      if (inf) {
+        const lit = inf.toString('latin1').match(/\((?:\\.|[^()\\]){1,80}\)/g);
+        if (lit) texto += ' ' + lit.join(' ');
+      }
+      i = e + endKw.length;
+    }
+    (texto.match(/-?\d+(?:[.,]\d+)?/g) || []).forEach(tok => {
+      const n = parseFloat(tok.replace(',', '.'));
+      if (!isNaN(n)) nums.add(n);
+    });
+  } catch (e) {
+    console.error('[nova] numerosDeCapaTextoPDF error:', e.message);
+  }
+  return nums;
 }
 
 // ─── Idempotencia (§0.2 / §6): existencia por paciente + fecha + analito ──
