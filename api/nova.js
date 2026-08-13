@@ -1395,6 +1395,79 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── FASE C · §3: DOBLE VALIDACIÓN DE IDENTIDAD (gate previo, SIN escritura) ──
+  // Paso 1 lo hace el front: el médico TECLEA el código (no prellenado con el
+  // expediente abierto — si se prellena la validación se vuelve decorativa).
+  // Aquí va el paso 2: la visión lee el nombre impreso y se compara contra el
+  // registrado bajo ese CC-. No coincide -> DETENER (el front no extrae ni
+  // guarda). Ilegible -> el front pide confirmación explícita. Nunca escribe.
+  if (action === 'medico_validar_identidad_estudio') {
+    try {
+      const { pacienteCode, fileBase64, mediaType } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
+      const esPDF = mediaType === 'application/pdf';
+      const esImagen = mediaType.startsWith('image/');
+      if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_PAC = 'tblyUcCfueFLJuvIv';
+
+      // Paso 2a: el código tecleado debe existir. Si no, se detiene aquí — nunca
+      // se "elige el más parecido".
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacData = await pacRes.json();
+      const pacRecord = pacData.records?.[0];
+      if (!pacRecord) return res.status(404).json({ error: 'No existe un paciente con ese código. Verifica el CC-PAC- tecleado.' });
+      const nombreRegistrado = pacRecord.fields['Nombre completo'] || '';
+
+      // Paso 2b: la visión extrae SOLO el nombre impreso (barato, max_tokens 200).
+      const contentBlock = esPDF
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
+      const visionRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-5',
+          max_tokens: 200,
+          messages: [{
+            role: 'user',
+            content: [
+              contentBlock,
+              { type: 'text', text: 'Este es un estudio médico. Responde ÚNICAMENTE con el nombre completo del paciente tal como aparece impreso en el documento, sin ningún texto adicional. Si no encuentras ningún nombre de paciente legible, responde exactamente: SIN_NOMBRE' },
+            ],
+          }],
+        }),
+      });
+      const visionData = await visionRes.json();
+      const nombreDocumento = (visionData.content?.[0]?.text || '').trim();
+
+      // Nombre ausente/ilegible -> no se resuelve por heurística: se pide que el
+      // médico confirme explícitamente que el estudio es de ese paciente.
+      if (!nombreDocumento || nombreDocumento === 'SIN_NOMBRE') {
+        return res.status(200).json({
+          ok: true, veredicto: 'ilegible', nombreRegistrado, nombreDocumento: null,
+          mensaje: `No se pudo leer un nombre de paciente en el documento. Confirma explícitamente que este estudio es de "${nombreRegistrado}" antes de continuar.`,
+        });
+      }
+
+      const cmp = compararNombres(nombreRegistrado, nombreDocumento);
+      return res.status(200).json({
+        ok: true,
+        veredicto: cmp.coincide ? 'coincide' : 'no_coincide',
+        nombreRegistrado,
+        nombreDocumento,
+        tokensComunes: cmp.comunes,
+        ...(cmp.coincide ? {} : { mensaje: `El nombre del documento ("${nombreDocumento}") no coincide con el registrado bajo ${pacienteCode} ("${nombreRegistrado}"). No se procesó nada. Verifica que el estudio y el código correspondan al mismo paciente.` }),
+      });
+    } catch (err) {
+      console.error('[nova] medico_validar_identidad_estudio error:', err.message);
+      return res.status(500).json({ error: 'Error interno al validar la identidad.' });
+    }
+  }
+
   // ─── MÉDICO: SUBIR ESTUDIO EN CONSULTORIO (PDF/foto, sin verificación) ──
   // El médico ya tiene al paciente seleccionado en el portal — no aplica la
   // verificación de identidad por nombre que sí se exige cuando el propio
@@ -3374,6 +3447,44 @@ function separarNuevosYConflictos(registros, existentes) {
   }
   return { nuevos, duplicados, conflictos };
 }
+
+// ─── §3: normalización y comparación de nombres (doble validación) ──
+// Tolera abreviaturas del laboratorio ("Otero B., Abel"), acentos, mayúsculas y
+// orden de tokens. NO usa similitud difusa: compara tokens SIGNIFICATIVOS (nombre
+// y apellidos, no iniciales sueltas ni conectores "de/la/del"). El código CC- es
+// el identificador único (paso 1, tecleado por el médico); este match (paso 2) es
+// el guardia contra subir el estudio de OTRA persona bajo ese código.
+const CONECTORES_NOMBRE = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'Y', 'E', 'DA', 'DAS', 'DO', 'DOS', 'VON', 'VAN']);
+
+function normalizarNombre(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function tokensSignificativosNombre(tokens) {
+  return tokens.filter(t => t.length >= 2 && !CONECTORES_NOMBRE.has(t));
+}
+
+// Devuelve { coincide, comunes, sigReg, sigDoc }. Umbral: ≥2 tokens significativos
+// en común (nombre + apellido); si el más corto tiene <2 significativos, exige que
+// todos coincidan. Nombres que comparten un solo apellido NO coinciden.
+function compararNombres(registrado, documento) {
+  const sigReg = tokensSignificativosNombre(normalizarNombre(registrado));
+  const sigDoc = tokensSignificativosNombre(normalizarNombre(documento));
+  const setDoc = new Set(sigDoc);
+  const comunes = [...new Set(sigReg)].filter(t => setDoc.has(t));
+  const minSig = Math.min(sigReg.length, sigDoc.length);
+  const requeridos = minSig >= 2 ? 2 : minSig;
+  const coincide = minSig > 0 && comunes.length >= requeridos;
+  return { coincide, comunes, sigReg, sigDoc };
+}
+// Expuestos para pruebas offline (no altera el export por defecto del handler).
+module.exports.compararNombres = compararNombres;
+module.exports.normalizarNombre = normalizarNombre;
 
 function normalizarAnalito(s) {
   return String(s || '')
