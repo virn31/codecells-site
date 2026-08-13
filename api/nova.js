@@ -3962,7 +3962,7 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
       }),
     });
     const crearData = await crearRes.json();
-    if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return null; }
+    if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return { fecha: serie.fecha, estado: 'fallida' }; }
 
     if (analitos.length) {
       const registrosValores = analitos.map(a => {
@@ -3990,31 +3990,63 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
       // §6: idempotencia por paciente+fecha+analito antes de crear (reintento no duplica).
       const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, serie.fecha);
       if (!existentes) {
+        // null: aborta limpio (no se escribe ningún valor). La fecha NO cuenta como
+        // guardada — se reporta como fallida para que el médico la reintente.
         console.error(`[nova] LAB_VALORES (backfill): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${serie.fecha}.`);
-      } else {
-        const sep = separarNuevosYConflictos(registrosValores, existentes);
-        if (sep.conflictos.length) console.warn('[nova] LAB_VALORES conflictos (backfill, valor distinto — NO sobrescritos):', JSON.stringify(sep.conflictos));
-        if (sep.duplicados.length) console.info(`[nova] LAB_VALORES (backfill): ${sep.duplicados.length} duplicado(s) omitido(s) en ${serie.fecha}.`);
-        for (let i = 0; i < sep.nuevos.length; i += 50) {
-          await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+        return { fecha: serie.fecha, estado: 'fallida' };
+      }
+      const sep = separarNuevosYConflictos(registrosValores, existentes);
+      if (sep.conflictos.length) console.warn('[nova] LAB_VALORES conflictos (backfill, valor distinto — NO sobrescritos):', JSON.stringify(sep.conflictos));
+      if (sep.duplicados.length) console.info(`[nova] LAB_VALORES (backfill): ${sep.duplicados.length} duplicado(s) omitido(s) en ${serie.fecha}.`);
+      // Una fecha solo cuenta como guardada si TODOS sus lotes respondieron OK. Un
+      // lote rechazado (error de red o HTTP !ok) marca la fecha como fallida en vez
+      // de pasar en silencio: sus valores pueden haber quedado a medias.
+      let algunLoteFallo = false;
+      for (let i = 0; i < sep.nuevos.length; i += 50) {
+        try {
+          const postRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
-          }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
+          });
+          if (!postRes.ok) {
+            const errData = await postRes.json().catch(() => ({}));
+            console.error('[nova] error creando LAB_VALORES (backfill):', JSON.stringify(errData));
+            algunLoteFallo = true;
+          }
+        } catch (e) {
+          console.error('[nova] error creando LAB_VALORES (backfill):', e.message);
+          algunLoteFallo = true;
         }
       }
+      if (algunLoteFallo) return { fecha: serie.fecha, estado: 'fallida' };
+      if (sep.conflictos.length) return { fecha: serie.fecha, estado: 'conflicto' };
+      return { fecha: serie.fecha, estado: 'confirmada' };
     }
-    return serie.fecha;
+    return { fecha: serie.fecha, estado: 'confirmada' };
   }));
 
-  const fechasGuardadas = resultadosSeries.filter(Boolean);
-  const guardadas = fechasGuardadas.length;
+  // Tres números distintos (§6): valores confirmados, conflictos no sobrescritos y
+  // fechas que fallaron. Una fecha "confirmada" implica que todos sus lotes de
+  // valores respondieron OK; el null y los lotes rechazados caen en "fallidas".
+  const confirmadas   = resultadosSeries.filter(r => r.estado === 'confirmada').map(r => r.fecha);
+  const conConflictos = resultadosSeries.filter(r => r.estado === 'conflicto').map(r => r.fecha);
+  const fallidas      = resultadosSeries.filter(r => r.estado === 'fallida').map(r => r.fecha);
+  const totalSolicitadas = (series || []).length;
+  const algoPersistido = confirmadas.length + conConflictos.length > 0;
 
-  const textoFinal = guardadas > 0
-    ? `${mensaje}\n\n✅ Guardado en NOVA LABS: ${guardadas} de ${(series || []).length} fecha(s) (${fechasGuardadas.join(', ')}). Ya puedes verlas en la pestaña NOVA LABS del expediente.`
+  const lineas = [];
+  if (confirmadas.length)   lineas.push(`✅ ${confirmadas.length} con valores confirmados (${confirmadas.join(', ')})`);
+  if (conConflictos.length) lineas.push(`⚠️ ${conConflictos.length} con valores en conflicto que NO se sobrescribieron (${conConflictos.join(', ')}) — revísalas`);
+  if (fallidas.length)      lineas.push(`❌ ${fallidas.length} que fallaron al guardar (${fallidas.join(', ')})`);
+
+  const textoFinal = (confirmadas.length || conConflictos.length || fallidas.length)
+    ? `${mensaje}\n\nResultado del guardado histórico (${totalSolicitadas} fecha(s) solicitada(s)):\n${lineas.join('\n')}`
+      + (fallidas.length ? `\n\n⚠️ Algunas fechas fallaron: sus valores NO quedaron guardados. Reintenta esas fechas.` : ``)
+      + (algoPersistido ? `\n\nYa puedes ver las guardadas en la pestaña NOVA LABS del expediente.` : ``)
     : `${mensaje}\n\n⚠️ No se pudo guardar ninguna fecha — revisa el formato e inténtalo de nuevo.`;
 
-  return { content: [{ type: 'text', text: textoFinal }], refrescarLabs: guardadas > 0 };
+  return { content: [{ type: 'text', text: textoFinal }], refrescarLabs: algoPersistido };
 }
 
 // ─── DEFINICIÓN DE LA HERRAMIENTA DE NOVA EN MODO MÉDICO (ficha) ───
