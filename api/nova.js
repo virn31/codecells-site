@@ -1469,6 +1469,149 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── FASE C · §4-§5: EXTRACCIÓN POR VISIÓN (re-gate server-side, SIN escritura) ──
+  // Re-valida identidad en el servidor (no basta con que el front llamara al gate:
+  // defensa contra llamadas directas). Extrae analitos + fecha, detecta si el PDF
+  // es escaneado, y adjunta el match de catálogo. NO crea nada en Airtable:
+  // devuelve los datos para la pantalla de confirmación (§2 paso 4). La escritura
+  // a LAB_VALORES ocurre solo tras la confirmación del médico.
+  if (action === 'medico_extraer_estudio') {
+    try {
+      const { pacienteCode, fileBase64, mediaType, identidadConfirmada } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
+      const esPDF = mediaType === 'application/pdf';
+      const esImagen = mediaType.startsWith('image/');
+      if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_PAC = 'tblyUcCfueFLJuvIv';
+
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacData = await pacRes.json();
+      const pacRecord = pacData.records?.[0];
+      if (!pacRecord) return res.status(404).json({ error: 'No existe un paciente con ese código. Verifica el CC-PAC- tecleado.' });
+      const nombreRegistrado = pacRecord.fields['Nombre completo'] || '';
+
+      // §5: nativo vs escaneado. Imagen => escaneado; PDF => sonda de capa de texto.
+      const esEscaneado = esImagen || (esPDF && !pdfTieneCapaDeTexto(Buffer.from(fileBase64, 'base64')));
+
+      // Catálogo como contexto (§3 glosario): permite que la visión sugiera un
+      // parámetro por conocimiento clínico cuando el índice de alias no matchea.
+      const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
+      const catalogoContexto = (matchAnalito.lista || []).map(x => `${x.codigo} = ${x.nombre}`).join('\n');
+
+      const panelesValidos = ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'];
+      const tiposEstudioValidos = ['Laboratorio', 'RX', 'USG', 'Tomografía', 'Resonancia', 'Otro estudio'];
+
+      const contentBlock = esPDF
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
+
+      const instruccion =
+`Extrae los datos de este estudio de laboratorio en JSON puro, sin texto adicional ni backticks.
+${esEscaneado ? 'ESTE DOCUMENTO ES UN ESCANEO O FOTO: revisa con cuidado extra; si una zona está borrosa o cortada, NO adivines.' : 'Documento con texto nativo.'}
+Reglas ESTRICTAS:
+- NUNCA inventes, completes por rango típico, ni promedies. Si un valor está borroso, cortado, tapado o ilegible, NO lo pongas en "analitos": va en "ilegibles" con qué parece ser y el motivo.
+- "nombre": el nombre literal del analito tal como está IMPRESO (si dice "CT", "Hb", "PCR-us", "BUN/Creat", déjalo así; NO lo expandas).
+- "valor": el valor como texto tal cual ("1.00", "<0.3", "negativo").
+- "estado": SOLO "alto" o "bajo" si el propio reporte lo marca fuera de rango, o si el valor cae fuera del rango de referencia IMPRESO en el documento. Si no hay rango impreso y el reporte no lo marca, usa "indeterminado". NUNCA uses "normal" ni "alto/bajo" por criterio clínico propio o rangos de memoria.
+- "critico_sugerido": true solo en desviación MARCADA respecto al rango impreso (no marginal). Es una sugerencia para que el médico la revise.
+- "parametro_codigo": si puedes mapear el analito a uno de estos códigos de catálogo por conocimiento clínico, pon su código EXACTO; si no estás seguro, null. NUNCA fuerces un mapeo dudoso.
+  Catálogo (codigo = nombre):
+${catalogoContexto || '(catálogo no disponible)'}
+- "fecha_estudio": la fecha de toma de muestra IMPRESA en formato YYYY-MM-DD. Si el formato es ambiguo (ej. 11/06/2026 puede ser 11-jun o 6-nov), pon tu mejor interpretación y marca "fecha_ambigua": true. Si no hay fecha, null.
+- "calidad": "nitida" si todo se lee bien, "parcial" si hay zonas ilegibles, "ilegible" si casi nada se lee.
+- "paginas_faltantes": describe si el reporte indica numeración tipo "1 de 3" o hay tablas cortadas a media página; null si parece completo.
+Formato exacto:
+{"nombre_paciente":"impreso o null","fecha_estudio":"YYYY-MM-DD o null","fecha_ambigua":true|false,"tipo_estudio":"una de: ${tiposEstudioValidos.join(' | ')}","panel_sugerido":"una de: ${panelesValidos.join(' | ')}","calidad":"nitida|parcial|ilegible","paginas_faltantes":"texto o null","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"","estado":"alto|bajo|normal|indeterminado","critico_sugerido":true|false,"parametro_codigo":"codigo o null"}],"ilegibles":[{"etiqueta":"","motivo":"borroso|cortado|tapado|otro"}]}`;
+
+      const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 3000, messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: instruccion }] }] }),
+      });
+      const extractData = await extractRes.json();
+      let ext;
+      try { ext = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { ext = null; }
+      if (!ext) return res.status(502).json({ error: 'No se pudo leer el estudio. Intenta con una imagen más nítida.' });
+
+      // §3: re-gate de identidad con el nombre extraído (server-side, no bypasseable).
+      const nombreDoc = (ext.nombre_paciente || '').trim();
+      if (!nombreDoc) {
+        if (!identidadConfirmada) {
+          return res.status(200).json({ ok: true, veredicto: 'ilegible', nombreRegistrado, nombreDocumento: null,
+            mensaje: `No se pudo leer un nombre en el documento. Confirma explícitamente que es de "${nombreRegistrado}".` });
+        }
+        // el médico ya confirmó explícitamente en el front -> continúa
+      } else {
+        const cmp = compararNombres(nombreRegistrado, nombreDoc);
+        if (!cmp.coincide) {
+          return res.status(200).json({ ok: true, veredicto: 'no_coincide', nombreRegistrado, nombreDocumento: nombreDoc,
+            mensaje: `El nombre del documento ("${nombreDoc}") no coincide con ${pacienteCode} ("${nombreRegistrado}"). No se procesó nada.` });
+        }
+      }
+
+      // Normaliza analitos + adjunta match de catálogo (índice determinista o
+      // inferencia del modelo). §4.4/§5: por visión, Confianza Media como máximo.
+      const estadosValidos = ['alto', 'bajo', 'normal', 'indeterminado'];
+      const analitosRaw = Array.isArray(ext.analitos) ? ext.analitos.filter(a => a && a.nombre && String(a.nombre).trim()) : [];
+      const analitos = analitosRaw.map(a => {
+        const idx = matchAnalito(a.nombre); // determinista: exacto / alias
+        let parametro = null;
+        if (idx) {
+          parametro = { recId: idx.recId, codigo: idx.codigo, nombre: idx.nombre, tipoMatch: idx.confianza === 'Alta' ? 'exacto' : 'alias', sugerirAlias: false };
+        } else if (a.parametro_codigo) {
+          const recId = matchAnalito.porCodigo.get(normalizarAnalito(a.parametro_codigo));
+          if (recId) {
+            const disp = matchAnalito.porRecId.get(recId) || {};
+            parametro = { recId, codigo: disp.codigo || a.parametro_codigo, nombre: disp.nombre || '', tipoMatch: 'inferencia', sugerirAlias: true };
+          }
+        }
+        const estado = estadosValidos.includes(String(a.estado || '').toLowerCase()) ? String(a.estado).toLowerCase() : 'indeterminado';
+        return {
+          nombre: String(a.nombre).trim(),
+          valor: a.valor != null ? String(a.valor) : '',
+          unidad: a.unidad || '',
+          rango_texto: a.rango_texto || '',
+          estado,                                       // alto | bajo | normal | indeterminado
+          critico_sugerido: !!a.critico_sugerido,
+          relevante_sugerido: estado === 'alto' || estado === 'bajo', // §2: relevante solo si el reporte lo lista fuera de rango
+          parametro,                                    // null si sin match
+          confianza_sugerida: parametro ? 'Media' : '', // §4.4/§5: visión = Media máximo (el médico sube a Alta)
+        };
+      });
+
+      const ilegibles = Array.isArray(ext.ilegibles) ? ext.ilegibles.filter(x => x && (x.etiqueta || x.motivo)).map(x => ({ etiqueta: x.etiqueta || 'valor', motivo: x.motivo || 'ilegible' })) : [];
+      const totalIntentado = analitos.length + ilegibles.length;
+      const resumenExtraccion = `${analitos.length} de ~${totalIntentado} extraídos${ilegibles.length ? `, ${ilegibles.length} ilegibles` : ''}.`;
+
+      const fechaEstudio = esFechaISO(ext.fecha_estudio) ? ext.fecha_estudio.trim() : null;
+      const tipoEstudio = tiposEstudioValidos.includes(ext.tipo_estudio) ? ext.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
+      const panel = panelesValidos.includes(ext.panel_sugerido) ? ext.panel_sugerido : 'Personalizado';
+
+      return res.status(200).json({
+        ok: true,
+        veredicto: 'coincide',
+        nombreRegistrado,
+        esEscaneado,
+        calidad: ext.calidad || 'nitida',
+        paginasFaltantes: ext.paginas_faltantes || null,
+        fechaEstudio,
+        fechaAmbigua: !!ext.fecha_ambigua,
+        tipoEstudio,
+        panel,
+        analitos,
+        ilegibles,
+        resumenExtraccion,
+      });
+    } catch (err) {
+      console.error('[nova] medico_extraer_estudio error:', err.message);
+      return res.status(500).json({ error: 'Error interno al extraer el estudio.' });
+    }
+  }
+
   // ─── REGISTRO PÚBLICO: alta de paciente desde el test de index.html ──
   // Antes esto se calculaba y escribía 100% del lado del cliente (sin
   // ninguna verificación de colisión). Ahora vive en el servidor y usa
@@ -3234,6 +3377,43 @@ function esFechaISO(s) {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
 }
 
+// ─── §5: ¿el PDF tiene capa de texto extraíble (nativo) o es un escaneo? ──
+// Los labs mexicanos a menudo entregan PDFs que son imágenes escaneadas. Se
+// inflan los streams FlateDecode con zlib y se buscan operadores de texto de PDF
+// (BT/Tj/TJ/Tf). Sin operadores de texto -> es un escaneo (imagen), y se trata
+// con el cuidado extra de §5. El sesgo es hacia "escaneado": un nativo con filtro
+// raro puede caer como escaneado (más cuidado, seguro), pero un escaneo real
+// nunca tiene operadores de texto, así que no se marca nativo por error.
+function pdfTieneCapaDeTexto(buffer) {
+  try {
+    const zlib = require('zlib');
+    const streamKw = Buffer.from('stream');
+    const endKw = Buffer.from('endstream');
+    let textOps = 0, i = 0;
+    while (textOps < 3) {
+      const s = buffer.indexOf(streamKw, i);
+      if (s < 0) break;
+      const e = buffer.indexOf(endKw, s + streamKw.length);
+      if (e < 0) break;
+      let start = s + streamKw.length;
+      if (buffer[start] === 0x0d) start++;
+      if (buffer[start] === 0x0a) start++;
+      const chunk = buffer.slice(start, e);
+      let inflated = null;
+      try { inflated = zlib.inflateSync(chunk); } catch { try { inflated = zlib.inflateRawSync(chunk); } catch {} }
+      if (inflated) {
+        const m = inflated.toString('latin1').match(/BT\b|\bTj\b|\bTJ\b|\bTf\b/g);
+        if (m) textOps += m.length;
+      }
+      i = e + endKw.length;
+    }
+    return textOps >= 3;
+  } catch (e) {
+    console.error('[nova] pdfTieneCapaDeTexto error:', e.message);
+    return false; // ante duda, tratar como escaneado (§5, más cuidadoso)
+  }
+}
+
 // ─── Idempotencia (§0.2 / §6): existencia por paciente + fecha + analito ──
 // Lee los valores ya guardados para ese paciente en esa fecha y los indexa por
 // analito normalizado → valor (texto). El motor de fórmulas de Airtable solo
@@ -3331,6 +3511,7 @@ function compararNombres(registrado, documento) {
 // Expuestos para pruebas offline (no altera el export por defecto del handler).
 module.exports.compararNombres = compararNombres;
 module.exports.normalizarNombre = normalizarNombre;
+module.exports.pdfTieneCapaDeTexto = pdfTieneCapaDeTexto;
 
 function normalizarAnalito(s) {
   return String(s || '')
@@ -3342,10 +3523,18 @@ function normalizarAnalito(s) {
 // Ante cualquier fallo de lectura del catálogo degrada a "sin match" en vez de
 // romper el guardado: un registro sin Parametro es recuperable (SPEC §3.4).
 async function cargarMatcherCatalogo(baseId, token) {
-  const SIN_MATCH = () => null;
+  // Se adjuntan al matcher: .porCodigo (codigo norm → recId), .porRecId
+  // (recId → {codigo,nombre} originales) y .lista ([{codigo,nombre}]) para dar
+  // el catálogo como contexto a la visión (§3 glosario). Aditivo: los callers de
+  // Bloque 1 solo usan matchAnalito(nombre).recId/.confianza y no se afectan.
+  const attach = (fn) => Object.assign(fn, { porCodigo: new Map(), porRecId: new Map(), lista: [] });
+  const SIN_MATCH = attach(() => null);
   try {
-    const exactos = new Map(); // nombre/codigo normalizado → recId  (Alta)
-    const alias   = new Map(); // alias normalizado → recId           (Media)
+    const exactos   = new Map(); // nombre/codigo normalizado → recId  (Alta)
+    const alias     = new Map(); // alias normalizado → recId           (Media)
+    const porCodigo = new Map(); // codigo normalizado → recId
+    const porRecId  = new Map(); // recId → { codigo, nombre } (originales, para mostrar)
+    const lista     = [];        // [{ codigo, nombre }] contexto del modelo
     let offset;
     do {
       const p = new URLSearchParams();
@@ -3361,24 +3550,31 @@ async function cargarMatcherCatalogo(baseId, token) {
         const f = rec.fields || {};
         if (f[CAT_PARAMETROS.activo] !== true) return;          // solo catálogo activo
         if (f[CAT_PARAMETROS.fuente] !== 'LAB_VALORES') return; // solo parámetros de laboratorio
-        const codigo = normalizarAnalito(f[CAT_PARAMETROS.codigo]);
-        const nombre = normalizarAnalito(f[CAT_PARAMETROS.nombre]);
-        if (codigo) exactos.set(codigo, rec.id);
+        const codigoOrig = f[CAT_PARAMETROS.codigo] || '';
+        const nombreOrig = f[CAT_PARAMETROS.nombre] || '';
+        const codigo = normalizarAnalito(codigoOrig);
+        const nombre = normalizarAnalito(nombreOrig);
+        if (codigo) { exactos.set(codigo, rec.id); porCodigo.set(codigo, rec.id); }
         if (nombre) exactos.set(nombre, rec.id);
         String(f[CAT_PARAMETROS.alias] || '').split(';').forEach(a => {
           const na = normalizarAnalito(a);
           if (na && !exactos.has(na)) alias.set(na, rec.id);
         });
+        porRecId.set(rec.id, { codigo: codigoOrig, nombre: nombreOrig });
+        if (codigoOrig) lista.push({ codigo: codigoOrig, nombre: nombreOrig });
       });
       offset = data.offset;
     } while (offset);
-    return function matchAnalito(nombreAnalito) {
+    const matchAnalito = (nombreAnalito) => {
       const key = normalizarAnalito(nombreAnalito);
       if (!key) return null;
-      if (exactos.has(key)) return { recId: exactos.get(key), confianza: 'Alta' };
-      if (alias.has(key))   return { recId: alias.get(key),   confianza: 'Media' };
-      return null;
+      const esExacto = exactos.has(key);
+      const recId = esExacto ? exactos.get(key) : (alias.has(key) ? alias.get(key) : null);
+      if (!recId) return null;
+      const disp = porRecId.get(recId) || {};
+      return { recId, confianza: esExacto ? 'Alta' : 'Media', codigo: disp.codigo || '', nombre: disp.nombre || '' };
     };
+    return Object.assign(matchAnalito, { porCodigo, porRecId, lista });
   } catch (e) {
     console.error('[nova] error cargando matcher de catálogo:', e.message);
     return SIN_MATCH;
