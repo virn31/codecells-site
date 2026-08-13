@@ -915,6 +915,10 @@ module.exports = async function handler(req, res) {
           const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
           const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
           const relevantes = analitos.filter(a => a.relevante);
+          // §0.1: la fecha se toma del documento; si no es legible NO se asume hoy.
+          // Este path corre en 2º plano (subida del paciente) y no tiene canal para
+          // preguntarla, así que sin fecha válida NO se vuelca a LAB_VALORES.
+          const fechaEstudio = esFechaISO(extraido.fecha_estudio) ? extraido.fecha_estudio.trim() : null;
 
           const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
             method: 'POST',
@@ -923,7 +927,7 @@ module.exports = async function handler(req, res) {
               typecast: true,
               fields: {
                 'Código de paciente ref': pacienteCode,
-                'Fecha de resultados': extraido.fecha_estudio || new Date().toISOString().slice(0, 10),
+                ...(fechaEstudio ? { 'Fecha de resultados': fechaEstudio } : {}),
                 'Panel solicitado': panel,
                 'Tipo de estudio': tipoEstudio,
                 'Resultados (texto)': JSON.stringify(analitos),
@@ -952,10 +956,11 @@ module.exports = async function handler(req, res) {
             const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
             const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
             const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
-            const fechaEstudio = extraido.fecha_estudio || new Date().toISOString().slice(0, 10);
+            const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
             const registrosValores = analitos.filter(a => a.nombre).map(a => {
               const banderaCap = capitalizar(a.bandera);
               const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+              const cat = matchAnalito(a.nombre); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
               return {
                 fields: {
                   'Analito': a.nombre,
@@ -964,21 +969,36 @@ module.exports = async function handler(req, res) {
                   'Unidad': a.unidad || '',
                   'Rango de referencia': a.rango_texto || '',
                   'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-                  'Es crítico': !!a.critico,
-                  'Relevante a patología': !!a.relevante,
+                  [LV_CRITICO]: !!a.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
+                  [LV_RELEVANTE]: !!a.relevante,   // §0.3: sin hardcode a true
                   'Fecha del estudio': fechaEstudio,
                   'Código de paciente ref': pacienteCode,
                   'Paciente': [pacRecord.id],
                   'Estudio (NOVA LABS)': [crearData.id],
+                  ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
                 },
               };
             });
-            for (let i = 0; i < registrosValores.length; i += 50) {
-              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ typecast: true, records: registrosValores.slice(i, i + 50) }),
-              }).catch(e => console.error('[nova] error creando LAB_VALORES:', e.message));
+            // §0.1 + §6: sin fecha válida no se escribe; con fecha, idempotencia por
+            // paciente+fecha+analito antes de crear (resubir el mismo PDF no duplica).
+            if (!fechaEstudio) {
+              console.warn(`[nova] LAB_VALORES omitido: estudio de ${pacienteCode} sin fecha legible; el médico debe fecharlo desde el portal.`);
+            } else if (registrosValores.length) {
+              const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fechaEstudio);
+              if (!existentes) {
+                console.error(`[nova] LAB_VALORES: no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fechaEstudio}.`);
+              } else {
+                const { nuevos, duplicados, conflictos } = separarNuevosYConflictos(registrosValores, existentes);
+                if (conflictos.length) console.warn('[nova] LAB_VALORES conflictos (mismo paciente/fecha/analito, valor distinto — NO sobrescritos):', JSON.stringify(conflictos));
+                if (duplicados.length) console.info(`[nova] LAB_VALORES: ${duplicados.length} duplicado(s) omitido(s).`);
+                for (let i = 0; i < nuevos.length; i += 50) {
+                  await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ typecast: true, records: nuevos.slice(i, i + 50) }),
+                  }).catch(e => console.error('[nova] error creando LAB_VALORES:', e.message));
+                }
+              }
             }
           } else {
             console.error('[nova] error creando registro NOVA LABS:', JSON.stringify(crearData));
@@ -1270,8 +1290,12 @@ module.exports = async function handler(req, res) {
 
   if (action === 'medico_guardar_labs_rapidos') {
     try {
-      const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
+      const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId, fechaEstudio } = req.body;
       if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      // §0.1: la fecha del estudio se confirma explícitamente; nunca se asume hoy.
+      // Sin fecha válida no se escribe nada (el front debe enviar fechaEstudio ISO).
+      const fecha = esFechaISO(fechaEstudio) ? fechaEstudio.trim() : null;
+      if (!fecha) return res.status(400).json({ error: 'Falta la fecha del estudio (YYYY-MM-DD). No se asume la fecha de hoy.', necesitaFecha: true });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1286,7 +1310,6 @@ module.exports = async function handler(req, res) {
       if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
 
       const filas = Array.isArray(valoresRapidos) ? valoresRapidos.filter(v => v && v.analito && String(v.analito).trim()) : [];
-      const hoy = new Date().toISOString().slice(0, 10);
 
       const textoAuto = filas.length ? filas.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''}`.trim()).join('\n') : '';
       const fueraDeRangoAuto = filas.filter(v => v.bandera === 'Alto' || v.bandera === 'Bajo')
@@ -1298,7 +1321,7 @@ module.exports = async function handler(req, res) {
         'Panel solicitado': panel || 'Personalizado',
         'Tipo de estudio': tipoEstudio || 'Laboratorio',
         'Resultados (texto)': (resultadosTexto && resultadosTexto.trim()) || textoAuto || 'Sin resultados capturados.',
-        'Fecha de resultados': hoy,
+        'Fecha de resultados': fecha,
       };
       const fueraFinal = (fueraDeRango && fueraDeRango.trim()) || fueraDeRangoAuto;
       if (fueraFinal) labFields['Valores fuera de rango'] = fueraFinal;
@@ -1315,10 +1338,13 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'No se pudo guardar el laboratorio.' });
       }
 
+      let creados = 0, duplicados = 0, conflictos = [], labValoresError = null;
       if (filas.length) {
+        const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
         const registrosValores = filas.map(v => {
           const banderaCap = banderasValidas.includes(v.bandera) ? v.bandera : 'Indeterminado';
           const numMatch = String(v.valor || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+          const cat = matchAnalito(v.analito); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
           return {
             fields: {
               'Analito': v.analito,
@@ -1327,23 +1353,37 @@ module.exports = async function handler(req, res) {
               'Unidad': v.unidad || '',
               'Rango de referencia': v.rango || '',
               'Bandera': banderaCap,
-              'Es crítico': !!v.critico,
-              'Relevante a patología': true, // el médico lo capturó a propósito en consultorio
-              'Fecha del estudio': hoy,
+              [LV_CRITICO]: !!v.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
+              [LV_RELEVANTE]: !!v.relevante,   // §0.3: sin hardcode a true — solo si el médico lo marca
+              'Fecha del estudio': fecha,
               'Código de paciente ref': pacienteCode,
               'Paciente': [pacRecord.id],
               'Estudio (NOVA LABS)': [crearData.id],
+              ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
             },
           };
         });
-        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ typecast: true, records: registrosValores }),
-        }).catch(e => console.error('[nova] error creando LAB_VALORES (dictado médico):', e.message));
+        // §6: idempotencia por paciente+fecha+analito antes de crear.
+        const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fecha);
+        if (!existentes) {
+          labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
+          console.error(`[nova] LAB_VALORES (dictado médico): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fecha}.`);
+        } else {
+          const sep = separarNuevosYConflictos(registrosValores, existentes);
+          duplicados = sep.duplicados.length;
+          conflictos = sep.conflictos;
+          for (let i = 0; i < sep.nuevos.length; i += 50) {
+            await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
+            }).catch(e => console.error('[nova] error creando LAB_VALORES (dictado médico):', e.message));
+          }
+          creados = sep.nuevos.length;
+        }
       }
 
-      return res.status(200).json({ ok: true, novaLabsId: crearData.id, analitosGuardados: filas.length });
+      return res.status(200).json({ ok: true, novaLabsId: crearData.id, analitosGuardados: creados, duplicados, conflictos, ...(labValoresError ? { labValoresError } : {}) });
     } catch (err) {
       console.error('[nova] medico_guardar_labs_rapidos error:', err.message);
       return res.status(500).json({ error: 'Error interno al guardar el laboratorio.' });
@@ -1411,7 +1451,11 @@ module.exports = async function handler(req, res) {
       const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
       const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
       const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
-      const fechaEstudio = extraido.fecha_estudio || new Date().toISOString().slice(0, 10);
+      // §0.1: fecha del documento; si no es legible, la confirma el médico
+      // (fechaConfirmada en el body). Nunca new Date(). Sin fecha no se vuelca a
+      // LAB_VALORES, pero el adjunto sí queda como evidencia en NOVA LABS.
+      const fechaEstudio = esFechaISO(extraido.fecha_estudio) ? extraido.fecha_estudio.trim()
+                         : (esFechaISO(req.body.fechaConfirmada) ? req.body.fechaConfirmada.trim() : null);
       const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
       const relevantes = analitos.filter(a => a.relevante);
 
@@ -1422,7 +1466,7 @@ module.exports = async function handler(req, res) {
           typecast: true,
           fields: {
             'Código de paciente ref': pacienteCode,
-            'Fecha de resultados': fechaEstudio,
+            ...(fechaEstudio ? { 'Fecha de resultados': fechaEstudio } : {}),
             'Panel solicitado': panel,
             'Tipo de estudio': tipoEstudio,
             'Resultados (texto)': analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Estudio de imagen — ver archivo adjunto.',
@@ -1447,12 +1491,15 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
       }).catch(() => {});
 
-      if (analitos.length) {
+      let creados = 0, duplicados = 0, conflictos = [], labValoresError = null;
+      if (analitos.length && fechaEstudio) {
         const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
         const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+        const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
         const registrosValores = analitos.filter(a => a.nombre).map(a => {
           const banderaCap = capitalizar(a.bandera);
           const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+          const cat = matchAnalito(a.nombre); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
           return {
             fields: {
               'Analito': a.nombre,
@@ -1461,25 +1508,42 @@ module.exports = async function handler(req, res) {
               'Unidad': a.unidad || '',
               'Rango de referencia': a.rango_texto || '',
               'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-              'Es crítico': !!a.critico,
-              'Relevante a patología': !!a.relevante,
+              [LV_CRITICO]: !!a.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
+              [LV_RELEVANTE]: !!a.relevante,   // §0.3: sin hardcode a true
               'Fecha del estudio': fechaEstudio,
               'Código de paciente ref': pacienteCode,
               'Paciente': [pacRecord.id],
               'Estudio (NOVA LABS)': [crearData.id],
+              ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
             },
           };
         });
-        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ typecast: true, records: registrosValores }),
-        }).catch(e => console.error('[nova] error creando LAB_VALORES (subida médico):', e.message));
+        // §6: idempotencia por paciente+fecha+analito antes de crear.
+        const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fechaEstudio);
+        if (!existentes) {
+          labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
+          console.error(`[nova] LAB_VALORES (subida médico): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fechaEstudio}.`);
+        } else {
+          const sep = separarNuevosYConflictos(registrosValores, existentes);
+          duplicados = sep.duplicados.length;
+          conflictos = sep.conflictos;
+          for (let i = 0; i < sep.nuevos.length; i += 50) {
+            await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
+            }).catch(e => console.error('[nova] error creando LAB_VALORES (subida médico):', e.message));
+          }
+          creados = sep.nuevos.length;
+        }
       }
 
       return res.status(200).json({
         ok: true, tipoEstudio, panel, fecha: fechaEstudio,
         totalAnalitos: analitos.length, totalFueraDeRango: fueraDeRango.length,
+        analitosGuardados: creados, duplicados, conflictos,
+        ...(fechaEstudio ? {} : { necesitaFecha: true }),
+        ...(labValoresError ? { labValoresError } : {}),
       });
     } catch (err) {
       console.error('[nova] medico_subir_estudio error:', err.message);
@@ -3216,6 +3280,149 @@ function buildHerramientaSeriesHistoricasLab() {
   };
 }
 
+// ─── Match de analito → Parametro de CATALOGO_PARAMETROS ──────────
+// SPEC-INGESTA §3: referencia campos por field ID; el match NO se hace con
+// fórmulas Airtable (FIND/ARRAYJOIN sobre un link nunca hace match — §3.6),
+// sino en JS comparando cadenas normalizadas. Solo se indexan parámetros
+// activos cuya `Fuente actual` es LAB_VALORES, para no ligar un analito a un
+// parámetro de otra fuente (peso, IMC, etc.) que comparta nombre.
+//   · Nombre o Codigo exacto → Confianza 'Alta'
+//   · Alias (variantes ';')  → Confianza 'Media'
+//   · Sin match              → null (el registro se carga igual, sin Parametro)
+const CAT_PARAMETROS = {
+  tabla:  'tblA51aUeYypWQMQV',
+  codigo: 'fldc0AaVggOqucQl9',
+  nombre: 'fldrdbPLhWvCQEpGO',
+  alias:  'fld2n3Kl3XLoCfQ9t',
+  fuente: 'fldalASz6j8as2auj',
+  activo: 'fldmc8qdW3xGEqyfA',
+};
+const LV_PARAMETRO = 'fldcciqoaVr3ZKGdQ'; // LAB_VALORES · link → CATALOGO_PARAMETROS
+const LV_CONFIANZA = 'fldX2fj9uQl2smDYB'; // LAB_VALORES · select Alta·Media·Requiere revision
+const LV_ANALITO   = 'fldOCskUJcaJZPo42'; // LAB_VALORES · primary · texto literal (NUNCA sobrescribir)
+const LV_VALOR     = 'fld5rcAgx1Jti8aoN'; // LAB_VALORES · valor como texto
+const LV_RELEVANTE = 'fldsHApnN6uJv3p1r'; // LAB_VALORES · checkbox clínico "Relevante a patología"
+const LV_CRITICO   = 'fldq7n3GoSgwgjtLo'; // LAB_VALORES · checkbox clínico "Es crítico"
+
+// Fecha del estudio (fldXzMqyF96HhCFUG). §0.1: NUNCA new Date() — se extrae del
+// documento o la confirma el médico. Sin fecha válida no se escribe LAB_VALORES.
+function esFechaISO(s) {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+}
+
+// ─── Idempotencia (§0.2 / §6): existencia por paciente + fecha + analito ──
+// Lee los valores ya guardados para ese paciente en esa fecha y los indexa por
+// analito normalizado → valor (texto). El motor de fórmulas de Airtable solo
+// referencia por nombre, así que el filtro usa nombres; los VALORES leídos se
+// piden por field ID (returnFieldsByFieldId). Devuelve null si no se pudo leer
+// (ante duda no se escribe: un duplicado corrompe la serie en silencio).
+//
+// OJO — gotcha de Airtable: comparar un campo date con string
+// (`{Fecha del estudio}="2026-07-15"`) NO hace match y devuelve 0 filas, lo que
+// rompía la idempotencia (todo se veía "nuevo" y se duplicaba). Hay que envolver
+// el campo en DATESTR() para comparar la parte de fecha como ISO YYYY-MM-DD.
+async function cargarExistentesLabValores(baseId, token, pacienteCode, fecha) {
+  try {
+    const porAnalito = new Map();
+    const formula = `AND({Código de paciente ref}="${String(pacienteCode).replace(/"/g, '\\"')}",DATESTR({Fecha del estudio})="${fecha}")`;
+    let offset;
+    do {
+      const p = new URLSearchParams();
+      p.set('filterByFormula', formula);
+      p.set('pageSize', '100');
+      p.set('returnFieldsByFieldId', 'true');
+      if (offset) p.set('offset', offset);
+      const r = await fetch(`https://api.airtable.com/v0/${baseId}/tbl6y1ZfsmPPhrlFk?${p.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) { console.error('[nova] idempotencia: no se pudo leer LAB_VALORES:', JSON.stringify(data)); return null; }
+      (data.records || []).forEach(rec => {
+        const f = rec.fields || {};
+        const key = normalizarAnalito(f[LV_ANALITO]);
+        if (key && !porAnalito.has(key)) porAnalito.set(key, String(f[LV_VALOR] ?? ''));
+      });
+      offset = data.offset;
+    } while (offset);
+    return porAnalito;
+  } catch (e) {
+    console.error('[nova] idempotencia: error leyendo LAB_VALORES:', e.message);
+    return null;
+  }
+}
+
+// Separa los registros candidatos (ya construidos, con claves 'Analito'/'Valor')
+// contra lo existente. §6: mismo valor → duplicado (omitir); valor distinto →
+// conflicto (NO sobrescribir, avisar); ausente → nuevo (crear).
+function separarNuevosYConflictos(registros, existentes) {
+  const nuevos = [], duplicados = [], conflictos = [];
+  for (const rec of registros) {
+    const nombre = rec.fields['Analito'];
+    const valor  = String(rec.fields['Valor'] ?? '').trim();
+    const key = normalizarAnalito(nombre);
+    if (key && existentes.has(key)) {
+      if (String(existentes.get(key)).trim() === valor) duplicados.push(nombre);
+      else conflictos.push({ analito: nombre, valorNuevo: valor, valorExistente: existentes.get(key) });
+    } else {
+      nuevos.push(rec);
+    }
+  }
+  return { nuevos, duplicados, conflictos };
+}
+
+function normalizarAnalito(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Devuelve una función matchAnalito(nombre) → { recId, confianza } | null.
+// Ante cualquier fallo de lectura del catálogo degrada a "sin match" en vez de
+// romper el guardado: un registro sin Parametro es recuperable (SPEC §3.4).
+async function cargarMatcherCatalogo(baseId, token) {
+  const SIN_MATCH = () => null;
+  try {
+    const exactos = new Map(); // nombre/codigo normalizado → recId  (Alta)
+    const alias   = new Map(); // alias normalizado → recId           (Media)
+    let offset;
+    do {
+      const p = new URLSearchParams();
+      p.set('pageSize', '100');
+      p.set('returnFieldsByFieldId', 'true');
+      if (offset) p.set('offset', offset);
+      const r = await fetch(`https://api.airtable.com/v0/${baseId}/${CAT_PARAMETROS.tabla}?${p.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) { console.error('[nova] no se pudo leer CATALOGO_PARAMETROS:', JSON.stringify(data)); return SIN_MATCH; }
+      (data.records || []).forEach(rec => {
+        const f = rec.fields || {};
+        if (f[CAT_PARAMETROS.activo] !== true) return;          // solo catálogo activo
+        if (f[CAT_PARAMETROS.fuente] !== 'LAB_VALORES') return; // solo parámetros de laboratorio
+        const codigo = normalizarAnalito(f[CAT_PARAMETROS.codigo]);
+        const nombre = normalizarAnalito(f[CAT_PARAMETROS.nombre]);
+        if (codigo) exactos.set(codigo, rec.id);
+        if (nombre) exactos.set(nombre, rec.id);
+        String(f[CAT_PARAMETROS.alias] || '').split(';').forEach(a => {
+          const na = normalizarAnalito(a);
+          if (na && !exactos.has(na)) alias.set(na, rec.id);
+        });
+      });
+      offset = data.offset;
+    } while (offset);
+    return function matchAnalito(nombreAnalito) {
+      const key = normalizarAnalito(nombreAnalito);
+      if (!key) return null;
+      if (exactos.has(key)) return { recId: exactos.get(key), confianza: 'Alta' };
+      if (alias.has(key))   return { recId: alias.get(key),   confianza: 'Media' };
+      return null;
+    };
+  } catch (e) {
+    console.error('[nova] error cargando matcher de catálogo:', e.message);
+    return SIN_MATCH;
+  }
+}
+
 // ─── Ejecuta el guardado real de series históricas en Airtable ────
 // Extraída como función independiente para poder llamarla tanto desde el
 // tool_use natural de NOVA como desde el reintento forzado (cuando NOVA
@@ -3241,7 +3448,11 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
     return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No encontré ese paciente en Airtable — no se guardó nada.` }] };
   }
 
-  const resultadosSeries = await Promise.all((series || []).filter(s => s.fecha).map(async serie => {
+  const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
+
+  // §0.1: solo se guardan series con fecha ISO válida; nunca se asume una fecha.
+  // Una serie con fecha no interpretable se descarta (se refleja en "X de N").
+  const resultadosSeries = await Promise.all((series || []).filter(s => esFechaISO(s.fecha)).map(async serie => {
     const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
     const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
 
@@ -3268,6 +3479,7 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
       const registrosValores = analitos.map(a => {
         const banderaCap = capitalizar(a.bandera);
         const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+        const cat = matchAnalito(a.nombre); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
         return {
           fields: {
             'Analito': a.nombre,
@@ -3276,20 +3488,32 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
             'Unidad': a.unidad || '',
             'Rango de referencia': a.rango_texto || '',
             'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-            'Es crítico': !!a.critico,
-            'Relevante a patología': true,
+            [LV_CRITICO]: !!a.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
+            [LV_RELEVANTE]: !!a.relevante,   // §0.3: sin hardcode a true
             'Fecha del estudio': serie.fecha,
             'Código de paciente ref': pacienteCode,
             'Paciente': [pacRecord.id],
             'Estudio (NOVA LABS)': [crearData.id],
+            ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
           },
         };
       });
-      await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typecast: true, records: registrosValores }),
-      }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
+      // §6: idempotencia por paciente+fecha+analito antes de crear (reintento no duplica).
+      const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, serie.fecha);
+      if (!existentes) {
+        console.error(`[nova] LAB_VALORES (backfill): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${serie.fecha}.`);
+      } else {
+        const sep = separarNuevosYConflictos(registrosValores, existentes);
+        if (sep.conflictos.length) console.warn('[nova] LAB_VALORES conflictos (backfill, valor distinto — NO sobrescritos):', JSON.stringify(sep.conflictos));
+        if (sep.duplicados.length) console.info(`[nova] LAB_VALORES (backfill): ${sep.duplicados.length} duplicado(s) omitido(s) en ${serie.fecha}.`);
+        for (let i = 0; i < sep.nuevos.length; i += 50) {
+          await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
+          }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
+        }
+      }
     }
     return serie.fecha;
   }));

@@ -3567,6 +3567,11 @@
                     <option>Personalizado</option>
                   </select>
                 </div>
+                <div class="form-group">
+                  <label>Fecha del estudio (toma de muestra)</label>
+                  <input type="date" id="f-fecha-lab">
+                  <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Si el paciente trae un estudio de meses atrás, corrige esta fecha. NO es la fecha de captura — es cuándo se tomó la muestra.</div>
+                </div>
               </div>
 
               <div class="form-group">
@@ -5970,26 +5975,41 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     const panelLab = document.getElementById('f-panel-lab').value;
     const resultadosLab = document.getElementById('f-resultados-lab').value.trim();
     const fueraDeRangoLab = document.getElementById('f-fuera-rango-lab').value.trim();
+    const fechaEstudioLab = (document.getElementById('f-fecha-lab').value || '').trim();
     const filasRapidas = leerFilasLabRapido();
     if (resultadosLab || filasRapidas.length) {
-      try {
-        await fetch('/api/nova', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'medico_guardar_labs_rapidos',
-            pacienteCode: pacId,
-            panel: panelLab || 'Personalizado',
-            tipoEstudio: 'Laboratorio',
-            resultadosTexto: resultadosLab,
-            fueraDeRango: fueraDeRangoLab,
-            valoresRapidos: filasRapidas,
-            consultaId: (consultaCreada && consultaCreada.id) || null,
-          }),
-        });
-        cargarLabs(pacId);
-      } catch (err) {
-        console.error('Error guardando resultados en NOVA LABS:', err);
+      // El backend rechaza (400) si falta la fecha del estudio — nunca asume hoy.
+      // La avisamos aquí para que el médico no lo lea como una falla de red.
+      if (!fechaEstudioLab) {
+        showToast('Falta la fecha del estudio de laboratorio — no se guardaron los valores.', 'error');
+      } else {
+        try {
+          const rLab = await fetch('/api/nova', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'medico_guardar_labs_rapidos',
+              pacienteCode: pacId,
+              panel: panelLab || 'Personalizado',
+              tipoEstudio: 'Laboratorio',
+              resultadosTexto: resultadosLab,
+              fueraDeRango: fueraDeRangoLab,
+              valoresRapidos: filasRapidas,
+              fechaEstudio: fechaEstudioLab,
+              consultaId: (consultaCreada && consultaCreada.id) || null,
+            }),
+          });
+          const dLab = await rLab.json().catch(() => ({}));
+          if (dLab.labValoresError) {
+            // No se pudo verificar duplicados: los valores NO quedaron guardados.
+            showToast(dLab.labValoresError, 'error');
+          } else if (Array.isArray(dLab.conflictos) && dLab.conflictos.length) {
+            showToast(`${dLab.conflictos.length} valor(es) ya existían con otro resultado en esa fecha — NO se sobrescribieron. Revísalos.`, 'error');
+          }
+          cargarLabs(pacId);
+        } catch (err) {
+          console.error('Error guardando resultados en NOVA LABS:', err);
+        }
       }
     }
 
@@ -6052,6 +6072,17 @@ function limpiarFormulario() {
   document.getElementById('f-proxima-cita-hora').value = '10:00';
   document.getElementById('lab-rapido-filas').innerHTML = '';
   document.getElementById('lab-archivo-estado').textContent = '';
+  // Fecha del estudio: se reinicia a hoy (caso común en consultorio: glucometría
+  // del día). El médico la corrige si el estudio es de meses atrás. Nunca se
+  // envía vacía — el backend rechaza sin fecha (no asume hoy por su cuenta).
+  const fechaLab = document.getElementById('f-fecha-lab');
+  if (fechaLab) fechaLab.value = hoyLocalISO();
+}
+
+// Fecha local YYYY-MM-DD (no UTC: toISOString desfasaría el día en horario MX).
+function hoyLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ─── VALORES RÁPIDOS DE LABORATORIO (point-of-care) ────────────────
@@ -6871,6 +6902,10 @@ document.getElementById('btn-ir-expediente').addEventListener('click', () => {
   cerrarModalLinkPaciente();
   if (recordIdPacienteLink) seleccionarPaciente(recordIdPacienteLink);
 });
+
+// Prellenar la fecha del estudio con hoy al cargar (el médico la corrige si el
+// estudio es previo). El input existe en el DOM aunque el expediente esté oculto.
+(() => { const ff = document.getElementById('f-fecha-lab'); if (ff) ff.value = hoyLocalISO(); })();
 
 // ─── MODAL: NUEVO PACIENTE ────────────────────────────────────────
 function abrirModalNuevoPaciente() {
