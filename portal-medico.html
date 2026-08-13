@@ -3746,6 +3746,36 @@
   </div>
 </div>
 
+<!-- ─── MODAL: FASE C · PANTALLA DE CONFIRMACIÓN (§2 paso 4) ─── -->
+<div class="modal-overlay" id="modal-fc-confirmar">
+  <div class="modal-box" style="max-width:1000px;width:96%;">
+    <div class="modal-header">
+      <h3>Confirmar estudio antes de guardar</h3>
+      <button class="modal-close" id="fcc-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="fcc-avisos"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Paciente</label><input type="text" id="fcc-paciente" disabled></div>
+        <div class="form-group"><label>Fecha del estudio *</label><input type="date" id="fcc-fecha"><div id="fcc-fecha-aviso" style="font-size:11px;color:#E2A33D;margin-top:4px;"></div></div>
+        <div class="form-group"><label>Momento</label>
+          <select id="fcc-momento"><option>Basal</option><option>En tratamiento</option><option>Seguimiento</option><option>Sin clasificar</option></select>
+          <div id="fcc-momento-aviso" style="font-size:11px;color:var(--text-3);margin-top:4px;"></div>
+        </div>
+      </div>
+      <div id="fcc-resumen" style="font-size:12px;color:var(--text-2);margin:2px 0 6px;"></div>
+      <div id="fcc-ilegibles" style="font-size:12px;margin-bottom:8px;"></div>
+      <div style="overflow-x:auto;"><table class="labs-pivote-table" id="fcc-tabla" style="min-width:900px;"></table></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:8px;">Revisa y corrige cualquier campo. Las filas fuera de rango, con lectura dudosa o ilegibles van arriba. Extracción no es verificación — nada se guarda hasta que confirmes.</div>
+      <div id="fcc-error" style="font-size:12px;color:#E2574B;min-height:16px;margin-top:6px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="fcc-cancel">Cancelar</button>
+      <button class="btn-save" id="fcc-guardar"><span id="fcc-guardar-label">Confirmar y guardar</span><span id="fcc-guardar-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span></button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── MODAL: LINK DE AUTORREGISTRO ─── -->
 <div class="modal-overlay" id="modal-autorregistro">
   <div class="modal-box">
@@ -6242,8 +6272,8 @@ function renderVeredictoIdentidad(codigo, data) {
   const esc = s => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
   if (data.veredicto === 'coincide') {
     fcSetValidarVisible(false);
-    resEl.innerHTML = `<div style="color:#5FAE6E;">✓ Identidad verificada: <strong>${esc(data.nombreRegistrado)}</strong>.</div>`;
-    procederExtraccion(codigo, data.nombreRegistrado);
+    resEl.innerHTML = `<div style="color:#5FAE6E;">✓ Identidad verificada: <strong>${esc(data.nombreRegistrado)}</strong>. Extrayendo…</div>`;
+    procederExtraccion(codigo, data.nombreRegistrado, false);
   } else if (data.veredicto === 'no_coincide') {
     // §3: DETENER. Sin botón de "continuar de todos modos" — a propósito: si
     // existe, alguien lo usa con prisa. Solo se puede corregir el código o cancelar.
@@ -6266,17 +6296,174 @@ function renderVeredictoIdentidad(codigo, data) {
           <button type="button" class="btn-save" id="fc-confirmar-ilegible">Sí, es de ${esc(data.nombreRegistrado)} — continuar</button>
         </div>
       </div>`;
-    document.getElementById('fc-confirmar-ilegible').addEventListener('click', () => procederExtraccion(codigo, data.nombreRegistrado));
+    document.getElementById('fc-confirmar-ilegible').addEventListener('click', () => procederExtraccion(codigo, data.nombreRegistrado, true));
   }
 }
 
-// Parte 3 reemplaza esto con la extracción por visión + pantalla de confirmación
-// (§2 paso 4) antes de escribir. Por ahora la identidad quedó verificada y se
-// detiene aquí: nada se escribe sin confirmación.
-function procederExtraccion(codigo, nombre) {
-  document.getElementById('fc-resultado').innerHTML +=
-    `<div style="margin-top:10px;color:var(--text-3);font-size:11.5px;">Identidad verificada para ${nombre} (${codigo}). La extracción de analitos y la pantalla de confirmación llegan en la siguiente parte — todavía no se guarda nada.</div>`;
+// ─── FASE C · extracción por visión + pantalla de confirmación (§2 paso 4) ──
+var fccDatos = null; // { codigo, nombre, ext, filas } del estudio en confirmación
+
+function fccEsc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+function fccCap(s) { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado'; }
+
+async function procederExtraccion(codigo, nombre, identidadConfirmada) {
+  const resEl = document.getElementById('fc-resultado');
+  if (!fcArchivo) return;
+  try {
+    const r = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_extraer_estudio', pacienteCode: codigo, fileBase64: fcArchivo.base64, mediaType: fcArchivo.type, identidadConfirmada: !!identidadConfirmada }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { resEl.innerHTML = `<span style="color:#E2574B;">${fccEsc((data && data.error) || 'No se pudo extraer el estudio.')}</span>`; return; }
+    if (data.veredicto === 'no_coincide') { resEl.innerHTML = `<span style="color:#E2574B;">⛔ El nombre del documento no coincide (${fccEsc(data.nombreDocumento)}). No se procesó nada.</span>`; return; }
+    if (data.veredicto === 'ilegible') { resEl.innerHTML = `<span style="color:#E2A33D;">${fccEsc(data.mensaje || 'Nombre ilegible.')}</span>`; return; }
+    document.getElementById('modal-fc-identidad').classList.remove('active');
+    abrirConfirmacion(codigo, nombre, data);
+  } catch (err) {
+    resEl.innerHTML = `<span style="color:#E2574B;">Error de conexión durante la extracción.</span>`;
+  }
 }
+
+// Orden: fuera de rango (Alto/Bajo) primero, luego "revisar" (cross-check de
+// texto), luego el resto — lo que necesita atención se ve arriba (§ pedido).
+function ordenarFilasConfirmacion(analitos) {
+  const prio = a => (['alto', 'bajo'].includes(a.estado) ? 0 : (a.verificacion_texto === 'revisar' ? 1 : 2));
+  return (analitos || []).map(a => ({ ...a })).sort((x, y) => prio(x) - prio(y));
+}
+
+function abrirConfirmacion(codigo, nombre, ext) {
+  fccDatos = { codigo, nombre, ext, filas: ordenarFilasConfirmacion(ext.analitos) };
+  document.getElementById('fcc-paciente').value = `${nombre} (${codigo})`;
+  document.getElementById('fcc-fecha').value = ext.fechaEstudio || '';
+  document.getElementById('fcc-fecha-aviso').textContent = ext.fechaAmbigua ? 'Fecha con formato ambiguo en el documento — confírmala.' : (ext.fechaEstudio ? '' : 'No se detectó fecha en el documento — captúrala.');
+  document.getElementById('fcc-momento').value = ['Basal', 'En tratamiento', 'Seguimiento', 'Sin clasificar'].includes(ext.momentoSugerido) ? ext.momentoSugerido : 'Sin clasificar';
+  actualizarAvisoMomento();
+  const avisos = [];
+  if (ext.esEscaneado) avisos.push(`<div style="border:1px solid #E2A33D;background:rgba(226,163,61,0.08);border-radius:6px;padding:8px 10px;color:#E2A33D;font-size:12px;margin-bottom:6px;">Detecté un PDF escaneado o foto — lo revisé con más cuidado. Confirma los valores marcados “revisar”.</div>`);
+  if (ext.paginasFaltantes) avisos.push(`<div style="border:1px solid #E2574B;background:rgba(226,87,75,0.08);border-radius:6px;padding:8px 10px;color:#E2574B;font-size:12px;margin-bottom:6px;">Posibles páginas faltantes: ${fccEsc(ext.paginasFaltantes)}</div>`);
+  document.getElementById('fcc-avisos').innerHTML = avisos.join('');
+  document.getElementById('fcc-resumen').textContent = ext.resumenExtraccion || '';
+  const ile = ext.ilegibles || [];
+  document.getElementById('fcc-ilegibles').innerHTML = ile.length
+    ? `<div style="color:#E2574B;">No se pudieron leer (${ile.length}): ${ile.map(x => fccEsc(x.etiqueta) + ' (' + fccEsc(x.motivo) + ')').join(', ')}. No se cargan; sube una imagen mejor si los necesitas.</div>`
+    : '';
+  document.getElementById('fcc-error').textContent = '';
+  renderTablaConfirmacion();
+  document.getElementById('modal-fc-confirmar').classList.add('active');
+}
+
+function renderTablaConfirmacion() {
+  const opt = (v, sel) => `<option${v === sel ? ' selected' : ''}>${v}</option>`;
+  const rows = fccDatos.filas.map((a, i) => {
+    const p = a.parametro;
+    const badge = a.verificacion_texto === 'revisar'
+      ? `<span title="El valor no coincide con la capa de texto del PDF" style="color:#E2574B;font-size:10px;white-space:nowrap;">⚠ revisar</span>`
+      : (a.verificacion_texto === 'coincide' ? `<span title="Coincide con la capa de texto del PDF" style="color:#5FAE6E;font-size:10px;">✓</span>` : '');
+    const alerta = ['alto', 'bajo'].includes(a.estado) || a.verificacion_texto === 'revisar';
+    return `<tr data-i="${i}" style="${alerta ? 'background:rgba(226,163,61,0.06);' : ''}">
+      <td><input type="text" data-k="analito" value="${fccEsc(a.nombre)}" style="width:150px;"></td>
+      <td style="white-space:nowrap;"><input type="text" data-k="valor" value="${fccEsc(a.valor)}" style="width:64px;"> ${badge}</td>
+      <td><input type="text" data-k="unidad" value="${fccEsc(a.unidad)}" style="width:64px;"></td>
+      <td><input type="text" data-k="rango" value="${fccEsc(a.rango_texto)}" style="width:88px;"></td>
+      <td><select data-k="estado" style="width:112px;">${['Alto', 'Bajo', 'Normal', 'Indeterminado'].map(o => opt(o, fccCap(a.estado))).join('')}</select></td>
+      <td>${p ? `<span style="font-size:11px;">${fccEsc(p.nombre || p.codigo)}${p.tipoMatch === 'inferencia' ? ' <span title="Sugerido por NOVA, no del glosario" style="color:var(--text-3);">(inferido)</span>' : ''}</span>` : '<span style="color:var(--text-3);font-size:11px;">— sin parámetro</span>'}</td>
+      <td>${p ? `<select data-k="confianza" style="width:76px;">${['Media', 'Alta'].map(o => opt(o, a.confianza_sugerida || 'Media')).join('')}</select>` : '—'}</td>
+      <td style="text-align:center;">${p ? `<input type="checkbox" data-k="quitarparam" title="Quitar el parámetro: quedará en el expediente pero no graficará">` : ''}</td>
+      <td style="text-align:center;"><input type="checkbox" data-k="relevante"${a.relevante_sugerido ? ' checked' : ''}></td>
+      <td style="text-align:center;"><input type="checkbox" data-k="critico"${a.critico_sugerido ? ' checked' : ''}></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('fcc-tabla').innerHTML = `
+    <thead><tr>
+      <th>Analito</th><th>Valor</th><th>Unidad</th><th>Rango ref.</th><th>Estado</th>
+      <th>Parámetro</th><th>Confianza</th><th title="Quitar el parámetro (no graficará)">Sin gráf.</th><th title="Relevante a patología">Rel.</th><th title="Es crítico">Crít.</th>
+    </tr></thead><tbody>${rows}</tbody>`;
+}
+
+function actualizarAvisoMomento() {
+  const inicio = fccDatos && fccDatos.ext.inicioTratamiento;
+  document.getElementById('fcc-momento-aviso').textContent = inicio
+    ? `Sugerido: fecha del estudio vs inicio de tratamiento (${inicio}).`
+    : 'Sin consultas registradas para inferir el inicio de tratamiento.';
+}
+
+document.getElementById('fcc-fecha').addEventListener('change', () => {
+  if (!fccDatos) return;
+  const fecha = document.getElementById('fcc-fecha').value;
+  const inicio = fccDatos.ext.inicioTratamiento;
+  if (inicio && fecha) document.getElementById('fcc-momento').value = fecha < inicio ? 'Basal' : 'En tratamiento';
+  else if (!inicio) document.getElementById('fcc-momento').value = 'Sin clasificar';
+  actualizarAvisoMomento();
+});
+
+function cerrarConfirmacion() {
+  document.getElementById('modal-fc-confirmar').classList.remove('active');
+  document.getElementById('f-lab-archivo').value = '';
+  fccDatos = null; fcArchivo = null;
+}
+document.getElementById('fcc-close').addEventListener('click', cerrarConfirmacion);
+document.getElementById('fcc-cancel').addEventListener('click', cerrarConfirmacion);
+
+function fccGuardarLoading(loading) {
+  document.getElementById('fcc-guardar').disabled = loading;
+  document.getElementById('fcc-guardar-label').style.display = loading ? 'none' : 'inline';
+  document.getElementById('fcc-guardar-loader').style.display = loading ? 'inline' : 'none';
+}
+
+document.getElementById('fcc-guardar').addEventListener('click', async () => {
+  if (!fccDatos || !fcArchivo) return;
+  const errEl = document.getElementById('fcc-error');
+  const fecha = document.getElementById('fcc-fecha').value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { errEl.textContent = 'Captura la fecha del estudio (no se asume la de hoy).'; return; }
+  const trs = Array.from(document.querySelectorAll('#fcc-tabla tbody tr'));
+  const filas = trs.map(tr => {
+    const i = +tr.getAttribute('data-i');
+    const orig = fccDatos.filas[i];
+    const get = k => { const el = tr.querySelector(`[data-k="${k}"]`); return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
+    const quitar = get('quitarparam') === true;
+    const p = (!quitar && orig.parametro) ? orig.parametro : null;
+    return {
+      analito: get('analito'), valor: get('valor'), unidad: get('unidad'), rango: get('rango'),
+      estado: get('estado'),
+      relevante: get('relevante') === true, critico: get('critico') === true,
+      parametroRecId: p ? p.recId : null,
+      confianza: p ? (get('confianza') || 'Media') : '',
+    };
+  }).filter(f => f.analito && String(f.analito).trim());
+  if (!filas.length) { errEl.textContent = 'No hay analitos que guardar.'; return; }
+
+  errEl.textContent = '';
+  fccGuardarLoading(true);
+  try {
+    const r = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'medico_confirmar_estudio',
+        pacienteCode: fccDatos.codigo,
+        fileBase64: fcArchivo.base64, fileName: fcArchivo.name, mediaType: fcArchivo.type,
+        fecha, momento: document.getElementById('fcc-momento').value,
+        tipoEstudio: fccDatos.ext.tipoEstudio, panel: fccDatos.ext.panel,
+        filas, identidadConfirmada: true,
+      }),
+    });
+    const data = await r.json();
+    fccGuardarLoading(false);
+    if (!r.ok || !data.ok) { errEl.textContent = (data && data.error) || 'No se pudo guardar el estudio.'; return; }
+    const pac = fccDatos.codigo;
+    if (data.labValoresError) { showToast(data.labValoresError, 'error'); }
+    else {
+      let msg = `Estudio guardado: ${data.analitosGuardados} valor(es)` + (data.duplicados ? `, ${data.duplicados} duplicado(s) omitido(s)` : '');
+      showToast(msg + '.', 'success');
+      if (Array.isArray(data.conflictos) && data.conflictos.length) showToast(`${data.conflictos.length} valor(es) ya existían con otro resultado — NO se sobrescribieron.`, 'error');
+    }
+    cerrarConfirmacion();
+    cargarLabs(pac);
+  } catch (err) {
+    fccGuardarLoading(false);
+    errEl.textContent = 'Error de conexión al guardar.';
+  }
+});
 
 // ─── TEMPORIZADOR DE SESIÓN ───────────────────────────────────────
 function iniciarTemporizador() {
