@@ -4659,6 +4659,11 @@ function activarTab(tab) {
   // en NOVA LABS y las demás debe verse únicamente el contenido de esa pestaña.
   const seccionConsulta = document.querySelector('.consulta-section');
   if (seccionConsulta) seccionConsulta.style.display = (tab === 'consultas') ? '' : 'none';
+  // Al abrir CONSULTAS, llevar la vista al inicio del formulario "Nueva consulta".
+  // requestAnimationFrame: la sección ya está visible antes de medir el scroll.
+  if (tab === 'consultas' && seccionConsulta) {
+    requestAnimationFrame(() => seccionConsulta.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
   if (tab === 'nutricion') cargarNutricion();
 }
 
@@ -5198,7 +5203,7 @@ async function cargarHistoria(pacId) {
     const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1`);
 
     if (!data.records || data.records.length === 0) {
-      cont.innerHTML = renderHistoriaDemo();
+      cont.innerHTML = renderHistoriaVacia();
       return;
     }
 
@@ -5216,7 +5221,7 @@ async function cargarHistoria(pacId) {
       { key: 'Medicamentos actuales', val: f['Medicamentos actuales'] },
     ].filter(c => c.val);
 
-    if (campos.length === 0) { cont.innerHTML = renderHistoriaDemo(); return; }
+    if (campos.length === 0) { cont.innerHTML = renderHistoriaVacia(); return; }
 
     cont.innerHTML = campos.map(c => `
       <div class="data-cell" style="margin-bottom:8px;border-radius:4px;">
@@ -5226,7 +5231,7 @@ async function cargarHistoria(pacId) {
     `).join('');
 
   } catch (err) {
-    cont.innerHTML = renderHistoriaDemo();
+    cont.innerHTML = renderHistoriaError();
   }
 }
 
@@ -5302,16 +5307,24 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
   }
 });
 
-function renderHistoriaDemo() {
+// Estado vacío explícito — NUNCA datos de ejemplo inventados en un expediente.
+// Sin historia clínica registrada (o sin campos con contenido) para el paciente.
+function renderHistoriaVacia() {
   return `
-    <div class="data-grid">
-      <div class="data-cell"><div class="key">AHF</div><div class="val" style="font-weight:400;font-size:12px;">DM2 padre, HAS madre</div></div>
-      <div class="data-cell"><div class="key">Alergias</div><div class="val" style="font-weight:400;font-size:12px;">Penicilina — reacción leve</div></div>
-      <div class="data-cell"><div class="key">Diagnóstico</div><div class="val" style="font-weight:400;font-size:12px;">Síndrome metabólico, Fatiga crónica</div></div>
-      <div class="data-cell"><div class="key">Medicamentos</div><div class="val" style="font-weight:400;font-size:12px;">Metformina 850mg c/12h</div></div>
+    <div style="padding:20px 16px;text-align:center;font-size:13px;line-height:1.6;color:var(--text-3);border:0.5px dashed var(--border);border-radius:4px;">
+      Sin historia clínica registrada para este paciente.<br>
+      <span style="font-size:12px;">Puedes capturarla con ✏️ Editar.</span>
     </div>
-    <div style="margin-top:12px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
-      Historia clínica no cargada desde Airtable — mostrando datos de ejemplo.
+  `;
+}
+
+// Estado de error — distinto del vacío a propósito: un fallo de red NO debe
+// verse como un expediente limpio.
+function renderHistoriaError() {
+  return `
+    <div style="padding:20px 16px;text-align:center;font-size:13px;line-height:1.6;color:#e24b4a;border:0.5px solid rgba(226,75,74,0.4);border-radius:4px;">
+      No se pudo cargar la historia clínica.<br>
+      <span style="font-size:12px;">Revisa la conexión e inténtalo de nuevo.</span>
     </div>
   `;
 }
