@@ -292,9 +292,15 @@ const TBL_RECORDATORIOS      = 'tblw4tiZhPMbFhB8w';
 const TBL_SOLICITUDES_CITA   = 'tblIj7vRoMhLg9CsL';
 const TBL_REFERIDOS_VIP      = 'tblmPWoSdeSwfLJ6T';
 
+// Previews de Vercel de ESTE proyecto: codecells-site-<rama|hash>-<team>.vercel.app.
+// Solo Vercel emite esos subdominios para este proyecto, así que permitirlos es
+// seguro y desbloquea las pruebas en preview (si no, /api/nova da 403 en preview).
+const VERCEL_PREVIEW_ORIGIN = /^https:\/\/codecells-site-[a-z0-9-]+\.vercel\.app$/;
+
 function isAllowedOrigin(origin) {
   if (!origin) return false;
-  return ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+  if (ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return true;
+  return VERCEL_PREVIEW_ORIGIN.test(origin);
 }
 
 // ─── SYSTEM PROMPT MAESTRO DE NOVA ───────────────────────────────

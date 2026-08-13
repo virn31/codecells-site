@@ -5689,6 +5689,9 @@ function renderCompararFechas() {
   const fechaB = document.getElementById('labs-comparar-fecha-b').value;
   const cont = document.getElementById('labs-comparar-tabla');
   if (!fechaA || !fechaB) { cont.innerHTML = ''; return; }
+  // Con un solo estudio ambos selects caen en la misma fecha: no hay comparación
+  // real (columnas idénticas, 0%). Se avisa en vez de mostrar un cambio falso.
+  if (fechaA === fechaB) { cont.innerHTML = '<div style="font-size:12px;color:var(--text-3);">No hay con qué comparar — se necesitan dos estudios en fechas distintas.</div>'; return; }
 
   const filas = labsPivoteFilas
     .map(fila => ({ analito: fila.analito, unidad: fila.unidad, a: fila.porFecha[fechaA], b: fila.porFecha[fechaB] }))
