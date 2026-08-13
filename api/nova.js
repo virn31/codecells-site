@@ -1106,6 +1106,29 @@ module.exports = async function handler(req, res) {
         return cat ? cat.nombre : 'Otros Estudios';
       };
 
+      // La categoría clínica la MANDA el catálogo (CATALOGO_PARAMETROS · panel),
+      // no la lista de palabras clave — esa queda solo como respaldo para analitos
+      // sin match. Antes "Altura de fondo uterino" caía en Función Hepática porque
+      // "altura" contiene "alt" (substring de ALT/AST); el catálogo la marca como
+      // Control prenatal y es lo que se respeta.
+      const matcher = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
+      const ETIQUETAS_CATEGORIA = {
+        metabolico: 'Metabólico', perfil_lipidico: 'Perfil lipídico',
+        perfil_hepatico: 'Perfil hepático', funcion_renal: 'Función renal',
+        electrolitos: 'Electrolitos', biometria: 'Biometría hemática',
+        biometria_hematica: 'Biometría hemática', inflamacion: 'Marcadores inflamatorios',
+        perfil_tiroideo: 'Perfil tiroideo', antropometria: 'Antropometría',
+        composicion_corporal: 'Composición corporal', tension_arterial: 'Tensión arterial',
+        seguimiento_glp1: 'Seguimiento GLP-1', control_prenatal: 'Control prenatal',
+      };
+      const etiquetaCategoria = slug => ETIQUETAS_CATEGORIA[slug] || String(slug).replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+      // Categoría del catálogo vía el link Parametro del registro → recId → categoría.
+      const categoriaDeCatalogo = linkParametro => {
+        const recId = Array.isArray(linkParametro) && linkParametro.length ? linkParametro[0] : null;
+        const slug = recId ? (matcher.porRecId.get(recId) || {}).categoria : '';
+        return slug ? etiquetaCategoria(slug) : null;
+      };
+
       const fechasSet = new Set();
       const porAnalito = {};
       registros.forEach(r => {
@@ -1114,9 +1137,11 @@ module.exports = async function handler(req, res) {
         const fecha = f['Fecha del estudio'] || '';
         fechasSet.add(fecha);
         if (!porAnalito[f['Analito']]) {
+          const catCat = categoriaDeCatalogo(f['Parametro']);
           porAnalito[f['Analito']] = {
             analito: f['Analito'],
-            categoria: clasificar(f['Analito']),
+            categoria: catCat || clasificar(f['Analito']),
+            _catDelCatalogo: !!catCat,
             unidad: f['Unidad'] || '',
             rango_texto: f['Rango de referencia'] || '',
             // graficable: tiene Parametro enlazado en al menos un corte. Sin
@@ -1125,6 +1150,11 @@ module.exports = async function handler(req, res) {
             graficable: false,
             porFecha: {},
           };
+        }
+        // Un corte posterior con match al catálogo prevalece sobre el keyword de respaldo.
+        if (!porAnalito[f['Analito']]._catDelCatalogo) {
+          const catCat = categoriaDeCatalogo(f['Parametro']);
+          if (catCat) { porAnalito[f['Analito']].categoria = catCat; porAnalito[f['Analito']]._catDelCatalogo = true; }
         }
         if (Array.isArray(f['Parametro']) && f['Parametro'].length) porAnalito[f['Analito']].graficable = true;
         porAnalito[f['Analito']].porFecha[fecha] = {
@@ -1138,7 +1168,7 @@ module.exports = async function handler(req, res) {
           porAnalito[f['Analito']]._ultimaFechaVista = fecha;
         }
       });
-      Object.values(porAnalito).forEach(a => delete a._ultimaFechaVista);
+      Object.values(porAnalito).forEach(a => { delete a._ultimaFechaVista; delete a._catDelCatalogo; });
 
       const fechas = [...fechasSet].sort();
       const filas = Object.values(porAnalito).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.analito.localeCompare(b.analito));
@@ -3584,12 +3614,13 @@ function buildHerramientaSeriesHistoricasLab() {
 //   · Alias (variantes ';')  → Confianza 'Media'
 //   · Sin match              → null (el registro se carga igual, sin Parametro)
 const CAT_PARAMETROS = {
-  tabla:  'tblA51aUeYypWQMQV',
-  codigo: 'fldc0AaVggOqucQl9',
-  nombre: 'fldrdbPLhWvCQEpGO',
-  alias:  'fld2n3Kl3XLoCfQ9t',
-  fuente: 'fldalASz6j8as2auj',
-  activo: 'fldmc8qdW3xGEqyfA',
+  tabla:     'tblA51aUeYypWQMQV',
+  codigo:    'fldc0AaVggOqucQl9',
+  nombre:    'fldrdbPLhWvCQEpGO',
+  alias:     'fld2n3Kl3XLoCfQ9t',
+  fuente:    'fldalASz6j8as2auj',
+  activo:    'fldmc8qdW3xGEqyfA',
+  categoria: 'fldemBWZPe4F6oCo8', // singleSelect · panel clínico (perfil_hepatico, control_prenatal…)
 };
 const LV_PARAMETRO = 'fldcciqoaVr3ZKGdQ'; // LAB_VALORES · link → CATALOGO_PARAMETROS
 const LV_CONFIANZA = 'fldX2fj9uQl2smDYB'; // LAB_VALORES · select Alta·Media·Requiere revision
@@ -3891,7 +3922,7 @@ async function cargarMatcherCatalogo(baseId, token) {
           const na = normalizarAnalito(a);
           if (na && !exactos.has(na)) alias.set(na, rec.id);
         });
-        porRecId.set(rec.id, { codigo: codigoOrig, nombre: nombreOrig });
+        porRecId.set(rec.id, { codigo: codigoOrig, nombre: nombreOrig, categoria: f[CAT_PARAMETROS.categoria] || '' });
         if (codigoOrig) lista.push({ codigo: codigoOrig, nombre: nombreOrig });
       });
       offset = data.offset;
