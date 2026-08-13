@@ -470,6 +470,7 @@ DICTADO DE LABORATORIOS/ESTUDIOS — CUÁL HERRAMIENTA USAR (CRÍTICO, no confun
 - Si el médico dicta resultados de DOS O MÁS fechas distintas del pasado (reconstruyendo el historial de labs/imagen de un paciente, ej. "el 15 de abril tenía esto, el 18 de mayo esto otro, el 21 de junio esto"): usa guardar_series_historicas_laboratorio. Esta SÍ escribe de inmediato en NOVA LABS y LAB_VALORES, una por cada fecha — solo confirma que se guardó DESPUÉS de que la herramienta te devuelva el resultado, nunca antes.
 - NUNCA afirmes que datos quedaron guardados, reflejados en la ficha, o disponibles en NOVA LABS si no llamaste a la herramienta correspondiente y confirmaste su resultado — eso desinforma al médico sobre el estado real del expediente.
 - Si el médico menciona un PDF/foto/archivo de un estudio, o pide que lo "cargues", "subas", "leas" o "guardes" en el expediente: NO recibes archivos en el chat y NUNCA escribes un estudio a LAB_VALORES desde aquí — sería saltarse la validación del paciente destinatario. Dirígelo al botón "Subir estudio" en la pestaña de laboratorios del portal: ahí se teclea el código del paciente y se compara el nombre impreso del documento antes de guardar. Sí puedes comentar clínicamente los valores si el médico te los describe en texto.
+- ALTA DE PACIENTE (crear_paciente_dictado): NO asumas que un paciente dictado es nuevo solo porque no está seleccionado en pantalla — muchos ya están registrados. El backend verifica duplicados por nombre y te devolverá candidatos si los hay; cuando eso pase, PREGÚNTALE al médico cuál es (o si es un homónimo nuevo) y re-llama la herramienta con codigo_paciente_existente o confirmar_nuevo. Nunca crees un expediente nuevo en silencio cuando hay un candidato con el mismo nombre — fragmentaría el historial del paciente.
 
 PACIENTE DEMO (para practicar el uso del portal):
 Existe un paciente de práctica compartido para todos los médicos: código CC-PAC-DEMO01, nombre "Paciente Demo". Si el médico es nuevo, pregunta cómo funciona el portal, o parece confundido usándolo, sugiérele con naturalidad escribir ese código en la sección "Paciente compartido" del portal (barra lateral, junto a "Ver") — ahí puede ver un expediente real, crear una consulta de prueba, generar un plan nutricional, etc., sin tocar información de un paciente real. Aclara que es el mismo paciente para todos los médicos (no es privado de nadie), así que no debe registrar información sensible real ahí.
@@ -3224,6 +3225,61 @@ Formato exacto:
           const TBL_PAC = 'tblyUcCfueFLJuvIv';
           const TBL_HIST = 'tblm2xUADazitHisR';
 
+          // ── RUTA A: el médico ya confirmó un paciente EXISTENTE -> enrutar el
+          // dictado a ese expediente en vez de crear (la opción cómoda = la
+          // correcta: no obliga a empezar de nuevo, así nadie elige "nuevo" con
+          // tal de avanzar). No sobrescribe identidad; fusiona patologías.
+          const codigoExistente = (typeof datos.codigo_paciente_existente === 'string' && /^CC-PAC-[0-9]{4,8}$/.test(datos.codigo_paciente_existente.trim()))
+            ? datos.codigo_paciente_existente.trim() : null;
+          if (codigoExistente) {
+            const pRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${codigoExistente}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+            const pData = await pRes.json();
+            const pac = pData.records?.[0];
+            if (!pac) {
+              return res.status(200).json({ content: [{ type: 'text', text: `${datos.mensaje}\n\n⚠️ No encontré ${codigoExistente}. Verifica el código del paciente existente.` }] });
+            }
+            const pf = pac.fields || {};
+            const patch = {};
+            if (Array.isArray(datos.patologias_detectadas) && datos.patologias_detectadas.length) {
+              patch['Patologías activas'] = Array.from(new Set([...(pf['Patologías activas'] || []), ...datos.patologias_detectadas]));
+            }
+            if (datos.peso_kg) patch['Peso actual (kg)'] = datos.peso_kg;
+            if (datos.talla_cm) patch['Talla (cm)'] = datos.talla_cm;
+            if (datos.sexo && !pf['Sexo biológico']) patch['Sexo biológico'] = datos.sexo;
+            if (datos.telefono_whatsapp && !pf['Teléfono WhatsApp']) patch['Teléfono WhatsApp'] = datos.telefono_whatsapp;
+            if (Object.keys(patch).length) {
+              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pac.id}`, {
+                method: 'PATCH', headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, fields: patch }),
+              }).catch(e => console.error('[nova] enrutar dictado a existente (patch):', e.message));
+            }
+            if (datos.antecedentes_heredofamiliares || datos.motivo_consulta) {
+              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_HIST}`, {
+                method: 'POST', headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, records: [{ fields: {
+                  'Código de paciente ref': codigoExistente,
+                  'Motivo de consulta': datos.motivo_consulta || '',
+                  'AHF — Heredo-familiares': datos.antecedentes_heredofamiliares || '',
+                  'Paciente': [pac.id],
+                } }] }),
+              }).catch(e => console.error('[nova] enrutar dictado a existente (historia):', e.message));
+            }
+            return res.status(200).json({ content: [{ type: 'text', text: `${datos.mensaje}\n\n✅ Datos agregados al expediente existente de ${pf['Nombre completo'] || ''} (${codigoExistente}). No se creó un duplicado.` }], paciente_actualizado: { codigo: codigoExistente, recordId: pac.id } });
+          }
+
+          // ── RUTA B: guard anti-duplicado ANTES de crear. Si hay candidato con el
+          // mismo nombre y el médico no ha confirmado que es nuevo, se PREGUNTA
+          // (nunca se crea en silencio). Homónimos permitidos vía confirmar_nuevo.
+          if (!datos.confirmar_nuevo) {
+            const candidatos = await buscarPacientesPorNombre(BASE_ID, AIRTABLE_TOKEN, datos.nombre_completo);
+            if (candidatos.length) {
+              const lista = candidatos.map(c => `- ${c.nombre} · ${c.codigo}${c.edad != null ? ` · ${c.edad} años` : ''} · ${c.ultimaConsulta ? `última consulta ${c.ultimaConsulta}` : 'sin consultas registradas'}`).join('\n');
+              const texto = `${datos.mensaje}\n\n⚠️ Antes de dar de alta: ya existe(n) con ese nombre —\n${lista}\n\n¿El dictado es de alguno de estos (dime cuál código) o es un paciente distinto que doy de alta como nuevo?`;
+              return res.status(200).json({ content: [{ type: 'text', text: texto }], candidatos_duplicado: candidatos });
+            }
+          }
+
+          // ── RUTA C: crear paciente nuevo (sin duplicados, o confirmado nuevo).
           // Siguiente código CC-PAC- disponible, con verificación
           // anti-colisión del lado del servidor (ver lib/codigos.js).
           const nuevoCodigo = await generarCodigoUnico({
@@ -3720,10 +3776,73 @@ function compararNombres(registrado, documento) {
   const coincide = minSig > 0 && comunes.length >= requeridos;
   return { coincide, comunes, sigReg, sigDoc };
 }
+function edadDesdeNacimiento(fnac) {
+  if (!fnac) return null;
+  const d = new Date(fnac);
+  if (isNaN(d)) return null;
+  const hoy = new Date();
+  let e = hoy.getFullYear() - d.getFullYear();
+  const m = hoy.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < d.getDate())) e--;
+  return (e >= 0 && e < 130) ? e : null;
+}
+
+// Guard anti-duplicado (alta por dictado): busca pacientes cuyo "Nombre completo"
+// coincide con el dictado usando compararNombres (tolera acentos/orden/abreviaturas
+// y reconoce homónimos). Se traen todos los pacientes con campos mínimos y se
+// compara en JS — no hay match sin acentos confiable en fórmulas de Airtable, y el
+// alta es poco frecuente. Devuelve candidatos con datos distintivos para decidir.
+async function buscarPacientesPorNombre(baseId, token, nombre) {
+  const TBL_PAC = 'tblyUcCfueFLJuvIv';
+  const TBL_CONS = 'tbl1Xp2IGxdV178Ky';
+  try {
+    const registros = [];
+    let offset;
+    do {
+      const p = new URLSearchParams();
+      p.set('pageSize', '100');
+      ['Código de paciente', 'Nombre completo', 'Fecha de nacimiento'].forEach(f => p.append('fields[]', f));
+      if (offset) p.set('offset', offset);
+      const r = await fetch(`https://api.airtable.com/v0/${baseId}/${TBL_PAC}?${p.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!r.ok) { console.error('[nova] buscarPacientesPorNombre:', JSON.stringify(d.error || d)); return []; }
+      (d.records || []).forEach(rec => registros.push(rec));
+      offset = d.offset;
+    } while (offset);
+
+    const matches = registros.filter(rec => compararNombres(nombre, (rec.fields || {})['Nombre completo'] || '').coincide);
+    const candidatos = [];
+    for (const rec of matches.slice(0, 5)) { // límite defensivo
+      const f = rec.fields || {};
+      const codigo = f['Código de paciente'] || '';
+      let ultimaConsulta = null;
+      try {
+        if (codigo) {
+          const cp = new URLSearchParams();
+          cp.set('filterByFormula', `{Código de paciente ref}="${codigo}"`);
+          cp.set('sort[0][field]', 'Fecha de consulta');
+          cp.set('sort[0][direction]', 'desc');
+          cp.set('maxRecords', '1');
+          cp.append('fields[]', 'Fecha de consulta');
+          const cr = await fetch(`https://api.airtable.com/v0/${baseId}/${TBL_CONS}?${cp.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+          const cd = await cr.json();
+          ultimaConsulta = ((cd.records?.[0]?.fields?.['Fecha de consulta']) || '').slice(0, 10) || null;
+        }
+      } catch { /* la fecha es informativa; si falla, se omite */ }
+      candidatos.push({ codigo, nombre: f['Nombre completo'] || '', edad: edadDesdeNacimiento(f['Fecha de nacimiento']), ultimaConsulta });
+    }
+    return candidatos;
+  } catch (e) {
+    console.error('[nova] buscarPacientesPorNombre error:', e.message);
+    return [];
+  }
+}
+
 // Expuestos para pruebas offline (no altera el export por defecto del handler).
 module.exports.compararNombres = compararNombres;
 module.exports.normalizarNombre = normalizarNombre;
 module.exports.pdfTieneCapaDeTexto = pdfTieneCapaDeTexto;
+module.exports.buscarPacientesPorNombre = buscarPacientesPorNombre;
 
 function normalizarAnalito(s) {
   return String(s || '')
@@ -4086,12 +4205,14 @@ async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamien
 function buildHerramientaAltaPaciente() {
   return {
     name: 'crear_paciente_dictado',
-    description: 'Úsala SOLO cuando el médico dicte los datos generales de un paciente NUEVO que claramente no está aún registrado (menciona nombre completo, edad, datos generales, con intención de darlo de alta) — no la uses para seguimiento de un paciente que ya está seleccionado en el portal, para eso existe rellenar_ficha_consulta. CRÍTICO: los antecedentes heredofamiliares (lo que tienen los papás, hermanos, familiares) NUNCA van en patologias_detectadas — esas son solo las condiciones que el PACIENTE MISMO tiene. Confundir esto sería un error clínico grave.',
+    description: 'Úsala SOLO cuando el médico dicte los datos generales de un paciente NUEVO que claramente no está aún registrado (menciona nombre completo, edad, datos generales, con intención de darlo de alta) — no la uses para seguimiento de un paciente que ya está seleccionado en el portal, para eso existe rellenar_ficha_consulta. IMPORTANTE — DUPLICADOS: el backend verifica si ya existe un paciente con ese nombre antes de crear. Si te devuelve candidatos, NO insistas en crear: pregúntale al médico cuál es y vuelve a llamar esta herramienta con codigo_paciente_existente (si el dictado es de uno de ellos — el dictado se agrega a ESE expediente, no se crea duplicado) o con confirmar_nuevo:true (solo si el médico confirma que es un homónimo distinto, dado de alta como nuevo). CRÍTICO: los antecedentes heredofamiliares (lo que tienen los papás, hermanos, familiares) NUNCA van en patologias_detectadas — esas son solo las condiciones que el PACIENTE MISMO tiene. Confundir esto sería un error clínico grave.',
     input_schema: {
       type: 'object',
       properties: {
         mensaje: { type: 'string', description: 'Tu respuesta al médico confirmando qué se registró y qué falta, si algo.' },
         nombre_completo: { type: 'string' },
+        codigo_paciente_existente: { type: 'string', description: 'Solo cuando, tras presentarte candidatos existentes, el médico confirma que el dictado es de un paciente YA registrado: su código CC-PAC-. El dictado se agrega a ESE expediente y NO se crea uno nuevo.' },
+        confirmar_nuevo: { type: 'boolean', description: 'true SOLO cuando, tras presentarte candidatos con el mismo nombre, el médico confirma explícitamente que es un paciente DISTINTO (homónimo) y quiere darlo de alta como nuevo. Sin esta confirmación, si hay un candidato con el mismo nombre NO se crea.' },
         edad: { type: 'number' },
         sexo: { type: 'string', enum: ['Masculino', 'Femenino'] },
         telefono_whatsapp: { type: 'string', description: 'Teléfono/WhatsApp del paciente, si el médico lo mencionó al dictarlo.' },
