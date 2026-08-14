@@ -4439,19 +4439,11 @@ async function cargarPacientes() {
   lista.innerHTML = '<div class="loading-row"><span class="loader"></span> Cargando pacientes…</div>';
 
   try {
-    let formula, url;
-    if (medicoActual.id === 'demo' || medicoActual['Ver todos los pacientes'] === true) {
-      // Demo, o médico maestro (Ver todos los pacientes activo): sin filtro.
-      url = '?sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100';
-    } else {
-      // ARRAYJOIN() sobre un campo de registros vinculados devuelve el valor del
-      // CAMPO PRIMARIO del registro vinculado — en la tabla MÉDICOS ese campo
-      // primario es "Código de médico" (verificado con datos reales), no el
-      // nombre ni el ID interno.
-      const codigoMedico = (medicoActual['Código de médico'] || '').replace(/"/g, '\\"');
-      formula = encodeURIComponent(`FIND("${codigoMedico}", ARRAYJOIN({Médico_principal}))`);
-      url = `?filterByFormula=${formula}&sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100`;
-    }
+    // El backend acota la lista a los pacientes del médico + los demo e IGNORA
+    // cualquier filtro que se mande (la autorización real vive en el servidor,
+    // no en el cliente). Aquí solo se pide orden y tope. La interconsulta por
+    // código exacto va por separado (btn-buscar-pac → ?pacienteBuscado=).
+    const url = '?sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100';
 
     const data = await airtableFetch(TBL_PACIENTES, url);
     todosPacientes = data.records || [];
@@ -4491,8 +4483,9 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
   errEl.textContent = '';
 
   try {
-    const formula = encodeURIComponent(`{Código de paciente}="${codigo}"`);
-    const data = await airtableFetch(TBL_PACIENTES, `?filterByFormula=${formula}&maxRecords=1`);
+    // Interconsulta: el código exacto viaja como ?pacienteBuscado= (el backend
+    // lo valida y arma el filtro). El filterByFormula del cliente se ignora.
+    const data = await airtableFetch(TBL_PACIENTES, `?pacienteBuscado=${encodeURIComponent(codigo)}&maxRecords=1`);
 
     if (!data.records || data.records.length === 0) {
       errEl.textContent = 'Paciente no encontrado.';
@@ -5171,7 +5164,7 @@ document.getElementById('btn-guardar-datos').addEventListener('click', async () 
   btn.disabled = true; lbl.style.display = 'none'; loader.style.display = 'inline';
 
   try {
-    await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
+    await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}&pacienteBuscado=${encodeURIComponent(pacienteActual.fields['Código de paciente'] || '')}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields, typecast: true })
@@ -6040,7 +6033,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       if (grupoSanguineo) pacienteFields['Grupo sanguíneo'] = grupoSanguineo;
       if (escolaridad) pacienteFields['Escolaridad'] = escolaridad;
       try {
-        await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
+        await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}&pacienteBuscado=${encodeURIComponent(pacienteActual.fields['Código de paciente'] || '')}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fields: pacienteFields, typecast: true })
