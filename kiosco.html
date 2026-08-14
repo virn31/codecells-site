@@ -342,7 +342,7 @@ async function verificarPaciente() {
   const codigo = document.getElementById('input-paciente-codigo').value.trim().toUpperCase();
   const err = document.getElementById('error-paciente');
   err.textContent = '';
-  if (!/^CC-PAC-[0-9]{4,8}$/.test(codigo)) { err.textContent = 'Código inválido. Formato: CC-PAC-XXXXXX'; return; }
+  if (!/^CC-PAC-[A-Z0-9]{4,8}$/.test(codigo)) { err.textContent = 'Código inválido. Formato: CC-PAC-XXXXXX'; return; }
 
   const btn = document.getElementById('btn-verificar-paciente');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';

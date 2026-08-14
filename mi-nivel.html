@@ -541,7 +541,7 @@ function init() {
     return;
   }
 
-  if (pacienteCodigo && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCodigo)) {
+  if (pacienteCodigo && /^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCodigo)) {
     // Llegó por liga con código válido — se guarda para futuras aperturas
     // desde el ícono instalado (que abren /mi-nivel.html sin parámetros).
     try { localStorage.setItem(STORAGE_KEY_CODIGO, pacienteCodigo); } catch(e) {}
@@ -551,7 +551,7 @@ function init() {
     try { pacienteCodigo = localStorage.getItem(STORAGE_KEY_CODIGO); } catch(e) { pacienteCodigo = null; }
   }
 
-  if (!pacienteCodigo || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCodigo)) {
+  if (!pacienteCodigo || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCodigo)) {
     document.getElementById('error-texto').textContent = 'Enlace incompleto o inválido — verifica el código con tu médico.';
     irA('p-error');
     return;

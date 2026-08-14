@@ -4481,7 +4481,7 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
   const errEl = document.getElementById('pac-codigo-error');
   const btn = document.getElementById('btn-buscar-pac');
 
-  if (!codigo.match(/^CC-PAC-[0-9]{4,8}$/)) {
+  if (!codigo.match(/^CC-PAC-[A-Z0-9]{4,8}$/)) {
     errEl.textContent = 'Formato: CC-PAC-XXXXXX';
     return;
   }
@@ -6264,7 +6264,7 @@ document.getElementById('fc-cancel').addEventListener('click', cerrarGateIdentid
 document.getElementById('fc-validar').addEventListener('click', async () => {
   const codigo = document.getElementById('fc-codigo').value.trim().toUpperCase();
   const resEl = document.getElementById('fc-resultado');
-  if (!/^CC-PAC-[0-9]{4,8}$/.test(codigo)) { resEl.innerHTML = `<span style="color:#E2574B;">Código inválido. Formato: CC-PAC- seguido de 4 a 8 dígitos.</span>`; return; }
+  if (!/^CC-PAC-[A-Z0-9]{4,8}$/.test(codigo)) { resEl.innerHTML = `<span style="color:#E2574B;">Código inválido. Formato: CC-PAC- seguido de 4 a 8 caracteres (letras o dígitos).</span>`; return; }
   if (!fcArchivo) { resEl.innerHTML = `<span style="color:#E2574B;">No hay archivo cargado. Vuelve a elegirlo.</span>`; return; }
   resEl.innerHTML = `<span style="color:var(--text-3);">Leyendo el nombre del documento y comparando…</span>`;
   fcSetValidarLoading(true);

@@ -807,7 +807,7 @@ module.exports = async function handler(req, res) {
   if (action === 'paciente_subir_estudio') {
     try {
       const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
       const esPDF = mediaType === 'application/pdf';
       const esImagen = mediaType.startsWith('image/');
@@ -1030,7 +1030,7 @@ module.exports = async function handler(req, res) {
   if (action === 'paciente_comparativo_labs') {
     try {
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1075,7 +1075,7 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_tabla_labs') {
     try {
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1189,7 +1189,7 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_resumen_labs') {
     try {
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1334,7 +1334,7 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_guardar_labs_rapidos') {
     try {
       const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId, fechaEstudio } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
       // §0.1: la fecha del estudio se confirma explícitamente; nunca se asume hoy.
       // Sin fecha válida no se escribe nada (el front debe enviar fechaEstudio ISO).
       const fecha = esFechaISO(fechaEstudio) ? fechaEstudio.trim() : null;
@@ -1442,7 +1442,7 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_validar_identidad_estudio') {
     try {
       const { pacienteCode, fileBase64, mediaType } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
       const esPDF = mediaType === 'application/pdf';
       const esImagen = mediaType.startsWith('image/');
@@ -1515,7 +1515,7 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_extraer_estudio') {
     try {
       const { pacienteCode, fileBase64, mediaType, identidadConfirmada } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
       const esPDF = mediaType === 'application/pdf';
       const esImagen = mediaType.startsWith('image/');
@@ -1689,7 +1689,7 @@ Formato exacto:
   if (action === 'medico_confirmar_estudio') {
     try {
       const { pacienteCode, fileBase64, fileName, mediaType, fecha, momento, tipoEstudio, panel, filas, identidadConfirmada } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
       if (!esFechaISO(fecha)) return res.status(400).json({ error: 'Falta la fecha del estudio (YYYY-MM-DD). No se asume la fecha de hoy.', necesitaFecha: true });
       if (!Array.isArray(filas) || !filas.length) return res.status(400).json({ error: 'No hay valores que guardar.' });
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo para re-verificar identidad.' });
@@ -2821,7 +2821,7 @@ Formato exacto:
 
     const esMedico = typeof medicoCode === 'string' && /^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode);
     const esVIP    = typeof vipCode    === 'string' && /^DZW-[0-9]{8}$/.test(vipCode);
-    const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode);
+    const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode);
 
     if (esMedico) {
       let nombreReal       = typeof medicoNombre      === 'string' ? medicoNombre.slice(0,100)      : 'Médico';
@@ -3259,7 +3259,7 @@ Formato exacto:
           // dictado a ese expediente en vez de crear (la opción cómoda = la
           // correcta: no obliga a empezar de nuevo, así nadie elige "nuevo" con
           // tal de avanzar). No sobrescribe identidad; fusiona patologías.
-          const codigoExistente = (typeof datos.codigo_paciente_existente === 'string' && /^CC-PAC-[0-9]{4,8}$/.test(datos.codigo_paciente_existente.trim()))
+          const codigoExistente = (typeof datos.codigo_paciente_existente === 'string' && /^CC-PAC-[A-Z0-9]{4,8}$/.test(datos.codigo_paciente_existente.trim()))
             ? datos.codigo_paciente_existente.trim() : null;
           if (codigoExistente) {
             const pRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${codigoExistente}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -3445,7 +3445,7 @@ Formato exacto:
       // médico y se fuerza una segunda llamada obligando la herramienta de
       // backfill — así el guardado no depende de que el modelo "decida" usarla.
       const huboToolUse = Array.isArray(data.content) && data.content.some(b => b && b.type === 'tool_use');
-      if (!huboToolUse && pacienteCode && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+      if (!huboToolUse && pacienteCode && /^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) {
         const ultimoMensaje = typeof messages[messages.length - 1]?.content === 'string' ? messages[messages.length - 1].content : '';
         const fechasDetectadas = (ultimoMensaje.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/g) || []).length;
         if (fechasDetectadas >= 2) {
@@ -3949,7 +3949,7 @@ async function cargarMatcherCatalogo(baseId, token) {
 // respondió solo en texto sin usar ninguna herramienta pese a que el
 // dictado claramente traía varias fechas).
 async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
-  if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+  if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) {
     return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tengo un paciente seleccionado en el portal para guardar esto — abre su expediente primero y dicta de nuevo.` }] };
   }
 
