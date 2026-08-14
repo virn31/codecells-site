@@ -830,6 +830,68 @@ module.exports = async (req, res) => {
           }
         }
       }
+
+      // ── PACIENTES: el médico ve SOLO los suyos + los demo + el de
+      //    interconsulta. El filterByFormula del cliente se IGNORA y se
+      //    reemplaza (igual que paciente/vip). La interconsulta llega como
+      //    ?pacienteBuscado=CC-PAC-XXXX exacto. Sin excepción por nivel ni
+      //    fundador — la visibilidad se decide aquí, en el servidor.
+      if (tabla === 'pacientes') {
+        const q = '"';
+        const codEsc = escaparFormula(codigo);
+        // Match EXACTO por token contra ARRAYJOIN del link (","&...&","), para
+        // que CCMED-JORGE no cace CCMED-JORGE01. El primario de MÉDICOS es el
+        // código, así que ARRAYJOIN({Médico_principal}) devuelve los CCMED-.
+        const filtroPropios =
+          `FIND(${q},${codEsc},${q}, ${q},${q} & ARRAYJOIN({Médico_principal}, ${q},${q}) & ${q},${q}) > 0`;
+        const filtroLista = `OR(${filtroPropios}, {Es demo}=1)`;
+
+        const buscado = String(req.query.pacienteBuscado || '').trim();
+        const esInterconsulta = /^CC-PAC-[A-Z0-9]{4,8}$/.test(buscado);
+        // pacienteBuscado es señal de ESTA petición: nunca un campo real ni se
+        // reenvía a Airtable.
+        delete req.query.pacienteBuscado;
+
+        if (req.method === 'GET') {
+          req.query.filterByFormula = esInterconsulta
+            ? `{Código de paciente}="${escaparFormula(buscado)}"`
+            : filtroLista;
+        } else if (req.method === 'POST') {
+          // Todo paciente que cree el médico queda atribuido a él.
+          const recordIdMedico = await obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN);
+          if (!recordIdMedico) {
+            return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
+          }
+          const fields = (req.body && req.body.fields) || {};
+          req.body.fields = { ...fields, 'Médico_principal': [recordIdMedico] };
+        } else if (req.method === 'PATCH') {
+          const { recordId } = req.query;
+          if (!recordId) return res.status(400).json({ error: 'Falta recordId.' });
+          const recordIdMedico = await obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN);
+          if (!recordIdMedico) {
+            return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
+          }
+          try {
+            const check = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${tableId}/${recordId}`, {
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+            });
+            if (!check.ok) {
+              return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
+            }
+            const f = (await check.json()).fields || {};
+            const linkMedico = Array.isArray(f['Médico_principal']) ? f['Médico_principal'] : [];
+            const esPropio = linkMedico.includes(recordIdMedico);
+            const esInterconsultaPatch = esInterconsulta && f['Código de paciente'] === buscado;
+            // Los pacientes demo son SOLO LECTURA para el médico (CLAUDE.md §4):
+            // no se incluyen en la condición de escritura — solo propio o interconsulta.
+            if (!esPropio && !esInterconsultaPatch) {
+              return res.status(403).json({ error: 'No puedes modificar un paciente que no es tuyo.' });
+            }
+          } catch (err) {
+            return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
+          }
+        }
+      }
     } else if (tipo === 'paciente' || tipo === 'vip') {
       // NOTA DE SEGURIDAD: `temp` NO está en estas whitelists a propósito.
       // TEMP guarda PII del funnel comercial (leads, WhatsApp, códigos DZW/

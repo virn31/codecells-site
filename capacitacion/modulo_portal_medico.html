@@ -176,7 +176,7 @@ var CELLS = [
   { label: "Lista de pacientes", render: function() {
     return '<div class="icon-badge">📋</div><span class="step-label p2">Gestión de pacientes</span><h3>Tu panel de trabajo diario</h3>' +
       '<p>Buscador, tres contadores (Total / Activos / Hoy), y la lista completa de tus pacientes.</p>' +
-      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Por diseño, cada médico ve solo a sus propios pacientes</strong> (vinculados por el campo Médico_principal) — esto mantiene tu cartera de trabajo ordenada y evita que tengas que buscar entre cientos de pacientes que no son tuyos. Solo los médicos con el permiso especial "Ver todos los pacientes" (uso administrativo) ven la lista completa de la red.</p></div>';
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Por diseño, cada médico ve solo a sus propios pacientes</strong> (vinculados por el campo Médico_principal), más los pacientes demo (en solo lectura) y el que abras por código exacto para una interconsulta. Esto mantiene tu cartera de trabajo ordenada. La regla no tiene excepciones: ni por nivel de certificación ni por ser fundador — nadie ve la lista completa de la red.</p></div>';
   }},
   { label: "Registrar paciente nuevo", render: function() {
     return '<div class="icon-badge">➕</div><span class="step-label p2">Gestión de pacientes</span><h3>Botón "+ Nuevo"</h3>' +
