@@ -1204,34 +1204,12 @@
       return 'Buen funcionamiento';
     }
 
-    function saveToAirtable(fields){
-      return fetch('/api/airtable?tabla=temp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: fields })
-      });
-    }
-
-    function mostrarEstado(btn, tipo, msg){
-      var statusId = 'at-status';
-      var el = document.getElementById(statusId);
-      if(!el){
-        el = document.createElement('p');
-        el.id = statusId;
-        el.style.cssText = 'font-family:var(--font-mono);font-size:0.75rem;margin-top:0.8rem;padding:0.7rem 1rem;border-radius:8px;';
-        btn.parentNode.insertBefore(el, btn.nextSibling);
-      }
-      if(tipo === 'ok'){
-        el.style.background = 'rgba(95,174,110,0.15)';
-        el.style.color = '#5FAE6E';
-        el.style.border = '1px solid rgba(95,174,110,0.3)';
-      } else {
-        el.style.background = 'rgba(212,101,74,0.15)';
-        el.style.color = '#D4654A';
-        el.style.border = '1px solid rgba(212,101,74,0.3)';
-      }
-      el.textContent = msg;
-    }
+    // saveToAirtable()/mostrarEstado() se retiraron (hotfix 2026-08-15):
+    // escribían Nombre + WhatsApp + scores a /api/airtable?tabla=temp sin
+    // ningún consentimiento, igual que registro_publico_paciente pero por
+    // otra ruta. Mismo criterio: no se recolecta nombre ni WhatsApp sin
+    // consentimiento, sin importar la tabla destino. El único call site
+    // vivía en el click de #captureSubmit — ver ahí.
 
     function renderResults(){
       setProgress(100);
@@ -1290,137 +1268,92 @@
         var btn = document.getElementById('captureSubmit');
         btn.disabled = true;
         btn.innerHTML = waIcon + 'Guardando\u2026';
-        // Date YYYY-MM-DD
-        var now = new Date();
-        var fechaStr = now.getFullYear() + '-' +
-          String(now.getMonth()+1).padStart(2,'0') + '-' +
-          String(now.getDate()).padStart(2,'0');
 
-        // Build a human-readable summary for Notas
-        // (avoids Single Select matching issues entirely)
-        var resumenSistemas =
-          'ENERGY: '  + (pctMap['energy']  || 0) + '%\n' +
-          'REPAIR: '  + (pctMap['repair']  || 0) + '%\n' +
-          'BALANCE: ' + (pctMap['balance'] || 0) + '%\n' +
-          'NEURO: '   + (pctMap['neuro']   || 0) + '%\n' +
-          'REGEN: '   + (pctMap['regen']   || 0) + '%';
+        // Ya no se llama a saveToAirtable()/tabla=temp aquí (hotfix
+        // 2026-08-15): escribía Nombre + WhatsApp + scores sin
+        // consentimiento. Mismo criterio que registro_publico_paciente
+        // más abajo: no se recolecta nombre ni WhatsApp sin consentimiento,
+        // sin importar la tabla destino. Se pasa directo a lo que antes
+        // vivía en el .finally() de esa llamada retirada.
+        var _nombre = nombre;
+        var _wa     = wa;
+        var _sistema = top.sys.name + ' (' + top.pct + '%)';
+        var _waMsg = 'Hola, hice la evaluación CODE CELLS™ y mi sistema prioritario es ' + _sistema + '. Me gustaría que un especialista revise mi mapa biológico.';
 
-        var notasTexto =
-          'Fuente: Test web\n' +
-          'Sistema prioritario: ' + top.sys.icon + ' ' + top.sys.name + ' (' + top.pct + '%)\n' +
-          'Etapa: Revelacion\n\n' +
-          'Scores:\n' + resumenSistemas;
+        // Abrir WhatsApp en background
+        setTimeout(function(){
+          window.open('https://wa.me/526671264060?text=' + encodeURIComponent(_waMsg), '_blank');
+        }, 800);
 
-        // Exact field names confirmed by user from Airtable
-        var fields = {
-          'Nombre':           nombre,
-          'WhatsApp':         wa,
-          'Score ENERGY':     pctMap['energy']  || 0,
-          'Score REPAIR':     pctMap['repair']  || 0,
-          'Score NEURO':      pctMap['neuro']   || 0,
-          'Score REGEN':      pctMap['regen']   || 0,
-          'Fecha de entrada': fechaStr
-        };
+        // Si llegó por la vía influencer (descubre.html / bienestar.html),
+        // lo mandamos directo al Portal VIP en modo demo para que explore NOVA ahí,
+        // en vez de activar el chat embebido de esta misma página.
+        var cameFromInfluencer = params.get('src') === 'influencer';
+        if(cameFromInfluencer){
+          btn.disabled = false;
+          btn.className = 'btn-nova-cta';
+          btn.style.width = '100%';
+          btn.innerHTML = '🧬 Explorar tu Portal';
+          btn.onclick = function(){
+            window.location.href = 'portal-vip.html?demo=1';
+          };
+          setTimeout(function(){
+            window.location.href = 'portal-vip.html?demo=1';
+          }, 1400);
+          return;
+        }
 
-        saveToAirtable(fields)
-          .then(function(res){
-            if(!res.ok){
-              res.json().then(function(err){
-                var msg = err.error ? (err.error.type + ': ' + err.error.message) : JSON.stringify(err);
-                mostrarEstado(btn, 'err', '\u274C Airtable: ' + msg);
-                console.error('Airtable error:', JSON.stringify(err));
-              });
-            } else {
-              mostrarEstado(btn, 'ok', '\u2705 Lead guardado en Airtable correctamente.');
-              console.log('Airtable: OK');
-            }
+        // Transformar el botón mientras se crea su expediente de paciente
+        btn.disabled = false;
+        btn.className = 'btn-nova-cta';
+        btn.style.width = '100%';
+        btn.innerHTML = '🧬 Preparando tu expediente…';
+
+        var protocoloSugerido = top.pct >= 66 ? 'GENESIS™'
+                              : top.pct >= 33 ? 'ACTIVATE™'
+                              : 'RESTORE™';
+        var sistemaPrioritario = top.sys.name + ' (' + top.pct + '%)';
+
+        // Paciente regular (CC-PAC-), no VIP/DZW — el test público no
+        // otorga acceso VIP automáticamente. El código ahora se genera
+        // en el servidor (api/nova.js, acción registro_publico_paciente)
+        // con verificación anti-colisión — antes se calculaba aquí mismo
+        // en el navegador, sin ninguna verificación.
+        fetch('/api/nova', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'registro_publico_paciente',
+            nombre: _nombre,
+            whatsapp: _wa,
+            protocolo: protocoloSugerido,
+            notas: 'Alta automática desde test público. Sistema prioritario detectado: ' + sistemaPrioritario + '.'
           })
-          .catch(function(err){
-            mostrarEstado(btn, 'err', '\u274C Error de conexi\u00f3n: ' + err.message);
-            console.error('Network error:', err);
-          })
-          .finally(function(){
-            // Guardar datos en variables para NOVA
-            var _nombre = document.getElementById('cf-nombre').value.trim();
-            var _wa     = document.getElementById('cf-wa').value.trim();
-            var _sistema = top.sys.name + ' (' + top.pct + '%)';
-            var _waMsg = 'Hola, hice la evaluación CODE CELLS™ y mi sistema prioritario es ' + _sistema + '. Me gustaría que un especialista revise mi mapa biológico.';
-
-            // Abrir WhatsApp en background
+        }).then(function(r){ return r.json(); }).then(function(data){
+          if(data.ok && data.codigo){
+            var nuevoCodigo = data.codigo;
+            btn.innerHTML = '📲 Entrar a tu Portal';
+            btn.onclick = function(){
+              window.location.href = 'mi-nivel.html?codigo=' + nuevoCodigo;
+            };
             setTimeout(function(){
-              window.open('https://wa.me/526671264060?text=' + encodeURIComponent(_waMsg), '_blank');
-            }, 800);
+              window.location.href = 'mi-nivel.html?codigo=' + nuevoCodigo;
+            }, 1200);
+          } else {
+            fallbackToNova();
+          }
+        }).catch(function(){
+          fallbackToNova();
+        });
 
-            // Si llegó por la vía influencer (descubre.html / bienestar.html),
-            // lo mandamos directo al Portal VIP en modo demo para que explore NOVA ahí,
-            // en vez de activar el chat embebido de esta misma página.
-            var cameFromInfluencer = params.get('src') === 'influencer';
-            if(cameFromInfluencer){
-              btn.disabled = false;
-              btn.className = 'btn-nova-cta';
-              btn.style.width = '100%';
-              btn.innerHTML = '🧬 Explorar tu Portal';
-              btn.onclick = function(){
-                window.location.href = 'portal-vip.html?demo=1';
-              };
-              setTimeout(function(){
-                window.location.href = 'portal-vip.html?demo=1';
-              }, 1400);
-              return;
+        function fallbackToNova(){
+          btn.innerHTML = '🧬 Hablar ahora con NOVA';
+          btn.onclick = function(){
+            if (typeof window.novaActivar === 'function') {
+              window.novaActivar(_nombre, _sistema);
             }
-
-            // Transformar el botón mientras se crea su expediente de paciente
-            btn.disabled = false;
-            btn.className = 'btn-nova-cta';
-            btn.style.width = '100%';
-            btn.innerHTML = '🧬 Preparando tu expediente…';
-
-            var protocoloSugerido = top.pct >= 66 ? 'GENESIS™'
-                                  : top.pct >= 33 ? 'ACTIVATE™'
-                                  : 'RESTORE™';
-            var sistemaPrioritario = top.sys.name + ' (' + top.pct + '%)';
-
-            // Paciente regular (CC-PAC-), no VIP/DZW — el test público no
-            // otorga acceso VIP automáticamente. El código ahora se genera
-            // en el servidor (api/nova.js, acción registro_publico_paciente)
-            // con verificación anti-colisión — antes se calculaba aquí mismo
-            // en el navegador, sin ninguna verificación.
-            fetch('/api/nova', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'registro_publico_paciente',
-                nombre: _nombre,
-                whatsapp: _wa,
-                protocolo: protocoloSugerido,
-                notas: 'Alta automática desde test público. Sistema prioritario detectado: ' + sistemaPrioritario + '.'
-              })
-            }).then(function(r){ return r.json(); }).then(function(data){
-              if(data.ok && data.codigo){
-                var nuevoCodigo = data.codigo;
-                btn.innerHTML = '📲 Entrar a tu Portal';
-                btn.onclick = function(){
-                  window.location.href = 'mi-nivel.html?codigo=' + nuevoCodigo;
-                };
-                setTimeout(function(){
-                  window.location.href = 'mi-nivel.html?codigo=' + nuevoCodigo;
-                }, 1200);
-              } else {
-                fallbackToNova();
-              }
-            }).catch(function(){
-              fallbackToNova();
-            });
-
-            function fallbackToNova(){
-              btn.innerHTML = '🧬 Hablar ahora con NOVA';
-              btn.onclick = function(){
-                if (typeof window.novaActivar === 'function') {
-                  window.novaActivar(_nombre, _sistema);
-                }
-              };
-            }
-          });
+          };
+        }
       });
 
       document.getElementById('testRestartBtn').addEventListener('click', function(){
