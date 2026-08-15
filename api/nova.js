@@ -1488,52 +1488,28 @@ module.exports = async function handler(req, res) {
   }
 
   // ─── REGISTRO PÚBLICO: alta de paciente desde el test de index.html ──
-  // Antes esto se calculaba y escribía 100% del lado del cliente (sin
-  // ninguna verificación de colisión). Ahora vive en el servidor y usa
-  // generarCodigoUnico (ver lib/codigos.js).
   if (action === 'registro_publico_paciente') {
-    try {
-      const { nombre, whatsapp, protocolo, notas } = req.body;
-      if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
-        return res.status(400).json({ error: 'Falta el nombre del paciente.' });
-      }
-
-      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
-
-      const nuevoCodigo = await generarCodigoUnico({
-        AIRTABLE_TOKEN, BASE_ID, TABLE_ID: TBL_PAC,
-        CAMPO: 'Código de paciente', PREFIJO: 'CC-PAC-', esSecuencial: true,
-      });
-
-      const fields = {
-        'Código de paciente': nuevoCodigo,
-        'Nombre completo': nombre.trim(),
-        'Teléfono WhatsApp': whatsapp || '',
-        'Canal de entrada': 'codecells.mx',
-        'Estado del expediente': 'Activo',
-        'Status': 'Activo',
-        'Protocolo actual': protocolo || '',
-        'Notas generales': notas || '',
-        'Fecha de registro': new Date().toISOString(),
-      };
-
-      const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typecast: true, records: [{ fields }] }),
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok || !createData.records?.[0]) {
-        return res.status(502).json({ error: 'No se pudo registrar al paciente.' });
-      }
-
-      return res.status(200).json({ ok: true, codigo: nuevoCodigo, id: createData.records[0].id });
-    } catch (err) {
-      console.error('[nova] registro_publico_paciente error:', err.message);
-      return res.status(500).json({ error: 'Error interno registrando al paciente.' });
-    }
+    // PAUSADO (2026-08-15, urgente/hotfix directo a main): este flujo creaba
+    // un expediente clínico PERMANENTE en PACIENTES (código CC-PAC- real, no
+    // un lead) desde el test público de index.html, con solo nombre +
+    // WhatsApp, SIN checkbox de consentimiento ni aviso de privacidad en el
+    // formulario — index.html no tiene ningún elemento de consentimiento
+    // cerca de #cf-nombre/#cf-wa en esta versión. El registro quedaba bajo
+    // NOM-004/LFPDPPP sin el trámite de consentimiento que eso exige. Se
+    // detiene SOLO la escritura — la lógica original (generarCodigoUnico +
+    // POST a PACIENTES) vive en el historial de git de este archivo, no
+    // aquí, para no dejar código muerto. El rediseño con consentimiento real
+    // (registrar_lead, a LEADS, no a PACIENTES) ya existe en
+    // fix/lab-valores-fecha-idempotencia (commit 93c6ab7) y llega con ese
+    // merge — este hotfix no lo adelanta, solo cierra la fuga mientras tanto.
+    // El frontend (index.html) ya tiene un fallback para data.ok=false: en
+    // vez de "Entrar a tu Portal" muestra "Hablar ahora con NOVA" — no hace
+    // falta tocarlo.
+    return res.status(503).json({
+      ok: false,
+      error: 'El registro automático está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
+      motivo: 'registro_publico_pausado_por_consentimiento',
+    });
   }
 
   if (action === 'kiosco_crear_paciente') {
