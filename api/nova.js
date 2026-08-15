@@ -36,7 +36,7 @@ const { generarCodigoUnico } = require('../lib/codigos');
 // ningún tipo (Pendiente 3 de 630c106). Ahora exigen el mismo token
 // Authorization: Bearer que ya usa /api/airtable.
 const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
-const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
+const { autorizarPaciente, ErrorAutorizacion, MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
 
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
@@ -817,6 +817,18 @@ module.exports = async function handler(req, res) {
     try {
       const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
       if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      // El paciente sube estudios a SU PROPIO expediente — no es un caso de
+      // autorizarPaciente() (eso es médico→paciente). Aquí basta con que la
+      // sesión sea de tipo 'paciente' y que su código sea el mismo que pide.
+      const sesionPac = verificarToken(tokenDesdeRequest(req));
+      if (!sesionPac || sesionPac.tipo !== 'paciente') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      if (sesionPac.codigo !== pacienteCode) {
+        return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
+      }
+
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
       const esPDF = mediaType === 'application/pdf';
       const esImagen = mediaType.startsWith('image/');
@@ -1040,6 +1052,16 @@ module.exports = async function handler(req, res) {
     try {
       const { pacienteCode } = req.body;
       if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      // Mismo patrón que paciente_subir_estudio: el paciente lee SU PROPIO
+      // comparativo, no el de otro — autorizarPaciente() no aplica aquí.
+      const sesionPac = verificarToken(tokenDesdeRequest(req));
+      if (!sesionPac || sesionPac.tipo !== 'paciente') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      if (sesionPac.codigo !== pacienteCode) {
+        return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1377,31 +1399,45 @@ module.exports = async function handler(req, res) {
       const fecha = esFechaISO(fechaEstudio) ? fechaEstudio.trim() : null;
       if (!fecha) return res.status(400).json({ error: 'Falta la fecha del estudio (YYYY-MM-DD). No se asume la fecha de hoy.', necesitaFecha: true });
 
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_guardar_labs_rapidos autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
 
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
-
+      // auth.recId ya es el recordId del paciente resuelto por autorizarPaciente()
+      // — no se vuelve a buscar ni se reusa el pacienteCode crudo del body.
       const filas = Array.isArray(valoresRapidos) ? valoresRapidos.filter(v => v && v.analito && String(v.analito).trim()) : [];
 
       const textoAuto = filas.length ? filas.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''}`.trim()).join('\n') : '';
       const fueraDeRangoAuto = filas.filter(v => v.bandera === 'Alto' || v.bandera === 'Bajo')
         .map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''} (${v.bandera})`).join('\n');
 
+      const ahoraISO = new Date().toISOString();
       const labFields = {
-        'Código de paciente ref': pacienteCode,
-        'Paciente': [pacRecord.id],
+        'Código de paciente ref': auth.codigo,
+        'Paciente': [auth.recId],
         'Panel solicitado': panel || 'Personalizado',
         'Tipo de estudio': tipoEstudio || 'Laboratorio',
         'Resultados (texto)': (resultadosTexto && resultadosTexto.trim()) || textoAuto || 'Sin resultados capturados.',
         'Fecha de resultados': fecha,
+        'Registrado por': [auth.medicoRecId],
+        'Fecha de registro': ahoraISO,
       };
       const fueraFinal = (fueraDeRango && fueraDeRango.trim()) || fueraDeRangoAuto;
       if (fueraFinal) labFields['Valores fuera de rango'] = fueraFinal;
@@ -1436,18 +1472,20 @@ module.exports = async function handler(req, res) {
               [LV_CRITICO]: !!v.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
               [LV_RELEVANTE]: !!v.relevante,   // §0.3: sin hardcode a true — solo si el médico lo marca
               'Fecha del estudio': fecha,
-              'Código de paciente ref': pacienteCode,
-              'Paciente': [pacRecord.id],
+              'Código de paciente ref': auth.codigo,
+              'Paciente': [auth.recId],
               'Estudio (NOVA LABS)': [crearData.id],
+              'Registrado por': [auth.medicoRecId],
+              'Fecha de registro': ahoraISO,
               ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
             },
           };
         });
         // §6: idempotencia por paciente+fecha+analito antes de crear.
-        const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fecha);
+        const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, auth.codigo, fecha);
         if (!existentes) {
           labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
-          console.error(`[nova] LAB_VALORES (dictado médico): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fecha}.`);
+          console.error(`[nova] LAB_VALORES (dictado médico): no se pudo verificar duplicados — NO se guardó para ${auth.codigo} ${fecha}.`);
         } else {
           const sep = separarNuevosYConflictos(registrosValores, existentes);
           duplicados = sep.duplicados.length;
@@ -1485,17 +1523,31 @@ module.exports = async function handler(req, res) {
       const esImagen = mediaType.startsWith('image/');
       if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
 
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_validar_identidad_estudio autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
 
-      // Paso 2a: el código tecleado debe existir. Si no, se detiene aquí — nunca
-      // se "elige el más parecido".
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'No existe un paciente con ese código. Verifica el CC-PAC- tecleado.' });
-      const nombreRegistrado = pacRecord.fields['Nombre completo'] || '';
+      // El código tecleado ya se resolvió y autorizó arriba (auth.recId) — se
+      // lee el nombre registrado por recId directo, sin volver a buscar por
+      // el código crudo del body.
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${auth.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacRecord = await pacRes.json();
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer el nombre registrado del paciente.' });
+      const nombreRegistrado = pacRecord.fields?.['Nombre completo'] || '';
 
       // Paso 2b: la visión extrae SOLO el nombre impreso (barato, max_tokens 200).
       const contentBlock = esPDF
@@ -1535,7 +1587,7 @@ module.exports = async function handler(req, res) {
         nombreRegistrado,
         nombreDocumento,
         tokensComunes: cmp.comunes,
-        ...(cmp.coincide ? {} : { mensaje: `El nombre del documento ("${nombreDocumento}") no coincide con el registrado bajo ${pacienteCode} ("${nombreRegistrado}"). No se procesó nada. Verifica que el estudio y el código correspondan al mismo paciente.` }),
+        ...(cmp.coincide ? {} : { mensaje: `El nombre del documento ("${nombreDocumento}") no coincide con el registrado bajo ${auth.codigo} ("${nombreRegistrado}"). No se procesó nada. Verifica que el estudio y el código correspondan al mismo paciente.` }),
       });
     } catch (err) {
       console.error('[nova] medico_validar_identidad_estudio error:', err.message);
@@ -1558,15 +1610,28 @@ module.exports = async function handler(req, res) {
       const esImagen = mediaType.startsWith('image/');
       if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
 
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_extraer_estudio autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
 
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'No existe un paciente con ese código. Verifica el CC-PAC- tecleado.' });
-      const nombreRegistrado = pacRecord.fields['Nombre completo'] || '';
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${auth.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacRecord = await pacRes.json();
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer el nombre registrado del paciente.' });
+      const nombreRegistrado = pacRecord.fields?.['Nombre completo'] || '';
 
       // §5: nativo vs escaneado. Imagen => escaneado; PDF => sonda de capa de texto.
       const esEscaneado = esImagen || (esPDF && !pdfTieneCapaDeTexto(Buffer.from(fileBase64, 'base64')));
@@ -1731,18 +1796,34 @@ Formato exacto:
       if (!Array.isArray(filas) || !filas.length) return res.status(400).json({ error: 'No hay valores que guardar.' });
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo para re-verificar identidad.' });
 
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_confirmar_estudio autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       const authHeaders = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+      const ahoraISO = new Date().toISOString();
 
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
-      const nombreRegistrado = pacRecord.fields['Nombre completo'] || '';
+      // Se pide el nombre registrado por recId directo (ya autorizado) — no
+      // se vuelve a buscar al paciente por el código crudo del body.
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${auth.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacRecord = await pacRes.json();
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer el nombre registrado del paciente.' });
+      const nombreRegistrado = pacRecord.fields?.['Nombre completo'] || '';
 
       // Re-gate de identidad con el nombre impreso (mismatch definitivo -> bloquea;
       // ilegible sin confirmación explícita -> bloquea; si la visión no responde,
@@ -1761,7 +1842,7 @@ Formato exacto:
         const nombreDoc = (vData.content?.[0]?.text || '').trim();
         if (nombreDoc && nombreDoc !== 'SIN_NOMBRE') {
           if (!compararNombres(nombreRegistrado, nombreDoc).coincide) {
-            return res.status(409).json({ ok: false, veredicto: 'no_coincide', nombreRegistrado, nombreDocumento: nombreDoc, error: `El documento ("${nombreDoc}") no coincide con ${pacienteCode} ("${nombreRegistrado}"). No se guardó nada.` });
+            return res.status(409).json({ ok: false, veredicto: 'no_coincide', nombreRegistrado, nombreDocumento: nombreDoc, error: `El documento ("${nombreDoc}") no coincide con ${auth.codigo} ("${nombreRegistrado}"). No se guardó nada.` });
           }
         } else if (!identidadConfirmada) {
           return res.status(409).json({ ok: false, veredicto: 'ilegible', nombreRegistrado, error: 'No se pudo confirmar el nombre del documento. Repite la validación de identidad antes de guardar.' });
@@ -1780,13 +1861,15 @@ Formato exacto:
       const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
         method: 'POST', headers: authHeaders,
         body: JSON.stringify({ typecast: true, fields: {
-          'Código de paciente ref': pacienteCode,
-          'Paciente': [pacRecord.id],
+          'Código de paciente ref': auth.codigo,
+          'Paciente': [auth.recId],
           'Fecha de resultados': fecha,
           'Tipo de estudio': tipoEstudio || 'Laboratorio',
           'Panel solicitado': panel || 'Personalizado',
           'Resultados (texto)': filasLimpias.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''}`.trim()).join('\n'),
           ...(fueraDeRango.length ? { 'Valores fuera de rango': fueraDeRango.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''} (${capitalizar(v.estado)})`).join('\n') } : {}),
+          'Registrado por': [auth.medicoRecId],
+          'Fecha de registro': ahoraISO,
         } }),
       });
       const crearData = await crearRes.json();
@@ -1818,19 +1901,21 @@ Formato exacto:
           [LV_ORIGEN]: 'Laboratorio',     // §4.4
           [LV_MOMENTO]: momentoFinal,     // §2 Momento
           'Fecha del estudio': fecha,
-          'Código de paciente ref': pacienteCode,
-          'Paciente': [pacRecord.id],
+          'Código de paciente ref': auth.codigo,
+          'Paciente': [auth.recId],
           'Estudio (NOVA LABS)': [novaLabsId],
+          'Registrado por': [auth.medicoRecId],
+          'Fecha de registro': ahoraISO,
           ...(parametroRecId ? { [LV_PARAMETRO]: [parametroRecId], ...(confianza ? { [LV_CONFIANZA]: confianza } : {}) } : {}),
         } };
       });
 
       // §6: idempotencia por paciente+fecha+analito antes de crear.
       let creados = 0, duplicados = 0, conflictos = [], labValoresError = null;
-      const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fecha);
+      const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, auth.codigo, fecha);
       if (!existentes) {
         labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
-        console.error(`[nova] LAB_VALORES (confirmar estudio): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fecha}.`);
+        console.error(`[nova] LAB_VALORES (confirmar estudio): no se pudo verificar duplicados — NO se guardó para ${auth.codigo} ${fecha}.`);
       } else {
         const sep = separarNuevosYConflictos(registros, existentes);
         duplicados = sep.duplicados.length;
@@ -1856,48 +1941,24 @@ Formato exacto:
   // ninguna verificación de colisión). Ahora vive en el servidor y usa
   // generarCodigoUnico (ver lib/codigos.js).
   if (action === 'registro_publico_paciente') {
-    try {
-      const { nombre, whatsapp, protocolo, notas } = req.body;
-      if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
-        return res.status(400).json({ error: 'Falta el nombre del paciente.' });
-      }
-
-      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
-
-      const nuevoCodigo = await generarCodigoUnico({
-        AIRTABLE_TOKEN, BASE_ID, TABLE_ID: TBL_PAC,
-        CAMPO: 'Código de paciente', PREFIJO: 'CC-PAC-', esSecuencial: true,
-      });
-
-      const fields = {
-        'Código de paciente': nuevoCodigo,
-        'Nombre completo': nombre.trim(),
-        'Teléfono WhatsApp': whatsapp || '',
-        'Canal de entrada': 'codecells.mx',
-        'Estado del expediente': 'Activo',
-        'Status': 'Activo',
-        'Protocolo actual': protocolo || '',
-        'Notas generales': notas || '',
-        'Fecha de registro': new Date().toISOString(),
-      };
-
-      const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typecast: true, records: [{ fields }] }),
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok || !createData.records?.[0]) {
-        return res.status(502).json({ error: 'No se pudo registrar al paciente.' });
-      }
-
-      return res.status(200).json({ ok: true, codigo: nuevoCodigo, id: createData.records[0].id });
-    } catch (err) {
-      console.error('[nova] registro_publico_paciente error:', err.message);
-      return res.status(500).json({ error: 'Error interno registrando al paciente.' });
-    }
+    // PAUSADO (2026-08-15, urgente): este flujo creaba un expediente clínico
+    // PERMANENTE en PACIENTES (código CC-PAC- real, no un lead) desde el
+    // test público de index.html, con solo nombre + WhatsApp, SIN checkbox
+    // de consentimiento ni aviso de privacidad en el formulario — verificado
+    // en index.html: no hay ningún elemento de consentimiento cerca de
+    // #cf-nombre/#cf-wa. El registro quedaba bajo NOM-004/LFPDPPP sin el
+    // trámite de consentimiento que eso exige. Se detiene SOLO la escritura
+    // — la lógica original (generarCodigoUnico + POST a PACIENTES) vive en
+    // el historial de git de este archivo, no aquí, para no dejar código
+    // muerto. El rediseño (con consentimiento real) es aparte.
+    // El frontend (index.html) ya tiene un fallback para data.ok=false: en
+    // vez de "Entrar a tu Portal" muestra "Hablar ahora con NOVA" — no hace
+    // falta tocarlo.
+    return res.status(503).json({
+      ok: false,
+      error: 'El registro automático está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
+      motivo: 'registro_publico_pausado_por_consentimiento',
+    });
   }
 
   if (action === 'kiosco_crear_paciente') {
@@ -2961,8 +3022,12 @@ Formato exacto:
         const pacData = await pacRes.json();
         const pacRecord = pacData.records?.[0];
 
+        // 403 uniforme, nunca 404: un código de paciente inexistente y uno que
+        // existe pero no corresponde deben verse igual — el chat es la
+        // superficie más usada y un 404 aquí era el oráculo de enumeración
+        // más barato de explotar de todo el sistema.
         if (!pacRecord) {
-          return res.status(404).json({ error: 'Paciente no reconocido.' });
+          return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
         }
 
         pacRecordId  = pacRecord.id;

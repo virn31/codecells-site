@@ -102,8 +102,12 @@ module.exports = async (req, res) => {
       const formula = encodeURIComponent(`{Código invitación}="${inviteCode}"`);
       const { data } = await airtableFetch(TBL_TEMP, {}, `?filterByFormula=${formula}&maxRecords=1`);
       origenInvitacion = data.records && data.records[0] ? data.records[0] : null;
+      // 403 uniforme, nunca 404: mismo principio que lib/autorizacion.js —
+      // un código de invitación inexistente no debe ser distinguible por
+      // status/mensaje de uno mal formado, para no poder recorrer INV-XXXXXXXX
+      // en bloque.
       if (!origenInvitacion) {
-        return res.status(404).json({ error: 'Invitación no encontrada.' });
+        return res.status(403).json({ error: 'Invitación no disponible.' });
       }
       if (origenInvitacion.fields['Estado'] === 'Contratado') {
         return res.status(409).json({ error: 'Esta invitación ya fue procesada.' });
