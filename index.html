@@ -2025,10 +2025,23 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
       hideTyping();
       var reply = '';
       if (data.content && data.content.length > 0) {
-        reply = data.content[0].text || '';
+        // content[0] no siempre es el bloque de texto: con extended thinking,
+        // Anthropic antepone un bloque {type:"thinking"} sin campo .text, y
+        // asumir índice 0 dejaba reply vacío en silencio (sin error, sin
+        // mensaje) cada vez que el modelo pensaba antes de responder — no es
+        // un caso raro, pasa en cualquier turno, primero o de seguimiento.
+        var textBlock = data.content.find(function(b){ return b && b.type === 'text'; });
+        reply = (textBlock && textBlock.text) || '';
       } else if (data.error) {
-        reply = 'Hubo un problema al conectar con NOVA. Intenta de nuevo en un momento.';
         console.error('NOVA API error:', data.error);
+      }
+      if (!reply) {
+        // Sin bloque de texto utilizable (solo thinking, respuesta vacía,
+        // etc.) — nunca empujar '' a novaHistory: un turno assistant vacío
+        // puede rechazar la siguiente llamada a la API, y el usuario vería
+        // el mismo síntoma (chat "sin respuesta") en el turno de después.
+        reply = 'Hubo un problema al conectar con NOVA. Intenta de nuevo en un momento.';
+        console.error('NOVA respuesta sin bloque de texto:', JSON.stringify(data).slice(0, 500));
       }
       novaHistory.push({ role: 'assistant', content: reply });
       renderMessage(reply, 'nova');
