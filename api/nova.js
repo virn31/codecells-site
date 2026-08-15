@@ -29,6 +29,15 @@ try {
 // detalle honesto de qué tanto esto "asegura" contra Airtable.
 const { generarCodigoUnico } = require('../lib/codigos');
 
+// Verificación de sesión + autorización médico↔paciente. medico_tabla_labs
+// y medico_resumen_labs no pedían NINGUNA identidad de médico — ni siquiera
+// el formato de medicoCode que otras acciones sí exigen — así que cualquiera
+// con un pacienteCode válido leía los labs de ese paciente sin sesión de
+// ningún tipo (Pendiente 3 de 630c106). Ahora exigen el mismo token
+// Authorization: Bearer que ya usa /api/airtable.
+const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
+const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
+
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
 const TAXONOMIA_PATOLOGIAS = ["Obesidad","Sobrepeso","Diabetes Tipo 2","Prediabetes","Resistencia a la Insulina",
@@ -1077,6 +1086,20 @@ module.exports = async function handler(req, res) {
       const { pacienteCode } = req.body;
       if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
+      const sesion = verificarToken(tokenDesdeRequest(req));
+      if (!sesion || sesion.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      try {
+        await autorizarPaciente(sesion.codigo, pacienteCode);
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_tabla_labs autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
@@ -1190,6 +1213,20 @@ module.exports = async function handler(req, res) {
     try {
       const { pacienteCode } = req.body;
       if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      const sesion = verificarToken(tokenDesdeRequest(req));
+      if (!sesion || sesion.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      try {
+        await autorizarPaciente(sesion.codigo, pacienteCode);
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_resumen_labs autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
