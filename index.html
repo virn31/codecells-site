@@ -1710,7 +1710,10 @@
   /* ─── Config ─── */
   var NOVA_ENDPOINT = '/api/nova'; // Proxy seguro en Vercel (api/nova.js)
   var NOVA_MODEL    = 'claude-sonnet-4-6';
-  var NOVA_SYSTEM  = `Eres NOVA, la asistente inteligente de CODE CELLS®.
+  var NOVA_IDIOMA_NOMBRES = { es: 'español', en: 'inglés', pt: 'portugués' };
+  function buildNovaSystem(idioma) {
+    var nombreIdioma = NOVA_IDIOMA_NOMBRES[idioma] || NOVA_IDIOMA_NOMBRES.es;
+    return `Eres NOVA, la asistente inteligente de CODE CELLS®.
 
 CODE CELLS® es una plataforma de evaluación y optimización biológica 
 fundada por un especialista de la Red CODE CELLS® Iván Rodríguez Nava, el Dr. Juan Carlos 
@@ -1741,7 +1744,11 @@ IDENTIDAD Y TONO
 
 Tu nombre es NOVA.
 Eres cálida, inteligente y científicamente honesta.
-Hablas en español, de tú, con naturalidad — nunca robótica.
+Este paciente hizo el test en ${nombreIdioma} (código ${idioma}). Inicias y continúas la
+conversación en ese idioma, de tú, con naturalidad — nunca robótica. Si en cualquier
+momento el paciente te pide cambiar de idioma, o simplemente te escribe en uno distinto,
+cambias de inmediato y sigues la conversación en el idioma que use él, sin comentarlo ni
+pedir confirmación.
 No eres un médico. No diagnosticas. No alarmas.
 Tu función es escuchar, comprender y preparar al paciente 
 para su primera consulta con el especialista.
@@ -1901,6 +1908,7 @@ NUNCA des dosis, medicamentos ni tratamientos.
 NUNCA alarmes al paciente.
 NUNCA inventes información sobre cobertura, precios o disponibilidad.
 Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
+  }
 
   /* ─── Estado ─── */
   var novaHistory   = [];
@@ -2010,14 +2018,19 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
     sendBtn.disabled = true;
     showTyping();
 
+    // Idioma en el que el paciente hizo el test (lib/i18n.js) — nunca inferido
+    // del texto del mensaje, siempre viaja explícito en la petición.
+    var idioma = (typeof getLanguage === 'function') ? getLanguage() : 'es';
+
     fetch(NOVA_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model:      NOVA_MODEL,
         max_tokens: 1024,
-        system:     NOVA_SYSTEM,
-        messages:   novaHistory
+        system:     buildNovaSystem(idioma),
+        messages:   novaHistory,
+        idioma:     idioma
       })
     })
     .then(function(res) { return res.json(); })

@@ -504,6 +504,10 @@ HERRAMIENTA "respuesta_nova_paciente": SIEMPRE respondes usando esta herramienta
   }
 
   // Modo público por defecto
+  const NOMBRES_IDIOMA = { es: 'español', en: 'inglés', pt: 'portugués' };
+  const idiomaPublico = NOMBRES_IDIOMA[contexto.idioma] ? contexto.idioma : 'es';
+  const nombreIdiomaPublico = NOMBRES_IDIOMA[idiomaPublico];
+
   return `${IDENTIDAD}
 
 MODO: PÚBLICO
@@ -511,7 +515,12 @@ Eres el primer punto de contacto de CODE CELLS® con personas interesadas en med
 Tu objetivo es orientar, generar confianza y motivar al visitante a dar el siguiente paso:
 agendar una evaluación inicial con el equipo médico.
 No des indicaciones de tratamiento. No des precios específicos.
-Invita siempre a una evaluación personalizada.`;
+Invita siempre a una evaluación personalizada.
+
+Este visitante hizo el test en ${nombreIdiomaPublico} (código ${idiomaPublico}). Inicias y
+continúas la conversación en ese idioma. Si en cualquier momento te pide cambiar de idioma,
+o simplemente te escribe en uno distinto, cambias de inmediato y sigues en el idioma que use
+él, sin comentarlo ni pedir confirmación.`;
 }
 
 // ─── HANDLER PRINCIPAL ────────────────────────────────────────────
@@ -2420,6 +2429,7 @@ module.exports = async function handler(req, res) {
       messages,
       system: clientSystem,
       max_tokens,
+      idioma,
       // Identificadores de modo
       medicoCode,
       medicoNombre,
@@ -2606,10 +2616,17 @@ module.exports = async function handler(req, res) {
         vip: true,
       });
     } else {
-      // Modo público — permite system prompt del cliente solo en este modo
+      // Modo público — permite system prompt del cliente solo en este modo.
+      // idioma sí se valida y se usa siempre (aunque venga system del
+      // cliente), porque fix/lab-valores-fecha-idempotencia (93c6ab7) quita
+      // el destructure de `system` por completo en este modo — cuando ese
+      // merge llegue, esta rama deja de depender del system del cliente y
+      // buildSystemPrompt('publico') pasa a ser la única fuente. Que idioma
+      // ya viaje validado aquí evita que ese día haya que tocar este bloque.
+      const idiomaValido = ['es', 'en', 'pt'].includes(idioma) ? idioma : 'es';
       systemPrompt = typeof clientSystem === 'string'
         ? clientSystem.slice(0, 8000)
-        : buildSystemPrompt('publico');
+        : buildSystemPrompt('publico', { idioma: idiomaValido });
       herramientaDirectorio = buildHerramientaBuscarDirectorio();
     }
 
