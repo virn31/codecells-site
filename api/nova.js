@@ -301,6 +301,16 @@ const TBL_RECORDATORIOS      = 'tblw4tiZhPMbFhB8w';
 const TBL_SOLICITUDES_CITA   = 'tblIj7vRoMhLg9CsL';
 const TBL_REFERIDOS_VIP      = 'tblmPWoSdeSwfLJ6T';
 
+// Versión del aviso de privacidad ÚNICO (cubre /directorio, leads del test,
+// y CURP cuando entre — pendiente de revisión legal y domicilio fiscal).
+// Mientras empiece con "PLACEHOLDER", `registrar_lead` rechaza TODO intento
+// de registro — no se captura consentimiento real contra un texto que no
+// es el definitivo. Cuando llegue el texto final: cambiar este string a la
+// versión real (ej. "v1.0-2026-08-20") y sustituir el placeholder en
+// index.html por el aviso completo. Ese es el único paso para reactivar
+// el flujo — no tocar la lógica de `registrar_lead`.
+const AVISO_PRIVACIDAD_VERSION = 'PLACEHOLDER-pendiente-revision-legal';
+
 // Previews de Vercel de ESTE proyecto: codecells-site-<rama|hash>-<team>.vercel.app.
 // Solo Vercel emite esos subdominios para este proyecto, así que permitirlos es
 // seguro y desbloquea las pruebas en preview (si no, /api/nova da 403 en preview).
@@ -525,10 +535,19 @@ HERRAMIENTA "respuesta_nova_paciente": SIEMPRE respondes usando esta herramienta
 
 MODO: PÚBLICO
 Eres el primer punto de contacto de CODE CELLS® con personas interesadas en medicina regenerativa.
-Tu objetivo es orientar, generar confianza y motivar al visitante a dar el siguiente paso:
-agendar una evaluación inicial con el equipo médico.
-No des indicaciones de tratamiento. No des precios específicos.
-Invita siempre a una evaluación personalizada.`;
+Tu función aquí es informar, educar y derivar a la red — nada más.
+
+Quien te escribe puede haber tomado el test biológico de los 5 sistemas en la página, pero
+en este modo NO tienes su expediente ni sus resultados numéricos — no los inventes ni asumas
+un puntaje. Si te pregunta qué significa su resultado, explica en general qué mide cada
+sistema (CODE ENERGY™, CODE REPAIR™, CODE BALANCE™, CODE NEURO™, CODE REGEN™) y por qué vale
+la pena que un médico lo revise — nunca le digas qué tiene, qué le falta, ni interpretes un
+puntaje como si fuera un hallazgo clínico. Eso solo lo hace un médico, en consulta.
+
+No des indicaciones de tratamiento. No des precios específicos. No hagas orientación clínica
+de ningún tipo — ni diagnóstico, ni "esto podría ser", ni recomendaciones de suplementos o
+protocolos. Invita siempre a agendar una evaluación con el equipo médico como el siguiente
+paso.`;
 }
 
 // ─── HANDLER PRINCIPAL ────────────────────────────────────────────
@@ -1936,29 +1955,95 @@ Formato exacto:
     }
   }
 
-  // ─── REGISTRO PÚBLICO: alta de paciente desde el test de index.html ──
-  // Antes esto se calculaba y escribía 100% del lado del cliente (sin
-  // ninguna verificación de colisión). Ahora vive en el servidor y usa
-  // generarCodigoUnico (ver lib/codigos.js).
-  if (action === 'registro_publico_paciente') {
-    // PAUSADO (2026-08-15, urgente): este flujo creaba un expediente clínico
-    // PERMANENTE en PACIENTES (código CC-PAC- real, no un lead) desde el
-    // test público de index.html, con solo nombre + WhatsApp, SIN checkbox
-    // de consentimiento ni aviso de privacidad en el formulario — verificado
-    // en index.html: no hay ningún elemento de consentimiento cerca de
-    // #cf-nombre/#cf-wa. El registro quedaba bajo NOM-004/LFPDPPP sin el
-    // trámite de consentimiento que eso exige. Se detiene SOLO la escritura
-    // — la lógica original (generarCodigoUnico + POST a PACIENTES) vive en
-    // el historial de git de este archivo, no aquí, para no dejar código
-    // muerto. El rediseño (con consentimiento real) es aparte.
-    // El frontend (index.html) ya tiene un fallback para data.ok=false: en
-    // vez de "Entrar a tu Portal" muestra "Hablar ahora con NOVA" — no hace
-    // falta tocarlo.
-    return res.status(503).json({
-      ok: false,
-      error: 'El registro automático está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
-      motivo: 'registro_publico_pausado_por_consentimiento',
-    });
+  // ─── LEADS: captura pública (test biológico, directorio, etc.) ───────
+  // Reemplaza a `registro_publico_paciente` (pausada 2026-08-15). Esa acción
+  // creaba un expediente clínico PERMANENTE en PACIENTES desde un test
+  // público, sin consentimiento — ver CLAUDE.md §4: "un expediente clínico
+  // solo se crea cuando hay un médico responsable presente". Quien toma un
+  // test desde internet es un prospecto, no un paciente. Esta acción NUNCA
+  // toca PACIENTES/HISTORIA/LAB_VALORES — solo LEADS (tblfX4f6Bq6OXsvs2). La
+  // conversión a paciente es un acto humano de un médico (kiosco o dictado),
+  // nunca automático.
+  if (action === 'registrar_lead') {
+    try {
+      // Regla dura: no se captura consentimiento real contra un aviso
+      // placeholder. Mientras esta constante no sea el texto definitivo
+      // (pendiente de revisión legal y domicilio fiscal), la acción entera
+      // se rechaza — no hay forma de crear un lead sin aviso real, ni
+      // siquiera sin consentimiento marcado.
+      if (AVISO_PRIVACIDAD_VERSION.startsWith('PLACEHOLDER')) {
+        return res.status(503).json({
+          ok: false,
+          error: 'El registro está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
+          motivo: 'aviso_privacidad_pendiente',
+        });
+      }
+
+      const { nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento } = req.body || {};
+
+      if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
+        return res.status(400).json({ error: 'Falta el nombre.' });
+      }
+      if (!whatsapp || typeof whatsapp !== 'string' || !whatsapp.trim()) {
+        return res.status(400).json({ error: 'Falta el WhatsApp.' });
+      }
+      // Consentimiento explícito, nunca inferido. Sin esto, no se guarda
+      // absolutamente nada — ni siquiera el nombre.
+      if (consentimiento !== true) {
+        return res.status(400).json({ error: 'Se requiere aceptar el aviso de privacidad para continuar.' });
+      }
+
+      const ORIGENES_VALIDOS = ['Test biológico', 'Directorio', 'Otro'];
+      const origenFinal = ORIGENES_VALIDOS.includes(origen) ? origen : 'Otro';
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_LEADS = 'tblfX4f6Bq6OXsvs2';
+
+      const fields = {
+        'Nombre': nombre.trim().slice(0, 200),
+        'WhatsApp': whatsapp.trim().slice(0, 30),
+        'Origen': origenFinal,
+        'Consentimiento': true,
+        'Fecha de consentimiento': new Date().toISOString(),
+        'Versión del aviso': AVISO_PRIVACIDAD_VERSION,
+        'Estado': 'Nuevo',
+        'Fecha de creación': new Date().toISOString(),
+      };
+      if (typeof email === 'string' && email.trim()) fields['Email'] = email.trim().slice(0, 200);
+      if (typeof sistemaPrioritario === 'string' && sistemaPrioritario.trim()) {
+        fields['Sistema prioritario'] = sistemaPrioritario.trim().slice(0, 200);
+      }
+      // Los 5 scores, sin omitir ninguno — el bug anterior perdía BALANCE
+      // en silencio al construir este mismo tipo de objeto a mano.
+      if (scores && typeof scores === 'object') {
+        const MAPA_SCORES = {
+          energy: 'Score ENERGY', repair: 'Score REPAIR', balance: 'Score BALANCE',
+          neuro: 'Score NEURO', regen: 'Score REGEN',
+        };
+        for (const [clave, campo] of Object.entries(MAPA_SCORES)) {
+          if (typeof scores[clave] === 'number' && !Number.isNaN(scores[clave])) {
+            fields[campo] = Math.round(scores[clave]);
+          }
+        }
+      }
+
+      const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LEADS}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ typecast: true, records: [{ fields }] }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok || !createData.records?.[0]) {
+        console.error('[nova] registrar_lead error creando registro:', JSON.stringify(createData));
+        return res.status(502).json({ error: 'No se pudo guardar el registro. Intenta de nuevo.' });
+      }
+
+      return res.status(200).json({ ok: true, id: createData.records[0].id });
+    } catch (err) {
+      console.error('[nova] registrar_lead error:', err.message);
+      return res.status(500).json({ error: 'Error interno registrando el lead.' });
+    }
   }
 
   if (action === 'kiosco_crear_paciente') {
@@ -2867,7 +2952,6 @@ Formato exacto:
   try {
     const {
       messages,
-      system: clientSystem,
       max_tokens,
       // Identificadores de modo
       medicoCode,
@@ -3065,10 +3149,13 @@ Formato exacto:
         vip: true,
       });
     } else {
-      // Modo público — permite system prompt del cliente solo en este modo
-      systemPrompt = typeof clientSystem === 'string'
-        ? clientSystem.slice(0, 8000)
-        : buildSystemPrompt('publico');
+      // Modo público — SIEMPRE el prompt del servidor, sin excepción. Antes
+      // el cliente podía mandar su propio `system` y reemplazar la
+      // identidad de NOVA por completo (incluida la instrucción de nunca
+      // interpretar clínicamente un resultado) con un solo campo del POST.
+      // No hay validación de contenido posible que cierre eso de verdad —
+      // se deja de confiar en el campo, punto.
+      systemPrompt = buildSystemPrompt('publico');
       herramientaDirectorio = buildHerramientaBuscarDirectorio();
     }
 

@@ -93,6 +93,14 @@ fundador. Los cofundadores están sujetos a la misma regla que cualquier afiliad
   Cada `action` ahí es un `if` suelto, no un dispatcher — un endpoint médico
   nuevo que lea datos de paciente y no llame a la función es un agujero
   silencioso hasta que alguien lo note.
+- **Un expediente clínico solo se crea cuando hay un médico responsable
+  presente.** Kiosco (`kiosco_crear_paciente`) y alta por dictado en el chat
+  médico sí — hay un médico respondiendo por ese registro, física o
+  administrativamente. El test público no — quien lo toma desde internet es
+  un prospecto, no un paciente. Se guarda como lead en LEADS (`registrar_lead`,
+  con consentimiento explícito y aviso de privacidad real — nunca contra un
+  placeholder), nunca en PACIENTES. La conversión de lead a paciente es un
+  acto humano de un médico en consulta, nunca automática.
 
 ---
 
