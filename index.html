@@ -723,6 +723,23 @@
     display:none;
   }
   .capture-error.show{ display:block; }
+  .capture-consent{ margin-top:0.6rem; }
+  .capture-consent-label{
+    display:flex;
+    align-items:flex-start;
+    gap:0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height:1.5;
+    color: var(--ink-dim);
+    cursor:pointer;
+  }
+  .capture-consent-label input[type="checkbox"]{
+    margin-top:0.2rem;
+    flex-shrink:0;
+    width:16px; height:16px;
+    accent-color: var(--ink);
+  }
 
   .test-disclaimer{
     font-size: 0.78rem;
@@ -1204,13 +1221,6 @@
       return 'Buen funcionamiento';
     }
 
-    // saveToAirtable()/mostrarEstado() se retiraron (hotfix 2026-08-15):
-    // escribían Nombre + WhatsApp + scores a /api/airtable?tabla=temp sin
-    // ningún consentimiento, igual que registro_publico_paciente pero por
-    // otra ruta. Mismo criterio: no se recolecta nombre ni WhatsApp sin
-    // consentimiento, sin importar la tabla destino. El único call site
-    // vivía en el click de #captureSubmit — ver ahí.
-
     function renderResults(){
       setProgress(100);
       var scores = computeResults();
@@ -1248,6 +1258,19 @@
                 '<div class="capture-field"><label>WhatsApp *</label><input type="tel" id="cf-wa" placeholder="+52 667 000 0000" autocomplete="tel"></div>' +
               '</div>' +
               '<p class="capture-error" id="captureError">Por favor completa tu nombre y WhatsApp.</p>' +
+              // AVISO DE PRIVACIDAD — PLACEHOLDER explícito, pendiente de revisión legal
+              // y domicilio fiscal (cubrirá /directorio, este test, y CURP a futuro).
+              // NO sustituir por texto propio: cuando llegue el definitivo, se reemplaza
+              // aquí y se actualiza AVISO_PRIVACIDAD_VERSION en api/nova.js — es el único
+              // cambio necesario para reactivar el registro.
+              '<div class="capture-consent">' +
+                '<label class="capture-consent-label">' +
+                  '<input type="checkbox" id="cf-consent"> ' +
+                  'He leído y acepto el <strong>[PLACEHOLDER — aviso de privacidad pendiente de revisión legal]</strong> ' +
+                  'para el tratamiento de mis datos (nombre, WhatsApp y resultados de esta evaluación).' +
+                '</label>' +
+                '<p class="capture-error" id="captureConsentError">Debes aceptar el aviso de privacidad para continuar.</p>' +
+              '</div>' +
               '<p class="nova-pre-note">Completa tus datos para iniciar con NOVA, nuestra asistente IA que preparará tu consulta.</p>' +
               '<div class="capture-submit">' +
                 '<button class="btn-whatsapp" type="button" id="captureSubmit">' + waIcon + 'Enviar y continuar</button>' +
@@ -1260,100 +1283,98 @@
         '</div>';
 
       document.getElementById('captureSubmit').addEventListener('click', function(){
-        var nombre  = document.getElementById('cf-nombre').value.trim();
-        var wa      = document.getElementById('cf-wa').value.trim();
-        var errorEl = document.getElementById('captureError');
+        var nombre     = document.getElementById('cf-nombre').value.trim();
+        var wa         = document.getElementById('cf-wa').value.trim();
+        var errorEl    = document.getElementById('captureError');
+        var consentEl  = document.getElementById('cf-consent');
+        var consentErr = document.getElementById('captureConsentError');
         if(!nombre || !wa){ errorEl.classList.add('show'); return; }
         errorEl.classList.remove('show');
+        // Consentimiento expl\u00edcito, obligatorio \u2014 sin esto no se manda nada.
+        if(!consentEl || !consentEl.checked){
+          if(consentErr) consentErr.classList.add('show');
+          return;
+        }
+        if(consentErr) consentErr.classList.remove('show');
         var btn = document.getElementById('captureSubmit');
         btn.disabled = true;
         btn.innerHTML = waIcon + 'Guardando\u2026';
-
-        // Ya no se llama a saveToAirtable()/tabla=temp aquí (hotfix
-        // 2026-08-15): escribía Nombre + WhatsApp + scores sin
-        // consentimiento. Mismo criterio que registro_publico_paciente
-        // más abajo: no se recolecta nombre ni WhatsApp sin consentimiento,
-        // sin importar la tabla destino. Se pasa directo a lo que antes
-        // vivía en el .finally() de esa llamada retirada.
-        var _nombre = nombre;
-        var _wa     = wa;
         var _sistema = top.sys.name + ' (' + top.pct + '%)';
-        var _waMsg = 'Hola, hice la evaluación CODE CELLS™ y mi sistema prioritario es ' + _sistema + '. Me gustaría que un especialista revise mi mapa biológico.';
 
-        // Abrir WhatsApp en background
-        setTimeout(function(){
-          window.open('https://wa.me/526671264060?text=' + encodeURIComponent(_waMsg), '_blank');
-        }, 800);
-
-        // Si llegó por la vía influencer (descubre.html / bienestar.html),
-        // lo mandamos directo al Portal VIP en modo demo para que explore NOVA ahí,
-        // en vez de activar el chat embebido de esta misma página.
-        var cameFromInfluencer = params.get('src') === 'influencer';
-        if(cameFromInfluencer){
-          btn.disabled = false;
-          btn.className = 'btn-nova-cta';
-          btn.style.width = '100%';
-          btn.innerHTML = '🧬 Explorar tu Portal';
-          btn.onclick = function(){
-            window.location.href = 'portal-vip.html?demo=1';
-          };
-          setTimeout(function(){
-            window.location.href = 'portal-vip.html?demo=1';
-          }, 1400);
-          return;
-        }
-
-        // Transformar el botón mientras se crea su expediente de paciente
-        btn.disabled = false;
-        btn.className = 'btn-nova-cta';
-        btn.style.width = '100%';
-        btn.innerHTML = '🧬 Preparando tu expediente…';
-
-        var protocoloSugerido = top.pct >= 66 ? 'GENESIS™'
-                              : top.pct >= 33 ? 'ACTIVATE™'
-                              : 'RESTORE™';
-        var sistemaPrioritario = top.sys.name + ' (' + top.pct + '%)';
-
-        // Paciente regular (CC-PAC-), no VIP/DZW — el test público no
-        // otorga acceso VIP automáticamente. El código ahora se genera
-        // en el servidor (api/nova.js, acción registro_publico_paciente)
-        // con verificación anti-colisión — antes se calculaba aquí mismo
-        // en el navegador, sin ninguna verificación.
+        // Un solo registro, a LEADS (no PACIENTES, no TEMP) — vía
+        // api/nova.js `registrar_lead`. Todos los scores, incluido BALANCE
+        // (antes se perdía al armar el objeto a mano). Mientras el aviso de
+        // privacidad siga siendo el placeholder pendiente de revisión legal,
+        // el servidor rechaza esto con 503 y no se guarda nada.
         fetch('/api/nova', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'registro_publico_paciente',
-            nombre: _nombre,
-            whatsapp: _wa,
-            protocolo: protocoloSugerido,
-            notas: 'Alta automática desde test público. Sistema prioritario detectado: ' + sistemaPrioritario + '.'
+            action: 'registrar_lead',
+            nombre: nombre,
+            whatsapp: wa,
+            origen: 'Test biológico',
+            sistemaPrioritario: _sistema,
+            scores: {
+              energy:  pctMap['energy']  || 0,
+              repair:  pctMap['repair']  || 0,
+              balance: pctMap['balance'] || 0,
+              neuro:   pctMap['neuro']   || 0,
+              regen:   pctMap['regen']   || 0
+            },
+            consentimiento: true
           })
-        }).then(function(r){ return r.json(); }).then(function(data){
-          if(data.ok && data.codigo){
-            var nuevoCodigo = data.codigo;
-            btn.innerHTML = '📲 Entrar a tu Portal';
-            btn.onclick = function(){
-              window.location.href = 'mi-nivel.html?codigo=' + nuevoCodigo;
-            };
-            setTimeout(function(){
-              window.location.href = 'mi-nivel.html?codigo=' + nuevoCodigo;
-            }, 1200);
-          } else {
-            fallbackToNova();
-          }
-        }).catch(function(){
-          fallbackToNova();
-        });
-
-        function fallbackToNova(){
-          btn.innerHTML = '🧬 Hablar ahora con NOVA';
-          btn.onclick = function(){
-            if (typeof window.novaActivar === 'function') {
-              window.novaActivar(_nombre, _sistema);
+        })
+          .then(function(res){ return res.json(); })
+          .then(function(data){
+            if(!data.ok){
+              console.error('[lead] no se pudo registrar:', data.error, data.motivo);
             }
-          };
-        }
+          })
+          .catch(function(err){
+            console.error('[lead] error de conexi\u00f3n:', err);
+          })
+          .finally(function(){
+            var _waMsg = 'Hola, hice la evaluación CODE CELLS™ y mi sistema prioritario es ' + _sistema + '. Me gustaría que un especialista revise mi mapa biológico.';
+
+            // Abrir WhatsApp en background — independiente de si el registro
+            // se guardó o no, el usuario ya escribió su mensaje.
+            setTimeout(function(){
+              window.open('https://wa.me/526671264060?text=' + encodeURIComponent(_waMsg), '_blank');
+            }, 800);
+
+            // Si llegó por la vía influencer (descubre.html / bienestar.html),
+            // lo mandamos directo al Portal VIP en modo demo para que explore NOVA ahí,
+            // en vez de activar el chat embebido de esta misma página.
+            var cameFromInfluencer = params.get('src') === 'influencer';
+            if(cameFromInfluencer){
+              btn.disabled = false;
+              btn.className = 'btn-nova-cta';
+              btn.style.width = '100%';
+              btn.innerHTML = '🧬 Explorar tu Portal';
+              btn.onclick = function(){
+                window.location.href = 'portal-vip.html?demo=1';
+              };
+              setTimeout(function(){
+                window.location.href = 'portal-vip.html?demo=1';
+              }, 1400);
+              return;
+            }
+
+            // Nunca se crea expediente ni se redirige a un portal — un lead
+            // no es un paciente (CLAUDE.md §4). El siguiente paso es siempre
+            // conversar con NOVA en modo público (informar/educar/derivar),
+            // nunca "Entrar a tu Portal".
+            btn.disabled = false;
+            btn.className = 'btn-nova-cta';
+            btn.style.width = '100%';
+            btn.innerHTML = '🧬 Hablar ahora con NOVA';
+            btn.onclick = function(){
+              if (typeof window.novaActivar === 'function') {
+                window.novaActivar(nombre, _sistema);
+              }
+            };
+          });
       });
 
       document.getElementById('testRestartBtn').addEventListener('click', function(){

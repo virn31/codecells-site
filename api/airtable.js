@@ -17,6 +17,7 @@
 
 const { verificarToken, tokenDesdeRequest, generarTokenVisitante } = require('../lib/auth');
 const { sendTelegramMessage } = require('../lib/telegram');
+const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
 
 const BASE_ID = 'app6jyD9pDlTLpknA';
 
@@ -67,6 +68,13 @@ const CAMPO_DUENIO = {
 // Tablas de referencia, sin datos personales — lectura pública permitida
 // (nunca escritura) incluso sin token, porque no exponen nada sensible.
 const TABLAS_LECTURA_PUBLICA = new Set(['protocolos']);
+
+// Tablas con expediente de UN paciente (no la lista) a las que el rol
+// médico necesita acceso — cada una debe pasar por autorizarPaciente()
+// antes de llegar al reenvío genérico. 'pacientes' se scopea aparte
+// (es una LISTA de pacientes, no el expediente de uno) pero también se
+// marca como cubierta — ver medicoFiltroAplicado más abajo.
+const TABLAS_EXPEDIENTE_MEDICO = new Set(['historia', 'consultas', 'labs']);
 
 // Campos que el DIRECTORIO expone al público. TODO campo no listado aquí
 // (Médico linkado, Fecha de alta, Última actualización) queda BLOQUEADO
@@ -618,6 +626,22 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Falta codigoPaciente.' });
     }
 
+    // El médico SÍ puede pedir el código de cualquier paciente por query —
+    // pero antes no se verificaba que fuera suyo (Pendiente 3 de 630c106):
+    // cualquier CC-PAC- ajeno devolvía sus series. autorizarPaciente()
+    // decide; el 403 es el mismo "Paciente no disponible" que el resto.
+    if (sesion.tipo === 'medico') {
+      try {
+        const auth = await autorizarPaciente(sesion.codigo, codigoPaciente);
+        codigoPaciente = auth.codigo;
+      } catch (err) {
+        if (err instanceof ErrorAutorizacion) {
+          return res.status(err.status).json({ error: err.message });
+        }
+        return res.status(err.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+    }
+
     const codigos = String(req.query.codigos || '')
       .split(',').map(s => s.trim()).filter(Boolean);
     if (!codigos.length) {
@@ -764,15 +788,23 @@ module.exports = async (req, res) => {
     delete req.body.credencialPreAuth;
   }
 
+  // Se marca en 'true' solo cuando el rol médico pasó por una restricción
+  // real (autorizarPaciente() o el filtro propio de 'pacientes') para una
+  // tabla con expediente de paciente. Guard justo antes del reenvío
+  // genérico (ver más abajo): una tabla nueva que se agregue a
+  // TABLAS_EXPEDIENTE_MEDICO sin escribir su bloque cae aquí en vez de al
+  // reenvío sin filtro — falla cerrado, no abierto.
+  let medicoFiltroAplicado = false;
+
   // ── Autorización por rol (solo aplica cuando hay sesión real) ──
   if (sesion) {
     const { tipo, codigo } = sesion;
 
     if (tipo === 'medico') {
-      // Acceso amplio a las tablas clínicas — igual que hoy (interconsulta
-      // entre médicos por código de paciente sigue funcionando). Nunca
-      // permite escribir en MÉDICOS a través de este proxy genérico —
-      // cambios de certificación/nivel se hacen por vías controladas propias.
+      // Ya NO hay acceso amplio a las tablas clínicas: historia, consultas
+      // y labs pasan por TABLAS_EXPEDIENTE_MEDICO más abajo. Nunca permite
+      // escribir en MÉDICOS a través de este proxy genérico — cambios de
+      // certificación/nivel se hacen por vías controladas propias.
       if (tabla === 'medicos' && req.method !== 'GET') {
         return res.status(403).json({ error: 'No permitido: la tabla de médicos no se modifica por este proxy.' });
       }
@@ -825,6 +857,128 @@ module.exports = async (req, res) => {
             }
             fields['Última actualización'] = new Date().toISOString();
             req.body.fields = fields;
+          } catch (err) {
+            return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
+          }
+        }
+      }
+
+      // ── PACIENTES: el médico ve SOLO los suyos + los demo + el de
+      //    interconsulta. El filterByFormula del cliente se IGNORA y se
+      //    reemplaza (igual que paciente/vip). La interconsulta llega como
+      //    ?pacienteBuscado=CC-PAC-XXXX exacto. Sin excepción por nivel ni
+      //    fundador — la visibilidad se decide aquí, en el servidor.
+      if (tabla === 'pacientes') {
+        medicoFiltroAplicado = true;
+        const q = '"';
+        const codEsc = escaparFormula(codigo);
+        // Match EXACTO por token contra ARRAYJOIN del link (","&...&","), para
+        // que CCMED-JORGE no cace CCMED-JORGE01. El primario de MÉDICOS es el
+        // código, así que ARRAYJOIN({Médico_principal}) devuelve los CCMED-.
+        const filtroPropios =
+          `FIND(${q},${codEsc},${q}, ${q},${q} & ARRAYJOIN({Médico_principal}, ${q},${q}) & ${q},${q}) > 0`;
+        const filtroLista = `OR(${filtroPropios}, {Es demo}=1)`;
+
+        const buscado = String(req.query.pacienteBuscado || '').trim();
+        const esInterconsulta = /^CC-PAC-[A-Z0-9]{4,8}$/.test(buscado);
+        // pacienteBuscado es señal de ESTA petición: nunca un campo real ni se
+        // reenvía a Airtable.
+        delete req.query.pacienteBuscado;
+
+        if (req.method === 'GET') {
+          req.query.filterByFormula = esInterconsulta
+            ? `{Código de paciente}="${escaparFormula(buscado)}"`
+            : filtroLista;
+        } else if (req.method === 'POST') {
+          // Todo paciente que cree el médico queda atribuido a él.
+          const recordIdMedico = await obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN);
+          if (!recordIdMedico) {
+            return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
+          }
+          const fields = (req.body && req.body.fields) || {};
+          req.body.fields = { ...fields, 'Médico_principal': [recordIdMedico] };
+        } else if (req.method === 'PATCH') {
+          const { recordId } = req.query;
+          if (!recordId) return res.status(400).json({ error: 'Falta recordId.' });
+          const recordIdMedico = await obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN);
+          if (!recordIdMedico) {
+            return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
+          }
+          try {
+            const check = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${tableId}/${recordId}`, {
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+            });
+            if (!check.ok) {
+              return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
+            }
+            const f = (await check.json()).fields || {};
+            const linkMedico = Array.isArray(f['Médico_principal']) ? f['Médico_principal'] : [];
+            const esPropio = linkMedico.includes(recordIdMedico);
+            const esInterconsultaPatch = esInterconsulta && f['Código de paciente'] === buscado;
+            // Los pacientes demo son SOLO LECTURA para el médico (CLAUDE.md §4):
+            // no se incluyen en la condición de escritura — solo propio o interconsulta.
+            if (!esPropio && !esInterconsultaPatch) {
+              return res.status(403).json({ error: 'No puedes modificar un paciente que no es tuyo.' });
+            }
+          } catch (err) {
+            return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
+          }
+        }
+      }
+
+      // ── HISTORIA / CONSULTAS / LABS: expediente de UN paciente. Antes de
+      //    este bloque, un médico con sesión válida caía al reenvío
+      //    genérico y podía leer o escribir el expediente de CUALQUIER
+      //    paciente con solo cambiar el filterByFormula del query string
+      //    (Pendiente 3 de 630c106). Ahora pasan por autorizarPaciente():
+      //    la intención viaja en ?pacienteBuscado= explícito, nunca se
+      //    parsea el filtro que mande el cliente.
+      if (TABLAS_EXPEDIENTE_MEDICO.has(tabla)) {
+        medicoFiltroAplicado = true;
+        const campoDuenio = CAMPO_DUENIO[tabla];
+        const pacienteBuscado = String(req.query.pacienteBuscado || '').trim();
+        delete req.query.pacienteBuscado;
+        // Solo CONSULTAS distingue "mis consultas" de "todas" (interconsulta);
+        // el médico de referencia SIEMPRE es el del token, nunca uno que
+        // mande el cliente en el query string.
+        const soloMias = tabla === 'consultas' && req.query.soloMias === '1';
+        delete req.query.soloMias;
+
+        if (!pacienteBuscado) {
+          return res.status(400).json({ error: 'Falta pacienteBuscado.' });
+        }
+
+        let auth;
+        try {
+          auth = await autorizarPaciente(codigo, pacienteBuscado, { requiereEscritura: req.method !== 'GET' });
+        } catch (err) {
+          if (err instanceof ErrorAutorizacion) {
+            return res.status(err.status).json({ error: err.message });
+          }
+          return res.status(err.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+        }
+
+        if (req.method === 'GET') {
+          req.query.filterByFormula = soloMias
+            ? `AND({${campoDuenio}}="${escaparFormula(auth.codigo)}", {Código de médico ref}="${escaparFormula(codigo)}")`
+            : `{${campoDuenio}}="${escaparFormula(auth.codigo)}"`;
+        } else if (req.method === 'POST') {
+          const fields = (req.body && req.body.fields) || {};
+          if (fields[campoDuenio] !== undefined && fields[campoDuenio] !== auth.codigo) {
+            return res.status(403).json({ error: 'No puedes crear registros a nombre de otro código.' });
+          }
+          req.body.fields = { ...fields, [campoDuenio]: auth.codigo };
+        } else if (req.method === 'PATCH') {
+          const { recordId } = req.query;
+          if (!recordId) return res.status(400).json({ error: 'Falta recordId.' });
+          try {
+            const check = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${tableId}/${recordId}`, {
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+            });
+            const checkData = await check.json();
+            if (!check.ok || checkData.fields?.[campoDuenio] !== auth.codigo) {
+              return res.status(403).json({ error: 'No puedes modificar un registro que no es de este paciente.' });
+            }
           } catch (err) {
             return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
           }
@@ -891,6 +1045,21 @@ module.exports = async (req, res) => {
         }
       }
     }
+  }
+
+  // ── Red de seguridad: un médico nunca llega al reenvío genérico contra
+  //    una tabla de expediente sin haber pasado por un filtro real. Si
+  //    alguien agrega una tabla a TABLAS_EXPEDIENTE_MEDICO (o a la lista de
+  //    'pacientes' de arriba) y olvida escribir su bloque de autorización,
+  //    esto la bloquea en vez de dejarla caer al filterByFormula crudo del
+  //    cliente — falla cerrado (CLAUDE.md §4).
+  if (
+    sesion &&
+    sesion.tipo === 'medico' &&
+    (tabla === 'pacientes' || TABLAS_EXPEDIENTE_MEDICO.has(tabla)) &&
+    !medicoFiltroAplicado
+  ) {
+    return res.status(403).json({ error: 'Paciente no disponible' });
   }
 
   // ── Reenvío real a Airtable ──

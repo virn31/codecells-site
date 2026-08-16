@@ -29,6 +29,15 @@ try {
 // detalle honesto de qué tanto esto "asegura" contra Airtable.
 const { generarCodigoUnico } = require('../lib/codigos');
 
+// Verificación de sesión + autorización médico↔paciente. medico_tabla_labs
+// y medico_resumen_labs no pedían NINGUNA identidad de médico — ni siquiera
+// el formato de medicoCode que otras acciones sí exigen — así que cualquiera
+// con un pacienteCode válido leía los labs de ese paciente sin sesión de
+// ningún tipo (Pendiente 3 de 630c106). Ahora exigen el mismo token
+// Authorization: Bearer que ya usa /api/airtable.
+const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
+const { autorizarPaciente, ErrorAutorizacion, MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
+
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
 const TAXONOMIA_PATOLOGIAS = ["Obesidad","Sobrepeso","Diabetes Tipo 2","Prediabetes","Resistencia a la Insulina",
@@ -292,9 +301,25 @@ const TBL_RECORDATORIOS      = 'tblw4tiZhPMbFhB8w';
 const TBL_SOLICITUDES_CITA   = 'tblIj7vRoMhLg9CsL';
 const TBL_REFERIDOS_VIP      = 'tblmPWoSdeSwfLJ6T';
 
+// Versión del aviso de privacidad ÚNICO (cubre /directorio, leads del test,
+// y CURP cuando entre — pendiente de revisión legal y domicilio fiscal).
+// Mientras empiece con "PLACEHOLDER", `registrar_lead` rechaza TODO intento
+// de registro — no se captura consentimiento real contra un texto que no
+// es el definitivo. Cuando llegue el texto final: cambiar este string a la
+// versión real (ej. "v1.0-2026-08-20") y sustituir el placeholder en
+// index.html por el aviso completo. Ese es el único paso para reactivar
+// el flujo — no tocar la lógica de `registrar_lead`.
+const AVISO_PRIVACIDAD_VERSION = 'PLACEHOLDER-pendiente-revision-legal';
+
+// Previews de Vercel de ESTE proyecto: codecells-site-<rama|hash>-<team>.vercel.app.
+// Solo Vercel emite esos subdominios para este proyecto, así que permitirlos es
+// seguro y desbloquea las pruebas en preview (si no, /api/nova da 403 en preview).
+const VERCEL_PREVIEW_ORIGIN = /^https:\/\/codecells-site-[a-z0-9-]+\.vercel\.app$/;
+
 function isAllowedOrigin(origin) {
   if (!origin) return false;
-  return ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+  if (ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return true;
+  return VERCEL_PREVIEW_ORIGIN.test(origin);
 }
 
 // ─── SYSTEM PROMPT MAESTRO DE NOVA ───────────────────────────────
@@ -463,6 +488,8 @@ DICTADO DE LABORATORIOS/ESTUDIOS — CUÁL HERRAMIENTA USAR (CRÍTICO, no confun
 - Si el médico dicta UN solo corte (los resultados de HOY, de la consulta que está haciendo ahora): usa rellenar_ficha_consulta. Esto NO guarda nada en Airtable todavía — solo llena el formulario en pantalla, y el médico debe presionar "Guardar consulta". Nunca digas "guardé" o "actualicé el expediente" con esta herramienta — di que quedó listo en el formulario para revisar.
 - Si el médico dicta resultados de DOS O MÁS fechas distintas del pasado (reconstruyendo el historial de labs/imagen de un paciente, ej. "el 15 de abril tenía esto, el 18 de mayo esto otro, el 21 de junio esto"): usa guardar_series_historicas_laboratorio. Esta SÍ escribe de inmediato en NOVA LABS y LAB_VALORES, una por cada fecha — solo confirma que se guardó DESPUÉS de que la herramienta te devuelva el resultado, nunca antes.
 - NUNCA afirmes que datos quedaron guardados, reflejados en la ficha, o disponibles en NOVA LABS si no llamaste a la herramienta correspondiente y confirmaste su resultado — eso desinforma al médico sobre el estado real del expediente.
+- Si el médico menciona un PDF/foto/archivo de un estudio, o pide que lo "cargues", "subas", "leas" o "guardes" en el expediente: NO recibes archivos en el chat y NUNCA escribes un estudio a LAB_VALORES desde aquí — sería saltarse la validación del paciente destinatario. Dirígelo al botón "Subir estudio" en la pestaña de laboratorios del portal: ahí se teclea el código del paciente y se compara el nombre impreso del documento antes de guardar. Sí puedes comentar clínicamente los valores si el médico te los describe en texto.
+- ALTA DE PACIENTE (crear_paciente_dictado): NO asumas que un paciente dictado es nuevo solo porque no está seleccionado en pantalla — muchos ya están registrados. El backend verifica duplicados por nombre y te devolverá candidatos si los hay; cuando eso pase, PREGÚNTALE al médico cuál es (o si es un homónimo nuevo) y re-llama la herramienta con codigo_paciente_existente o confirmar_nuevo. Nunca crees un expediente nuevo en silencio cuando hay un candidato con el mismo nombre — fragmentaría el historial del paciente.
 
 PACIENTE DEMO (para practicar el uso del portal):
 Existe un paciente de práctica compartido para todos los médicos: código CC-PAC-DEMO01, nombre "Paciente Demo". Si el médico es nuevo, pregunta cómo funciona el portal, o parece confundido usándolo, sugiérele con naturalidad escribir ese código en la sección "Paciente compartido" del portal (barra lateral, junto a "Ver") — ahí puede ver un expediente real, crear una consulta de prueba, generar un plan nutricional, etc., sin tocar información de un paciente real. Aclara que es el mismo paciente para todos los médicos (no es privado de nadie), así que no debe registrar información sensible real ahí.
@@ -512,10 +539,19 @@ HERRAMIENTA "respuesta_nova_paciente": SIEMPRE respondes usando esta herramienta
 
 MODO: PÚBLICO
 Eres el primer punto de contacto de CODE CELLS® con personas interesadas en medicina regenerativa.
-Tu objetivo es orientar, generar confianza y motivar al visitante a dar el siguiente paso:
-agendar una evaluación inicial con el equipo médico.
-No des indicaciones de tratamiento. No des precios específicos.
-Invita siempre a una evaluación personalizada.
+Tu función aquí es informar, educar y derivar a la red — nada más.
+
+Quien te escribe puede haber tomado el test biológico de los 5 sistemas en la página, pero
+en este modo NO tienes su expediente ni sus resultados numéricos — no los inventes ni asumas
+un puntaje. Si te pregunta qué significa su resultado, explica en general qué mide cada
+sistema (CODE ENERGY™, CODE REPAIR™, CODE BALANCE™, CODE NEURO™, CODE REGEN™) y por qué vale
+la pena que un médico lo revise — nunca le digas qué tiene, qué le falta, ni interpretes un
+puntaje como si fuera un hallazgo clínico. Eso solo lo hace un médico, en consulta.
+
+No des indicaciones de tratamiento. No des precios específicos. No hagas orientación clínica
+de ningún tipo — ni diagnóstico, ni "esto podría ser", ni recomendaciones de suplementos o
+protocolos. Invita siempre a agendar una evaluación con el equipo médico como el siguiente
+paso.
 
 Este visitante hizo el test en ${nombreIdiomaPublico} (código ${idiomaPublico}). Inicias y
 continúas la conversación en ese idioma. Si en cualquier momento te pide cambiar de idioma,
@@ -808,7 +844,19 @@ module.exports = async function handler(req, res) {
   if (action === 'paciente_subir_estudio') {
     try {
       const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      // El paciente sube estudios a SU PROPIO expediente — no es un caso de
+      // autorizarPaciente() (eso es médico→paciente). Aquí basta con que la
+      // sesión sea de tipo 'paciente' y que su código sea el mismo que pide.
+      const sesionPac = verificarToken(tokenDesdeRequest(req));
+      if (!sesionPac || sesionPac.tipo !== 'paciente') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      if (sesionPac.codigo !== pacienteCode) {
+        return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
+      }
+
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
       const esPDF = mediaType === 'application/pdf';
       const esImagen = mediaType.startsWith('image/');
@@ -924,6 +972,10 @@ module.exports = async function handler(req, res) {
           const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
           const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
           const relevantes = analitos.filter(a => a.relevante);
+          // §0.1: la fecha se toma del documento; si no es legible NO se asume hoy.
+          // Este path corre en 2º plano (subida del paciente) y no tiene canal para
+          // preguntarla, así que sin fecha válida NO se vuelca a LAB_VALORES.
+          const fechaEstudio = esFechaISO(extraido.fecha_estudio) ? extraido.fecha_estudio.trim() : null;
 
           const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
             method: 'POST',
@@ -932,7 +984,7 @@ module.exports = async function handler(req, res) {
               typecast: true,
               fields: {
                 'Código de paciente ref': pacienteCode,
-                'Fecha de resultados': extraido.fecha_estudio || new Date().toISOString().slice(0, 10),
+                ...(fechaEstudio ? { 'Fecha de resultados': fechaEstudio } : {}),
                 'Panel solicitado': panel,
                 'Tipo de estudio': tipoEstudio,
                 'Resultados (texto)': JSON.stringify(analitos),
@@ -961,10 +1013,11 @@ module.exports = async function handler(req, res) {
             const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
             const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
             const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
-            const fechaEstudio = extraido.fecha_estudio || new Date().toISOString().slice(0, 10);
+            const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
             const registrosValores = analitos.filter(a => a.nombre).map(a => {
               const banderaCap = capitalizar(a.bandera);
               const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+              const cat = matchAnalito(a.nombre); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
               return {
                 fields: {
                   'Analito': a.nombre,
@@ -973,21 +1026,36 @@ module.exports = async function handler(req, res) {
                   'Unidad': a.unidad || '',
                   'Rango de referencia': a.rango_texto || '',
                   'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-                  'Es crítico': !!a.critico,
-                  'Relevante a patología': !!a.relevante,
+                  [LV_CRITICO]: !!a.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
+                  [LV_RELEVANTE]: !!a.relevante,   // §0.3: sin hardcode a true
                   'Fecha del estudio': fechaEstudio,
                   'Código de paciente ref': pacienteCode,
                   'Paciente': [pacRecord.id],
                   'Estudio (NOVA LABS)': [crearData.id],
+                  ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
                 },
               };
             });
-            for (let i = 0; i < registrosValores.length; i += 50) {
-              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ typecast: true, records: registrosValores.slice(i, i + 50) }),
-              }).catch(e => console.error('[nova] error creando LAB_VALORES:', e.message));
+            // §0.1 + §6: sin fecha válida no se escribe; con fecha, idempotencia por
+            // paciente+fecha+analito antes de crear (resubir el mismo PDF no duplica).
+            if (!fechaEstudio) {
+              console.warn(`[nova] LAB_VALORES omitido: estudio de ${pacienteCode} sin fecha legible; el médico debe fecharlo desde el portal.`);
+            } else if (registrosValores.length) {
+              const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, fechaEstudio);
+              if (!existentes) {
+                console.error(`[nova] LAB_VALORES: no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${fechaEstudio}.`);
+              } else {
+                const { nuevos, duplicados, conflictos } = separarNuevosYConflictos(registrosValores, existentes);
+                if (conflictos.length) console.warn('[nova] LAB_VALORES conflictos (mismo paciente/fecha/analito, valor distinto — NO sobrescritos):', JSON.stringify(conflictos));
+                if (duplicados.length) console.info(`[nova] LAB_VALORES: ${duplicados.length} duplicado(s) omitido(s).`);
+                for (let i = 0; i < nuevos.length; i += 50) {
+                  await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ typecast: true, records: nuevos.slice(i, i + 50) }),
+                  }).catch(e => console.error('[nova] error creando LAB_VALORES:', e.message));
+                }
+              }
             }
           } else {
             console.error('[nova] error creando registro NOVA LABS:', JSON.stringify(crearData));
@@ -1011,7 +1079,17 @@ module.exports = async function handler(req, res) {
   if (action === 'paciente_comparativo_labs') {
     try {
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      // Mismo patrón que paciente_subir_estudio: el paciente lee SU PROPIO
+      // comparativo, no el de otro — autorizarPaciente() no aplica aquí.
+      const sesionPac = verificarToken(tokenDesdeRequest(req));
+      if (!sesionPac || sesionPac.tipo !== 'paciente') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      if (sesionPac.codigo !== pacienteCode) {
+        return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1056,7 +1134,21 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_tabla_labs') {
     try {
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      const sesion = verificarToken(tokenDesdeRequest(req));
+      if (!sesion || sesion.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      try {
+        await autorizarPaciente(sesion.codigo, pacienteCode);
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_tabla_labs autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1087,6 +1179,29 @@ module.exports = async function handler(req, res) {
         return cat ? cat.nombre : 'Otros Estudios';
       };
 
+      // La categoría clínica la MANDA el catálogo (CATALOGO_PARAMETROS · panel),
+      // no la lista de palabras clave — esa queda solo como respaldo para analitos
+      // sin match. Antes "Altura de fondo uterino" caía en Función Hepática porque
+      // "altura" contiene "alt" (substring de ALT/AST); el catálogo la marca como
+      // Control prenatal y es lo que se respeta.
+      const matcher = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
+      const ETIQUETAS_CATEGORIA = {
+        metabolico: 'Metabólico', perfil_lipidico: 'Perfil lipídico',
+        perfil_hepatico: 'Perfil hepático', funcion_renal: 'Función renal',
+        electrolitos: 'Electrolitos', biometria: 'Biometría hemática',
+        biometria_hematica: 'Biometría hemática', inflamacion: 'Marcadores inflamatorios',
+        perfil_tiroideo: 'Perfil tiroideo', antropometria: 'Antropometría',
+        composicion_corporal: 'Composición corporal', tension_arterial: 'Tensión arterial',
+        seguimiento_glp1: 'Seguimiento GLP-1', control_prenatal: 'Control prenatal',
+      };
+      const etiquetaCategoria = slug => ETIQUETAS_CATEGORIA[slug] || String(slug).replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+      // Categoría del catálogo vía el link Parametro del registro → recId → categoría.
+      const categoriaDeCatalogo = linkParametro => {
+        const recId = Array.isArray(linkParametro) && linkParametro.length ? linkParametro[0] : null;
+        const slug = recId ? (matcher.porRecId.get(recId) || {}).categoria : '';
+        return slug ? etiquetaCategoria(slug) : null;
+      };
+
       const fechasSet = new Set();
       const porAnalito = {};
       registros.forEach(r => {
@@ -1095,14 +1210,26 @@ module.exports = async function handler(req, res) {
         const fecha = f['Fecha del estudio'] || '';
         fechasSet.add(fecha);
         if (!porAnalito[f['Analito']]) {
+          const catCat = categoriaDeCatalogo(f['Parametro']);
           porAnalito[f['Analito']] = {
             analito: f['Analito'],
-            categoria: clasificar(f['Analito']),
+            categoria: catCat || clasificar(f['Analito']),
+            _catDelCatalogo: !!catCat,
             unidad: f['Unidad'] || '',
             rango_texto: f['Rango de referencia'] || '',
+            // graficable: tiene Parametro enlazado en al menos un corte. Sin
+            // Parametro nunca entra al motor de gráficas (§3.5) — se marca en la
+            // tabla para que el médico sepa cuáles no van a graficar jamás.
+            graficable: false,
             porFecha: {},
           };
         }
+        // Un corte posterior con match al catálogo prevalece sobre el keyword de respaldo.
+        if (!porAnalito[f['Analito']]._catDelCatalogo) {
+          const catCat = categoriaDeCatalogo(f['Parametro']);
+          if (catCat) { porAnalito[f['Analito']].categoria = catCat; porAnalito[f['Analito']]._catDelCatalogo = true; }
+        }
+        if (Array.isArray(f['Parametro']) && f['Parametro'].length) porAnalito[f['Analito']].graficable = true;
         porAnalito[f['Analito']].porFecha[fecha] = {
           valor: f['Valor'] || '', valorNum: f['Valor numérico'], bandera: f['Bandera'] || 'Indeterminado',
           critico: !!f['Es crítico'], estudioId: (f['Estudio (NOVA LABS)'] || [])[0] || null,
@@ -1114,7 +1241,7 @@ module.exports = async function handler(req, res) {
           porAnalito[f['Analito']]._ultimaFechaVista = fecha;
         }
       });
-      Object.values(porAnalito).forEach(a => delete a._ultimaFechaVista);
+      Object.values(porAnalito).forEach(a => { delete a._ultimaFechaVista; delete a._catDelCatalogo; });
 
       const fechas = [...fechasSet].sort();
       const filas = Object.values(porAnalito).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.analito.localeCompare(b.analito));
@@ -1135,7 +1262,21 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_resumen_labs') {
     try {
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+
+      const sesion = verificarToken(tokenDesdeRequest(req));
+      if (!sesion || sesion.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      try {
+        await autorizarPaciente(sesion.codigo, pacienteCode);
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_resumen_labs autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1279,35 +1420,52 @@ module.exports = async function handler(req, res) {
 
   if (action === 'medico_guardar_labs_rapidos') {
     try {
-      const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId, fechaEstudio } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      // §0.1: la fecha del estudio se confirma explícitamente; nunca se asume hoy.
+      // Sin fecha válida no se escribe nada (el front debe enviar fechaEstudio ISO).
+      const fecha = esFechaISO(fechaEstudio) ? fechaEstudio.trim() : null;
+      if (!fecha) return res.status(400).json({ error: 'Falta la fecha del estudio (YYYY-MM-DD). No se asume la fecha de hoy.', necesitaFecha: true });
+
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_guardar_labs_rapidos autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
 
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
-
+      // auth.recId ya es el recordId del paciente resuelto por autorizarPaciente()
+      // — no se vuelve a buscar ni se reusa el pacienteCode crudo del body.
       const filas = Array.isArray(valoresRapidos) ? valoresRapidos.filter(v => v && v.analito && String(v.analito).trim()) : [];
-      const hoy = new Date().toISOString().slice(0, 10);
 
       const textoAuto = filas.length ? filas.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''}`.trim()).join('\n') : '';
       const fueraDeRangoAuto = filas.filter(v => v.bandera === 'Alto' || v.bandera === 'Bajo')
         .map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''} (${v.bandera})`).join('\n');
 
+      const ahoraISO = new Date().toISOString();
       const labFields = {
-        'Código de paciente ref': pacienteCode,
-        'Paciente': [pacRecord.id],
+        'Código de paciente ref': auth.codigo,
+        'Paciente': [auth.recId],
         'Panel solicitado': panel || 'Personalizado',
         'Tipo de estudio': tipoEstudio || 'Laboratorio',
         'Resultados (texto)': (resultadosTexto && resultadosTexto.trim()) || textoAuto || 'Sin resultados capturados.',
-        'Fecha de resultados': hoy,
+        'Fecha de resultados': fecha,
+        'Registrado por': [auth.medicoRecId],
+        'Fecha de registro': ahoraISO,
       };
       const fueraFinal = (fueraDeRango && fueraDeRango.trim()) || fueraDeRangoAuto;
       if (fueraFinal) labFields['Valores fuera de rango'] = fueraFinal;
@@ -1324,10 +1482,13 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'No se pudo guardar el laboratorio.' });
       }
 
+      let creados = 0, duplicados = 0, conflictos = [], labValoresError = null;
       if (filas.length) {
+        const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
         const registrosValores = filas.map(v => {
           const banderaCap = banderasValidas.includes(v.bandera) ? v.bandera : 'Indeterminado';
           const numMatch = String(v.valor || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+          const cat = matchAnalito(v.analito); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
           return {
             fields: {
               'Analito': v.analito,
@@ -1336,189 +1497,562 @@ module.exports = async function handler(req, res) {
               'Unidad': v.unidad || '',
               'Rango de referencia': v.rango || '',
               'Bandera': banderaCap,
-              'Es crítico': !!v.critico,
-              'Relevante a patología': true, // el médico lo capturó a propósito en consultorio
-              'Fecha del estudio': hoy,
-              'Código de paciente ref': pacienteCode,
-              'Paciente': [pacRecord.id],
+              [LV_CRITICO]: !!v.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
+              [LV_RELEVANTE]: !!v.relevante,   // §0.3: sin hardcode a true — solo si el médico lo marca
+              'Fecha del estudio': fecha,
+              'Código de paciente ref': auth.codigo,
+              'Paciente': [auth.recId],
               'Estudio (NOVA LABS)': [crearData.id],
+              'Registrado por': [auth.medicoRecId],
+              'Fecha de registro': ahoraISO,
+              ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
             },
           };
         });
-        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ typecast: true, records: registrosValores }),
-        }).catch(e => console.error('[nova] error creando LAB_VALORES (dictado médico):', e.message));
+        // §6: idempotencia por paciente+fecha+analito antes de crear.
+        const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, auth.codigo, fecha);
+        if (!existentes) {
+          labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
+          console.error(`[nova] LAB_VALORES (dictado médico): no se pudo verificar duplicados — NO se guardó para ${auth.codigo} ${fecha}.`);
+        } else {
+          const sep = separarNuevosYConflictos(registrosValores, existentes);
+          duplicados = sep.duplicados.length;
+          conflictos = sep.conflictos;
+          for (let i = 0; i < sep.nuevos.length; i += 50) {
+            await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
+            }).catch(e => console.error('[nova] error creando LAB_VALORES (dictado médico):', e.message));
+          }
+          creados = sep.nuevos.length;
+        }
       }
 
-      return res.status(200).json({ ok: true, novaLabsId: crearData.id, analitosGuardados: filas.length });
+      return res.status(200).json({ ok: true, novaLabsId: crearData.id, analitosGuardados: creados, duplicados, conflictos, ...(labValoresError ? { labValoresError } : {}) });
     } catch (err) {
       console.error('[nova] medico_guardar_labs_rapidos error:', err.message);
       return res.status(500).json({ error: 'Error interno al guardar el laboratorio.' });
     }
   }
 
-  // ─── MÉDICO: SUBIR ESTUDIO EN CONSULTORIO (PDF/foto, sin verificación) ──
-  // El médico ya tiene al paciente seleccionado en el portal — no aplica la
-  // verificación de identidad por nombre que sí se exige cuando el propio
-  // paciente sube un estudio desde mi-nivel.html. Corre síncrono (a diferencia
-  // del flujo de paciente) para que el médico vea de inmediato qué se extrajo.
-  if (action === 'medico_subir_estudio') {
+  // ─── FASE C · §3: DOBLE VALIDACIÓN DE IDENTIDAD (gate previo, SIN escritura) ──
+  // Paso 1 lo hace el front: el médico TECLEA el código (no prellenado con el
+  // expediente abierto — si se prellena la validación se vuelve decorativa).
+  // Aquí va el paso 2: la visión lee el nombre impreso y se compara contra el
+  // registrado bajo ese CC-. No coincide -> DETENER (el front no extrae ni
+  // guarda). Ilegible -> el front pide confirmación explícita. Nunca escribe.
+  if (action === 'medico_validar_identidad_estudio') {
     try {
-      const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      const { pacienteCode, fileBase64, mediaType } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
       const esPDF = mediaType === 'application/pdf';
       const esImagen = mediaType.startsWith('image/');
       if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
 
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_validar_identidad_estudio autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
-      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
-      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
+      // El código tecleado ya se resolvió y autorizó arriba (auth.recId) — se
+      // lee el nombre registrado por recId directo, sin volver a buscar por
+      // el código crudo del body.
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${auth.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacRecord = await pacRes.json();
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer el nombre registrado del paciente.' });
+      const nombreRegistrado = pacRecord.fields?.['Nombre completo'] || '';
+
+      // Paso 2b: la visión extrae SOLO el nombre impreso (barato, max_tokens 200).
+      const contentBlock = esPDF
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
+      const visionRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-5',
+          max_tokens: 200,
+          messages: [{
+            role: 'user',
+            content: [
+              contentBlock,
+              { type: 'text', text: 'Este es un estudio médico. Responde ÚNICAMENTE con el nombre completo del paciente tal como aparece impreso en el documento, sin ningún texto adicional. Si no encuentras ningún nombre de paciente legible, responde exactamente: SIN_NOMBRE' },
+            ],
+          }],
+        }),
+      });
+      const visionData = await visionRes.json();
+      const nombreDocumento = (visionData.content?.[0]?.text || '').trim();
+
+      // Nombre ausente/ilegible -> no se resuelve por heurística: se pide que el
+      // médico confirme explícitamente que el estudio es de ese paciente.
+      if (!nombreDocumento || nombreDocumento === 'SIN_NOMBRE') {
+        return res.status(200).json({
+          ok: true, veredicto: 'ilegible', nombreRegistrado, nombreDocumento: null,
+          mensaje: `No se pudo leer un nombre de paciente en el documento. Confirma explícitamente que este estudio es de "${nombreRegistrado}" antes de continuar.`,
+        });
+      }
+
+      const cmp = compararNombres(nombreRegistrado, nombreDocumento);
+      return res.status(200).json({
+        ok: true,
+        veredicto: cmp.coincide ? 'coincide' : 'no_coincide',
+        nombreRegistrado,
+        nombreDocumento,
+        tokensComunes: cmp.comunes,
+        ...(cmp.coincide ? {} : { mensaje: `El nombre del documento ("${nombreDocumento}") no coincide con el registrado bajo ${auth.codigo} ("${nombreRegistrado}"). No se procesó nada. Verifica que el estudio y el código correspondan al mismo paciente.` }),
+      });
+    } catch (err) {
+      console.error('[nova] medico_validar_identidad_estudio error:', err.message);
+      return res.status(500).json({ error: 'Error interno al validar la identidad.' });
+    }
+  }
+
+  // ─── FASE C · §4-§5: EXTRACCIÓN POR VISIÓN (re-gate server-side, SIN escritura) ──
+  // Re-valida identidad en el servidor (no basta con que el front llamara al gate:
+  // defensa contra llamadas directas). Extrae analitos + fecha, detecta si el PDF
+  // es escaneado, y adjunta el match de catálogo. NO crea nada en Airtable:
+  // devuelve los datos para la pantalla de confirmación (§2 paso 4). La escritura
+  // a LAB_VALORES ocurre solo tras la confirmación del médico.
+  if (action === 'medico_extraer_estudio') {
+    try {
+      const { pacienteCode, fileBase64, mediaType, identidadConfirmada } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
+      const esPDF = mediaType === 'application/pdf';
+      const esImagen = mediaType.startsWith('image/');
+      if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
+
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_extraer_estudio autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${auth.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacRecord = await pacRes.json();
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer el nombre registrado del paciente.' });
+      const nombreRegistrado = pacRecord.fields?.['Nombre completo'] || '';
+
+      // §5: nativo vs escaneado. Imagen => escaneado; PDF => sonda de capa de texto.
+      const esEscaneado = esImagen || (esPDF && !pdfTieneCapaDeTexto(Buffer.from(fileBase64, 'base64')));
+
+      // Catálogo como contexto (§3 glosario): permite que la visión sugiera un
+      // parámetro por conocimiento clínico cuando el índice de alias no matchea.
+      const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
+      const catalogoContexto = (matchAnalito.lista || []).map(x => `${x.codigo} = ${x.nombre}`).join('\n');
+
+      const panelesValidos = ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'];
+      const tiposEstudioValidos = ['Laboratorio', 'RX', 'USG', 'Tomografía', 'Resonancia', 'Otro estudio'];
 
       const contentBlock = esPDF
         ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
         : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
 
-      const patologiasActivas = pacRecord.fields['Patologías activas'] || [];
-      const panelesValidos = ['Panel básico', 'Panel hormonal', 'Panel metabólico avanzado', 'Panel inflamatorio', 'Panel NOVA completo', 'Panel DEZAWA™', 'Personalizado'];
-      const tiposEstudioValidos = ['Laboratorio', 'RX', 'USG', 'Tomografía', 'Resonancia', 'Otro estudio'];
+      const instruccion =
+`Extrae los datos de este estudio de laboratorio en JSON puro, sin texto adicional ni backticks.
+${esEscaneado ? 'ESTE DOCUMENTO ES UN ESCANEO O FOTO: revisa con cuidado extra; si una zona está borrosa o cortada, NO adivines.' : 'Documento con texto nativo.'}
+Reglas ESTRICTAS:
+- NUNCA inventes, completes por rango típico, ni promedies. Si un valor está borroso, cortado, tapado o ilegible, NO lo pongas en "analitos": va en "ilegibles" con qué parece ser y el motivo.
+- "nombre": el nombre literal del analito tal como está IMPRESO (si dice "CT", "Hb", "PCR-us", "BUN/Creat", déjalo así; NO lo expandas).
+- "valor": el valor como texto tal cual ("1.00", "<0.3", "negativo").
+- "estado": SOLO "alto" o "bajo" si el propio reporte lo marca fuera de rango, o si el valor cae fuera del rango de referencia IMPRESO en el documento. Si no hay rango impreso y el reporte no lo marca, usa "indeterminado". NUNCA uses "normal" ni "alto/bajo" por criterio clínico propio o rangos de memoria.
+- "critico_sugerido": true solo en desviación MARCADA respecto al rango impreso (no marginal). Es una sugerencia para que el médico la revise.
+- "parametro_codigo": si puedes mapear el analito a uno de estos códigos de catálogo por conocimiento clínico, pon su código EXACTO; si no estás seguro, null. NUNCA fuerces un mapeo dudoso.
+  Catálogo (codigo = nombre):
+${catalogoContexto || '(catálogo no disponible)'}
+- "fecha_estudio": la fecha de toma de muestra IMPRESA en formato YYYY-MM-DD. Si el formato es ambiguo (ej. 11/06/2026 puede ser 11-jun o 6-nov), pon tu mejor interpretación y marca "fecha_ambigua": true. Si no hay fecha, null.
+- "calidad": "nitida" si todo se lee bien, "parcial" si hay zonas ilegibles, "ilegible" si casi nada se lee.
+- "paginas_faltantes": describe si el reporte indica numeración tipo "1 de 3" o hay tablas cortadas a media página; null si parece completo.
+Formato exacto:
+{"nombre_paciente":"impreso o null","fecha_estudio":"YYYY-MM-DD o null","fecha_ambigua":true|false,"tipo_estudio":"una de: ${tiposEstudioValidos.join(' | ')}","panel_sugerido":"una de: ${panelesValidos.join(' | ')}","calidad":"nitida|parcial|ilegible","paginas_faltantes":"texto o null","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"","estado":"alto|bajo|normal|indeterminado","critico_sugerido":true|false,"parametro_codigo":"codigo o null"}],"ilegibles":[{"etiqueta":"","motivo":"borroso|cortado|tapado|otro"}]}`;
 
       const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-5',
-          max_tokens: 2000,
-          messages: [{
-            role: 'user',
-            content: [
-              contentBlock,
-              { type: 'text', text:
-                `Extrae los resultados de este estudio médico en JSON puro, sin texto adicional ni backticks.\n` +
-                `Patologías activas conocidas del paciente: ${patologiasActivas.length ? patologiasActivas.join(', ') : 'ninguna registrada'}.\n` +
-                `Formato exacto:\n` +
-                `{"tipo_estudio":"una de estas opciones exactas: ${tiposEstudioValidos.join(' | ')}","fecha_estudio":"YYYY-MM-DD o null si no aparece","panel_sugerido":"una de estas opciones exactas: ${panelesValidos.join(' | ')}","analitos":[{"nombre":"","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","critico":true o false — SOLO true si el valor está MUY fuera del rango de referencia, "relevante":true o false segun si se relaciona con las patologias activas del paciente}]}\n` +
-                `"tipo_estudio" clasifica el documento (Laboratorio si trae analitos con valores numéricos; RX/USG/Tomografía/Resonancia si es un estudio de imagen; Otro estudio si no encaja).\n` +
-                `Si el documento es un estudio de imagen sin analitos numéricos, responde con "analitos":[] y deja "panel_sugerido":"Personalizado".`
-              }
-            ]
-          }]
-        })
+        body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 3000, messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: instruccion }] }] }),
       });
       const extractData = await extractRes.json();
-      let extraido;
-      try { extraido = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { extraido = { tipo_estudio: 'Otro estudio', fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
-      const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
-      const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
-      const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
-      const fechaEstudio = extraido.fecha_estudio || new Date().toISOString().slice(0, 10);
-      const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
-      const relevantes = analitos.filter(a => a.relevante);
+      let ext;
+      try { ext = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { ext = null; }
+      if (!ext) return res.status(502).json({ error: 'No se pudo leer el estudio. Intenta con una imagen más nítida.' });
 
-      const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          typecast: true,
-          fields: {
-            'Código de paciente ref': pacienteCode,
-            'Fecha de resultados': fechaEstudio,
-            'Panel solicitado': panel,
-            'Tipo de estudio': tipoEstudio,
-            'Resultados (texto)': analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Estudio de imagen — ver archivo adjunto.',
-            'Valores fuera de rango': fueraDeRango.length
-              ? fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'}, ref ${a.rango_texto || 'n/d'})`).join('\n')
-              : 'Sin valores fuera de rango detectados.',
-            'Interpretación NOVA': relevantes.length ? `Relevante a patologías activas: ${relevantes.map(a => a.nombre).join(', ')}.` : '',
-            'Requiere seguimiento': fueraDeRango.some(a => a.relevante),
-            'Paciente': [pacRecord.id],
-          },
-        }),
+      // §3: re-gate de identidad con el nombre extraído (server-side, no bypasseable).
+      const nombreDoc = (ext.nombre_paciente || '').trim();
+      if (!nombreDoc) {
+        if (!identidadConfirmada) {
+          return res.status(200).json({ ok: true, veredicto: 'ilegible', nombreRegistrado, nombreDocumento: null,
+            mensaje: `No se pudo leer un nombre en el documento. Confirma explícitamente que es de "${nombreRegistrado}".` });
+        }
+        // el médico ya confirmó explícitamente en el front -> continúa
+      } else {
+        const cmp = compararNombres(nombreRegistrado, nombreDoc);
+        if (!cmp.coincide) {
+          return res.status(200).json({ ok: true, veredicto: 'no_coincide', nombreRegistrado, nombreDocumento: nombreDoc,
+            mensaje: `El nombre del documento ("${nombreDoc}") no coincide con ${pacienteCode} ("${nombreRegistrado}"). No se procesó nada.` });
+        }
+      }
+
+      // Normaliza analitos + adjunta match de catálogo (índice determinista o
+      // inferencia del modelo). §4.4/§5: por visión, Confianza Media como máximo.
+      const estadosValidos = ['alto', 'bajo', 'normal', 'indeterminado'];
+      const analitosRaw = Array.isArray(ext.analitos) ? ext.analitos.filter(a => a && a.nombre && String(a.nombre).trim()) : [];
+      const analitos = analitosRaw.map(a => {
+        const idx = matchAnalito(a.nombre); // determinista: exacto / alias
+        let parametro = null;
+        if (idx) {
+          parametro = { recId: idx.recId, codigo: idx.codigo, nombre: idx.nombre, tipoMatch: idx.confianza === 'Alta' ? 'exacto' : 'alias', sugerirAlias: false };
+        } else if (a.parametro_codigo) {
+          const recId = matchAnalito.porCodigo.get(normalizarAnalito(a.parametro_codigo));
+          if (recId) {
+            const disp = matchAnalito.porRecId.get(recId) || {};
+            parametro = { recId, codigo: disp.codigo || a.parametro_codigo, nombre: disp.nombre || '', tipoMatch: 'inferencia', sugerirAlias: true };
+          }
+        }
+        const estado = estadosValidos.includes(String(a.estado || '').toLowerCase()) ? String(a.estado).toLowerCase() : 'indeterminado';
+        return {
+          nombre: String(a.nombre).trim(),
+          valor: a.valor != null ? String(a.valor) : '',
+          unidad: a.unidad || '',
+          rango_texto: a.rango_texto || '',
+          estado,                                       // alto | bajo | normal | indeterminado
+          critico_sugerido: !!a.critico_sugerido,
+          relevante_sugerido: estado === 'alto' || estado === 'bajo', // §2: relevante solo si el reporte lo lista fuera de rango
+          parametro,                                    // null si sin match
+          confianza_sugerida: parametro ? 'Media' : '', // §4.4/§5: visión = Media máximo (el médico sube a Alta)
+          verificacion_texto: null,                     // §5: se llena abajo si hay capa de texto ('coincide'|'revisar')
+        };
       });
-      const crearData = await crearRes.json();
-      if (!crearData.id) {
-        console.error('[nova] error creando NOVA LABS (subida médico):', JSON.stringify(crearData));
-        return res.status(502).json({ error: 'No se pudo guardar el estudio.' });
+
+      // §5: si el PDF trae capa de texto, cotejar cada valor numérico de la visión
+      // contra los números de esa capa. Coincide -> sólido; no coincide -> revisar.
+      // Solo si la capa da suficientes números (si no, no se anota nada).
+      if (esPDF && !esEscaneado) {
+        const numsTexto = numerosDeCapaTextoPDF(Buffer.from(fileBase64, 'base64'));
+        if (numsTexto.size >= 3) {
+          analitos.forEach(a => {
+            const nm = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+            a.verificacion_texto = nm ? (numsTexto.has(parseFloat(nm[0])) ? 'coincide' : 'revisar') : null;
+          });
+        }
       }
 
-      fetch(`https://content.airtable.com/v0/${BASE_ID}/${crearData.id}/fldxrF2w5I4cc3MNF/uploadAttachment`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
-      }).catch(() => {});
+      const ilegibles = Array.isArray(ext.ilegibles) ? ext.ilegibles.filter(x => x && (x.etiqueta || x.motivo)).map(x => ({ etiqueta: x.etiqueta || 'valor', motivo: x.motivo || 'ilegible' })) : [];
+      const totalIntentado = analitos.length + ilegibles.length;
+      const resumenExtraccion = `${analitos.length} de ~${totalIntentado} extraídos${ilegibles.length ? `, ${ilegibles.length} ilegibles` : ''}.`;
 
-      if (analitos.length) {
-        const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
-        const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
-        const registrosValores = analitos.filter(a => a.nombre).map(a => {
-          const banderaCap = capitalizar(a.bandera);
-          const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
-          return {
-            fields: {
-              'Analito': a.nombre,
-              'Valor': String(a.valor ?? ''),
-              ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
-              'Unidad': a.unidad || '',
-              'Rango de referencia': a.rango_texto || '',
-              'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-              'Es crítico': !!a.critico,
-              'Relevante a patología': !!a.relevante,
-              'Fecha del estudio': fechaEstudio,
-              'Código de paciente ref': pacienteCode,
-              'Paciente': [pacRecord.id],
-              'Estudio (NOVA LABS)': [crearData.id],
-            },
-          };
-        });
-        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ typecast: true, records: registrosValores }),
-        }).catch(e => console.error('[nova] error creando LAB_VALORES (subida médico):', e.message));
-      }
+      const fechaEstudio = esFechaISO(ext.fecha_estudio) ? ext.fecha_estudio.trim() : null;
+      const tipoEstudio = tiposEstudioValidos.includes(ext.tipo_estudio) ? ext.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
+      const panel = panelesValidos.includes(ext.panel_sugerido) ? ext.panel_sugerido : 'Personalizado';
+
+      // Momento sugerido = fecha del estudio vs inicio de tratamiento. No hay campo
+      // "inicio de tratamiento"; se deriva de la consulta MÁS ANTIGUA del paciente
+      // (la valoración inicial). Sin consultas -> "Sin clasificar". El front lo
+      // recalcula si el médico corrige la fecha (por eso se devuelve inicioTratamiento).
+      const TBL_CONSULTAS = 'tbl1Xp2IGxdV178Ky';
+      let inicioTratamiento = null;
+      try {
+        const cRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_CONSULTAS}?filterByFormula=${encodeURIComponent(`{Código de paciente ref}="${pacienteCode}"`)}&sort[0][field]=Fecha de consulta&sort[0][direction]=asc&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        const cData = await cRes.json();
+        const f0 = (cData.records?.[0]?.fields?.['Fecha de consulta'] || '').slice(0, 10);
+        if (esFechaISO(f0)) inicioTratamiento = f0;
+      } catch (e) { console.error('[nova] inicio de tratamiento (consultas):', e.message); }
+      const momentoSugerido = !inicioTratamiento ? 'Sin clasificar'
+        : (fechaEstudio && fechaEstudio < inicioTratamiento ? 'Basal'
+        : (fechaEstudio ? 'En tratamiento' : 'Sin clasificar'));
 
       return res.status(200).json({
-        ok: true, tipoEstudio, panel, fecha: fechaEstudio,
-        totalAnalitos: analitos.length, totalFueraDeRango: fueraDeRango.length,
+        ok: true,
+        veredicto: 'coincide',
+        nombreRegistrado,
+        esEscaneado,
+        calidad: ext.calidad || 'nitida',
+        paginasFaltantes: ext.paginas_faltantes || null,
+        fechaEstudio,
+        fechaAmbigua: !!ext.fecha_ambigua,
+        tipoEstudio,
+        panel,
+        inicioTratamiento,
+        momentoSugerido,
+        analitos,
+        ilegibles,
+        resumenExtraccion,
       });
     } catch (err) {
-      console.error('[nova] medico_subir_estudio error:', err.message);
-      return res.status(500).json({ error: 'Error interno al procesar el estudio.' });
+      console.error('[nova] medico_extraer_estudio error:', err.message);
+      return res.status(500).json({ error: 'Error interno al extraer el estudio.' });
     }
   }
 
-  // ─── REGISTRO PÚBLICO: alta de paciente desde el test de index.html ──
-  if (action === 'registro_publico_paciente') {
-    // PAUSADO (2026-08-15, urgente/hotfix directo a main): este flujo creaba
-    // un expediente clínico PERMANENTE en PACIENTES (código CC-PAC- real, no
-    // un lead) desde el test público de index.html, con solo nombre +
-    // WhatsApp, SIN checkbox de consentimiento ni aviso de privacidad en el
-    // formulario — index.html no tiene ningún elemento de consentimiento
-    // cerca de #cf-nombre/#cf-wa en esta versión. El registro quedaba bajo
-    // NOM-004/LFPDPPP sin el trámite de consentimiento que eso exige. Se
-    // detiene SOLO la escritura — la lógica original (generarCodigoUnico +
-    // POST a PACIENTES) vive en el historial de git de este archivo, no
-    // aquí, para no dejar código muerto. El rediseño con consentimiento real
-    // (registrar_lead, a LEADS, no a PACIENTES) ya existe en
-    // fix/lab-valores-fecha-idempotencia (commit 93c6ab7) y llega con ese
-    // merge — este hotfix no lo adelanta, solo cierra la fuga mientras tanto.
-    // El frontend (index.html) ya tiene un fallback para data.ok=false: en
-    // vez de "Entrar a tu Portal" muestra "Hablar ahora con NOVA" — no hace
-    // falta tocarlo.
-    return res.status(503).json({
-      ok: false,
-      error: 'El registro automático está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
-      motivo: 'registro_publico_pausado_por_consentimiento',
-    });
+  // ─── FASE C · §2 paso 6: ESCRITURA tras la pantalla de confirmación ──
+  // Recibe las filas YA revisadas/corregidas por el médico. Re-valida identidad
+  // (defensa: la escritura no debe poder ir a otro paciente por una llamada
+  // directa), crea el registro de NOVA LABS (evidencia + adjunto) y escribe
+  // LAB_VALORES por field ID con el mapeo §2, reusando idempotencia (§6) de B1.
+  if (action === 'medico_confirmar_estudio') {
+    try {
+      const { pacienteCode, fileBase64, fileName, mediaType, fecha, momento, tipoEstudio, panel, filas, identidadConfirmada } = req.body;
+      if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!esFechaISO(fecha)) return res.status(400).json({ error: 'Falta la fecha del estudio (YYYY-MM-DD). No se asume la fecha de hoy.', necesitaFecha: true });
+      if (!Array.isArray(filas) || !filas.length) return res.status(400).json({ error: 'No hay valores que guardar.' });
+      if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo para re-verificar identidad.' });
+
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_confirmar_estudio autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+      const authHeaders = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+      const ahoraISO = new Date().toISOString();
+
+      // Se pide el nombre registrado por recId directo (ya autorizado) — no
+      // se vuelve a buscar al paciente por el código crudo del body.
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${auth.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacRecord = await pacRes.json();
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer el nombre registrado del paciente.' });
+      const nombreRegistrado = pacRecord.fields?.['Nombre completo'] || '';
+
+      // Re-gate de identidad con el nombre impreso (mismatch definitivo -> bloquea;
+      // ilegible sin confirmación explícita -> bloquea; si la visión no responde,
+      // se registra y continúa porque el gate ya corrió aguas arriba dos veces).
+      try {
+        const esPDF = mediaType === 'application/pdf';
+        const contentBlock = esPDF
+          ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+          : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } };
+        const vRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 200, messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Responde ÚNICAMENTE con el nombre del paciente impreso en el documento, sin texto adicional. Si no hay nombre legible, responde exactamente: SIN_NOMBRE' }] }] }),
+        });
+        const vData = await vRes.json();
+        const nombreDoc = (vData.content?.[0]?.text || '').trim();
+        if (nombreDoc && nombreDoc !== 'SIN_NOMBRE') {
+          if (!compararNombres(nombreRegistrado, nombreDoc).coincide) {
+            return res.status(409).json({ ok: false, veredicto: 'no_coincide', nombreRegistrado, nombreDocumento: nombreDoc, error: `El documento ("${nombreDoc}") no coincide con ${auth.codigo} ("${nombreRegistrado}"). No se guardó nada.` });
+          }
+        } else if (!identidadConfirmada) {
+          return res.status(409).json({ ok: false, veredicto: 'ilegible', nombreRegistrado, error: 'No se pudo confirmar el nombre del documento. Repite la validación de identidad antes de guardar.' });
+        }
+      } catch (gErr) {
+        console.error('[nova] confirmar_estudio: re-gate de identidad no disponible, continúa (ya gateado aguas arriba):', gErr.message);
+      }
+
+      // Registro de NOVA LABS (evidencia) + adjunto.
+      const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+      const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
+      const filasLimpias = filas.filter(v => v && v.analito && String(v.analito).trim());
+      if (!filasLimpias.length) return res.status(400).json({ error: 'No hay analitos válidos que guardar.' });
+      const fueraDeRango = filasLimpias.filter(v => ['Alto', 'Bajo'].includes(capitalizar(v.estado)));
+
+      const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+        method: 'POST', headers: authHeaders,
+        body: JSON.stringify({ typecast: true, fields: {
+          'Código de paciente ref': auth.codigo,
+          'Paciente': [auth.recId],
+          'Fecha de resultados': fecha,
+          'Tipo de estudio': tipoEstudio || 'Laboratorio',
+          'Panel solicitado': panel || 'Personalizado',
+          'Resultados (texto)': filasLimpias.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''}`.trim()).join('\n'),
+          ...(fueraDeRango.length ? { 'Valores fuera de rango': fueraDeRango.map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''} (${capitalizar(v.estado)})`).join('\n') } : {}),
+          'Registrado por': [auth.medicoRecId],
+          'Fecha de registro': ahoraISO,
+        } }),
+      });
+      const crearData = await crearRes.json();
+      if (!crearData.id) { console.error('[nova] NOVA LABS (confirmar estudio):', JSON.stringify(crearData)); return res.status(502).json({ error: 'No se pudo crear el estudio en NOVA LABS.' }); }
+      const novaLabsId = crearData.id;
+      fetch(`https://content.airtable.com/v0/${BASE_ID}/${novaLabsId}/fldxrF2w5I4cc3MNF/uploadAttachment`, {
+        method: 'POST', headers: authHeaders,
+        body: JSON.stringify({ contentType: mediaType, file: fileBase64, filename: fileName || 'estudio.pdf' }),
+      }).catch(() => {});
+
+      // Filas de LAB_VALORES con el mapeo §2 (Analito/Valor por nombre para la
+      // idempotencia; el resto por field ID). Origen=Laboratorio, Momento confirmado.
+      const momentoValidos = ['Basal', 'En tratamiento', 'Seguimiento', 'Sin clasificar'];
+      const momentoFinal = momentoValidos.includes(momento) ? momento : 'Sin clasificar';
+      const registros = filasLimpias.map(v => {
+        const banderaCap = capitalizar(v.estado);
+        const numMatch = String(v.valor || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+        const confianza = ['Alta', 'Media'].includes(v.confianza) ? v.confianza : null;
+        const parametroRecId = (typeof v.parametroRecId === 'string' && /^rec[a-zA-Z0-9]{5,}$/.test(v.parametroRecId)) ? v.parametroRecId : null;
+        return { fields: {
+          'Analito': String(v.analito),
+          'Valor': String(v.valor ?? ''),
+          ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+          'Unidad': v.unidad || '',
+          'Rango de referencia': v.rango || '',
+          'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+          [LV_RELEVANTE]: !!v.relevante,  // §2: solo lo que el reporte lista fuera de rango (editable por el médico)
+          [LV_CRITICO]: !!v.critico,      // §2: criterio clínico sugerido, editable
+          [LV_ORIGEN]: 'Laboratorio',     // §4.4
+          [LV_MOMENTO]: momentoFinal,     // §2 Momento
+          'Fecha del estudio': fecha,
+          'Código de paciente ref': auth.codigo,
+          'Paciente': [auth.recId],
+          'Estudio (NOVA LABS)': [novaLabsId],
+          'Registrado por': [auth.medicoRecId],
+          'Fecha de registro': ahoraISO,
+          ...(parametroRecId ? { [LV_PARAMETRO]: [parametroRecId], ...(confianza ? { [LV_CONFIANZA]: confianza } : {}) } : {}),
+        } };
+      });
+
+      // §6: idempotencia por paciente+fecha+analito antes de crear.
+      let creados = 0, duplicados = 0, conflictos = [], labValoresError = null;
+      const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, auth.codigo, fecha);
+      if (!existentes) {
+        labValoresError = 'No se pudo verificar duplicados — NO se guardó en LAB_VALORES. Esto NO es confirmación de guardado: reintenta.';
+        console.error(`[nova] LAB_VALORES (confirmar estudio): no se pudo verificar duplicados — NO se guardó para ${auth.codigo} ${fecha}.`);
+      } else {
+        const sep = separarNuevosYConflictos(registros, existentes);
+        duplicados = sep.duplicados.length;
+        conflictos = sep.conflictos;
+        for (let i = 0; i < sep.nuevos.length; i += 50) {
+          await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+            method: 'POST', headers: authHeaders,
+            body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
+          }).catch(e => console.error('[nova] error creando LAB_VALORES (confirmar estudio):', e.message));
+        }
+        creados = sep.nuevos.length;
+      }
+
+      return res.status(200).json({ ok: true, novaLabsId, analitosGuardados: creados, duplicados, conflictos, ...(labValoresError ? { labValoresError } : {}) });
+    } catch (err) {
+      console.error('[nova] medico_confirmar_estudio error:', err.message);
+      return res.status(500).json({ error: 'Error interno al guardar el estudio.' });
+    }
+  }
+
+  // ─── LEADS: captura pública (test biológico, directorio, etc.) ───────
+  // Reemplaza a `registro_publico_paciente` (pausada 2026-08-15). Esa acción
+  // creaba un expediente clínico PERMANENTE en PACIENTES desde un test
+  // público, sin consentimiento — ver CLAUDE.md §4: "un expediente clínico
+  // solo se crea cuando hay un médico responsable presente". Quien toma un
+  // test desde internet es un prospecto, no un paciente. Esta acción NUNCA
+  // toca PACIENTES/HISTORIA/LAB_VALORES — solo LEADS (tblfX4f6Bq6OXsvs2). La
+  // conversión a paciente es un acto humano de un médico (kiosco o dictado),
+  // nunca automático.
+  if (action === 'registrar_lead') {
+    try {
+      // Regla dura: no se captura consentimiento real contra un aviso
+      // placeholder. Mientras esta constante no sea el texto definitivo
+      // (pendiente de revisión legal y domicilio fiscal), la acción entera
+      // se rechaza — no hay forma de crear un lead sin aviso real, ni
+      // siquiera sin consentimiento marcado.
+      if (AVISO_PRIVACIDAD_VERSION.startsWith('PLACEHOLDER')) {
+        return res.status(503).json({
+          ok: false,
+          error: 'El registro está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
+          motivo: 'aviso_privacidad_pendiente',
+        });
+      }
+
+      const { nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento } = req.body || {};
+
+      if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
+        return res.status(400).json({ error: 'Falta el nombre.' });
+      }
+      if (!whatsapp || typeof whatsapp !== 'string' || !whatsapp.trim()) {
+        return res.status(400).json({ error: 'Falta el WhatsApp.' });
+      }
+      // Consentimiento explícito, nunca inferido. Sin esto, no se guarda
+      // absolutamente nada — ni siquiera el nombre.
+      if (consentimiento !== true) {
+        return res.status(400).json({ error: 'Se requiere aceptar el aviso de privacidad para continuar.' });
+      }
+
+      const ORIGENES_VALIDOS = ['Test biológico', 'Directorio', 'Otro'];
+      const origenFinal = ORIGENES_VALIDOS.includes(origen) ? origen : 'Otro';
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const TBL_LEADS = 'tblfX4f6Bq6OXsvs2';
+
+      const fields = {
+        'Nombre': nombre.trim().slice(0, 200),
+        'WhatsApp': whatsapp.trim().slice(0, 30),
+        'Origen': origenFinal,
+        'Consentimiento': true,
+        'Fecha de consentimiento': new Date().toISOString(),
+        'Versión del aviso': AVISO_PRIVACIDAD_VERSION,
+        'Estado': 'Nuevo',
+        'Fecha de creación': new Date().toISOString(),
+      };
+      if (typeof email === 'string' && email.trim()) fields['Email'] = email.trim().slice(0, 200);
+      if (typeof sistemaPrioritario === 'string' && sistemaPrioritario.trim()) {
+        fields['Sistema prioritario'] = sistemaPrioritario.trim().slice(0, 200);
+      }
+      // Los 5 scores, sin omitir ninguno — el bug anterior perdía BALANCE
+      // en silencio al construir este mismo tipo de objeto a mano.
+      if (scores && typeof scores === 'object') {
+        const MAPA_SCORES = {
+          energy: 'Score ENERGY', repair: 'Score REPAIR', balance: 'Score BALANCE',
+          neuro: 'Score NEURO', regen: 'Score REGEN',
+        };
+        for (const [clave, campo] of Object.entries(MAPA_SCORES)) {
+          if (typeof scores[clave] === 'number' && !Number.isNaN(scores[clave])) {
+            fields[campo] = Math.round(scores[clave]);
+          }
+        }
+      }
+
+      const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LEADS}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ typecast: true, records: [{ fields }] }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok || !createData.records?.[0]) {
+        console.error('[nova] registrar_lead error creando registro:', JSON.stringify(createData));
+        return res.status(502).json({ error: 'No se pudo guardar el registro. Intenta de nuevo.' });
+      }
+
+      return res.status(200).json({ ok: true, id: createData.records[0].id });
+    } catch (err) {
+      console.error('[nova] registrar_lead error:', err.message);
+      return res.status(500).json({ error: 'Error interno registrando el lead.' });
+    }
   }
 
   if (action === 'kiosco_crear_paciente') {
@@ -2427,7 +2961,6 @@ module.exports = async function handler(req, res) {
   try {
     const {
       messages,
-      system: clientSystem,
       max_tokens,
       idioma,
       // Identificadores de modo
@@ -2448,6 +2981,12 @@ module.exports = async function handler(req, res) {
     }
     const esMedicoPreliminar = typeof medicoCode === 'string' && /^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode);
     const limiteCaracteres = esMedicoPreliminar ? 12000 : 4000;
+    // Límite de seguridad (Fase C §3): el chat es SOLO texto. Rechazar contenido
+    // no-string bloquea que un PDF/imagen entre por aquí y se procese por visión
+    // — la lectura de documentos y la escritura a LAB_VALORES ocurren únicamente
+    // por el endpoint de subida con doble validación de identidad, nunca desde el
+    // chat. No relajar esta comprobación a bloques de contenido sin re-evaluar ese
+    // gate.
     for (const m of messages) {
       if (!['user','assistant'].includes(m.role)) {
         return res.status(400).json({ error: 'Role inválido.' });
@@ -2474,7 +3013,7 @@ module.exports = async function handler(req, res) {
 
     const esMedico = typeof medicoCode === 'string' && /^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode);
     const esVIP    = typeof vipCode    === 'string' && /^DZW-[0-9]{8}$/.test(vipCode);
-    const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode);
+    const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode);
 
     if (esMedico) {
       let nombreReal       = typeof medicoNombre      === 'string' ? medicoNombre.slice(0,100)      : 'Médico';
@@ -2577,8 +3116,12 @@ module.exports = async function handler(req, res) {
         const pacData = await pacRes.json();
         const pacRecord = pacData.records?.[0];
 
+        // 403 uniforme, nunca 404: un código de paciente inexistente y uno que
+        // existe pero no corresponde deben verse igual — el chat es la
+        // superficie más usada y un 404 aquí era el oráculo de enumeración
+        // más barato de explotar de todo el sistema.
         if (!pacRecord) {
-          return res.status(404).json({ error: 'Paciente no reconocido.' });
+          return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
         }
 
         pacRecordId  = pacRecord.id;
@@ -2616,17 +3159,16 @@ module.exports = async function handler(req, res) {
         vip: true,
       });
     } else {
-      // Modo público — permite system prompt del cliente solo en este modo.
-      // idioma sí se valida y se usa siempre (aunque venga system del
-      // cliente), porque fix/lab-valores-fecha-idempotencia (93c6ab7) quita
-      // el destructure de `system` por completo en este modo — cuando ese
-      // merge llegue, esta rama deja de depender del system del cliente y
-      // buildSystemPrompt('publico') pasa a ser la única fuente. Que idioma
-      // ya viaje validado aquí evita que ese día haya que tocar este bloque.
+      // Modo público — SIEMPRE el prompt del servidor, sin excepción. Antes
+      // el cliente podía mandar su propio `system` y reemplazar la
+      // identidad de NOVA por completo (incluida la instrucción de nunca
+      // interpretar clínicamente un resultado) con un solo campo del POST.
+      // No hay validación de contenido posible que cierre eso de verdad —
+      // se deja de confiar en el campo, punto. idioma sí se valida (contra
+      // la allowlist) y se usa siempre — es un parámetro explícito, no un
+      // prompt libre, así que no reabre el hueco que este bloque cierra.
       const idiomaValido = ['es', 'en', 'pt'].includes(idioma) ? idioma : 'es';
-      systemPrompt = typeof clientSystem === 'string'
-        ? clientSystem.slice(0, 8000)
-        : buildSystemPrompt('publico', { idioma: idiomaValido });
+      systemPrompt = buildSystemPrompt('publico', { idioma: idiomaValido });
       herramientaDirectorio = buildHerramientaBuscarDirectorio();
     }
 
@@ -2915,6 +3457,61 @@ module.exports = async function handler(req, res) {
           const TBL_PAC = 'tblyUcCfueFLJuvIv';
           const TBL_HIST = 'tblm2xUADazitHisR';
 
+          // ── RUTA A: el médico ya confirmó un paciente EXISTENTE -> enrutar el
+          // dictado a ese expediente en vez de crear (la opción cómoda = la
+          // correcta: no obliga a empezar de nuevo, así nadie elige "nuevo" con
+          // tal de avanzar). No sobrescribe identidad; fusiona patologías.
+          const codigoExistente = (typeof datos.codigo_paciente_existente === 'string' && /^CC-PAC-[A-Z0-9]{4,8}$/.test(datos.codigo_paciente_existente.trim()))
+            ? datos.codigo_paciente_existente.trim() : null;
+          if (codigoExistente) {
+            const pRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${codigoExistente}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+            const pData = await pRes.json();
+            const pac = pData.records?.[0];
+            if (!pac) {
+              return res.status(200).json({ content: [{ type: 'text', text: `${datos.mensaje}\n\n⚠️ No encontré ${codigoExistente}. Verifica el código del paciente existente.` }] });
+            }
+            const pf = pac.fields || {};
+            const patch = {};
+            if (Array.isArray(datos.patologias_detectadas) && datos.patologias_detectadas.length) {
+              patch['Patologías activas'] = Array.from(new Set([...(pf['Patologías activas'] || []), ...datos.patologias_detectadas]));
+            }
+            if (datos.peso_kg) patch['Peso actual (kg)'] = datos.peso_kg;
+            if (datos.talla_cm) patch['Talla (cm)'] = datos.talla_cm;
+            if (datos.sexo && !pf['Sexo biológico']) patch['Sexo biológico'] = datos.sexo;
+            if (datos.telefono_whatsapp && !pf['Teléfono WhatsApp']) patch['Teléfono WhatsApp'] = datos.telefono_whatsapp;
+            if (Object.keys(patch).length) {
+              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pac.id}`, {
+                method: 'PATCH', headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, fields: patch }),
+              }).catch(e => console.error('[nova] enrutar dictado a existente (patch):', e.message));
+            }
+            if (datos.antecedentes_heredofamiliares || datos.motivo_consulta) {
+              await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_HIST}`, {
+                method: 'POST', headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, records: [{ fields: {
+                  'Código de paciente ref': codigoExistente,
+                  'Motivo de consulta': datos.motivo_consulta || '',
+                  'AHF — Heredo-familiares': datos.antecedentes_heredofamiliares || '',
+                  'Paciente': [pac.id],
+                } }] }),
+              }).catch(e => console.error('[nova] enrutar dictado a existente (historia):', e.message));
+            }
+            return res.status(200).json({ content: [{ type: 'text', text: `${datos.mensaje}\n\n✅ Datos agregados al expediente existente de ${pf['Nombre completo'] || ''} (${codigoExistente}). No se creó un duplicado.` }], paciente_actualizado: { codigo: codigoExistente, recordId: pac.id } });
+          }
+
+          // ── RUTA B: guard anti-duplicado ANTES de crear. Si hay candidato con el
+          // mismo nombre y el médico no ha confirmado que es nuevo, se PREGUNTA
+          // (nunca se crea en silencio). Homónimos permitidos vía confirmar_nuevo.
+          if (!datos.confirmar_nuevo) {
+            const candidatos = await buscarPacientesPorNombre(BASE_ID, AIRTABLE_TOKEN, datos.nombre_completo);
+            if (candidatos.length) {
+              const lista = candidatos.map(c => `- ${c.nombre} · ${c.codigo}${c.edad != null ? ` · ${c.edad} años` : ''} · ${c.ultimaConsulta ? `última consulta ${c.ultimaConsulta}` : 'sin consultas registradas'}`).join('\n');
+              const texto = `${datos.mensaje}\n\n⚠️ Antes de dar de alta: ya existe(n) con ese nombre —\n${lista}\n\n¿El dictado es de alguno de estos (dime cuál código) o es un paciente distinto que doy de alta como nuevo?`;
+              return res.status(200).json({ content: [{ type: 'text', text: texto }], candidatos_duplicado: candidatos });
+            }
+          }
+
+          // ── RUTA C: crear paciente nuevo (sin duplicados, o confirmado nuevo).
           // Siguiente código CC-PAC- disponible, con verificación
           // anti-colisión del lado del servidor (ver lib/codigos.js).
           const nuevoCodigo = await generarCodigoUnico({
@@ -3050,7 +3647,7 @@ module.exports = async function handler(req, res) {
       // médico y se fuerza una segunda llamada obligando la herramienta de
       // backfill — así el guardado no depende de que el modelo "decida" usarla.
       const huboToolUse = Array.isArray(data.content) && data.content.some(b => b && b.type === 'tool_use');
-      if (!huboToolUse && pacienteCode && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+      if (!huboToolUse && pacienteCode && /^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) {
         const ultimoMensaje = typeof messages[messages.length - 1]?.content === 'string' ? messages[messages.length - 1].content : '';
         const fechasDetectadas = (ultimoMensaje.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/g) || []).length;
         if (fechasDetectadas >= 2) {
@@ -3209,13 +3806,352 @@ function buildHerramientaSeriesHistoricasLab() {
   };
 }
 
+// ─── Match de analito → Parametro de CATALOGO_PARAMETROS ──────────
+// SPEC-INGESTA §3: referencia campos por field ID; el match NO se hace con
+// fórmulas Airtable (FIND/ARRAYJOIN sobre un link nunca hace match — §3.6),
+// sino en JS comparando cadenas normalizadas. Solo se indexan parámetros
+// activos cuya `Fuente actual` es LAB_VALORES, para no ligar un analito a un
+// parámetro de otra fuente (peso, IMC, etc.) que comparta nombre.
+//   · Nombre o Codigo exacto → Confianza 'Alta'
+//   · Alias (variantes ';')  → Confianza 'Media'
+//   · Sin match              → null (el registro se carga igual, sin Parametro)
+const CAT_PARAMETROS = {
+  tabla:     'tblA51aUeYypWQMQV',
+  codigo:    'fldc0AaVggOqucQl9',
+  nombre:    'fldrdbPLhWvCQEpGO',
+  alias:     'fld2n3Kl3XLoCfQ9t',
+  fuente:    'fldalASz6j8as2auj',
+  activo:    'fldmc8qdW3xGEqyfA',
+  categoria: 'fldemBWZPe4F6oCo8', // singleSelect · panel clínico (perfil_hepatico, control_prenatal…)
+};
+const LV_PARAMETRO = 'fldcciqoaVr3ZKGdQ'; // LAB_VALORES · link → CATALOGO_PARAMETROS
+const LV_CONFIANZA = 'fldX2fj9uQl2smDYB'; // LAB_VALORES · select Alta·Media·Requiere revision
+const LV_ANALITO   = 'fldOCskUJcaJZPo42'; // LAB_VALORES · primary · texto literal (NUNCA sobrescribir)
+const LV_VALOR     = 'fld5rcAgx1Jti8aoN'; // LAB_VALORES · valor como texto
+const LV_RELEVANTE = 'fldsHApnN6uJv3p1r'; // LAB_VALORES · checkbox clínico "Relevante a patología"
+const LV_CRITICO   = 'fldq7n3GoSgwgjtLo'; // LAB_VALORES · checkbox clínico "Es crítico"
+const LV_ORIGEN    = 'fldhxDOtqdsGosB0h'; // LAB_VALORES · select Origen del dato (Laboratorio/…)
+const LV_MOMENTO   = 'fldygDaS9Nif42H5C'; // LAB_VALORES · select Momento (Basal/En tratamiento/Seguimiento/Sin clasificar)
+
+// Fecha del estudio (fldXzMqyF96HhCFUG). §0.1: NUNCA new Date() — se extrae del
+// documento o la confirma el médico. Sin fecha válida no se escribe LAB_VALORES.
+function esFechaISO(s) {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+}
+
+// ─── §5: ¿el PDF tiene capa de texto extraíble (nativo) o es un escaneo? ──
+// Los labs mexicanos a menudo entregan PDFs que son imágenes escaneadas. Se
+// inflan los streams FlateDecode con zlib y se buscan operadores de texto de PDF
+// (BT/Tj/TJ/Tf). Sin operadores de texto -> es un escaneo (imagen), y se trata
+// con el cuidado extra de §5. El sesgo es hacia "escaneado": un nativo con filtro
+// raro puede caer como escaneado (más cuidado, seguro), pero un escaneo real
+// nunca tiene operadores de texto, así que no se marca nativo por error.
+function pdfTieneCapaDeTexto(buffer) {
+  try {
+    const zlib = require('zlib');
+    const streamKw = Buffer.from('stream');
+    const endKw = Buffer.from('endstream');
+    let textOps = 0, i = 0;
+    while (textOps < 3) {
+      const s = buffer.indexOf(streamKw, i);
+      if (s < 0) break;
+      const e = buffer.indexOf(endKw, s + streamKw.length);
+      if (e < 0) break;
+      let start = s + streamKw.length;
+      if (buffer[start] === 0x0d) start++;
+      if (buffer[start] === 0x0a) start++;
+      const chunk = buffer.slice(start, e);
+      let inflated = null;
+      try { inflated = zlib.inflateSync(chunk); } catch { try { inflated = zlib.inflateRawSync(chunk); } catch {} }
+      if (inflated) {
+        const m = inflated.toString('latin1').match(/BT\b|\bTj\b|\bTJ\b|\bTf\b/g);
+        if (m) textOps += m.length;
+      }
+      i = e + endKw.length;
+    }
+    return textOps >= 3;
+  } catch (e) {
+    console.error('[nova] pdfTieneCapaDeTexto error:', e.message);
+    return false; // ante duda, tratar como escaneado (§5, más cuidadoso)
+  }
+}
+
+// §5 (verificación más barata disponible): cuando el PDF tiene capa de texto,
+// extrae los NÚMEROS de esa capa (literales PDF entre paréntesis) para cotejarlos
+// contra los valores que leyó la visión. Coinciden -> sólido; difiere -> se marca
+// para revisión. Best-effort: si la capa no da números usables (p.ej. fuentes CID
+// sin ToUnicode), devuelve un set chico y el llamador NO anota nada (no sobre-marca).
+function numerosDeCapaTextoPDF(buffer) {
+  const nums = new Set();
+  try {
+    const zlib = require('zlib');
+    const streamKw = Buffer.from('stream');
+    const endKw = Buffer.from('endstream');
+    let i = 0, texto = '';
+    while (texto.length < 200000) {
+      const s = buffer.indexOf(streamKw, i);
+      if (s < 0) break;
+      const e = buffer.indexOf(endKw, s + streamKw.length);
+      if (e < 0) break;
+      let start = s + streamKw.length;
+      if (buffer[start] === 0x0d) start++;
+      if (buffer[start] === 0x0a) start++;
+      const chunk = buffer.slice(start, e);
+      let inf = null;
+      try { inf = zlib.inflateSync(chunk); } catch { try { inf = zlib.inflateRawSync(chunk); } catch {} }
+      if (inf) {
+        const lit = inf.toString('latin1').match(/\((?:\\.|[^()\\]){1,80}\)/g);
+        if (lit) texto += ' ' + lit.join(' ');
+      }
+      i = e + endKw.length;
+    }
+    (texto.match(/-?\d+(?:[.,]\d+)?/g) || []).forEach(tok => {
+      const n = parseFloat(tok.replace(',', '.'));
+      if (!isNaN(n)) nums.add(n);
+    });
+  } catch (e) {
+    console.error('[nova] numerosDeCapaTextoPDF error:', e.message);
+  }
+  return nums;
+}
+
+// ─── Idempotencia (§0.2 / §6): existencia por paciente + fecha + analito ──
+// Lee los valores ya guardados para ese paciente en esa fecha y los indexa por
+// analito normalizado → valor (texto). El motor de fórmulas de Airtable solo
+// referencia por nombre, así que el filtro usa nombres; los VALORES leídos se
+// piden por field ID (returnFieldsByFieldId). Devuelve null si no se pudo leer
+// (ante duda no se escribe: un duplicado corrompe la serie en silencio).
+//
+// OJO — gotcha de Airtable: comparar un campo date con string
+// (`{Fecha del estudio}="2026-07-15"`) NO hace match y devuelve 0 filas, lo que
+// rompía la idempotencia (todo se veía "nuevo" y se duplicaba). Hay que envolver
+// el campo en DATESTR() para comparar la parte de fecha como ISO YYYY-MM-DD.
+async function cargarExistentesLabValores(baseId, token, pacienteCode, fecha) {
+  try {
+    const porAnalito = new Map();
+    const formula = `AND({Código de paciente ref}="${String(pacienteCode).replace(/"/g, '\\"')}",DATESTR({Fecha del estudio})="${fecha}")`;
+    let offset;
+    do {
+      const p = new URLSearchParams();
+      p.set('filterByFormula', formula);
+      p.set('pageSize', '100');
+      p.set('returnFieldsByFieldId', 'true');
+      if (offset) p.set('offset', offset);
+      const r = await fetch(`https://api.airtable.com/v0/${baseId}/tbl6y1ZfsmPPhrlFk?${p.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) { console.error('[nova] idempotencia: no se pudo leer LAB_VALORES:', JSON.stringify(data)); return null; }
+      (data.records || []).forEach(rec => {
+        const f = rec.fields || {};
+        const key = normalizarAnalito(f[LV_ANALITO]);
+        if (key && !porAnalito.has(key)) porAnalito.set(key, String(f[LV_VALOR] ?? ''));
+      });
+      offset = data.offset;
+    } while (offset);
+    return porAnalito;
+  } catch (e) {
+    console.error('[nova] idempotencia: error leyendo LAB_VALORES:', e.message);
+    return null;
+  }
+}
+
+// Separa los registros candidatos (ya construidos, con claves 'Analito'/'Valor')
+// contra lo existente. §6: mismo valor → duplicado (omitir); valor distinto →
+// conflicto (NO sobrescribir, avisar); ausente → nuevo (crear).
+function separarNuevosYConflictos(registros, existentes) {
+  const nuevos = [], duplicados = [], conflictos = [];
+  for (const rec of registros) {
+    const nombre = rec.fields['Analito'];
+    const valor  = String(rec.fields['Valor'] ?? '').trim();
+    const key = normalizarAnalito(nombre);
+    if (key && existentes.has(key)) {
+      if (String(existentes.get(key)).trim() === valor) duplicados.push(nombre);
+      else conflictos.push({ analito: nombre, valorNuevo: valor, valorExistente: existentes.get(key) });
+    } else {
+      nuevos.push(rec);
+    }
+  }
+  return { nuevos, duplicados, conflictos };
+}
+
+// ─── §3: normalización y comparación de nombres (doble validación) ──
+// Tolera abreviaturas del laboratorio ("Otero B., Abel"), acentos, mayúsculas y
+// orden de tokens. NO usa similitud difusa: compara tokens SIGNIFICATIVOS (nombre
+// y apellidos, no iniciales sueltas ni conectores "de/la/del"). El código CC- es
+// el identificador único (paso 1, tecleado por el médico); este match (paso 2) es
+// el guardia contra subir el estudio de OTRA persona bajo ese código.
+const CONECTORES_NOMBRE = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'Y', 'E', 'DA', 'DAS', 'DO', 'DOS', 'VON', 'VAN']);
+
+function normalizarNombre(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function tokensSignificativosNombre(tokens) {
+  return tokens.filter(t => t.length >= 2 && !CONECTORES_NOMBRE.has(t));
+}
+
+// Devuelve { coincide, comunes, sigReg, sigDoc }. Umbral: ≥2 tokens significativos
+// en común (nombre + apellido); si el más corto tiene <2 significativos, exige que
+// todos coincidan. Nombres que comparten un solo apellido NO coinciden.
+function compararNombres(registrado, documento) {
+  const sigReg = tokensSignificativosNombre(normalizarNombre(registrado));
+  const sigDoc = tokensSignificativosNombre(normalizarNombre(documento));
+  const setDoc = new Set(sigDoc);
+  const comunes = [...new Set(sigReg)].filter(t => setDoc.has(t));
+  const minSig = Math.min(sigReg.length, sigDoc.length);
+  const requeridos = minSig >= 2 ? 2 : minSig;
+  const coincide = minSig > 0 && comunes.length >= requeridos;
+  return { coincide, comunes, sigReg, sigDoc };
+}
+function edadDesdeNacimiento(fnac) {
+  if (!fnac) return null;
+  const d = new Date(fnac);
+  if (isNaN(d)) return null;
+  const hoy = new Date();
+  let e = hoy.getFullYear() - d.getFullYear();
+  const m = hoy.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < d.getDate())) e--;
+  return (e >= 0 && e < 130) ? e : null;
+}
+
+// Guard anti-duplicado (alta por dictado): busca pacientes cuyo "Nombre completo"
+// coincide con el dictado usando compararNombres (tolera acentos/orden/abreviaturas
+// y reconoce homónimos). Se traen todos los pacientes con campos mínimos y se
+// compara en JS — no hay match sin acentos confiable en fórmulas de Airtable, y el
+// alta es poco frecuente. Devuelve candidatos con datos distintivos para decidir.
+async function buscarPacientesPorNombre(baseId, token, nombre) {
+  const TBL_PAC = 'tblyUcCfueFLJuvIv';
+  const TBL_CONS = 'tbl1Xp2IGxdV178Ky';
+  try {
+    const registros = [];
+    let offset;
+    do {
+      const p = new URLSearchParams();
+      p.set('pageSize', '100');
+      ['Código de paciente', 'Nombre completo', 'Fecha de nacimiento'].forEach(f => p.append('fields[]', f));
+      if (offset) p.set('offset', offset);
+      const r = await fetch(`https://api.airtable.com/v0/${baseId}/${TBL_PAC}?${p.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (!r.ok) { console.error('[nova] buscarPacientesPorNombre:', JSON.stringify(d.error || d)); return []; }
+      (d.records || []).forEach(rec => registros.push(rec));
+      offset = d.offset;
+    } while (offset);
+
+    const matches = registros.filter(rec => compararNombres(nombre, (rec.fields || {})['Nombre completo'] || '').coincide);
+    const candidatos = [];
+    for (const rec of matches.slice(0, 5)) { // límite defensivo
+      const f = rec.fields || {};
+      const codigo = f['Código de paciente'] || '';
+      let ultimaConsulta = null;
+      try {
+        if (codigo) {
+          const cp = new URLSearchParams();
+          cp.set('filterByFormula', `{Código de paciente ref}="${codigo}"`);
+          cp.set('sort[0][field]', 'Fecha de consulta');
+          cp.set('sort[0][direction]', 'desc');
+          cp.set('maxRecords', '1');
+          cp.append('fields[]', 'Fecha de consulta');
+          const cr = await fetch(`https://api.airtable.com/v0/${baseId}/${TBL_CONS}?${cp.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+          const cd = await cr.json();
+          ultimaConsulta = ((cd.records?.[0]?.fields?.['Fecha de consulta']) || '').slice(0, 10) || null;
+        }
+      } catch { /* la fecha es informativa; si falla, se omite */ }
+      candidatos.push({ codigo, nombre: f['Nombre completo'] || '', edad: edadDesdeNacimiento(f['Fecha de nacimiento']), ultimaConsulta });
+    }
+    return candidatos;
+  } catch (e) {
+    console.error('[nova] buscarPacientesPorNombre error:', e.message);
+    return [];
+  }
+}
+
+// Expuestos para pruebas offline (no altera el export por defecto del handler).
+module.exports.compararNombres = compararNombres;
+module.exports.normalizarNombre = normalizarNombre;
+module.exports.pdfTieneCapaDeTexto = pdfTieneCapaDeTexto;
+module.exports.buscarPacientesPorNombre = buscarPacientesPorNombre;
+
+function normalizarAnalito(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Devuelve una función matchAnalito(nombre) → { recId, confianza } | null.
+// Ante cualquier fallo de lectura del catálogo degrada a "sin match" en vez de
+// romper el guardado: un registro sin Parametro es recuperable (SPEC §3.4).
+async function cargarMatcherCatalogo(baseId, token) {
+  // Se adjuntan al matcher: .porCodigo (codigo norm → recId), .porRecId
+  // (recId → {codigo,nombre} originales) y .lista ([{codigo,nombre}]) para dar
+  // el catálogo como contexto a la visión (§3 glosario). Aditivo: los callers de
+  // Bloque 1 solo usan matchAnalito(nombre).recId/.confianza y no se afectan.
+  const attach = (fn) => Object.assign(fn, { porCodigo: new Map(), porRecId: new Map(), lista: [] });
+  const SIN_MATCH = attach(() => null);
+  try {
+    const exactos   = new Map(); // nombre/codigo normalizado → recId  (Alta)
+    const alias     = new Map(); // alias normalizado → recId           (Media)
+    const porCodigo = new Map(); // codigo normalizado → recId
+    const porRecId  = new Map(); // recId → { codigo, nombre } (originales, para mostrar)
+    const lista     = [];        // [{ codigo, nombre }] contexto del modelo
+    let offset;
+    do {
+      const p = new URLSearchParams();
+      p.set('pageSize', '100');
+      p.set('returnFieldsByFieldId', 'true');
+      if (offset) p.set('offset', offset);
+      const r = await fetch(`https://api.airtable.com/v0/${baseId}/${CAT_PARAMETROS.tabla}?${p.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) { console.error('[nova] no se pudo leer CATALOGO_PARAMETROS:', JSON.stringify(data)); return SIN_MATCH; }
+      (data.records || []).forEach(rec => {
+        const f = rec.fields || {};
+        if (f[CAT_PARAMETROS.activo] !== true) return;          // solo catálogo activo
+        if (f[CAT_PARAMETROS.fuente] !== 'LAB_VALORES') return; // solo parámetros de laboratorio
+        const codigoOrig = f[CAT_PARAMETROS.codigo] || '';
+        const nombreOrig = f[CAT_PARAMETROS.nombre] || '';
+        const codigo = normalizarAnalito(codigoOrig);
+        const nombre = normalizarAnalito(nombreOrig);
+        if (codigo) { exactos.set(codigo, rec.id); porCodigo.set(codigo, rec.id); }
+        if (nombre) exactos.set(nombre, rec.id);
+        String(f[CAT_PARAMETROS.alias] || '').split(';').forEach(a => {
+          const na = normalizarAnalito(a);
+          if (na && !exactos.has(na)) alias.set(na, rec.id);
+        });
+        porRecId.set(rec.id, { codigo: codigoOrig, nombre: nombreOrig, categoria: f[CAT_PARAMETROS.categoria] || '' });
+        if (codigoOrig) lista.push({ codigo: codigoOrig, nombre: nombreOrig });
+      });
+      offset = data.offset;
+    } while (offset);
+    const matchAnalito = (nombreAnalito) => {
+      const key = normalizarAnalito(nombreAnalito);
+      if (!key) return null;
+      const esExacto = exactos.has(key);
+      const recId = esExacto ? exactos.get(key) : (alias.has(key) ? alias.get(key) : null);
+      if (!recId) return null;
+      const disp = porRecId.get(recId) || {};
+      return { recId, confianza: esExacto ? 'Alta' : 'Media', codigo: disp.codigo || '', nombre: disp.nombre || '' };
+    };
+    return Object.assign(matchAnalito, { porCodigo, porRecId, lista });
+  } catch (e) {
+    console.error('[nova] error cargando matcher de catálogo:', e.message);
+    return SIN_MATCH;
+  }
+}
+
 // ─── Ejecuta el guardado real de series históricas en Airtable ────
 // Extraída como función independiente para poder llamarla tanto desde el
 // tool_use natural de NOVA como desde el reintento forzado (cuando NOVA
 // respondió solo en texto sin usar ninguna herramienta pese a que el
 // dictado claramente traía varias fechas).
 async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
-  if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+  if (!pacienteCode || !/^CC-PAC-[A-Z0-9]{4,8}$/.test(pacienteCode)) {
     return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tengo un paciente seleccionado en el portal para guardar esto — abre su expediente primero y dicta de nuevo.` }] };
   }
 
@@ -3234,7 +4170,11 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
     return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No encontré ese paciente en Airtable — no se guardó nada.` }] };
   }
 
-  const resultadosSeries = await Promise.all((series || []).filter(s => s.fecha).map(async serie => {
+  const matchAnalito = await cargarMatcherCatalogo(BASE_ID, AIRTABLE_TOKEN);
+
+  // §0.1: solo se guardan series con fecha ISO válida; nunca se asume una fecha.
+  // Una serie con fecha no interpretable se descarta (se refleja en "X de N").
+  const resultadosSeries = await Promise.all((series || []).filter(s => esFechaISO(s.fecha)).map(async serie => {
     const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
     const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
 
@@ -3255,12 +4195,13 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
       }),
     });
     const crearData = await crearRes.json();
-    if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return null; }
+    if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return { fecha: serie.fecha, estado: 'fallida' }; }
 
     if (analitos.length) {
       const registrosValores = analitos.map(a => {
         const banderaCap = capitalizar(a.bandera);
         const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
+        const cat = matchAnalito(a.nombre); // §3.5: sin match → sin Parametro ni Confianza, se carga igual
         return {
           fields: {
             'Analito': a.nombre,
@@ -3269,32 +4210,76 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
             'Unidad': a.unidad || '',
             'Rango de referencia': a.rango_texto || '',
             'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
-            'Es crítico': !!a.critico,
-            'Relevante a patología': true,
+            [LV_CRITICO]: !!a.critico,       // §0.3: bandera clínica, solo si el valor lo amerita
+            [LV_RELEVANTE]: !!a.relevante,   // §0.3: sin hardcode a true
             'Fecha del estudio': serie.fecha,
             'Código de paciente ref': pacienteCode,
             'Paciente': [pacRecord.id],
             'Estudio (NOVA LABS)': [crearData.id],
+            ...(cat ? { [LV_PARAMETRO]: [cat.recId], [LV_CONFIANZA]: cat.confianza } : {}),
           },
         };
       });
-      await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typecast: true, records: registrosValores }),
-      }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
+      // §6: idempotencia por paciente+fecha+analito antes de crear (reintento no duplica).
+      const existentes = await cargarExistentesLabValores(BASE_ID, AIRTABLE_TOKEN, pacienteCode, serie.fecha);
+      if (!existentes) {
+        // null: aborta limpio (no se escribe ningún valor). La fecha NO cuenta como
+        // guardada — se reporta como fallida para que el médico la reintente.
+        console.error(`[nova] LAB_VALORES (backfill): no se pudo verificar duplicados — NO se guardó para ${pacienteCode} ${serie.fecha}.`);
+        return { fecha: serie.fecha, estado: 'fallida' };
+      }
+      const sep = separarNuevosYConflictos(registrosValores, existentes);
+      if (sep.conflictos.length) console.warn('[nova] LAB_VALORES conflictos (backfill, valor distinto — NO sobrescritos):', JSON.stringify(sep.conflictos));
+      if (sep.duplicados.length) console.info(`[nova] LAB_VALORES (backfill): ${sep.duplicados.length} duplicado(s) omitido(s) en ${serie.fecha}.`);
+      // Una fecha solo cuenta como guardada si TODOS sus lotes respondieron OK. Un
+      // lote rechazado (error de red o HTTP !ok) marca la fecha como fallida en vez
+      // de pasar en silencio: sus valores pueden haber quedado a medias.
+      let algunLoteFallo = false;
+      for (let i = 0; i < sep.nuevos.length; i += 50) {
+        try {
+          const postRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ typecast: true, records: sep.nuevos.slice(i, i + 50) }),
+          });
+          if (!postRes.ok) {
+            const errData = await postRes.json().catch(() => ({}));
+            console.error('[nova] error creando LAB_VALORES (backfill):', JSON.stringify(errData));
+            algunLoteFallo = true;
+          }
+        } catch (e) {
+          console.error('[nova] error creando LAB_VALORES (backfill):', e.message);
+          algunLoteFallo = true;
+        }
+      }
+      if (algunLoteFallo) return { fecha: serie.fecha, estado: 'fallida' };
+      if (sep.conflictos.length) return { fecha: serie.fecha, estado: 'conflicto' };
+      return { fecha: serie.fecha, estado: 'confirmada' };
     }
-    return serie.fecha;
+    return { fecha: serie.fecha, estado: 'confirmada' };
   }));
 
-  const fechasGuardadas = resultadosSeries.filter(Boolean);
-  const guardadas = fechasGuardadas.length;
+  // Tres números distintos (§6): valores confirmados, conflictos no sobrescritos y
+  // fechas que fallaron. Una fecha "confirmada" implica que todos sus lotes de
+  // valores respondieron OK; el null y los lotes rechazados caen en "fallidas".
+  const confirmadas   = resultadosSeries.filter(r => r.estado === 'confirmada').map(r => r.fecha);
+  const conConflictos = resultadosSeries.filter(r => r.estado === 'conflicto').map(r => r.fecha);
+  const fallidas      = resultadosSeries.filter(r => r.estado === 'fallida').map(r => r.fecha);
+  const totalSolicitadas = (series || []).length;
+  const algoPersistido = confirmadas.length + conConflictos.length > 0;
 
-  const textoFinal = guardadas > 0
-    ? `${mensaje}\n\n✅ Guardado en NOVA LABS: ${guardadas} de ${(series || []).length} fecha(s) (${fechasGuardadas.join(', ')}). Ya puedes verlas en la pestaña NOVA LABS del expediente.`
+  const lineas = [];
+  if (confirmadas.length)   lineas.push(`✅ ${confirmadas.length} con valores confirmados (${confirmadas.join(', ')})`);
+  if (conConflictos.length) lineas.push(`⚠️ ${conConflictos.length} con valores en conflicto que NO se sobrescribieron (${conConflictos.join(', ')}) — revísalas`);
+  if (fallidas.length)      lineas.push(`❌ ${fallidas.length} que fallaron al guardar (${fallidas.join(', ')})`);
+
+  const textoFinal = (confirmadas.length || conConflictos.length || fallidas.length)
+    ? `${mensaje}\n\nResultado del guardado histórico (${totalSolicitadas} fecha(s) solicitada(s)):\n${lineas.join('\n')}`
+      + (fallidas.length ? `\n\n⚠️ Algunas fechas fallaron: sus valores NO quedaron guardados. Reintenta esas fechas.` : ``)
+      + (algoPersistido ? `\n\nYa puedes ver las guardadas en la pestaña NOVA LABS del expediente.` : ``)
     : `${mensaje}\n\n⚠️ No se pudo guardar ninguna fecha — revisa el formato e inténtalo de nuevo.`;
 
-  return { content: [{ type: 'text', text: textoFinal }], refrescarLabs: guardadas > 0 };
+  return { content: [{ type: 'text', text: textoFinal }], refrescarLabs: algoPersistido };
 }
 
 // ─── DEFINICIÓN DE LA HERRAMIENTA DE NOVA EN MODO MÉDICO (ficha) ───
@@ -3485,12 +4470,14 @@ async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamien
 function buildHerramientaAltaPaciente() {
   return {
     name: 'crear_paciente_dictado',
-    description: 'Úsala SOLO cuando el médico dicte los datos generales de un paciente NUEVO que claramente no está aún registrado (menciona nombre completo, edad, datos generales, con intención de darlo de alta) — no la uses para seguimiento de un paciente que ya está seleccionado en el portal, para eso existe rellenar_ficha_consulta. CRÍTICO: los antecedentes heredofamiliares (lo que tienen los papás, hermanos, familiares) NUNCA van en patologias_detectadas — esas son solo las condiciones que el PACIENTE MISMO tiene. Confundir esto sería un error clínico grave.',
+    description: 'Úsala SOLO cuando el médico dicte los datos generales de un paciente NUEVO que claramente no está aún registrado (menciona nombre completo, edad, datos generales, con intención de darlo de alta) — no la uses para seguimiento de un paciente que ya está seleccionado en el portal, para eso existe rellenar_ficha_consulta. IMPORTANTE — DUPLICADOS: el backend verifica si ya existe un paciente con ese nombre antes de crear. Si te devuelve candidatos, NO insistas en crear: pregúntale al médico cuál es y vuelve a llamar esta herramienta con codigo_paciente_existente (si el dictado es de uno de ellos — el dictado se agrega a ESE expediente, no se crea duplicado) o con confirmar_nuevo:true (solo si el médico confirma que es un homónimo distinto, dado de alta como nuevo). CRÍTICO: los antecedentes heredofamiliares (lo que tienen los papás, hermanos, familiares) NUNCA van en patologias_detectadas — esas son solo las condiciones que el PACIENTE MISMO tiene. Confundir esto sería un error clínico grave.',
     input_schema: {
       type: 'object',
       properties: {
         mensaje: { type: 'string', description: 'Tu respuesta al médico confirmando qué se registró y qué falta, si algo.' },
         nombre_completo: { type: 'string' },
+        codigo_paciente_existente: { type: 'string', description: 'Solo cuando, tras presentarte candidatos existentes, el médico confirma que el dictado es de un paciente YA registrado: su código CC-PAC-. El dictado se agrega a ESE expediente y NO se crea uno nuevo.' },
+        confirmar_nuevo: { type: 'boolean', description: 'true SOLO cuando, tras presentarte candidatos con el mismo nombre, el médico confirma explícitamente que es un paciente DISTINTO (homónimo) y quiere darlo de alta como nuevo. Sin esta confirmación, si hay un candidato con el mismo nombre NO se crea.' },
         edad: { type: 'number' },
         sexo: { type: 'string', enum: ['Masculino', 'Femenino'] },
         telefono_whatsapp: { type: 'string', description: 'Teléfono/WhatsApp del paciente, si el médico lo mencionó al dictarlo.' },

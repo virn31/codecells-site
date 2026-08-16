@@ -390,7 +390,7 @@ async function manejarCallbackQuery(callbackQuery, res) {
 
   // Solo los médicos maestros (Víctor y Dr. Juan Carlos) pueden tocar estos
   // botones — se verifica que el chat_id que tocó ya esté vinculado a un
-  // médico con "Ver todos los pacientes" activo.
+  // médico con "Es médico maestro" activo (permiso admin, no visibilidad).
   const esMaestro = await verificarEsMedicoMaestro(chatId);
   if (!esMaestro) {
     await answerCallbackQuery(callbackQuery.id, 'No tienes permiso para esta acción.');
@@ -484,7 +484,9 @@ async function verificarEsMedicoMaestro(chatId) {
   const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
   const data = await res.json();
   const rec = data.records && data.records[0];
-  return !!(rec && rec.fields['Ver todos los pacientes'] === true);
+  // 'Es médico maestro' es el permiso admin (autoriza solicitudes). Se lee el
+  // nombre nuevo y el viejo durante la transición del rename del campo.
+  return !!(rec && (rec.fields['Es médico maestro'] === true || rec.fields['Ver todos los pacientes'] === true));
 }
 
 const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';

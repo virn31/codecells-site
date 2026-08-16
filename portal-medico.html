@@ -3567,6 +3567,11 @@
                     <option>Personalizado</option>
                   </select>
                 </div>
+                <div class="form-group">
+                  <label>Fecha del estudio (toma de muestra)</label>
+                  <input type="date" id="f-fecha-lab">
+                  <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Si el paciente trae un estudio de meses atrás, corrige esta fecha. NO es la fecha de captura — es cuándo se tomó la muestra.</div>
+                </div>
               </div>
 
               <div class="form-group">
@@ -3711,6 +3716,62 @@
         <span id="np-label">Registrar paciente</span>
         <span id="np-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: FASE C · DOBLE VALIDACIÓN DE IDENTIDAD (§3) ─── -->
+<div class="modal-overlay" id="modal-fc-identidad">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Subir estudio — verificar paciente</h3>
+      <button class="modal-close" id="fc-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-2);">Archivo: <strong id="fc-archivo-nombre">—</strong></div>
+      <div class="form-group">
+        <label>Código del paciente destinatario *</label>
+        <input type="text" id="fc-codigo" placeholder="CC-PAC-XXXXXX" maxlength="14" autocomplete="off" spellcheck="false">
+        <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Tecléalo tú. No se prellena a propósito — es la verificación: el nombre impreso en el estudio se compara contra el registrado bajo este código.</div>
+      </div>
+      <div id="fc-resultado" style="min-height:16px;font-size:12.5px;line-height:1.5;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="fc-cancel">Cancelar</button>
+      <button class="btn-save" id="fc-validar">
+        <span id="fc-validar-label">Validar identidad</span>
+        <span id="fc-validar-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: FASE C · PANTALLA DE CONFIRMACIÓN (§2 paso 4) ─── -->
+<div class="modal-overlay" id="modal-fc-confirmar">
+  <div class="modal-box" style="max-width:1000px;width:96%;">
+    <div class="modal-header">
+      <h3>Confirmar estudio antes de guardar</h3>
+      <button class="modal-close" id="fcc-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="fcc-avisos"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Paciente</label><input type="text" id="fcc-paciente" disabled></div>
+        <div class="form-group"><label>Fecha del estudio *</label><input type="date" id="fcc-fecha"><div id="fcc-fecha-aviso" style="font-size:11px;color:#E2A33D;margin-top:4px;"></div></div>
+        <div class="form-group"><label>Momento</label>
+          <select id="fcc-momento"><option>Basal</option><option>En tratamiento</option><option>Seguimiento</option><option>Sin clasificar</option></select>
+          <div id="fcc-momento-aviso" style="font-size:11px;color:var(--text-3);margin-top:4px;"></div>
+        </div>
+      </div>
+      <div id="fcc-resumen" style="font-size:12px;color:var(--text-2);margin:2px 0 6px;"></div>
+      <div id="fcc-ilegibles" style="font-size:12px;margin-bottom:8px;"></div>
+      <div style="overflow-x:auto;"><table class="labs-pivote-table" id="fcc-tabla" style="min-width:900px;"></table></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:8px;">Revisa y corrige cualquier campo. Las filas fuera de rango, con lectura dudosa o ilegibles van arriba. Extracción no es verificación — nada se guarda hasta que confirmes.</div>
+      <div id="fcc-error" style="font-size:12px;color:#E2574B;min-height:16px;margin-top:6px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="fcc-cancel">Cancelar</button>
+      <button class="btn-save" id="fcc-guardar"><span id="fcc-guardar-label">Confirmar y guardar</span><span id="fcc-guardar-loader" style="display:none"><span class="loader" style="border-top-color:#0a0a0a;border-color:rgba(0,0,0,0.2);"></span></span></button>
     </div>
   </div>
 </div>
@@ -3930,7 +3991,12 @@ const TOKEN_KEY = 'cc_medico_token';
 const _fetchOriginal = window.fetch.bind(window);
 window.fetch = function(url, opts = {}) {
   const urlStr = typeof url === 'string' ? url : (url && url.url) || '';
-  if (urlStr.includes('/api/airtable')) {
+  // También /api/nova: medico_tabla_labs y medico_resumen_labs no llevaban
+  // NINGÚN token (ni siquiera un medicoCode) — cualquiera con un
+  // pacienteCode leía los labs de ese paciente sin sesión de ningún tipo.
+  // Las acciones de /api/nova que no verifican Authorization simplemente
+  // ignoran este header, así que agregarlo aquí no rompe nada existente.
+  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova')) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
       opts = { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } };
@@ -3978,7 +4044,14 @@ function actualizarLinksCapacitacion() {
 
 function formatDate(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
+  // Un campo date de Airtable ("2026-04-15") es un día calendario, sin hora ni
+  // zona. `new Date("2026-04-15")` lo interpreta como medianoche UTC y, al
+  // formatear en zona local (Mazatlán UTC-7), retrocede un día. Para fechas
+  // solo-día se construye la fecha en hora LOCAL; los datetimes ISO con hora
+  // (con "T") sí se parsean normal, que ahí la zona sí aplica.
+  const soloDia = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso).trim());
+  const d = soloDia ? new Date(+soloDia[1], +soloDia[2] - 1, +soloDia[3]) : new Date(iso);
+  if (isNaN(d)) return String(iso);
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
@@ -4007,8 +4080,8 @@ async function airtableFetch(tabla, params = '') {
   return res.json();
 }
 
-async function airtablePost(tabla, fields) {
-  const url = `/api/airtable?tabla=${tabla}`;
+async function airtablePost(tabla, fields, pacienteBuscado = '') {
+  const url = `/api/airtable?tabla=${tabla}${pacienteBuscado ? `&pacienteBuscado=${encodeURIComponent(pacienteBuscado)}` : ''}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -4371,19 +4444,11 @@ async function cargarPacientes() {
   lista.innerHTML = '<div class="loading-row"><span class="loader"></span> Cargando pacientes…</div>';
 
   try {
-    let formula, url;
-    if (medicoActual.id === 'demo' || medicoActual['Ver todos los pacientes'] === true) {
-      // Demo, o médico maestro (Ver todos los pacientes activo): sin filtro.
-      url = '?sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100';
-    } else {
-      // ARRAYJOIN() sobre un campo de registros vinculados devuelve el valor del
-      // CAMPO PRIMARIO del registro vinculado — en la tabla MÉDICOS ese campo
-      // primario es "Código de médico" (verificado con datos reales), no el
-      // nombre ni el ID interno.
-      const codigoMedico = (medicoActual['Código de médico'] || '').replace(/"/g, '\\"');
-      formula = encodeURIComponent(`FIND("${codigoMedico}", ARRAYJOIN({Médico_principal}))`);
-      url = `?filterByFormula=${formula}&sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100`;
-    }
+    // El backend acota la lista a los pacientes del médico + los demo e IGNORA
+    // cualquier filtro que se mande (la autorización real vive en el servidor,
+    // no en el cliente). Aquí solo se pide orden y tope. La interconsulta por
+    // código exacto va por separado (btn-buscar-pac → ?pacienteBuscado=).
+    const url = '?sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=100';
 
     const data = await airtableFetch(TBL_PACIENTES, url);
     todosPacientes = data.records || [];
@@ -4413,7 +4478,7 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
   const errEl = document.getElementById('pac-codigo-error');
   const btn = document.getElementById('btn-buscar-pac');
 
-  if (!codigo.match(/^CC-PAC-[0-9]{4,8}$/)) {
+  if (!codigo.match(/^CC-PAC-[A-Z0-9]{4,8}$/)) {
     errEl.textContent = 'Formato: CC-PAC-XXXXXX';
     return;
   }
@@ -4423,8 +4488,9 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
   errEl.textContent = '';
 
   try {
-    const formula = encodeURIComponent(`{Código de paciente}="${codigo}"`);
-    const data = await airtableFetch(TBL_PACIENTES, `?filterByFormula=${formula}&maxRecords=1`);
+    // Interconsulta: el código exacto viaja como ?pacienteBuscado= (el backend
+    // lo valida y arma el filtro). El filterByFormula del cliente se ignora.
+    const data = await airtableFetch(TBL_PACIENTES, `?pacienteBuscado=${encodeURIComponent(codigo)}&maxRecords=1`);
 
     if (!data.records || data.records.length === 0) {
       errEl.textContent = 'Paciente no encontrado.';
@@ -4591,6 +4657,11 @@ function activarTab(tab) {
   // en NOVA LABS y las demás debe verse únicamente el contenido de esa pestaña.
   const seccionConsulta = document.querySelector('.consulta-section');
   if (seccionConsulta) seccionConsulta.style.display = (tab === 'consultas') ? '' : 'none';
+  // Al abrir CONSULTAS, llevar la vista al inicio del formulario "Nueva consulta".
+  // requestAnimationFrame: la sección ya está visible antes de medir el scroll.
+  if (tab === 'consultas' && seccionConsulta) {
+    requestAnimationFrame(() => seccionConsulta.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
   if (tab === 'nutricion') cargarNutricion();
 }
 
@@ -4637,7 +4708,7 @@ async function cargarNutricion() {
 
   try {
     const formula = `{Código de paciente ref}="${pacId}"`;
-    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=asc&maxRecords=100`);
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=asc&maxRecords=100&pacienteBuscado=${encodeURIComponent(pacId)}`);
     const registros = (data.records || []).filter(r => typeof r.fields['Peso en consulta (kg)'] === 'number');
 
     if (!registros.length) {
@@ -5098,7 +5169,7 @@ document.getElementById('btn-guardar-datos').addEventListener('click', async () 
   btn.disabled = true; lbl.style.display = 'none'; loader.style.display = 'inline';
 
   try {
-    await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
+    await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}&pacienteBuscado=${encodeURIComponent(pacienteActual.fields['Código de paciente'] || '')}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields, typecast: true })
@@ -5126,11 +5197,13 @@ async function cargarHistoria(pacId) {
   historiaActualFields = {};
 
   try {
+    // El servidor ignora y reemplaza este filterByFormula para el rol
+    // médico — pacienteBuscado es lo que de verdad decide el acceso.
     const formula = encodeURIComponent(`{Código de paciente ref}="${pacId}"`);
-    const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1`);
+    const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1&pacienteBuscado=${encodeURIComponent(pacId)}`);
 
     if (!data.records || data.records.length === 0) {
-      cont.innerHTML = renderHistoriaDemo();
+      cont.innerHTML = renderHistoriaVacia();
       return;
     }
 
@@ -5148,7 +5221,7 @@ async function cargarHistoria(pacId) {
       { key: 'Medicamentos actuales', val: f['Medicamentos actuales'] },
     ].filter(c => c.val);
 
-    if (campos.length === 0) { cont.innerHTML = renderHistoriaDemo(); return; }
+    if (campos.length === 0) { cont.innerHTML = renderHistoriaVacia(); return; }
 
     cont.innerHTML = campos.map(c => `
       <div class="data-cell" style="margin-bottom:8px;border-radius:4px;">
@@ -5158,7 +5231,7 @@ async function cargarHistoria(pacId) {
     `).join('');
 
   } catch (err) {
-    cont.innerHTML = renderHistoriaDemo();
+    cont.innerHTML = renderHistoriaError();
   }
 }
 
@@ -5211,7 +5284,7 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
   try {
     if (historiaActualId) {
       // Ya existe un registro (llenado por el paciente o el kiosco) — se corrige
-      await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}`, {
+      await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields, typecast: true })
@@ -5221,7 +5294,7 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
       fields['Código de paciente ref'] = pacId;
       fields['Paciente'] = [pacienteActual.id];
       fields['Fecha entrevista NOVA'] = new Date().toISOString();
-      await airtablePost(TBL_HISTORIA, fields);
+      await airtablePost(TBL_HISTORIA, fields, pacId);
     }
     showToast('Historia clínica actualizada ✓', 'success');
     document.getElementById('historia-edit-form').style.display = 'none';
@@ -5234,16 +5307,24 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
   }
 });
 
-function renderHistoriaDemo() {
+// Estado vacío explícito — NUNCA datos de ejemplo inventados en un expediente.
+// Sin historia clínica registrada (o sin campos con contenido) para el paciente.
+function renderHistoriaVacia() {
   return `
-    <div class="data-grid">
-      <div class="data-cell"><div class="key">AHF</div><div class="val" style="font-weight:400;font-size:12px;">DM2 padre, HAS madre</div></div>
-      <div class="data-cell"><div class="key">Alergias</div><div class="val" style="font-weight:400;font-size:12px;">Penicilina — reacción leve</div></div>
-      <div class="data-cell"><div class="key">Diagnóstico</div><div class="val" style="font-weight:400;font-size:12px;">Síndrome metabólico, Fatiga crónica</div></div>
-      <div class="data-cell"><div class="key">Medicamentos</div><div class="val" style="font-weight:400;font-size:12px;">Metformina 850mg c/12h</div></div>
+    <div style="padding:20px 16px;text-align:center;font-size:13px;line-height:1.6;color:var(--text-3);border:0.5px dashed var(--border);border-radius:4px;">
+      Sin historia clínica registrada para este paciente.<br>
+      <span style="font-size:12px;">Puedes capturarla con ✏️ Editar.</span>
     </div>
-    <div style="margin-top:12px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
-      Historia clínica no cargada desde Airtable — mostrando datos de ejemplo.
+  `;
+}
+
+// Estado de error — distinto del vacío a propósito: un fallo de red NO debe
+// verse como un expediente limpio.
+function renderHistoriaError() {
+  return `
+    <div style="padding:20px 16px;text-align:center;font-size:13px;line-height:1.6;color:#e24b4a;border:0.5px solid rgba(226,75,74,0.4);border-radius:4px;">
+      No se pudo cargar la historia clínica.<br>
+      <span style="font-size:12px;">Revisa la conexión e inténtalo de nuevo.</span>
     </div>
   `;
 }
@@ -5263,7 +5344,9 @@ async function cargarConsultas(pacId, soloMias = true) {
     if (soloMias && miCodigo) {
       formula = `AND({Código de paciente ref}="${pacId}", {Código de médico ref}="${miCodigo}")`;
     }
-    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=desc&maxRecords=30`);
+    // El servidor reconstruye el AND con SU propio código de médico (nunca
+    // el que mande aquí el cliente) — soloMias solo viaja como bandera.
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=desc&maxRecords=30&pacienteBuscado=${encodeURIComponent(pacId)}${soloMias ? '&soloMias=1' : ''}`);
 
     if (!data.records || data.records.length === 0) {
       tl.innerHTML = soloMias
@@ -5570,8 +5653,11 @@ function renderTablaPivoteLabs() {
         if (!p || p.valor === undefined) return '<td>—</td>';
         return `<td class="${claseValorBandera(p)}">${p.valor}</td>`;
       }).join('');
+      const marcaNoGraf = fila.graficable === false
+        ? ` <span title="Sin parámetro de catálogo — este analito no entra al motor de gráficas (§3.5)" style="color:var(--text-3);font-size:9.5px;font-weight:400;letter-spacing:.02em;white-space:nowrap;">◦ no graficable</span>`
+        : '';
       return `<tr style="${colapsado ? 'display:none;' : ''}" data-categoria="${categoria}" onclick="abrirDetalleParametro('${fila.analito.replace(/'/g, "\\'")}')">
-        <td><strong>${fila.analito}</strong></td>
+        <td><strong>${fila.analito}</strong>${marcaNoGraf}</td>
         <td style="color:var(--text-3);">${fila.unidad}</td>
         <td style="color:var(--text-3);">${fila.rango_texto}</td>
         ${celdas}
@@ -5594,7 +5680,7 @@ function renderTablaPivoteLabs() {
       </tr></thead>
       <tbody>${bloquesHTML}</tbody>
     </table>
-    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">🔵 Bajo &nbsp; 🟢 Normal &nbsp; 🟠 Alto &nbsp; 🔴 Crítico — los resultados están sujetos a interpretación clínica. Clic en una fila para ver el detalle.</div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">🔵 Bajo &nbsp; 🟢 Normal &nbsp; 🟠 Alto &nbsp; 🔴 Crítico — los resultados están sujetos a interpretación clínica. Clic en una fila para ver el detalle.<br>◦ no graficable = sin parámetro de catálogo; queda en el expediente pero no entra a las gráficas.</div>
     ${labsInterpretacionActual ? `<div style="margin-top:16px;padding:14px 16px;background:var(--black-3);border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.6;color:var(--text-2);">${labsInterpretacionActual}</div>` : ''}
   `;
 }
@@ -5618,6 +5704,9 @@ function renderCompararFechas() {
   const fechaB = document.getElementById('labs-comparar-fecha-b').value;
   const cont = document.getElementById('labs-comparar-tabla');
   if (!fechaA || !fechaB) { cont.innerHTML = ''; return; }
+  // Con un solo estudio ambos selects caen en la misma fecha: no hay comparación
+  // real (columnas idénticas, 0%). Se avisa en vez de mostrar un cambio falso.
+  if (fechaA === fechaB) { cont.innerHTML = '<div style="font-size:12px;color:var(--text-3);">No hay con qué comparar — se necesitan dos estudios en fechas distintas.</div>'; return; }
 
   const filas = labsPivoteFilas
     .map(fila => ({ analito: fila.analito, unidad: fila.unidad, a: fila.porFecha[fechaA], b: fila.porFecha[fechaB] }))
@@ -5854,7 +5943,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
 
   try {
-    const consultaCreada = await airtablePost(TBL_CONSULTAS, fields);
+    const consultaCreada = await airtablePost(TBL_CONSULTAS, fields, pacId);
     showToast('Consulta guardada en Airtable ✓', 'success');
 
     // Sugerencia automática de CIE-10 — solo si el médico no capturó uno
@@ -5924,7 +6013,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     if (Object.keys(historiaFields).length > 0) {
       try {
         if (historiaActualId) {
-          await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}`, {
+          await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fields: historiaFields, typecast: true })
@@ -5933,7 +6022,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
           historiaFields['Código de paciente ref'] = pacId;
           historiaFields['Paciente'] = [pacienteActual.id];
           historiaFields['Fecha entrevista NOVA'] = new Date().toISOString();
-          await airtablePost(TBL_HISTORIA, historiaFields);
+          await airtablePost(TBL_HISTORIA, historiaFields, pacId);
         }
         cargarHistoria(pacId);
       } catch (err) {
@@ -5953,7 +6042,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
       if (grupoSanguineo) pacienteFields['Grupo sanguíneo'] = grupoSanguineo;
       if (escolaridad) pacienteFields['Escolaridad'] = escolaridad;
       try {
-        await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}`, {
+        await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}&pacienteBuscado=${encodeURIComponent(pacienteActual.fields['Código de paciente'] || '')}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fields: pacienteFields, typecast: true })
@@ -5970,26 +6059,41 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     const panelLab = document.getElementById('f-panel-lab').value;
     const resultadosLab = document.getElementById('f-resultados-lab').value.trim();
     const fueraDeRangoLab = document.getElementById('f-fuera-rango-lab').value.trim();
+    const fechaEstudioLab = (document.getElementById('f-fecha-lab').value || '').trim();
     const filasRapidas = leerFilasLabRapido();
     if (resultadosLab || filasRapidas.length) {
-      try {
-        await fetch('/api/nova', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'medico_guardar_labs_rapidos',
-            pacienteCode: pacId,
-            panel: panelLab || 'Personalizado',
-            tipoEstudio: 'Laboratorio',
-            resultadosTexto: resultadosLab,
-            fueraDeRango: fueraDeRangoLab,
-            valoresRapidos: filasRapidas,
-            consultaId: (consultaCreada && consultaCreada.id) || null,
-          }),
-        });
-        cargarLabs(pacId);
-      } catch (err) {
-        console.error('Error guardando resultados en NOVA LABS:', err);
+      // El backend rechaza (400) si falta la fecha del estudio — nunca asume hoy.
+      // La avisamos aquí para que el médico no lo lea como una falla de red.
+      if (!fechaEstudioLab) {
+        showToast('Falta la fecha del estudio de laboratorio — no se guardaron los valores.', 'error');
+      } else {
+        try {
+          const rLab = await fetch('/api/nova', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'medico_guardar_labs_rapidos',
+              pacienteCode: pacId,
+              panel: panelLab || 'Personalizado',
+              tipoEstudio: 'Laboratorio',
+              resultadosTexto: resultadosLab,
+              fueraDeRango: fueraDeRangoLab,
+              valoresRapidos: filasRapidas,
+              fechaEstudio: fechaEstudioLab,
+              consultaId: (consultaCreada && consultaCreada.id) || null,
+            }),
+          });
+          const dLab = await rLab.json().catch(() => ({}));
+          if (dLab.labValoresError) {
+            // No se pudo verificar duplicados: los valores NO quedaron guardados.
+            showToast(dLab.labValoresError, 'error');
+          } else if (Array.isArray(dLab.conflictos) && dLab.conflictos.length) {
+            showToast(`${dLab.conflictos.length} valor(es) ya existían con otro resultado en esa fecha — NO se sobrescribieron. Revísalos.`, 'error');
+          }
+          cargarLabs(pacId);
+        } catch (err) {
+          console.error('Error guardando resultados en NOVA LABS:', err);
+        }
       }
     }
 
@@ -6052,6 +6156,17 @@ function limpiarFormulario() {
   document.getElementById('f-proxima-cita-hora').value = '10:00';
   document.getElementById('lab-rapido-filas').innerHTML = '';
   document.getElementById('lab-archivo-estado').textContent = '';
+  // Fecha del estudio: se reinicia a hoy (caso común en consultorio: glucometría
+  // del día). El médico la corrige si el estudio es de meses atrás. Nunca se
+  // envía vacía — el backend rechaza sin fecha (no asume hoy por su cuenta).
+  const fechaLab = document.getElementById('f-fecha-lab');
+  if (fechaLab) fechaLab.value = hoyLocalISO();
+}
+
+// Fecha local YYYY-MM-DD (no UTC: toISOString desfasaría el día en horario MX).
+function hoyLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ─── VALORES RÁPIDOS DE LABORATORIO (point-of-care) ────────────────
@@ -6093,6 +6208,12 @@ function leerFilasLabRapido() {
 }
 
 // ─── SUBIR ESTUDIO EN CONSULTORIO (médico) ─────────────────────────
+// ─── FASE C · subida de estudio con doble validación de identidad (§3) ──
+// El botón ya NO sube directo. Abre el gate donde el médico TECLEA el código
+// (no prellenado, ni con el expediente abierto) y se valida el nombre impreso
+// del documento contra el registrado ANTES de cualquier extracción o escritura.
+var fcArchivo = null; // { base64, name, type } del estudio en validación
+
 document.getElementById('btn-subir-lab-archivo').addEventListener('click', () => {
   document.getElementById('f-lab-archivo').click();
 });
@@ -6100,63 +6221,266 @@ document.getElementById('btn-subir-lab-archivo').addEventListener('click', () =>
 document.getElementById('f-lab-archivo').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
-
   const estadoEl = document.getElementById('lab-archivo-estado');
-  const btn = document.getElementById('btn-subir-lab-archivo');
   const tiposValidos = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic'];
-  if (tiposValidos.indexOf(file.type) === -1) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).';
-    return;
-  }
-  if (file.size > 8 * 1024 * 1024) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'Archivo muy grande (máximo 8MB).';
-    return;
-  }
-
-  const f = pacienteActual.fields;
-  const pacId = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
-
-  estadoEl.style.color = 'var(--text-2)';
-  estadoEl.textContent = 'Leyendo y extrayendo datos del estudio…';
-  btn.disabled = true;
-
+  if (tiposValidos.indexOf(file.type) === -1) { estadoEl.style.color = '#E2574B'; estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).'; e.target.value = ''; return; }
+  if (file.size > 8 * 1024 * 1024) { estadoEl.style.color = '#E2574B'; estadoEl.textContent = 'Archivo muy grande (máximo 8MB).'; e.target.value = ''; return; }
+  estadoEl.textContent = '';
   const reader = new FileReader();
   reader.onload = () => {
-    const base64 = reader.result.split(',')[1];
-    fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'medico_subir_estudio',
-        pacienteCode: pacId,
-        fileBase64: base64,
-        fileName: file.name,
-        mediaType: file.type,
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        btn.disabled = false;
-        if (data.ok) {
-          estadoEl.style.color = '#5FAE6E';
-          estadoEl.textContent = `Estudio agregado (${data.tipoEstudio}${data.totalAnalitos ? ', ' + data.totalAnalitos + ' valores' : ''}${data.totalFueraDeRango ? ', ' + data.totalFueraDeRango + ' fuera de rango' : ''}) ✓`;
-          document.getElementById('f-lab-archivo').value = '';
-          cargarLabs(pacId);
-        } else {
-          estadoEl.style.color = '#E2574B';
-          estadoEl.textContent = data.error || 'No se pudo procesar el estudio.';
-        }
-      })
-      .catch(() => {
-        btn.disabled = false;
-        estadoEl.style.color = '#E2574B';
-        estadoEl.textContent = 'Error de conexión. Intenta de nuevo.';
-      });
+    fcArchivo = { base64: reader.result.split(',')[1], name: file.name, type: file.type };
+    abrirGateIdentidad();
   };
   reader.readAsDataURL(file);
+});
+
+function abrirGateIdentidad() {
+  document.getElementById('fc-archivo-nombre').textContent = fcArchivo ? fcArchivo.name : '—';
+  const codigoEl = document.getElementById('fc-codigo');
+  codigoEl.value = ''; // §3: NUNCA prellenado — es la verificación
+  document.getElementById('fc-resultado').innerHTML = '';
+  fcSetValidarVisible(true);
+  fcSetValidarLoading(false);
+  document.getElementById('modal-fc-identidad').classList.add('active');
+  setTimeout(() => codigoEl.focus(), 50);
+}
+
+function cerrarGateIdentidad() {
+  document.getElementById('modal-fc-identidad').classList.remove('active');
+  document.getElementById('f-lab-archivo').value = '';
+  fcArchivo = null;
+}
+
+function fcSetValidarLoading(loading) {
+  document.getElementById('fc-validar').disabled = loading;
+  document.getElementById('fc-validar-label').style.display = loading ? 'none' : 'inline';
+  document.getElementById('fc-validar-loader').style.display = loading ? 'inline' : 'none';
+}
+function fcSetValidarVisible(visible) {
+  document.getElementById('fc-validar').style.display = visible ? 'inline-flex' : 'none';
+}
+
+document.getElementById('fc-close').addEventListener('click', cerrarGateIdentidad);
+document.getElementById('fc-cancel').addEventListener('click', cerrarGateIdentidad);
+
+document.getElementById('fc-validar').addEventListener('click', async () => {
+  const codigo = document.getElementById('fc-codigo').value.trim().toUpperCase();
+  const resEl = document.getElementById('fc-resultado');
+  if (!/^CC-PAC-[A-Z0-9]{4,8}$/.test(codigo)) { resEl.innerHTML = `<span style="color:#E2574B;">Código inválido. Formato: CC-PAC- seguido de 4 a 8 caracteres (letras o dígitos).</span>`; return; }
+  if (!fcArchivo) { resEl.innerHTML = `<span style="color:#E2574B;">No hay archivo cargado. Vuelve a elegirlo.</span>`; return; }
+  resEl.innerHTML = `<span style="color:var(--text-3);">Leyendo el nombre del documento y comparando…</span>`;
+  fcSetValidarLoading(true);
+  try {
+    const r = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_validar_identidad_estudio', pacienteCode: codigo, fileBase64: fcArchivo.base64, mediaType: fcArchivo.type }),
+    });
+    const data = await r.json();
+    fcSetValidarLoading(false);
+    if (!r.ok || !data.ok) { resEl.innerHTML = `<span style="color:#E2574B;">${(data && data.error) || 'No se pudo validar. Verifica el código y el archivo.'}</span>`; return; }
+    renderVeredictoIdentidad(codigo, data);
+  } catch (err) {
+    fcSetValidarLoading(false);
+    resEl.innerHTML = `<span style="color:#E2574B;">Error de conexión. Intenta de nuevo.</span>`;
+  }
+});
+
+function renderVeredictoIdentidad(codigo, data) {
+  const resEl = document.getElementById('fc-resultado');
+  const esc = s => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  if (data.veredicto === 'coincide') {
+    fcSetValidarVisible(false);
+    resEl.innerHTML = `<div style="color:#5FAE6E;">✓ Identidad verificada: <strong>${esc(data.nombreRegistrado)}</strong>. Extrayendo…</div>`;
+    procederExtraccion(codigo, data.nombreRegistrado, false);
+  } else if (data.veredicto === 'no_coincide') {
+    // §3: DETENER. Sin botón de "continuar de todos modos" — a propósito: si
+    // existe, alguien lo usa con prisa. Solo se puede corregir el código o cancelar.
+    resEl.innerHTML = `
+      <div style="border:1px solid #E2574B;background:rgba(226,87,75,0.08);border-radius:8px;padding:12px;">
+        <div style="color:#E2574B;font-weight:600;margin-bottom:6px;">⛔ Detenido — no se procesó nada.</div>
+        <div style="color:var(--text-2);">El nombre del documento no coincide con el registrado bajo <strong>${esc(codigo)}</strong>.</div>
+        <div style="margin-top:8px;color:var(--text-2);">Documento: <strong>${esc(data.nombreDocumento)}</strong><br>${esc(codigo)}: <strong>${esc(data.nombreRegistrado)}</strong></div>
+        <div style="margin-top:8px;color:var(--text-3);font-size:11.5px;">Corrige el código arriba y vuelve a validar, o cancela. No hay forma de continuar con estos datos.</div>
+      </div>`;
+  } else if (data.veredicto === 'ilegible') {
+    // §3: nombre ilegible -> confirmación EXPLÍCITA del médico, nunca automática.
+    fcSetValidarVisible(false);
+    resEl.innerHTML = `
+      <div style="border:1px solid #E2A33D;background:rgba(226,163,61,0.08);border-radius:8px;padding:12px;">
+        <div style="color:#E2A33D;font-weight:600;margin-bottom:6px;">Nombre ilegible en el documento</div>
+        <div style="color:var(--text-2);">${esc(data.mensaje || '')}</div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn-secondary" onclick="cerrarGateIdentidad()">Cancelar</button>
+          <button type="button" class="btn-save" id="fc-confirmar-ilegible">Sí, es de ${esc(data.nombreRegistrado)} — continuar</button>
+        </div>
+      </div>`;
+    document.getElementById('fc-confirmar-ilegible').addEventListener('click', () => procederExtraccion(codigo, data.nombreRegistrado, true));
+  }
+}
+
+// ─── FASE C · extracción por visión + pantalla de confirmación (§2 paso 4) ──
+var fccDatos = null; // { codigo, nombre, ext, filas } del estudio en confirmación
+
+function fccEsc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+function fccCap(s) { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado'; }
+
+async function procederExtraccion(codigo, nombre, identidadConfirmada) {
+  const resEl = document.getElementById('fc-resultado');
+  if (!fcArchivo) return;
+  try {
+    const r = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_extraer_estudio', pacienteCode: codigo, fileBase64: fcArchivo.base64, mediaType: fcArchivo.type, identidadConfirmada: !!identidadConfirmada }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { resEl.innerHTML = `<span style="color:#E2574B;">${fccEsc((data && data.error) || 'No se pudo extraer el estudio.')}</span>`; return; }
+    if (data.veredicto === 'no_coincide') { resEl.innerHTML = `<span style="color:#E2574B;">⛔ El nombre del documento no coincide (${fccEsc(data.nombreDocumento)}). No se procesó nada.</span>`; return; }
+    if (data.veredicto === 'ilegible') { resEl.innerHTML = `<span style="color:#E2A33D;">${fccEsc(data.mensaje || 'Nombre ilegible.')}</span>`; return; }
+    document.getElementById('modal-fc-identidad').classList.remove('active');
+    abrirConfirmacion(codigo, nombre, data);
+  } catch (err) {
+    resEl.innerHTML = `<span style="color:#E2574B;">Error de conexión durante la extracción.</span>`;
+  }
+}
+
+// Orden: fuera de rango (Alto/Bajo) primero, luego "revisar" (cross-check de
+// texto), luego el resto — lo que necesita atención se ve arriba (§ pedido).
+function ordenarFilasConfirmacion(analitos) {
+  const prio = a => (['alto', 'bajo'].includes(a.estado) ? 0 : (a.verificacion_texto === 'revisar' ? 1 : 2));
+  return (analitos || []).map(a => ({ ...a })).sort((x, y) => prio(x) - prio(y));
+}
+
+function abrirConfirmacion(codigo, nombre, ext) {
+  fccDatos = { codigo, nombre, ext, filas: ordenarFilasConfirmacion(ext.analitos) };
+  document.getElementById('fcc-paciente').value = `${nombre} (${codigo})`;
+  document.getElementById('fcc-fecha').value = ext.fechaEstudio || '';
+  document.getElementById('fcc-fecha-aviso').textContent = ext.fechaAmbigua ? 'Fecha con formato ambiguo en el documento — confírmala.' : (ext.fechaEstudio ? '' : 'No se detectó fecha en el documento — captúrala.');
+  document.getElementById('fcc-momento').value = ['Basal', 'En tratamiento', 'Seguimiento', 'Sin clasificar'].includes(ext.momentoSugerido) ? ext.momentoSugerido : 'Sin clasificar';
+  actualizarAvisoMomento();
+  const avisos = [];
+  if (ext.esEscaneado) avisos.push(`<div style="border:1px solid #E2A33D;background:rgba(226,163,61,0.08);border-radius:6px;padding:8px 10px;color:#E2A33D;font-size:12px;margin-bottom:6px;">Detecté un PDF escaneado o foto — lo revisé con más cuidado. Confirma los valores marcados “revisar”.</div>`);
+  if (ext.paginasFaltantes) avisos.push(`<div style="border:1px solid #E2574B;background:rgba(226,87,75,0.08);border-radius:6px;padding:8px 10px;color:#E2574B;font-size:12px;margin-bottom:6px;">Posibles páginas faltantes: ${fccEsc(ext.paginasFaltantes)}</div>`);
+  document.getElementById('fcc-avisos').innerHTML = avisos.join('');
+  document.getElementById('fcc-resumen').textContent = ext.resumenExtraccion || '';
+  const ile = ext.ilegibles || [];
+  document.getElementById('fcc-ilegibles').innerHTML = ile.length
+    ? `<div style="color:#E2574B;">No se pudieron leer (${ile.length}): ${ile.map(x => fccEsc(x.etiqueta) + ' (' + fccEsc(x.motivo) + ')').join(', ')}. No se cargan; sube una imagen mejor si los necesitas.</div>`
+    : '';
+  document.getElementById('fcc-error').textContent = '';
+  renderTablaConfirmacion();
+  document.getElementById('modal-fc-confirmar').classList.add('active');
+}
+
+function renderTablaConfirmacion() {
+  const opt = (v, sel) => `<option${v === sel ? ' selected' : ''}>${v}</option>`;
+  const rows = fccDatos.filas.map((a, i) => {
+    const p = a.parametro;
+    const badge = a.verificacion_texto === 'revisar'
+      ? `<span title="El valor no coincide con la capa de texto del PDF" style="color:#E2574B;font-size:10px;white-space:nowrap;">⚠ revisar</span>`
+      : (a.verificacion_texto === 'coincide' ? `<span title="Coincide con la capa de texto del PDF" style="color:#5FAE6E;font-size:10px;">✓</span>` : '');
+    const alerta = ['alto', 'bajo'].includes(a.estado) || a.verificacion_texto === 'revisar';
+    return `<tr data-i="${i}" style="${alerta ? 'background:rgba(226,163,61,0.06);' : ''}">
+      <td><input type="text" data-k="analito" value="${fccEsc(a.nombre)}" style="width:150px;"></td>
+      <td style="white-space:nowrap;"><input type="text" data-k="valor" value="${fccEsc(a.valor)}" style="width:64px;"> ${badge}</td>
+      <td><input type="text" data-k="unidad" value="${fccEsc(a.unidad)}" style="width:64px;"></td>
+      <td><input type="text" data-k="rango" value="${fccEsc(a.rango_texto)}" style="width:88px;"></td>
+      <td><select data-k="estado" style="width:112px;">${['Alto', 'Bajo', 'Normal', 'Indeterminado'].map(o => opt(o, fccCap(a.estado))).join('')}</select></td>
+      <td>${p ? `<span style="font-size:11px;">${fccEsc(p.nombre || p.codigo)}${p.tipoMatch === 'inferencia' ? ' <span title="Sugerido por NOVA, no del glosario" style="color:var(--text-3);">(inferido)</span>' : ''}</span>` : '<span style="color:var(--text-3);font-size:11px;">— sin parámetro</span>'}</td>
+      <td>${p ? `<select data-k="confianza" style="width:76px;">${['Media', 'Alta'].map(o => opt(o, a.confianza_sugerida || 'Media')).join('')}</select>` : '—'}</td>
+      <td style="text-align:center;">${p ? `<input type="checkbox" data-k="quitarparam" title="Quitar el parámetro: quedará en el expediente pero no graficará">` : ''}</td>
+      <td style="text-align:center;"><input type="checkbox" data-k="relevante"${a.relevante_sugerido ? ' checked' : ''}></td>
+      <td style="text-align:center;"><input type="checkbox" data-k="critico"${a.critico_sugerido ? ' checked' : ''}></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('fcc-tabla').innerHTML = `
+    <thead><tr>
+      <th>Analito</th><th>Valor</th><th>Unidad</th><th>Rango ref.</th><th>Estado</th>
+      <th>Parámetro</th><th>Confianza</th><th title="Quitar el parámetro (no graficará)">Sin gráf.</th><th title="Relevante a patología">Rel.</th><th title="Es crítico">Crít.</th>
+    </tr></thead><tbody>${rows}</tbody>`;
+}
+
+function actualizarAvisoMomento() {
+  const inicio = fccDatos && fccDatos.ext.inicioTratamiento;
+  document.getElementById('fcc-momento-aviso').textContent = inicio
+    ? `Sugerido: fecha del estudio vs inicio de tratamiento (${inicio}).`
+    : 'Sin consultas registradas para inferir el inicio de tratamiento.';
+}
+
+document.getElementById('fcc-fecha').addEventListener('change', () => {
+  if (!fccDatos) return;
+  const fecha = document.getElementById('fcc-fecha').value;
+  const inicio = fccDatos.ext.inicioTratamiento;
+  if (inicio && fecha) document.getElementById('fcc-momento').value = fecha < inicio ? 'Basal' : 'En tratamiento';
+  else if (!inicio) document.getElementById('fcc-momento').value = 'Sin clasificar';
+  actualizarAvisoMomento();
+});
+
+function cerrarConfirmacion() {
+  document.getElementById('modal-fc-confirmar').classList.remove('active');
+  document.getElementById('f-lab-archivo').value = '';
+  fccDatos = null; fcArchivo = null;
+}
+document.getElementById('fcc-close').addEventListener('click', cerrarConfirmacion);
+document.getElementById('fcc-cancel').addEventListener('click', cerrarConfirmacion);
+
+function fccGuardarLoading(loading) {
+  document.getElementById('fcc-guardar').disabled = loading;
+  document.getElementById('fcc-guardar-label').style.display = loading ? 'none' : 'inline';
+  document.getElementById('fcc-guardar-loader').style.display = loading ? 'inline' : 'none';
+}
+
+document.getElementById('fcc-guardar').addEventListener('click', async () => {
+  if (!fccDatos || !fcArchivo) return;
+  const errEl = document.getElementById('fcc-error');
+  const fecha = document.getElementById('fcc-fecha').value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { errEl.textContent = 'Captura la fecha del estudio (no se asume la de hoy).'; return; }
+  const trs = Array.from(document.querySelectorAll('#fcc-tabla tbody tr'));
+  const filas = trs.map(tr => {
+    const i = +tr.getAttribute('data-i');
+    const orig = fccDatos.filas[i];
+    const get = k => { const el = tr.querySelector(`[data-k="${k}"]`); return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
+    const quitar = get('quitarparam') === true;
+    const p = (!quitar && orig.parametro) ? orig.parametro : null;
+    return {
+      analito: get('analito'), valor: get('valor'), unidad: get('unidad'), rango: get('rango'),
+      estado: get('estado'),
+      relevante: get('relevante') === true, critico: get('critico') === true,
+      parametroRecId: p ? p.recId : null,
+      confianza: p ? (get('confianza') || 'Media') : '',
+    };
+  }).filter(f => f.analito && String(f.analito).trim());
+  if (!filas.length) { errEl.textContent = 'No hay analitos que guardar.'; return; }
+
+  errEl.textContent = '';
+  fccGuardarLoading(true);
+  try {
+    const r = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'medico_confirmar_estudio',
+        pacienteCode: fccDatos.codigo,
+        fileBase64: fcArchivo.base64, fileName: fcArchivo.name, mediaType: fcArchivo.type,
+        fecha, momento: document.getElementById('fcc-momento').value,
+        tipoEstudio: fccDatos.ext.tipoEstudio, panel: fccDatos.ext.panel,
+        filas, identidadConfirmada: true,
+      }),
+    });
+    const data = await r.json();
+    fccGuardarLoading(false);
+    if (!r.ok || !data.ok) { errEl.textContent = (data && data.error) || 'No se pudo guardar el estudio.'; return; }
+    const pac = fccDatos.codigo;
+    if (data.labValoresError) { showToast(data.labValoresError, 'error'); }
+    else {
+      let msg = `Estudio guardado: ${data.analitosGuardados} valor(es)` + (data.duplicados ? `, ${data.duplicados} duplicado(s) omitido(s)` : '');
+      showToast(msg + '.', 'success');
+      if (Array.isArray(data.conflictos) && data.conflictos.length) showToast(`${data.conflictos.length} valor(es) ya existían con otro resultado — NO se sobrescribieron.`, 'error');
+    }
+    cerrarConfirmacion();
+    cargarLabs(pac);
+  } catch (err) {
+    fccGuardarLoading(false);
+    errEl.textContent = 'Error de conexión al guardar.';
+  }
 });
 
 // ─── TEMPORIZADOR DE SESIÓN ───────────────────────────────────────
@@ -6872,6 +7196,10 @@ document.getElementById('btn-ir-expediente').addEventListener('click', () => {
   if (recordIdPacienteLink) seleccionarPaciente(recordIdPacienteLink);
 });
 
+// Prellenar la fecha del estudio con hoy al cargar (el médico la corrige si el
+// estudio es previo). El input existe en el DOM aunque el expediente esté oculto.
+(() => { const ff = document.getElementById('f-fecha-lab'); if (ff) ff.value = hoyLocalISO(); })();
+
 // ─── MODAL: NUEVO PACIENTE ────────────────────────────────────────
 function abrirModalNuevoPaciente() {
   document.getElementById('modal-nuevo-paciente').classList.add('active');
@@ -7047,7 +7375,7 @@ document.getElementById('btn-enviar-interconsulta').addEventListener('click', as
   try {
     // Por ahora guardamos en tabla CONSULTAS con tipo "interconsulta"
     // Cuando se cree la tabla INTERCONSULTAS se actualiza aquí
-    const res = await fetch('/api/airtable?tabla=consultas', {
+    const res = await fetch(`/api/airtable?tabla=consultas&pacienteBuscado=${encodeURIComponent(pacId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: {
