@@ -311,6 +311,207 @@ const TBL_REFERIDOS_VIP      = 'tblmPWoSdeSwfLJ6T';
 // el flujo — no tocar la lógica de `registrar_lead`.
 const AVISO_PRIVACIDAD_VERSION = 'PLACEHOLDER-pendiente-revision-legal';
 
+// Único punto de validación de idioma del cliente — chat público y
+// registrar_lead lo comparten a propósito, para que no exista una segunda
+// whitelist que alguien pueda editar sin que la otra se entere. Cualquier
+// valor fuera de esta lista cerrada cae a 'es'; nunca se acepta prosa.
+const IDIOMAS_VALIDOS = ['es', 'en', 'pt'];
+function idiomaValido(idioma) {
+  return IDIOMAS_VALIDOS.includes(idioma) ? idioma : 'es';
+}
+
+// Único interruptor del aviso de prelanzamiento en el chat público (la red de
+// médicos afiliados todavía no está operando). El día del lanzamiento: cambiar
+// esto a `false` y el bloque entero desaparece del prompt solo — el texto del
+// aviso vive ÚNICAMENTE en BLOQUE_PRELANZAMIENTO (buildSystemPrompt, modo
+// público), nunca repetido en otro punto del prompt ni del código.
+const MODO_PRELANZAMIENTO = true;
+
+// ─── LEADS: única lógica de escritura a Airtable ──────────────────────────
+// La comparten la acción `registrar_lead` (formulario del test, con
+// consentimiento explícito por checkbox) y la herramienta `registrar_lead`
+// que NOVA invoca durante el chat público (sin checkbox — no hay forma de
+// dar consentimiento en una conversación). Un solo camino a Airtable: ningún
+// llamador puede escribir un campo distinto a lo que valida esta función.
+const ORIGENES_LEAD_VALIDOS = ['Test biológico', 'Directorio', 'Otro'];
+
+const BASE_ID_LEADS = 'app6jyD9pDlTLpknA';
+const TBL_LEADS = 'tblfX4f6Bq6OXsvs2';
+// Contador de repeticiones del test — propuesto en esta sesión, AÚN NO EXISTE
+// en Airtable. Nombre: "Veces que hizo el test". Tipo: Number (entero). Hasta
+// que se cree, cualquier escritura que lo toque falla igual que ya falla todo
+// mientras AVISO_PRIVACIDAD_VERSION siga en placeholder — no es un riesgo nuevo.
+const CAMPO_CONTADOR_TEST = 'Veces que hizo el test';
+
+// Búsqueda por teléfono, EXACTA (filterByFormula, no difusa — CLAUDE.md §8: el
+// matching difuso nunca sirve para verificar existencia/identidad). Sin
+// normalizar el teléfono: se compara el mismo string ya recortado que se usa
+// al guardar, no se adivina formato.
+async function buscarLeadsPorTelefono(whatsapp) {
+  const esc = (v) => String(v || '').replace(/"/g, '\\"');
+  const params = new URLSearchParams();
+  params.set('filterByFormula', `{WhatsApp}="${esc(whatsapp)}"`);
+  params.set('maxRecords', '20');
+  params.append('fields[]', 'Nombre');
+  params.append('fields[]', CAMPO_CONTADOR_TEST);
+  const res = await fetch(`https://api.airtable.com/v0/${BASE_ID_LEADS}/${TBL_LEADS}?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` },
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    console.error('[nova] buscarLeadsPorTelefono error:', JSON.stringify(data));
+    throw new Error('No se pudo consultar leads existentes.');
+  }
+  return data.records || [];
+}
+
+async function ejecutarRegistrarLead({ nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento, idioma, requiereConsentimiento = false, resolucion }) {
+  // Regla dura: no se captura consentimiento real (ni su ausencia) contra un
+  // aviso placeholder. Mientras esta constante no sea el texto definitivo,
+  // la escritura entera se rechaza — nada se guarda, con o sin checkbox.
+  if (AVISO_PRIVACIDAD_VERSION.startsWith('PLACEHOLDER')) {
+    return {
+      ok: false, status: 503,
+      error: 'El registro está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
+      motivo: 'aviso_privacidad_pendiente',
+    };
+  }
+  if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
+    return { ok: false, status: 400, error: 'Falta el nombre.' };
+  }
+  if (!whatsapp || typeof whatsapp !== 'string' || !whatsapp.trim()) {
+    return { ok: false, status: 400, error: 'Falta el WhatsApp.' };
+  }
+  // El formulario del test (requiereConsentimiento=true) exige el checkbox
+  // marcado — igual que siempre. La herramienta conversacional de NOVA no lo
+  // exige: no hay checkbox posible en un chat, y el registro debe crearse
+  // igual, solo que con Consentimiento=false (ver más abajo).
+  if (requiereConsentimiento && consentimiento !== true) {
+    return { ok: false, status: 400, error: 'Se requiere aceptar el aviso de privacidad para continuar.' };
+  }
+
+  const nombreTrim = nombre.trim();
+  const whatsappTrim = whatsapp.trim();
+
+  // Deduplicación conversacional: mismo teléfono no implica misma persona (un
+  // teléfono puede ser de una familia entera) — solo teléfono + nombre que
+  // compararNombres() reconoce como el mismo (tolera acentos/mayúsculas/orden,
+  // igual que ya hace para pacientes) cuenta como "puede ser la misma". En ese
+  // caso NO se escribe hasta que quien llama mande `resolucion`.
+  let existentesMismoTelefono;
+  try {
+    existentesMismoTelefono = await buscarLeadsPorTelefono(whatsappTrim);
+  } catch (err) {
+    return { ok: false, status: 502, error: 'No se pudo verificar si ya existe un registro con este teléfono.' };
+  }
+
+  const coincidencia = existentesMismoTelefono.find(rec =>
+    compararNombres((rec.fields || {})['Nombre'] || '', nombreTrim).coincide
+  );
+
+  if (coincidencia && resolucion !== 'misma_persona' && resolucion !== 'familiar_nuevo') {
+    // Ambiguo: mismo teléfono Y nombre que ya coincide con alguien registrado
+    // antes. Puede ser la misma persona repitiendo el test, o un familiar con
+    // el mismo nombre (el caso duro: padre e hijo). No se decide por
+    // coincidencia de texto — se detiene y se devuelve para que se pregunte.
+    return {
+      ok: false, status: 409, ambiguo: true,
+      error: 'Ya existe un registro con este teléfono y un nombre que coincide.',
+      existente: { id: coincidencia.id, nombre: (coincidencia.fields || {})['Nombre'] || '' },
+    };
+  }
+
+  if (coincidencia && resolucion === 'misma_persona') {
+    // Actualiza el registro existente — no crea uno nuevo. El contador es
+    // señal de interés repetido, no basura: cuenta veces, no sustituye nada.
+    const actual = (coincidencia.fields || {})[CAMPO_CONTADOR_TEST];
+    const nuevoContador = (typeof actual === 'number' && !Number.isNaN(actual) ? actual : 1) + 1;
+    const patchRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_LEADS}/${TBL_LEADS}/${coincidencia.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ typecast: true, fields: { [CAMPO_CONTADOR_TEST]: nuevoContador } }),
+    });
+    const patchData = await patchRes.json();
+    if (!patchRes.ok) {
+      console.error('[nova] registrar_lead error actualizando contador:', JSON.stringify(patchData));
+      return { ok: false, status: 502, error: 'No se pudo actualizar el registro existente.' };
+    }
+    return { ok: true, status: 200, id: coincidencia.id, actualizado: true, vecesTotal: nuevoContador };
+  }
+
+  // Registro nuevo: teléfono no existía, o existía pero con un nombre
+  // distinto (familiar), o resolucion==='familiar_nuevo' confirmado.
+  const origenFinal = ORIGENES_LEAD_VALIDOS.includes(origen) ? origen : 'Otro';
+  // Nunca por default en true. Solo es true cuando quien llama lo manda
+  // explícitamente así — hoy, únicamente el formulario del test, que ya lo
+  // gatea con su propio checkbox antes de mandar la petición. Sin eso, false
+  // es el valor correcto: vacío es información válida (CLAUDE.md §6), un
+  // consentimiento inventado no lo es.
+  const consentimientoFinal = consentimiento === true;
+
+  const fields = {
+    'Nombre': nombreTrim.slice(0, 200),
+    'WhatsApp': whatsappTrim.slice(0, 30),
+    'Origen': origenFinal,
+    'Consentimiento': consentimientoFinal,
+    'Versión del aviso': AVISO_PRIVACIDAD_VERSION,
+    'Estado': 'Nuevo',
+    'Fecha de creación': new Date().toISOString(),
+    'Idioma': idiomaValido(idioma),
+    [CAMPO_CONTADOR_TEST]: 1,
+  };
+  // Un timestamp de consentimiento sin consentimiento real no es constancia
+  // de nada — se omite el campo por completo (vacío), nunca una fecha falsa.
+  if (consentimientoFinal) fields['Fecha de consentimiento'] = new Date().toISOString();
+  if (typeof email === 'string' && email.trim()) fields['Email'] = email.trim().slice(0, 200);
+  if (typeof sistemaPrioritario === 'string' && sistemaPrioritario.trim()) {
+    fields['Sistema prioritario'] = sistemaPrioritario.trim().slice(0, 200);
+  }
+  // Los 5 scores, sin omitir ninguno — el bug anterior perdía BALANCE en
+  // silencio al construir este mismo tipo de objeto a mano.
+  if (scores && typeof scores === 'object') {
+    const MAPA_SCORES = {
+      energy: 'Score ENERGY', repair: 'Score REPAIR', balance: 'Score BALANCE',
+      neuro: 'Score NEURO', regen: 'Score REGEN',
+    };
+    for (const [clave, campo] of Object.entries(MAPA_SCORES)) {
+      if (typeof scores[clave] === 'number' && !Number.isNaN(scores[clave])) {
+        fields[campo] = Math.round(scores[clave]);
+      }
+    }
+  }
+
+  const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_LEADS}/${TBL_LEADS}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ typecast: true, records: [{ fields }] }),
+  });
+  const createData = await createRes.json();
+  if (!createRes.ok || !createData.records?.[0]) {
+    console.error('[nova] registrar_lead error creando registro:', JSON.stringify(createData));
+    return { ok: false, status: 502, error: 'No se pudo guardar el registro. Intenta de nuevo.' };
+  }
+
+  return { ok: true, status: 200, id: createData.records[0].id };
+}
+
+// Atajo de sesión (NO el mecanismo de deduplicación — ese vive en
+// ejecutarRegistrarLead y corre siempre que este atajo no aplique): cuando el
+// formulario del test crea un lead con éxito, index.html mete su id de
+// Airtable en el bloque [CONTEXTO_TEST] (`lead_id=recXXXX`) antes de abrir el
+// chat. Si está presente, es el MISMO registro que se acaba de crear hace
+// segundos en este mismo flujo — no hace falta volver a buscar ni preguntar
+// nada. Si está ausente (el formulario no pudo escribir: aviso placeholder, o
+// encontró una coincidencia ambigua y se detuvo), la herramienta debe correr
+// su búsqueda normal — es exactamente el caso de alguien que regresa después.
+function extraerLeadIdDeContexto(messages) {
+  const primero = Array.isArray(messages) ? messages[0] : null;
+  if (!primero || primero.role !== 'user' || typeof primero.content !== 'string') return null;
+  if (!primero.content.startsWith('[CONTEXTO_TEST]')) return null;
+  const m = primero.content.match(/lead_id=(rec[A-Za-z0-9]+)/);
+  return m ? m[1] : null;
+}
+
 // Previews de Vercel de ESTE proyecto: codecells-site-<rama|hash>-<team>.vercel.app.
 // Solo Vercel emite esos subdominios para este proyecto, así que permitirlos es
 // seguro y desbloquea las pruebas en preview (si no, /api/nova da 403 en preview).
@@ -531,7 +732,69 @@ HERRAMIENTA "respuesta_nova_paciente": SIEMPRE respondes usando esta herramienta
   }
 
   // Modo público por defecto
-  return `${IDENTIDAD}
+  const NOMBRES_IDIOMA = { es: 'español', en: 'inglés (English)', pt: 'portugués (português)' };
+  const idiomaPublico = NOMBRES_IDIOMA[contexto.idioma] || NOMBRES_IDIOMA.es;
+
+  // Único lugar donde vive el texto del aviso de prelanzamiento. Se escribe
+  // en español porque TODO este prompt está en español — igual que el resto
+  // del prompt, queda gobernado por la instrucción IDIOMA OBLIGATORIO de
+  // arriba, nunca como texto fijo que se le muestre al paciente tal cual.
+  const BLOQUE_PRELANZAMIENTO = MODO_PRELANZAMIENTO ? `
+
+AVISO DE PRELANZAMIENTO — ACTIVO. Reemplaza, mientras esté activo, la instrucción
+de "invita siempre a agendar una evaluación" de más abajo — pero NO reemplaza la
+captura de contacto, que sigue siendo tu prioridad más alta en este modo:
+CODE CELLS® está en versión beta de prelanzamiento — la red de médicos afiliados
+todavía no está operando activamente y no hay agenda ni horarios disponibles.
+
+QUÉ SIGUE IGUAL: pedir (o confirmar) nombre y WhatsApp de la persona. Sin eso la
+plataforma pierde el contacto — en esta fase es lo más valioso que puedes
+obtener de la conversación, no lo dejes pasar. Enmárcalo así: aún no hemos
+lanzado, pero si te deja su nombre y WhatsApp, se le contacta en cuanto la red
+esté abierta. Nunca lo presentes como "para agendar tu cita" — sí como "para
+poder contactarte cuando abramos". Si el nombre y WhatsApp ya vienen en el
+contexto del test ([CONTEXTO_TEST]), no los vuelvas a pedir — confírmalos
+("Tengo tu WhatsApp como +52... ¿es correcto?") en vez de repetir la pregunta.
+En cuanto tengas AMBOS datos (nombre y WhatsApp, dados o confirmados), invoca
+la herramienta "registrar_lead" — decírselo a la persona o agradecérselo no
+guarda nada por sí solo, sin invocarla no queda ningún registro. No la repitas
+por los mismos datos si por el historial ya la invocaste antes en este mismo
+chat y quedó resuelta — la única excepción es la segunda invocación con
+resolucion_duplicado, cuando la herramienta te pidió desambiguar (ver su
+descripción).
+
+QUÉ CAMBIA — nunca, mientras esto esté activo: invitar a "agendar una cita",
+ofrecer un horario o disponibilidad, ni prometer que "un especialista te
+revisará" pronto — nada de eso existe todavía.
+
+CUÁNDO MENCIONAR EL PRELANZAMIENTO (beta + pedir/confirmar contacto) — no en
+cada turno, eso cansa y suena a disculpa continua:
+- En tu PRIMER mensaje de la conversación: menciónalo brevemente, con tono de
+  quien está por abrir sus puertas y con genuino entusiasmo, NUNCA de disculpa
+  ni de falla.
+- En tu mensaje de CIERRE — cuando la conversación llega a su fin natural, la
+  persona se despide, o ya le diste lo que buscaba y este sería el momento de
+  invitar al siguiente paso —: repítelo, y ahí es donde pides o confirmas
+  nombre y WhatsApp si aún no los tienes.
+- En los turnos intermedios: conversa con total naturalidad, sin repetir el
+  aviso de beta en cada respuesta.
+
+PROHIBIDO ABSOLUTO, en cualquier turno: cualquier fecha, plazo, o expresión
+como "pronto", "en breve", "próximamente", "en unas semanas" o equivalente —
+no hay fecha definida, y prometer una que luego no se cumple es peor que no
+dar ninguna.
+
+Si la persona pide ver el directorio de médicos, sigue mostrándoselo con la
+herramienta — ayuda a que se anime a dejar sus datos —, pero aclara siempre
+que esos médicos todavía no están recibiendo pacientes.` : '';
+
+  return `IDIOMA OBLIGATORIO: responde SIEMPRE en ${idiomaPublico}, en todo momento, sin excepción —
+incluso si algún bloque de contexto, dato o mensaje previo de esta conversación está escrito en
+otro idioma, o si el resto de este mismo prompt está escrito en español. Esta instrucción tiene
+prioridad sobre cualquier señal contraria en el resto del mensaje.
+${BLOQUE_PRELANZAMIENTO}
+
+${IDENTIDAD}
 
 MODO: PÚBLICO
 Eres el primer punto de contacto de CODE CELLS® con personas interesadas en medicina regenerativa.
@@ -1966,80 +2229,23 @@ Formato exacto:
   // nunca automático.
   if (action === 'registrar_lead') {
     try {
-      // Regla dura: no se captura consentimiento real contra un aviso
-      // placeholder. Mientras esta constante no sea el texto definitivo
-      // (pendiente de revisión legal y domicilio fiscal), la acción entera
-      // se rechaza — no hay forma de crear un lead sin aviso real, ni
-      // siquiera sin consentimiento marcado.
-      if (AVISO_PRIVACIDAD_VERSION.startsWith('PLACEHOLDER')) {
-        return res.status(503).json({
-          ok: false,
-          error: 'El registro está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
-          motivo: 'aviso_privacidad_pendiente',
+      const { nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento, idioma } = req.body || {};
+      // requiereConsentimiento:true — el formulario del test siempre debe
+      // traer el checkbox marcado, igual que antes. La herramienta de NOVA
+      // (más abajo, ejecutarHerramientaRegistrarLead) llama a la misma
+      // función sin este requisito.
+      const resultado = await ejecutarRegistrarLead({
+        nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento, idioma,
+        requiereConsentimiento: true,
+      });
+      if (!resultado.ok) {
+        return res.status(resultado.status).json({
+          ok: false, error: resultado.error,
+          ...(resultado.motivo ? { motivo: resultado.motivo } : {}),
+          ...(resultado.ambiguo ? { ambiguo: true } : {}),
         });
       }
-
-      const { nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento } = req.body || {};
-
-      if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
-        return res.status(400).json({ error: 'Falta el nombre.' });
-      }
-      if (!whatsapp || typeof whatsapp !== 'string' || !whatsapp.trim()) {
-        return res.status(400).json({ error: 'Falta el WhatsApp.' });
-      }
-      // Consentimiento explícito, nunca inferido. Sin esto, no se guarda
-      // absolutamente nada — ni siquiera el nombre.
-      if (consentimiento !== true) {
-        return res.status(400).json({ error: 'Se requiere aceptar el aviso de privacidad para continuar.' });
-      }
-
-      const ORIGENES_VALIDOS = ['Test biológico', 'Directorio', 'Otro'];
-      const origenFinal = ORIGENES_VALIDOS.includes(origen) ? origen : 'Otro';
-
-      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_LEADS = 'tblfX4f6Bq6OXsvs2';
-
-      const fields = {
-        'Nombre': nombre.trim().slice(0, 200),
-        'WhatsApp': whatsapp.trim().slice(0, 30),
-        'Origen': origenFinal,
-        'Consentimiento': true,
-        'Fecha de consentimiento': new Date().toISOString(),
-        'Versión del aviso': AVISO_PRIVACIDAD_VERSION,
-        'Estado': 'Nuevo',
-        'Fecha de creación': new Date().toISOString(),
-      };
-      if (typeof email === 'string' && email.trim()) fields['Email'] = email.trim().slice(0, 200);
-      if (typeof sistemaPrioritario === 'string' && sistemaPrioritario.trim()) {
-        fields['Sistema prioritario'] = sistemaPrioritario.trim().slice(0, 200);
-      }
-      // Los 5 scores, sin omitir ninguno — el bug anterior perdía BALANCE
-      // en silencio al construir este mismo tipo de objeto a mano.
-      if (scores && typeof scores === 'object') {
-        const MAPA_SCORES = {
-          energy: 'Score ENERGY', repair: 'Score REPAIR', balance: 'Score BALANCE',
-          neuro: 'Score NEURO', regen: 'Score REGEN',
-        };
-        for (const [clave, campo] of Object.entries(MAPA_SCORES)) {
-          if (typeof scores[clave] === 'number' && !Number.isNaN(scores[clave])) {
-            fields[campo] = Math.round(scores[clave]);
-          }
-        }
-      }
-
-      const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LEADS}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typecast: true, records: [{ fields }] }),
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok || !createData.records?.[0]) {
-        console.error('[nova] registrar_lead error creando registro:', JSON.stringify(createData));
-        return res.status(502).json({ error: 'No se pudo guardar el registro. Intenta de nuevo.' });
-      }
-
-      return res.status(200).json({ ok: true, id: createData.records[0].id });
+      return res.status(200).json({ ok: true, id: resultado.id });
     } catch (err) {
       console.error('[nova] registrar_lead error:', err.message);
       return res.status(500).json({ error: 'Error interno registrando el lead.' });
@@ -2961,7 +3167,14 @@ Formato exacto:
       pacienteNombre,
       vipCode,
       vipNombre,
+      idioma,
     } = req.body;
+
+    // El único canal por el que NOVA sabe en qué idioma responder — antes no
+    // existía ninguno; el cliente nunca lo mandaba y el system prompt público
+    // no tenía instrucción de idioma. idiomaValido() es la única whitelist —
+    // no se revalida aquí con una copia propia.
+    const idiomaFinal = idiomaValido(idioma);
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Falta el array de mensajes.' });
@@ -2991,6 +3204,7 @@ Formato exacto:
     let herramientaPaciente = null; // solo se llena en modo paciente/VIP
     let herramientaMedico = null;   // solo se llena en modo médico (opcional, tool_choice auto)
     let herramientaDirectorio = null; // solo modo público — búsqueda directorio
+    let herramientaRegistrarLead = null; // solo modo público — captura de contacto en chat
     let herramientaAltaPaciente = null; // alta de paciente nuevo por dictado
     let herramientaInvitarMedico = null; // generar invitación pre-cargada para un colega
     let herramientaAvisarMedico = null; // avisar a otro médico por Telegram
@@ -3155,8 +3369,9 @@ Formato exacto:
       // interpretar clínicamente un resultado) con un solo campo del POST.
       // No hay validación de contenido posible que cierre eso de verdad —
       // se deja de confiar en el campo, punto.
-      systemPrompt = buildSystemPrompt('publico');
+      systemPrompt = buildSystemPrompt('publico', { idioma: idiomaFinal });
       herramientaDirectorio = buildHerramientaBuscarDirectorio();
+      herramientaRegistrarLead = buildHerramientaRegistrarLead();
     }
 
     // Techo más alto que antes (era 2048) — un dictado de ficha + una petición
@@ -3182,7 +3397,7 @@ Formato exacto:
       anthropicBody.tools = [herramientaMedico, herramientaAltaPaciente, herramientaInvitarMedico, herramientaAvisarMedico, herramientaAutorizarDZW, herramientaSeriesLab];
       anthropicBody.tool_choice = { type: 'auto' };
     } else if (herramientaDirectorio) {
-      anthropicBody.tools = [herramientaDirectorio];
+      anthropicBody.tools = [herramientaDirectorio, herramientaRegistrarLead];
       anthropicBody.tool_choice = { type: 'auto' };
     }
 
@@ -3203,29 +3418,47 @@ Formato exacto:
       return res.status(502).json({ error: 'Error del servicio de IA. Intenta de nuevo.' });
     }
 
-    // 5B: loop tool_use → tool_result (solo público)
+    // 5B: loop tool_use → tool_result (solo público). Puede haber más de un
+    // tool_use en la misma respuesta (ej. buscar el directorio Y registrar el
+    // contacto en el mismo turno) — Anthropic exige un tool_result por cada
+    // tool_use del turno anterior, así que se resuelven TODOS antes de la
+    // segunda llamada, nunca solo el primero que se encuentre.
     if (herramientaDirectorio && data.stop_reason === 'tool_use') {
-      const toolUse = Array.isArray(data.content)
-        ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'buscar_medicos_directorio')
-        : null;
-      if (toolUse) {
-        let resultadoTool;
-        try {
-          const out = await ejecutarBuscarMedicosDirectorio(toolUse.input || {});
-          resultadoTool = { content: JSON.stringify(out), is_error: false };
-        } catch (err) {
-          console.error('[nova] buscar_medicos_directorio falló:', err.message);
-          resultadoTool = { content: JSON.stringify({ error: 'No se pudo consultar el directorio en este momento.' }), is_error: true };
+      const toolUses = Array.isArray(data.content)
+        ? data.content.filter(b => b && b.type === 'tool_use' && (b.name === 'buscar_medicos_directorio' || b.name === 'registrar_lead'))
+        : [];
+      if (toolUses.length > 0) {
+        const toolResults = [];
+        for (const toolUse of toolUses) {
+          let resultadoTool;
+          if (toolUse.name === 'buscar_medicos_directorio') {
+            try {
+              const out = await ejecutarBuscarMedicosDirectorio(toolUse.input || {});
+              resultadoTool = { content: JSON.stringify(out), is_error: false };
+            } catch (err) {
+              console.error('[nova] buscar_medicos_directorio falló:', err.message);
+              resultadoTool = { content: JSON.stringify({ error: 'No se pudo consultar el directorio en este momento.' }), is_error: true };
+            }
+          } else {
+            // registrar_lead
+            try {
+              resultadoTool = await ejecutarHerramientaRegistrarLead(toolUse.input || {}, { messages, idioma: idiomaFinal });
+            } catch (err) {
+              console.error('[nova] herramienta registrar_lead falló:', err.message);
+              resultadoTool = { content: JSON.stringify({ ok: false, error: 'No se pudo guardar el registro.' }), is_error: true };
+            }
+          }
+          toolResults.push({ type: 'tool_result', tool_use_id: toolUse.id, content: resultadoTool.content, is_error: resultadoTool.is_error });
         }
         const segundoBody = {
           model: 'claude-sonnet-5',
           max_tokens: safeTokens,
           system: systemPrompt,
-          tools: [herramientaDirectorio],
+          tools: [herramientaDirectorio, herramientaRegistrarLead],
           messages: [
             ...messages,
             { role: 'assistant', content: data.content },
-            { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: resultadoTool.content, is_error: resultadoTool.is_error }] },
+            { role: 'user', content: toolResults },
           ],
         };
         const resp2 = await fetch('https://api.anthropic.com/v1/messages', {
@@ -4389,6 +4622,82 @@ function buildHerramientaInvitarMedico() {
       required: ['mensaje', 'nombre_completo'],
     },
   };
+}
+
+function buildHerramientaRegistrarLead() {
+  return {
+    name: 'registrar_lead',
+    description: 'Guarda el nombre y WhatsApp de la persona con la que estás conversando, para que el equipo de CODE CELLS® pueda contactarla más adelante. Invócala en cuanto tengas AMBOS datos (nombre y WhatsApp) — ya sea porque te los dio en el chat, o porque ya venían en el contexto del test. No basta con agradecerle o decirle que ya los tienes: sin invocar esta herramienta no queda ningún registro guardado. Invócala como máximo UNA VEZ por conversación — si el historial muestra que ya la usaste antes en este mismo chat, no la vuelvas a llamar aunque la persona repita su nombre o teléfono; en ese caso solo confírmaselo de palabra. POSIBLE DUPLICADO: si el resultado te dice que ya existe un registro con ese teléfono y un nombre parecido, NO insistas ni la vuelvas a llamar todavía — pregúntale a la persona (en su idioma) si es ella misma repitiendo el test, o un familiar con el mismo nombre, y vuelve a invocar la herramienta con `resolucion_duplicado` según lo que responda.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        nombre: { type: 'string', description: 'Nombre de la persona, tal como te lo dio o como aparece en el contexto del test.' },
+        whatsapp: { type: 'string', description: 'Número de WhatsApp de la persona, tal como te lo dio o como aparece en el contexto del test.' },
+        email: { type: 'string', description: 'Correo, solo si lo dio voluntariamente en la conversación.' },
+        resolucion_duplicado: {
+          type: 'string',
+          enum: ['misma_persona', 'familiar_nuevo'],
+          description: 'Déjalo vacío en tu primera invocación. Solo lo mandas en una SEGUNDA invocación, después de que la herramienta te haya dicho que hay un posible duplicado y tú le hayas preguntado a la persona: "misma_persona" si es ella misma repitiendo el test (actualiza su registro), "familiar_nuevo" si es alguien distinto con el mismo nombre (crea un registro nuevo).',
+        },
+      },
+      required: ['nombre', 'whatsapp'],
+    },
+  };
+}
+
+async function ejecutarHerramientaRegistrarLead(input, { messages, idioma }) {
+  const leadIdDeEsteFlujo = extraerLeadIdDeContexto(messages);
+  if (leadIdDeEsteFlujo) {
+    return {
+      content: JSON.stringify({
+        ok: true,
+        motivo: 'ya_registrado_en_este_flujo',
+        mensaje: 'Esta persona ya quedó registrada hace un momento, al llenar el formulario del test antes de abrir este chat. No la vuelvas a registrar; sigue la conversación con naturalidad.',
+      }),
+      is_error: false,
+    };
+  }
+
+  const nombre = typeof input?.nombre === 'string' ? input.nombre : '';
+  const whatsapp = typeof input?.whatsapp === 'string' ? input.whatsapp : '';
+  const email = typeof input?.email === 'string' ? input.email : undefined;
+  const RESOLUCIONES_VALIDAS = ['misma_persona', 'familiar_nuevo'];
+  const resolucion = RESOLUCIONES_VALIDAS.includes(input?.resolucion_duplicado) ? input.resolucion_duplicado : undefined;
+
+  const resultado = await ejecutarRegistrarLead({
+    nombre, whatsapp, email,
+    origen: 'Test biológico',
+    // Sin checkbox posible en un chat: consentimiento nunca se manda, así
+    // que ejecutarRegistrarLead lo guarda en false y omite la fecha —
+    // requisito explícito, no un descuido.
+    consentimiento: undefined,
+    idioma,
+    resolucion,
+  });
+
+  if (resultado.ambiguo) {
+    return {
+      content: JSON.stringify({
+        ok: false,
+        motivo: 'posible_duplicado',
+        mensaje: 'Ya existe un registro con este teléfono y un nombre que coincide (nombre guardado: "' + (resultado.existente?.nombre || '') + '"). NO lo registres todavía. Pregúntale a la persona, con naturalidad y en su idioma: ¿es ella misma repitiendo el test, o un familiar con el mismo nombre que comparte este teléfono? En cuanto responda, invoca esta herramienta otra vez con resolucion_duplicado en "misma_persona" o "familiar_nuevo" según corresponda.',
+      }),
+      is_error: false,
+    };
+  }
+
+  if (!resultado.ok) {
+    console.error('[nova] herramienta registrar_lead falló:', resultado.status, resultado.error);
+    return { content: JSON.stringify({ ok: false, error: resultado.error }), is_error: true };
+  }
+
+  if (resultado.actualizado) {
+    return {
+      content: JSON.stringify({ ok: true, actualizado: true, vecesTotal: resultado.vecesTotal, mensaje: 'Era la misma persona — se actualizó su registro existente (van ' + resultado.vecesTotal + ' veces que hace el test). Coméntaselo con calidez, sin mencionar plazos.' }),
+      is_error: false,
+    };
+  }
+  return { content: JSON.stringify({ ok: true, id: resultado.id }), is_error: false };
 }
 
 function buildHerramientaBuscarDirectorio() {

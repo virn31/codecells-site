@@ -1322,13 +1322,22 @@
               neuro:   pctMap['neuro']   || 0,
               regen:   pctMap['regen']   || 0
             },
-            consentimiento: true
+            consentimiento: true,
+            // Sin esto el servidor no tiene forma de saber en qué idioma
+            // tomó el test quien está dejando sus datos, y el campo Idioma
+            // del lead quedaría siempre en 'es' por default del servidor.
+            idioma: (typeof getLanguage === 'function' ? getLanguage() : 'es')
           })
         })
           .then(function(res){ return res.json(); })
           .then(function(data){
             if(!data.ok){
               console.error('[lead] no se pudo registrar:', data.error, data.motivo);
+            } else {
+              // Se lo pasamos a novaActivar (vía [CONTEXTO_TEST]) para que el
+              // chat sepa que este registro ya se creó hace segundos y no
+              // vuelva a buscar ni pregunte si es un posible duplicado.
+              window.__novaLeadId = data.id;
             }
           })
           .catch(function(err){
@@ -1928,6 +1937,7 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
   var novaIsOpen    = false;
   var novaIsLoading = false;
   var novaInitMsg   = null; // mensaje inicial con nombre + sistema
+  var novaNombrePaciente = '';
 
   /* ─── Elementos ─── */
   var overlay  = document.getElementById('nova-overlay');
@@ -1950,7 +1960,7 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
       messages.innerHTML = '';
       // El primer mensaje del usuario ya viene con nombre + sistema
       novaHistory.push({ role: 'user', content: initMessage });
-      renderMessage(initMessage, 'user');
+      // No se renderiza: es contexto del test, no un mensaje que el paciente escribió.
       novaRespond();
     }
   }
@@ -1987,12 +1997,9 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
       var waEl = document.getElementById('cf-wa');
       var nombre = nombreEl ? nombreEl.value.trim() : '';
       var telefono = waEl ? waEl.value.trim() : '';
-      // Buscar nombre en el historial si no está en el formulario
-      if (!nombre && novaHistory.length > 0) {
-        var primerMsg = novaHistory[0] ? (novaHistory[0].content || '') : '';
-        var mNombre = primerMsg.match(/me llamo ([^.]+)/i);
-        if (mNombre) nombre = mNombre[1].trim();
-      }
+      // El nombre viene del closure, no del historial: el primer turno ya no
+      // es una frase en español parseable.
+      if (!nombre && novaNombrePaciente) nombre = novaNombrePaciente;
       var waMsg = 'Hola, vengo de la evaluación CODE CELLS™. Me atendió NOVA y quiero agendar mi primera consulta.';
       if (nombre) waMsg += ' Soy ' + nombre + '.';
       if (telefono) waMsg += ' Mi WhatsApp es ' + telefono + '.';
@@ -2038,7 +2045,11 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
         model:      NOVA_MODEL,
         max_tokens: 1024,
         system:     NOVA_SYSTEM,
-        messages:   novaHistory
+        messages:   novaHistory,
+        // El servidor arma su propio system prompt en modo público (nunca
+        // confía en uno mandado por el cliente) — este es el único canal
+        // por el que NOVA sabe en qué idioma eligió responder el paciente.
+        idioma:     (typeof getLanguage === 'function' ? getLanguage() : 'es')
       })
     })
     .then(function(res) { return res.json(); })
@@ -2114,11 +2125,27 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
     var nombreFinal = (nombre && nombre !== 'amigo') ? nombre : (nombreEl ? nombreEl.value.trim() : '');
     var telefono = waEl ? waEl.value.trim() : '';
 
-    var msg = 'Hola';
-    if (nombreFinal) msg += ', me llamo ' + nombreFinal;
-    msg += '. Hice la evaluación CODE CELLS™ y mi sistema prioritario es ' + sistemaTexto + '.';
-    if (telefono) msg += ' Mi WhatsApp es ' + telefono + '.';
-    msg += ' Me gustaría que un especialista revise mi mapa biológico.';
+    // Guardamos el nombre en el closure: ya no se puede reparsear del historial
+    // porque el primer turno dejó de ser una frase en español (ver CORTE 3).
+    novaNombrePaciente = nombreFinal;
+
+    // Bloque de DATOS, no una frase. Sin idioma, sin saludo, sin "me llamo".
+    // Razón: cualquier prosa aquí contradice la instrucción de idioma del
+    // system prompt y NOVA responde en el idioma de este texto en vez del
+    // que eligió el paciente. Los datos no tienen idioma.
+    var partes = [];
+    if (nombreFinal)  partes.push('nombre=' + nombreFinal);
+    if (sistemaTexto) partes.push('sistema_prioritario=' + sistemaTexto);
+    if (telefono)     partes.push('whatsapp=' + telefono);
+    // Si el formulario acaba de crear el lead con éxito, su id viaja aquí —
+    // así la herramienta de NOVA sabe que este registro ya existe y no
+    // vuelve a buscarlo ni pregunta si es un posible duplicado.
+    if (window.__novaLeadId) {
+      partes.push('lead_id=' + window.__novaLeadId);
+      window.__novaLeadId = null;
+    }
+    var msg = '[CONTEXTO_TEST] ' + partes.join(' | ');
+
     novaOpen(msg);
   };
 
