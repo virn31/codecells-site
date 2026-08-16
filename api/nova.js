@@ -554,6 +554,15 @@ module.exports = async function handler(req, res) {
     return res.status(413).json({ error: 'Payload demasiado grande.' });
   }
 
+  // TODO: eliminar tras diagnóstico (diag/nova-idioma-captura)
+  console.log('[DIAG-IDIOMA servidor-entrada]', JSON.stringify({
+    idiomaRecibido: req.body?.idioma ?? 'AUSENTE',
+    tipoIdioma: typeof req.body?.idioma,
+    bodyKeys: Object.keys(req.body || {}),
+    modo: req.body?.modo ?? 'AUSENTE',
+    systemDelCliente: req.body?.system ? 'PRESENTE' : 'ausente'
+  }, null, 2));
+
   const { action } = req.body || {};
 
   // ─── AIRTABLE LOOKUP ─────────────────────────────────────────────
@@ -2624,10 +2633,24 @@ module.exports = async function handler(req, res) {
       // buildSystemPrompt('publico') pasa a ser la única fuente. Que idioma
       // ya viaje validado aquí evita que ese día haya que tocar este bloque.
       const idiomaValido = ['es', 'en', 'pt'].includes(idioma) ? idioma : 'es';
-      systemPrompt = typeof clientSystem === 'string'
+      const usaSystemDelCliente = typeof clientSystem === 'string';
+      systemPrompt = usaSystemDelCliente
         ? clientSystem.slice(0, 8000)
         : buildSystemPrompt('publico', { idioma: idiomaValido });
       herramientaDirectorio = buildHerramientaBuscarDirectorio();
+
+      // TODO: eliminar tras diagnóstico (diag/nova-idioma-captura)
+      console.log('[DIAG-IDIOMA servidor-prompt]', JSON.stringify({
+        pasoPorBuildSystemPrompt: !usaSystemDelCliente,
+        motivoSiNoPaso: usaSystemDelCliente
+          ? 'clientSystem (req.body.system) vino como string — se usa tal cual, slice(0,8000), y buildSystemPrompt("publico") NUNCA se invoca. La función que sí construye el prompt en este caso es buildNovaSystem(idioma), en index.html (cliente), no este archivo.'
+          : null,
+        idiomaUsado: idiomaValido,
+        systemPrimeros300: String(systemPrompt).slice(0, 300),
+        systemUltimos200: String(systemPrompt).slice(-200),
+        rolesMensajes: messages.map(m => m.role),
+        primerMensajePrimeros80: String(messages[0]?.content).slice(0, 80)
+      }, null, 2));
     }
 
     // Techo más alto que antes (era 2048) — un dictado de ficha + una petición

@@ -2022,16 +2022,28 @@ Si no sabes algo, di: "Eso te lo confirma directamente el especialista."`;
     // del texto del mensaje, siempre viaja explícito en la petición.
     var idioma = (typeof getLanguage === 'function') ? getLanguage() : 'es';
 
+    var novaBody = {
+      model:      NOVA_MODEL,
+      max_tokens: 1024,
+      system:     buildNovaSystem(idioma),
+      messages:   novaHistory,
+      idioma:     idioma
+    };
+
+    // TODO: eliminar tras diagnóstico (diag/nova-idioma-captura)
+    console.log('[DIAG-IDIOMA cliente]', JSON.stringify({
+      idiomaEnviado: idioma,
+      idiomaFuente: "getLanguage() -> var current (lib/i18n.js), inicializado en init() desde localStorage.getItem('codecells_lang'), default 'es' si no hay valor guardado",
+      bodyKeys: Object.keys(novaBody),
+      mensajesEnviados: novaHistory.map(function(m){
+        return { role: m.role, primeros80: String(m.content).slice(0,80) };
+      })
+    }, null, 2));
+
     fetch(NOVA_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model:      NOVA_MODEL,
-        max_tokens: 1024,
-        system:     buildNovaSystem(idioma),
-        messages:   novaHistory,
-        idioma:     idioma
-      })
+      body: JSON.stringify(novaBody)
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
