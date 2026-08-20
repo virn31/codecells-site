@@ -1258,15 +1258,14 @@
                 '<div class="capture-field"><label>WhatsApp *</label><input type="tel" id="cf-wa" placeholder="+52 667 000 0000" autocomplete="tel"></div>' +
               '</div>' +
               '<p class="capture-error" id="captureError">Por favor completa tu nombre y WhatsApp.</p>' +
-              // AVISO DE PRIVACIDAD — PLACEHOLDER explícito, pendiente de revisión legal
-              // y domicilio fiscal (cubrirá /directorio, este test, y CURP a futuro).
-              // NO sustituir por texto propio: cuando llegue el definitivo, se reemplaza
-              // aquí y se actualiza AVISO_PRIVACIDAD_VERSION en api/nova.js — es el único
-              // cambio necesario para reactivar el registro.
+              // El aviso vigente (v1.0-MX, ver AVISO_PRIVACIDAD_VERSION en api/nova.js)
+              // vive en aviso-privacidad.html, siempre en español — no es una versión
+              // provisional. La casilla es interfaz y sí se traduce (lib/i18n.js, match
+              // exacto de nodo de texto); el documento legal, no.
               '<div class="capture-consent">' +
                 '<label class="capture-consent-label">' +
                   '<input type="checkbox" id="cf-consent"> ' +
-                  'He leído y acepto el <strong>[PLACEHOLDER — aviso de privacidad pendiente de revisión legal]</strong> ' +
+                  'He leído y acepto el <a href="/aviso-privacidad.html" target="_blank" rel="noopener">aviso de privacidad</a> ' +
                   'para el tratamiento de mis datos (nombre, WhatsApp y resultados de esta evaluación).' +
                 '</label>' +
                 '<p class="capture-error" id="captureConsentError">Debes aceptar el aviso de privacidad para continuar.</p>' +
@@ -1960,12 +1959,14 @@
 })();
 </script>
 
-<!-- Patch al script del test: llama novaActivar ANTES de abrir WhatsApp -->
+<!-- Patch al script del test: detecta el WhatsApp del test y activa NOVA en su lugar -->
 <script>
 (function() {
   var _origOpen = window.open;
   window.open = function(url, target, features) {
-    // Detectar apertura del WhatsApp del test ANTES de abrirlo
+    // Detectar apertura del WhatsApp del test y activar NOVA en su lugar —
+    // el lead ya se persiste en LEADS; abrir pestaña externa saca al usuario
+    // del ecosistema.
     if (typeof url === 'string' && url.indexOf('wa.me/526671264060') !== -1 && url.indexOf('sistema') !== -1) {
       try {
         var decoded = decodeURIComponent(url.split('text=')[1] || '');
@@ -1974,9 +1975,7 @@
         var nombreEl = document.getElementById('cf-nombre');
         var nombre = nombreEl ? nombreEl.value.trim() : 'amigo';
         if (sistemaTexto && typeof window.novaActivar === 'function') {
-          // Activar NOVA primero, luego abrir WhatsApp con delay
           window.novaActivar(nombre, sistemaTexto);
-          setTimeout(function() { _origOpen.call(window, url, target, features); }, 800);
           return;
         }
       } catch(e) { console.error('NOVA trigger:', e); }

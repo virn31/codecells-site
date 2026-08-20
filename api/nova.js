@@ -301,15 +301,13 @@ const TBL_RECORDATORIOS      = 'tblw4tiZhPMbFhB8w';
 const TBL_SOLICITUDES_CITA   = 'tblIj7vRoMhLg9CsL';
 const TBL_REFERIDOS_VIP      = 'tblmPWoSdeSwfLJ6T';
 
-// Versión del aviso de privacidad ÚNICO (cubre /directorio, leads del test,
-// y CURP cuando entre — pendiente de revisión legal y domicilio fiscal).
-// Mientras empiece con "PLACEHOLDER", `registrar_lead` rechaza TODO intento
-// de registro — no se captura consentimiento real contra un texto que no
-// es el definitivo. Cuando llegue el texto final: cambiar este string a la
-// versión real (ej. "v1.0-2026-08-20") y sustituir el placeholder en
-// index.html por el aviso completo. Ese es el único paso para reactivar
-// el flujo — no tocar la lógica de `registrar_lead`.
-const AVISO_PRIVACIDAD_VERSION = 'PLACEHOLDER-pendiente-revision-legal';
+// Versión del aviso de privacidad vigente (cubre /directorio, leads del
+// test, y CURP cuando entre). El sufijo de jurisdicción es deliberado: la
+// plataforma opera bajo LFPDPPP y este es el aviso mexicano — no un default
+// genérico. Cuando exista operación bajo otro marco legal, ese aviso será un
+// documento distinto (no una traducción de este), y cada consentimiento
+// deberá quedar autoidentificado por jurisdicción desde el primer registro.
+const AVISO_PRIVACIDAD_VERSION = 'v1.0-MX';
 
 // Único punto de validación de idioma del cliente — chat público y
 // registrar_lead lo comparten a propósito, para que no exista una segunda
@@ -337,10 +335,8 @@ const ORIGENES_LEAD_VALIDOS = ['Test biológico', 'Directorio', 'Otro'];
 
 const BASE_ID_LEADS = 'app6jyD9pDlTLpknA';
 const TBL_LEADS = 'tblfX4f6Bq6OXsvs2';
-// Contador de repeticiones del test — propuesto en esta sesión, AÚN NO EXISTE
-// en Airtable. Nombre: "Veces que hizo el test". Tipo: Number (entero). Hasta
-// que se cree, cualquier escritura que lo toque falla igual que ya falla todo
-// mientras AVISO_PRIVACIDAD_VERSION siga en placeholder — no es un riesgo nuevo.
+// Contador de repeticiones del test — campo "Veces que hizo el test" (Number,
+// entero) en LEADS.
 const CAMPO_CONTADOR_TEST = 'Veces que hizo el test';
 
 // Búsqueda por teléfono, EXACTA (filterByFormula, no difusa — CLAUDE.md §8: el
@@ -366,16 +362,6 @@ async function buscarLeadsPorTelefono(whatsapp) {
 }
 
 async function ejecutarRegistrarLead({ nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento, idioma, requiereConsentimiento = false, resolucion }) {
-  // Regla dura: no se captura consentimiento real (ni su ausencia) contra un
-  // aviso placeholder. Mientras esta constante no sea el texto definitivo,
-  // la escritura entera se rechaza — nada se guarda, con o sin checkbox.
-  if (AVISO_PRIVACIDAD_VERSION.startsWith('PLACEHOLDER')) {
-    return {
-      ok: false, status: 503,
-      error: 'El registro está pausado temporalmente. Puedes seguir la conversación con NOVA para continuar.',
-      motivo: 'aviso_privacidad_pendiente',
-    };
-  }
   if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
     return { ok: false, status: 400, error: 'Falta el nombre.' };
   }
