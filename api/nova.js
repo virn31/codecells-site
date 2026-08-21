@@ -29,6 +29,13 @@ try {
 // detalle honesto de qué tanto esto "asegura" contra Airtable.
 const { generarCodigoUnico } = require('../lib/codigos');
 
+// Sesión firmada (HMAC), la misma que ya exige api/airtable.js — HOTFIX
+// gate-sesion-nova: el modo médico del chat y los endpoints de labs abajo
+// solo validaban el FORMATO de medicoCode/pacienteCode (regex), nunca que
+// la sesión fuera real. Un CCMED-XXXX inventado, sin médico detrás, bastaba
+// para obtener herramientas completas de médico.
+const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
+
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
 const TAXONOMIA_PATOLOGIAS = ["Obesidad","Sobrepeso","Diabetes Tipo 2","Prediabetes","Resistencia a la Insulina",
@@ -556,6 +563,11 @@ module.exports = async function handler(req, res) {
 
   const { action } = req.body || {};
 
+  // null si falta, es inválido, fue alterado, o expiró — ver lib/auth.js.
+  // Cómputo único, sin efecto por sí solo; cada acción que lo requiere
+  // (HOTFIX gate-sesion-nova) lo revisa explícitamente más abajo.
+  const sesion = verificarToken(tokenDesdeRequest(req));
+
   // ─── AIRTABLE LOOKUP ─────────────────────────────────────────────
   if (action === 'airtable_lookup') {
     try {
@@ -1010,7 +1022,14 @@ module.exports = async function handler(req, res) {
   // tendencia + flags fuera de rango / relevancia clínica.
   if (action === 'paciente_comparativo_labs') {
     try {
-      const { pacienteCode } = req.body;
+      // HOTFIX gate-sesion-nova: antes leía cualquier pacienteCode que
+      // mandara el cliente, sin sesión. Ahora exige sesión de paciente/vip
+      // y fuerza el código de la propia sesión — mismo patrón que
+      // graficas_series en api/airtable.js (nunca el expediente ajeno).
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'vip')) {
+        return res.status(401).json({ error: 'Sesión de paciente requerida.' });
+      }
+      const pacienteCode = sesion.codigo;
       if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -1055,6 +1074,10 @@ module.exports = async function handler(req, res) {
   // por fecha de estudio, con bandera de color y serie para la tendencia.
   if (action === 'medico_tabla_labs') {
     try {
+      // HOTFIX gate-sesion-nova: antes solo se validaba el formato de
+      // pacienteCode — cualquiera con un código adivinado leía la tabla
+      // completa de labs. Ahora exige sesión médica real.
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode } = req.body;
       if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
@@ -1134,6 +1157,8 @@ module.exports = async function handler(req, res) {
   // explica los cambios en el contexto clínico real del paciente.
   if (action === 'medico_resumen_labs') {
     try {
+      // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba.
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode } = req.body;
       if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
@@ -1279,6 +1304,10 @@ module.exports = async function handler(req, res) {
 
   if (action === 'medico_guardar_labs_rapidos') {
     try {
+      // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba. Esta acción
+      // ESCRIBE resultados de laboratorio; sin este gate, el mismo código
+      // adivinado bastaba para inyectar datos clínicos falsos.
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
       if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
@@ -1366,6 +1395,11 @@ module.exports = async function handler(req, res) {
   // del flujo de paciente) para que el médico vea de inmediato qué se extrajo.
   if (action === 'medico_subir_estudio') {
     try {
+      // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba. Esta acción
+      // ni siquiera pedía un código de médico; ESCRIBE un estudio completo
+      // (con extracción de analitos) al expediente con solo el código del
+      // paciente.
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
       if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
@@ -2425,7 +2459,7 @@ module.exports = async function handler(req, res) {
 
   // ─── CHAT CON NOVA ────────────────────────────────────────────────
   try {
-    const {
+    let {
       messages,
       system: clientSystem,
       max_tokens,
@@ -2472,86 +2506,100 @@ module.exports = async function handler(req, res) {
     let esVipReal = false;
     let medicoRecordId = null; // se llena en modo médico, usado luego para log de transcripción/actividad
 
-    const esMedico = typeof medicoCode === 'string' && /^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode);
+    // HOTFIX gate-sesion-nova: antes esMedico solo exigía que medicoCode
+    // TUVIERA la forma CCMED-XXXX (regex) — un valor inventado por el
+    // cliente, sin médico real detrás, bastaba para entrar en modo médico
+    // completo (todas las herramientas). Ahora exige la sesión firmada que
+    // ya emite api/auth-login.js tras validar el código contra Airtable.
+    // esVIP/esPac quedan exactamente igual — fuera de alcance de este fix.
+    const esMedico = !!(sesion && sesion.tipo === 'medico');
     const esVIP    = typeof vipCode    === 'string' && /^DZW-[0-9]{8}$/.test(vipCode);
     const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode);
 
     if (esMedico) {
+      // El código de médico viene de la sesión verificada, nunca del
+      // medicoCode que mande el cliente — si no, un médico autenticado
+      // podría hacerse pasar por otro con solo cambiar ese campo del body.
+      medicoCode = sesion.codigo;
       let nombreReal       = typeof medicoNombre      === 'string' ? medicoNombre.slice(0,100)      : 'Médico';
       let especialidadReal = typeof medicoEspecialidad === 'string' ? medicoEspecialidad.slice(0,100) : 'Medicina';
       let memoriaMedico    = '';
+      let medRecord;
 
-      // La memoria y la actividad NUNCA se confían del cliente — se consultan
-      // aquí contra Airtable, igual que ya se hace en modo paciente.
       try {
         const formulaMed = `{Código de médico}="${medicoCode}"`;
         const urlMed = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}?filterByFormula=${encodeURIComponent(formulaMed)}`;
         const medRes = await fetch(urlMed, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
         const medData = await medRes.json();
-        const medRecord = medData.records?.[0];
-
-        if (medRecord) {
-          medicoRecordId = medRecord.id;
-          nombreReal       = medRecord.fields['Nombre completo'] || nombreReal;
-          especialidadReal = medRecord.fields['Especialidad']    || especialidadReal;
-          memoriaMedico    = medRecord.fields['Memoria NOVA (médico)'] || '';
-          const ultimaActividadPrevia = medRecord.fields['Última actividad NOVA'] || null;
-
-          const UNA_HORA_MS = 60 * 60 * 1000;
-          const inactivo = ultimaActividadPrevia &&
-            (Date.now() - new Date(ultimaActividadPrevia).getTime()) > UNA_HORA_MS;
-
-          // Si pasó más de 1h desde el último mensaje, generamos un resumen
-          // fresco de la sesión anterior (si quedó transcripción guardada) en
-          // vez de seguir arrastrando la misma memoria — así NOVA "reinicia" y
-          // retoma el hilo con un resumen corto en lugar de todo el historial
-          // crudo, que sería mucho más caro en tokens.
-          if (inactivo) {
-            try {
-              const fechaSesionPrevia = new Date(ultimaActividadPrevia).toISOString().slice(0, 10);
-              const formulaConv = `{Fecha}="${fechaSesionPrevia}"`;
-              const urlConv = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_NOVA_CONVERSACIONES}?filterByFormula=${encodeURIComponent(formulaConv)}`;
-              const convRes = await fetch(urlConv, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
-              const convData = await convRes.json();
-              const sesionPrevia = (convData.records || []).find(r => (r.fields?.['Médico'] || []).includes(medicoRecordId));
-
-              if (sesionPrevia && sesionPrevia.fields['Transcripción']) {
-                const resumenRes = await fetch('https://api.anthropic.com/v1/messages', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type'     : 'application/json',
-                    'x-api-key'        : process.env.ANTHROPIC_API_KEY,
-                    'anthropic-version': '2023-06-01',
-                  },
-                  body: JSON.stringify({
-                    model: 'claude-sonnet-5',
-                    max_tokens: 200,
-                    system: 'Resume la siguiente conversación clínica entre un médico y NOVA en 2-3 líneas, en tercera persona, solo lo clínicamente relevante para retomar el hilo mañana. Sin preámbulo, solo el resumen.',
-                    messages: [{ role: 'user', content: sesionPrevia.fields['Transcripción'].slice(-6000) }],
-                  }),
-                });
-                const resumenData = await resumenRes.json();
-                const resumenTexto = resumenRes.ok
-                  ? resumenData.content?.find(b => b.type === 'text')?.text?.trim()
-                  : null;
-
-                if (resumenTexto) {
-                  memoriaMedico = resumenTexto;
-                  fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}/${medicoRecordId}`, {
-                    method: 'PATCH',
-                    headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fields: { 'Memoria NOVA (médico)': memoriaMedico } }),
-                  }).catch(() => {});
-                }
-              }
-            } catch (err) {
-              console.error('[nova] error generando resumen de médico:', err.message);
-            }
-          }
-        }
+        medRecord = medData.records?.[0];
       } catch (err) {
         console.error('[nova] error consultando médico en Airtable:', err.message);
-        // No bloqueamos el chat si Airtable falla — sigue con lo del cliente.
+        return res.status(502).json({ error: 'No se pudo verificar la sesión médica. Intenta de nuevo.' });
+      }
+
+      // HOTFIX gate-sesion-nova: si el médico de la sesión ya no existe en
+      // MÉDICOS, se rechaza — ya no se sigue con valores por defecto y
+      // herramientas completas otorgadas igual.
+      if (!medRecord) {
+        return res.status(401).json({ error: 'Médico no reconocido.' });
+      }
+
+      medicoRecordId = medRecord.id;
+      nombreReal       = medRecord.fields['Nombre completo'] || nombreReal;
+      especialidadReal = medRecord.fields['Especialidad']    || especialidadReal;
+      memoriaMedico    = medRecord.fields['Memoria NOVA (médico)'] || '';
+      const ultimaActividadPrevia = medRecord.fields['Última actividad NOVA'] || null;
+
+      const UNA_HORA_MS = 60 * 60 * 1000;
+      const inactivo = ultimaActividadPrevia &&
+        (Date.now() - new Date(ultimaActividadPrevia).getTime()) > UNA_HORA_MS;
+
+      // Si pasó más de 1h desde el último mensaje, generamos un resumen
+      // fresco de la sesión anterior (si quedó transcripción guardada) en
+      // vez de seguir arrastrando la misma memoria — así NOVA "reinicia" y
+      // retoma el hilo con un resumen corto en lugar de todo el historial
+      // crudo, que sería mucho más caro en tokens.
+      if (inactivo) {
+        try {
+          const fechaSesionPrevia = new Date(ultimaActividadPrevia).toISOString().slice(0, 10);
+          const formulaConv = `{Fecha}="${fechaSesionPrevia}"`;
+          const urlConv = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_NOVA_CONVERSACIONES}?filterByFormula=${encodeURIComponent(formulaConv)}`;
+          const convRes = await fetch(urlConv, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
+          const convData = await convRes.json();
+          const sesionPrevia = (convData.records || []).find(r => (r.fields?.['Médico'] || []).includes(medicoRecordId));
+
+          if (sesionPrevia && sesionPrevia.fields['Transcripción']) {
+            const resumenRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type'     : 'application/json',
+                'x-api-key'        : process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-5',
+                max_tokens: 200,
+                system: 'Resume la siguiente conversación clínica entre un médico y NOVA en 2-3 líneas, en tercera persona, solo lo clínicamente relevante para retomar el hilo mañana. Sin preámbulo, solo el resumen.',
+                messages: [{ role: 'user', content: sesionPrevia.fields['Transcripción'].slice(-6000) }],
+              }),
+            });
+            const resumenData = await resumenRes.json();
+            const resumenTexto = resumenRes.ok
+              ? resumenData.content?.find(b => b.type === 'text')?.text?.trim()
+              : null;
+
+            if (resumenTexto) {
+              memoriaMedico = resumenTexto;
+              fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}/${medicoRecordId}`, {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fields: { 'Memoria NOVA (médico)': memoriaMedico } }),
+              }).catch(() => {});
+            }
+          }
+        } catch (err) {
+          console.error('[nova] error generando resumen de médico:', err.message);
+        }
       }
 
       systemPrompt = buildSystemPrompt('medico', {

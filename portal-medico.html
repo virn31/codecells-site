@@ -3926,11 +3926,17 @@ NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
 // existían en este archivo, se envuelve fetch UNA sola vez aquí arriba —
 // así toda llamada existente (airtableFetch, airtablePost, y los PATCH
 // sueltos más abajo) atrapa el token automáticamente sin más cambios.
+//
+// HOTFIX gate-sesion-nova: también /api/nova — antes no mandaba el token,
+// así que los endpoints de labs y el chat en modo médico no tenían forma
+// de verificar sesión real (solo el formato de medicoCode/pacienteCode).
+// Sin este cambio de una línea, el gate nuevo del servidor tumba a todos
+// los médicos reales también.
 const TOKEN_KEY = 'cc_medico_token';
 const _fetchOriginal = window.fetch.bind(window);
 window.fetch = function(url, opts = {}) {
   const urlStr = typeof url === 'string' ? url : (url && url.url) || '';
-  if (urlStr.includes('/api/airtable')) {
+  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova')) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
       opts = { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } };
