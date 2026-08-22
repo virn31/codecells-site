@@ -85,6 +85,14 @@ fundador. Los cofundadores están sujetos a la misma regla que cualquier afiliad
   lo razona bien. Excepción: crear un paciente nuevo se asigna al médico del token.
 - La intención viaja en **parámetros explícitos**, nunca inferida parseando el filtro
   del cliente.
+- Todo acceso médico a un expediente pasa por `autorizarPaciente()`
+  (`lib/autorizacion.js`). En `api/airtable.js` hay un guard estructural
+  (`medicoFiltroAplicado`) que bloquea por defecto si una tabla nueva no pasó
+  por ahí. **`api/nova.js` NO tiene ese guard: depende de que cada acción
+  nueva recuerde llamar a `autorizarPaciente()`; no hay guard estructural.**
+  Cada `action` ahí es un `if` suelto, no un dispatcher — un endpoint médico
+  nuevo que lea datos de paciente y no llame a la función es un agujero
+  silencioso hasta que alguien lo note.
 
 ---
 

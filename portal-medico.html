@@ -3936,6 +3936,11 @@ const TOKEN_KEY = 'cc_medico_token';
 const _fetchOriginal = window.fetch.bind(window);
 window.fetch = function(url, opts = {}) {
   const urlStr = typeof url === 'string' ? url : (url && url.url) || '';
+  // También /api/nova: medico_tabla_labs y medico_resumen_labs no llevaban
+  // NINGÚN token (ni siquiera un medicoCode) — cualquiera con un
+  // pacienteCode leía los labs de ese paciente sin sesión de ningún tipo.
+  // Las acciones de /api/nova que no verifican Authorization simplemente
+  // ignoran este header, así que agregarlo aquí no rompe nada existente.
   if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova')) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
@@ -4013,8 +4018,8 @@ async function airtableFetch(tabla, params = '') {
   return res.json();
 }
 
-async function airtablePost(tabla, fields) {
-  const url = `/api/airtable?tabla=${tabla}`;
+async function airtablePost(tabla, fields, pacienteBuscado = '') {
+  const url = `/api/airtable?tabla=${tabla}${pacienteBuscado ? `&pacienteBuscado=${encodeURIComponent(pacienteBuscado)}` : ''}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -4636,7 +4641,7 @@ async function cargarNutricion() {
 
   try {
     const formula = `{Código de paciente ref}="${pacId}"`;
-    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=asc&maxRecords=100`);
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=asc&maxRecords=100&pacienteBuscado=${encodeURIComponent(pacId)}`);
     const registros = (data.records || []).filter(r => typeof r.fields['Peso en consulta (kg)'] === 'number');
 
     if (!registros.length) {
@@ -5125,8 +5130,10 @@ async function cargarHistoria(pacId) {
   historiaActualFields = {};
 
   try {
+    // El servidor ignora y reemplaza este filterByFormula para el rol
+    // médico — pacienteBuscado es lo que de verdad decide el acceso.
     const formula = encodeURIComponent(`{Código de paciente ref}="${pacId}"`);
-    const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1`);
+    const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1&pacienteBuscado=${encodeURIComponent(pacId)}`);
 
     if (!data.records || data.records.length === 0) {
       cont.innerHTML = renderHistoriaDemo();
@@ -5210,7 +5217,7 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
   try {
     if (historiaActualId) {
       // Ya existe un registro (llenado por el paciente o el kiosco) — se corrige
-      await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}`, {
+      await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields, typecast: true })
@@ -5220,7 +5227,7 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
       fields['Código de paciente ref'] = pacId;
       fields['Paciente'] = [pacienteActual.id];
       fields['Fecha entrevista NOVA'] = new Date().toISOString();
-      await airtablePost(TBL_HISTORIA, fields);
+      await airtablePost(TBL_HISTORIA, fields, pacId);
     }
     showToast('Historia clínica actualizada ✓', 'success');
     document.getElementById('historia-edit-form').style.display = 'none';
@@ -5262,7 +5269,9 @@ async function cargarConsultas(pacId, soloMias = true) {
     if (soloMias && miCodigo) {
       formula = `AND({Código de paciente ref}="${pacId}", {Código de médico ref}="${miCodigo}")`;
     }
-    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=desc&maxRecords=30`);
+    // El servidor reconstruye el AND con SU propio código de médico (nunca
+    // el que mande aquí el cliente) — soloMias solo viaja como bandera.
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=desc&maxRecords=30&pacienteBuscado=${encodeURIComponent(pacId)}${soloMias ? '&soloMias=1' : ''}`);
 
     if (!data.records || data.records.length === 0) {
       tl.innerHTML = soloMias
@@ -5853,7 +5862,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
 
   try {
-    const consultaCreada = await airtablePost(TBL_CONSULTAS, fields);
+    const consultaCreada = await airtablePost(TBL_CONSULTAS, fields, pacId);
     showToast('Consulta guardada en Airtable ✓', 'success');
 
     // Sugerencia automática de CIE-10 — solo si el médico no capturó uno
@@ -5923,7 +5932,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     if (Object.keys(historiaFields).length > 0) {
       try {
         if (historiaActualId) {
-          await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}`, {
+          await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fields: historiaFields, typecast: true })
@@ -5932,7 +5941,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
           historiaFields['Código de paciente ref'] = pacId;
           historiaFields['Paciente'] = [pacienteActual.id];
           historiaFields['Fecha entrevista NOVA'] = new Date().toISOString();
-          await airtablePost(TBL_HISTORIA, historiaFields);
+          await airtablePost(TBL_HISTORIA, historiaFields, pacId);
         }
         cargarHistoria(pacId);
       } catch (err) {
@@ -7046,7 +7055,7 @@ document.getElementById('btn-enviar-interconsulta').addEventListener('click', as
   try {
     // Por ahora guardamos en tabla CONSULTAS con tipo "interconsulta"
     // Cuando se cree la tabla INTERCONSULTAS se actualiza aquí
-    const res = await fetch('/api/airtable?tabla=consultas', {
+    const res = await fetch(`/api/airtable?tabla=consultas&pacienteBuscado=${encodeURIComponent(pacId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: {
