@@ -36,6 +36,10 @@ const { generarCodigoUnico } = require('../lib/codigos');
 // para obtener herramientas completas de médico.
 const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
 
+// Capa 1 de constancia de acceso a expedientes — solo observa, no decide
+// ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
+const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
+
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
 const TAXONOMIA_PATOLOGIAS = ["Obesidad","Sobrepeso","Diabetes Tipo 2","Prediabetes","Resistencia a la Insulina",
@@ -1079,18 +1083,33 @@ module.exports = async function handler(req, res) {
       // completa de labs. Ahora exige sesión médica real.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs', resultado: 'Rechazado', endpoint: 'medico_tabla_labs' });
+        return res.status(403).json({ error: 'Código de paciente inválido.' });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+      // Solo para clasificar el registro de acceso (¿existe el paciente o
+      // no?) — esta acción nunca consultaba PACIENTES; no cambia qué se
+      // responde al médico, en paralelo con la consulta real para no sumar
+      // latencia perceptible.
+      const TBL_PAC_LOG = 'tblyUcCfueFLJuvIv';
 
       const formula = `{Código de paciente ref}="${pacienteCode}"`;
-      const valoresRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, {
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-      });
+      const [valoresRes, pacLogRes] = await Promise.all([
+        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        }),
+        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC_LOG}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}&maxRecords=1`, {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        }),
+      ]);
       const valoresData = await valoresRes.json();
+      const pacLogData = await pacLogRes.json();
       const registros = valoresData.records || [];
+      const pacienteExisteParaLog = !!(pacLogData.records && pacLogData.records[0]);
 
       // Clasificación por palabras clave — heurística, no perfecta, pero
       // agrupa lo más común de un panel CODE CELLS® en categorías legibles.
@@ -1142,6 +1161,11 @@ module.exports = async function handler(req, res) {
       const fechas = [...fechasSet].sort();
       const filas = Object.values(porAnalito).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.analito.localeCompare(b.analito));
 
+      await registrarAccesoExpediente({
+        pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs',
+        resultado: pacienteExisteParaLog ? 'Exitoso' : 'Paciente no encontrado',
+        endpoint: 'medico_tabla_labs',
+      });
       return res.status(200).json({ ok: true, fechas, filas });
     } catch (err) {
       console.error('[nova] medico_tabla_labs error:', err.message);
@@ -1160,7 +1184,10 @@ module.exports = async function handler(req, res) {
       // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs', resultado: 'Rechazado', endpoint: 'medico_resumen_labs' });
+        return res.status(403).json({ error: 'Código de paciente inválido.' });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1245,6 +1272,11 @@ module.exports = async function handler(req, res) {
         }
       }
 
+      await registrarAccesoExpediente({
+        pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs',
+        resultado: pacData.records?.[0] ? 'Exitoso' : 'Paciente no encontrado',
+        endpoint: 'medico_resumen_labs',
+      });
       return res.status(200).json({ ok: true, estudios, comparativo, interpretacion });
     } catch (err) {
       console.error('[nova] medico_resumen_labs error:', err.message);
@@ -1309,7 +1341,10 @@ module.exports = async function handler(req, res) {
       // adivinado bastaba para inyectar datos clínicos falsos.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_guardar_labs_rapidos' });
+        return res.status(403).json({ error: 'Código de paciente inválido.' });
+      }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -1321,7 +1356,10 @@ module.exports = async function handler(req, res) {
       const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       const pacData = await pacRes.json();
       const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
+      if (!pacRecord) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Paciente no encontrado', endpoint: 'medico_guardar_labs_rapidos' });
+        return res.status(404).json({ error: 'Paciente no encontrado.' });
+      }
 
       const filas = Array.isArray(valoresRapidos) ? valoresRapidos.filter(v => v && v.analito && String(v.analito).trim()) : [];
       const hoy = new Date().toISOString().slice(0, 10);
@@ -1381,6 +1419,7 @@ module.exports = async function handler(req, res) {
         }).catch(e => console.error('[nova] error creando LAB_VALORES (dictado médico):', e.message));
       }
 
+      await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Exitoso', endpoint: 'medico_guardar_labs_rapidos' });
       return res.status(200).json({ ok: true, novaLabsId: crearData.id, analitosGuardados: filas.length });
     } catch (err) {
       console.error('[nova] medico_guardar_labs_rapidos error:', err.message);
@@ -1401,7 +1440,10 @@ module.exports = async function handler(req, res) {
       // paciente.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_subir_estudio' });
+        return res.status(403).json({ error: 'Código de paciente inválido.' });
+      }
       if (!fileBase64 || !mediaType) return res.status(400).json({ error: 'Falta el archivo.' });
       const esPDF = mediaType === 'application/pdf';
       const esImagen = mediaType.startsWith('image/');
@@ -1416,7 +1458,10 @@ module.exports = async function handler(req, res) {
       const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       const pacData = await pacRes.json();
       const pacRecord = pacData.records?.[0];
-      if (!pacRecord) return res.status(404).json({ error: 'Paciente no encontrado.' });
+      if (!pacRecord) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Paciente no encontrado', endpoint: 'medico_subir_estudio' });
+        return res.status(404).json({ error: 'Paciente no encontrado.' });
+      }
 
       const contentBlock = esPDF
         ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
@@ -1520,6 +1565,7 @@ module.exports = async function handler(req, res) {
         }).catch(e => console.error('[nova] error creando LAB_VALORES (subida médico):', e.message));
       }
 
+      await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Exitoso', endpoint: 'medico_subir_estudio' });
       return res.status(200).json({
         ok: true, tipoEstudio, panel, fecha: fechaEstudio,
         totalAnalitos: analitos.length, totalFueraDeRango: fueraDeRango.length,

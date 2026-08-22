@@ -17,6 +17,9 @@
 
 const { verificarToken, tokenDesdeRequest, generarTokenVisitante } = require('../lib/auth');
 const { sendTelegramMessage } = require('../lib/telegram');
+// Capa 1 de constancia de acceso a expedientes — solo observa, no decide
+// ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
+const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 
 const BASE_ID = 'app6jyD9pDlTLpknA';
 
@@ -269,6 +272,11 @@ module.exports = async (req, res) => {
   // ── Autenticación ──
   const token = tokenDesdeRequest(req);
   const sesion = verificarToken(token); // null si falta, es inválido o expiró
+
+  // Capa 1 de constancia de acceso: se llena más abajo, solo en la rama
+  // médico→pacientes (interconsulta GET / POST / PATCH), y se consume junto
+  // al reenvío real a Airtable, donde ya se sabe si hubo o no coincidencia.
+  let logAccesoExpediente = null;
 
   const esLecturaPublicaPermitida =
     req.method === 'GET' && TABLAS_LECTURA_PUBLICA.has(tabla);
@@ -856,6 +864,12 @@ module.exports = async (req, res) => {
           req.query.filterByFormula = esInterconsulta
             ? `{Código de paciente}="${escaparFormula(buscado)}"`
             : filtroLista;
+          // Solo la interconsulta puntual (código exacto) cuenta como "abrir
+          // un expediente" para la constancia — el listado propio+demo es
+          // navegación de la cartera ya autorizada, no un acceso puntual.
+          if (esInterconsulta) {
+            logAccesoExpediente = { pacienteCode: buscado, codigoMedico: codigo, accion: 'Lectura de expediente', endpoint: 'airtable:pacientes:GET' };
+          }
         } else if (req.method === 'POST') {
           // Todo paciente que cree el médico queda atribuido a él.
           const recordIdMedico = await obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN);
@@ -864,6 +878,7 @@ module.exports = async (req, res) => {
           }
           const fields = (req.body && req.body.fields) || {};
           req.body.fields = { ...fields, 'Médico_principal': [recordIdMedico] };
+          logAccesoExpediente = { pacienteCode: fields['Código de paciente'], codigoMedico: codigo, medicoRecId: recordIdMedico, accion: 'Escritura', endpoint: 'airtable:pacientes:POST' };
         } else if (req.method === 'PATCH') {
           const { recordId } = req.query;
           if (!recordId) return res.status(400).json({ error: 'Falta recordId.' });
@@ -879,14 +894,17 @@ module.exports = async (req, res) => {
               return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
             }
             const f = (await check.json()).fields || {};
+            const codigoPacienteObjetivo = f['Código de paciente'] || buscado || '';
             const linkMedico = Array.isArray(f['Médico_principal']) ? f['Médico_principal'] : [];
             const esPropio = linkMedico.includes(recordIdMedico);
             const esInterconsultaPatch = esInterconsulta && f['Código de paciente'] === buscado;
             // Los pacientes demo son SOLO LECTURA para el médico (CLAUDE.md §4):
             // no se incluyen en la condición de escritura — solo propio o interconsulta.
             if (!esPropio && !esInterconsultaPatch) {
+              await registrarAccesoExpediente({ pacienteCode: codigoPacienteObjetivo, codigoMedico: codigo, medicoRecId: recordIdMedico, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'airtable:pacientes:PATCH' });
               return res.status(403).json({ error: 'No puedes modificar un paciente que no es tuyo.' });
             }
+            logAccesoExpediente = { pacienteCode: codigoPacienteObjetivo, codigoMedico: codigo, medicoRecId: recordIdMedico, accion: 'Escritura', endpoint: 'airtable:pacientes:PATCH' };
           } catch (err) {
             return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
           }
@@ -964,6 +982,10 @@ module.exports = async (req, res) => {
       const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}${qs ? '?' + qs : ''}`;
       const airtableRes = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       const data = await airtableRes.json();
+      if (logAccesoExpediente) {
+        const encontrado = airtableRes.ok && Array.isArray(data.records) && data.records.length > 0;
+        await registrarAccesoExpediente({ ...logAccesoExpediente, resultado: encontrado ? 'Exitoso' : 'Paciente no encontrado' });
+      }
       return res.status(airtableRes.status).json(data);
     }
 
@@ -975,6 +997,12 @@ module.exports = async (req, res) => {
         body: JSON.stringify(req.body),
       });
       const data = await airtableRes.json();
+      // Un 5xx/4xx aquí es una falla de Airtable al crear, no una decisión
+      // de acceso — no hay categoría de Resultado para eso (regla dura #1
+      // habla de "código inexistente" y "rechazado", no de infraestructura).
+      if (logAccesoExpediente && airtableRes.ok) {
+        await registrarAccesoExpediente({ ...logAccesoExpediente, resultado: 'Exitoso' });
+      }
       return res.status(airtableRes.status).json(data);
     }
 
@@ -988,6 +1016,11 @@ module.exports = async (req, res) => {
         body: JSON.stringify(req.body),
       });
       const data = await airtableRes.json();
+      // El caso Rechazado (paciente ajeno) ya se registró antes de llegar
+      // aquí — este bloque solo corre cuando la autorización sí lo permitió.
+      if (logAccesoExpediente && airtableRes.ok) {
+        await registrarAccesoExpediente({ ...logAccesoExpediente, resultado: 'Exitoso' });
+      }
       return res.status(airtableRes.status).json(data);
     }
 
