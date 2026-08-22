@@ -154,17 +154,6 @@
       <div class="patologias-chips" id="patologias-chips"></div>
     </div>
 
-    <div class="seccion-label">Subir un estudio</div>
-    <div class="chat-caja" style="padding:20px;">
-      <p style="font-size:13px;color:var(--text-2);margin:0 0 14px;line-height:1.5;">
-        Sube tu laboratorio o estudio en PDF o foto. Solo se agrega a tu expediente si el nombre en el documento coincide con tu registro.
-      </p>
-      <input type="file" id="input-estudio" accept="application/pdf,image/*" style="display:none;">
-      <button class="btn-enviar" id="btn-subir-estudio" style="width:100%;border-radius:24px;font-size:14px;font-weight:600;">📎 Elegir archivo</button>
-      <div id="estudio-nombre" style="font-size:12px;color:var(--text-3);margin-top:8px;text-align:center;"></div>
-      <div id="estudio-estado" style="font-size:13px;margin-top:10px;text-align:center;min-height:18px;"></div>
-    </div>
-
     <div class="seccion-label">Tus laboratorios</div>
     <div class="chat-caja" style="padding:20px;" id="labs-caja">
       <div id="labs-vacio" style="font-size:13px;color:var(--text-3);font-style:italic;">Aún no tienes estudios con datos extraídos.</div>
@@ -827,82 +816,6 @@ function renderComparativoLabs() {
     tablaEl.appendChild(fila);
   });
 }
-
-// ─── SUBIR ESTUDIO CON VERIFICACIÓN DE IDENTIDAD ─────────────────
-document.getElementById('btn-subir-estudio').addEventListener('click', function() {
-  document.getElementById('input-estudio').click();
-});
-
-document.getElementById('input-estudio').addEventListener('change', function(e) {
-  var file = e.target.files[0];
-  if (!file) return;
-
-  var estadoEl = document.getElementById('estudio-estado');
-  var nombreEl = document.getElementById('estudio-nombre');
-  var btn = document.getElementById('btn-subir-estudio');
-
-  var tiposValidos = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic'];
-  if (tiposValidos.indexOf(file.type) === -1) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'Formato no válido — usa PDF o foto (JPG/PNG).';
-    return;
-  }
-  if (file.size > 3 * 1024 * 1024) {
-    estadoEl.style.color = '#E2574B';
-    estadoEl.textContent = 'El archivo es muy grande (máximo 3MB) — si es un PDF escaneado, intenta tomarle foto en vez de escanearlo.';
-    return;
-  }
-
-  nombreEl.textContent = file.name;
-  estadoEl.style.color = 'var(--text-2)';
-  estadoEl.textContent = 'Verificando identidad…';
-  btn.disabled = true;
-
-  var reader = new FileReader();
-  reader.onload = function() {
-    var base64 = reader.result.split(',')[1];
-    fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'paciente_subir_estudio',
-        pacienteCode: pacienteCodigo,
-        fileBase64: base64,
-        fileName: file.name,
-        mediaType: file.type,
-      }),
-    })
-      .then(function(r) {
-        if (!r.ok && r.status === 413) {
-          throw new Error('archivo_muy_grande');
-        }
-        return r.json();
-      })
-      .then(function(data) {
-        btn.disabled = false;
-        if (data.ok && data.verificado) {
-          estadoEl.style.color = '#5FAE6E';
-          estadoEl.textContent = 'Estudio agregado a tu expediente ✓ — procesando datos…';
-          document.getElementById('input-estudio').value = '';
-          // La extracción de analitos corre en segundo plano en el servidor;
-          // se refresca el comparativo un par de veces dando tiempo a que termine.
-          setTimeout(cargarComparativoLabs, 6000);
-          setTimeout(cargarComparativoLabs, 14000);
-        } else {
-          estadoEl.style.color = '#E2574B';
-          estadoEl.textContent = data.error || 'No se pudo verificar el documento.';
-        }
-      })
-      .catch(function(err) {
-        btn.disabled = false;
-        estadoEl.style.color = '#E2574B';
-        estadoEl.textContent = (err && err.message === 'archivo_muy_grande')
-          ? 'El archivo es demasiado pesado para subirlo así. Intenta con uno más chico o tómale foto en vez de escanearlo.'
-          : 'Error de conexión. Intenta de nuevo.';
-      });
-  };
-  reader.readAsDataURL(file);
-});
 
 init();
 
