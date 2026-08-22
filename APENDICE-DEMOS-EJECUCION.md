@@ -148,3 +148,9 @@ Talla 1.78 m.
 paciente real (CC-PAC-635281), ligado a CCMED-VIRN01, creado el 12 de agosto. Es exactamente el
 escenario de homónimo que la validación de identidad de Fase C existe para atrapar, y ahora
 mismo está dentro de la base. Resolver antes de que alguien lo abra por nombre.
+
+> **CERRADO — verificado 2026-08-22.** El registro ya no expone el homónimo: nombre actual
+> `ZZ EVIDENCIA — NO ES PACIENTE REAL (incidente 2026-08-14)`, `Es demo` marcado, teléfono
+> removido. Confirmado directo contra Airtable en producción. Este hallazgo no requiere ninguna
+> acción adicional — se deja el párrafo de arriba solo como registro histórico de lo que se
+> encontró, no como pendiente.
