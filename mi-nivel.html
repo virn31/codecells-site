@@ -566,7 +566,7 @@ function cargarListaMedico(codigoMedico) {
     .then(function(r){ return r.json(); })
     .then(function(medData){
       var medico = medData.records && medData.records[0];
-      if (!medico || (medico.fields['Es médico maestro'] !== true && medico.fields['Ver todos los pacientes'] !== true)) {
+      if (!medico || medico.fields['Ver todos los pacientes'] !== true) {
         document.getElementById('error-texto').textContent = 'Código no reconocido para modo médico.';
         irA('p-error');
         return;

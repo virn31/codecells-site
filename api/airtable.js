@@ -111,6 +111,32 @@ async function obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN) {
   }
 }
 
+// Tablas del núcleo clínico (SPEC separación de roles, ago 2026): solo un
+// médico con `Tipo de acceso`=Clinico puede leerlas. Revisor/Desarrollo
+// entran por la misma puerta (mismo token de sesión) pero nunca deben tocar
+// expediente de paciente — esa distinción antes no existía, era un solo tipo
+// de sesión "medico" para clínicos, QA y accesos técnicos por igual.
+const NUCLEO_CLINICO_TABLAS = new Set(['pacientes', 'historia', 'consultas', 'labs', 'pacientes_vip']);
+
+// Resuelve `Tipo de acceso` desde el registro MÉDICOS a partir del código del
+// TOKEN (nunca de un parámetro del cliente — regla dura del SPEC). Sin
+// registro o sin fetch exitoso, permitido=false: falla cerrado, igual que un
+// registro con el campo vacío (ver nota junto a NUCLEO_CLINICO_TABLAS).
+async function verificarAccesoClinicoMedico(codigo, AIRTABLE_TOKEN) {
+  const formula = `{Código de médico}="${escaparFormula(codigo)}"`;
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLAS_PERMITIDAS.medicos}?filterByFormula=${encodeURIComponent(formula)}&maxRecords=1&fields%5B%5D=${encodeURIComponent('Código de médico')}&fields%5B%5D=${encodeURIComponent('Tipo de acceso')}`;
+  try {
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+    if (!r.ok) return { permitido: false, recordId: null };
+    const d = await r.json();
+    const rec = d.records?.[0];
+    if (!rec) return { permitido: false, recordId: null };
+    return { permitido: rec.fields?.['Tipo de acceso'] === 'Clinico', recordId: rec.id };
+  } catch {
+    return { permitido: false, recordId: null };
+  }
+}
+
 // Tablas donde, ANTES de que exista sesión, el propio código/token que el
 // cliente ya trae en memoria (de la URL, o recién generado) funciona como
 // credencial de arranque — siempre que sea una coincidencia EXACTA de un
@@ -618,6 +644,24 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'Sesión requerida.' });
     }
 
+    // Misma compuerta que el núcleo clínico: esta ruta ignora `tabla` y lee
+    // LAB_VALORES/CONSULTAS directo, así que un Revisor/Desarrollo no puede
+    // rodear el gate de arriba con un `tabla` cualquiera solo para pasar la
+    // validación inicial.
+    if (sesion.tipo === 'medico') {
+      const acceso = await verificarAccesoClinicoMedico(sesion.codigo, AIRTABLE_TOKEN);
+      if (!acceso.permitido) {
+        await registrarAccesoExpediente({
+          codigoMedico: sesion.codigo,
+          medicoRecId: acceso.recordId,
+          accion: 'Lectura de labs',
+          resultado: 'Denegado',
+          endpoint: 'airtable:graficas_series:GET',
+        });
+        return res.status(403).json({ error: 'Tu tipo de acceso no permite leer expedientes clínicos.' });
+      }
+    }
+
     let codigoPaciente = String(req.query.codigoPaciente || '').trim();
     if (sesion.tipo === 'paciente' || sesion.tipo === 'vip') {
       codigoPaciente = sesion.codigo; // no puede leer expediente ajeno
@@ -775,6 +819,20 @@ module.exports = async (req, res) => {
   // ── Autorización por rol (solo aplica cuando hay sesión real) ──
   if (sesion) {
     const { tipo, codigo } = sesion;
+
+    if (tipo === 'medico' && NUCLEO_CLINICO_TABLAS.has(tabla)) {
+      const acceso = await verificarAccesoClinicoMedico(codigo, AIRTABLE_TOKEN);
+      if (!acceso.permitido) {
+        await registrarAccesoExpediente({
+          codigoMedico: codigo,
+          medicoRecId: acceso.recordId,
+          accion: req.method === 'GET' ? 'Lectura de expediente' : 'Escritura',
+          resultado: 'Denegado',
+          endpoint: `airtable:${tabla}:${req.method}`,
+        });
+        return res.status(403).json({ error: 'Tu tipo de acceso no permite leer expedientes clínicos.' });
+      }
+    }
 
     if (tipo === 'medico') {
       // Acceso amplio a las tablas clínicas — igual que hoy (interconsulta
