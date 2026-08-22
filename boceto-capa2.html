@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boceto Capa 2 — CODE CELLS Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07090A; --panel:#0D1012; --panel-2:#0F1316; --line:#1C2024;
+    --ink:#F6F4F1; --ink-2:#A8A5A0; --ink-3:#6E6B67;
+    --gold:#D9A441; --gold-dim:#8A6B2C;
+    --energy:#E8A33D; --repair:#D4654A; --balance:#4FA8A0; --neuro:#8B7FD4; --regen:#5FAE6E;
+    --sf:'Cormorant Garamond',serif; --sans:'DM Sans',sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;position:relative}
+  /* ─── FONDO DE CÉLULAS ─────────────────────────────────────────
+     En el portal real: background-image:url('/assets/bg-celulas.png')
+     Aquí lo simulo con radial-gradients dorados para ver opacidad/posición.
+     Va fijo, detrás de todo, al ~22% para no competir con el contenido. */
+  body::before{content:"";position:fixed;inset:0;z-index:-2;
+    background:
+      radial-gradient(340px 300px at 12% 82%, rgba(232,163,61,.16), transparent 60%),
+      radial-gradient(220px 200px at 78% 24%, rgba(217,164,65,.12), transparent 60%),
+      radial-gradient(160px 150px at 90% 70%, rgba(212,101,74,.10), transparent 60%),
+      radial-gradient(120px 110px at 40% 45%, rgba(217,164,65,.07), transparent 65%);
+    opacity:.55;pointer-events:none}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(7,9,10,.55);pointer-events:none}
+  .shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh;position:relative;z-index:0}
+
+  /* ─── SIDEBAR ─── */
+  .side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px}
+  .brand{font-family:var(--sf);font-weight:700;font-size:22px;letter-spacing:.5px;text-align:center;
+    background:linear-gradient(135deg,#E8A33D,#D9A441,#B98A34);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .brand-sub{text-align:center;font-size:8.5px;letter-spacing:2.5px;color:var(--ink-3);margin-top:3px;text-transform:uppercase}
+  .side-sep{height:1px;background:var(--line);margin:18px 4px}
+  .nav{display:flex;flex-direction:column;gap:3px}
+  .nav a{display:flex;align-items:center;gap:12px;padding:10px 13px;border-radius:9px;color:var(--ink-2);text-decoration:none;font-size:13px;font-weight:500;transition:.15s}
+  .nav a svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none;flex-shrink:0}
+  .nav a:hover{background:rgba(217,164,65,.06);color:var(--ink)}
+  .nav a.on{background:rgba(217,164,65,.12);color:var(--gold)}
+  .nav a.on svg{stroke:var(--gold)}
+  .side-foot{margin-top:auto;font-size:9px;color:var(--ink-3);text-align:center;letter-spacing:1px;font-family:var(--mono)}
+
+  /* ─── HEADER ─── */
+  .main{display:flex;flex-direction:column;min-width:0}
+  .topbar{height:60px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:linear-gradient(to bottom,rgba(217,164,65,.02),transparent)}
+  .topbar .greet{font-family:var(--sf);font-size:17px;font-weight:600}
+  .topbar .greet small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.5px;margin-top:1px}
+  .top-right{display:flex;align-items:center;gap:18px}
+  .timer{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+  .timer .dot{width:7px;height:7px;border-radius:50%;background:var(--regen);box-shadow:0 0 8px var(--regen)}
+  .doc{display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px solid var(--line);border-radius:10px}
+  .doc-i{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold-dim));display:flex;align-items:center;justify-content:center;font-family:var(--sf);font-weight:700;color:#07090A}
+  .doc-t{font-size:12px;font-weight:600;line-height:1.2}
+  .doc-t small{display:block;font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+
+  .content{padding:24px;overflow-y:auto}
+
+  /* ─── PATIENT CARD ─── */
+  .pcard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;display:grid;grid-template-columns:auto 1fr auto;gap:24px;position:relative;overflow:hidden}
+  .pcard::before{content:"";position:absolute;inset:0;background:radial-gradient(120px 120px at 60px 50%,rgba(232,163,61,.10),transparent 70%);pointer-events:none}
+  .halo{width:88px;height:88px;border-radius:50%;position:relative;flex-shrink:0}
+  .halo .ring{position:absolute;inset:0;border-radius:50%;padding:3px;background:conic-gradient(var(--energy),var(--repair),var(--balance),var(--neuro),var(--regen),var(--energy))}
+  .halo .core{position:absolute;inset:3px;border-radius:50%;background:var(--panel-2);display:flex;align-items:center;justify-content:center;font-family:var(--sf);font-size:34px;font-weight:600;color:var(--ink)}
+  .pinfo{min-width:0}
+  .pname{font-family:var(--sf);font-size:24px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .badge{font-size:9px;font-family:var(--mono);letter-spacing:1px;color:var(--gold);border:1px solid var(--gold-dim);border-radius:100px;padding:2px 8px;text-transform:uppercase}
+  .prow{display:flex;gap:22px;margin-top:8px;flex-wrap:wrap}
+  .prow .it{font-size:12px;color:var(--ink-3)}
+  .prow .it b{color:var(--ink-2);font-family:var(--mono);font-weight:500;margin-left:4px}
+  .pclin{display:flex;gap:26px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .pclin .m{}
+  .pclin .m .k{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-3)}
+  .pclin .m .v{font-family:var(--mono);font-size:15px;color:var(--gold);margin-top:3px}
+  .pclin .m .v.sys{color:var(--energy)}
+  .pclin .m .v small{color:var(--regen);font-size:11px;margin-left:5px}
+  .pactions{display:flex;flex-direction:column;gap:8px;align-self:start}
+  .abtn{display:flex;align-items:center;gap:8px;padding:9px 15px;border:1px solid var(--line);border-radius:10px;background:rgba(217,164,65,.05);color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:.15s;font-family:var(--sans)}
+  .abtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none}
+  .abtn:hover{background:var(--gold);color:#07090A}
+  .abtn:hover svg{stroke:#07090A}
+
+  /* ─── TABS ─── */
+  .tabs{display:flex;gap:4px;margin:22px 0 0;border-bottom:1px solid var(--line)}
+  .tab{padding:12px 18px;font-size:13px;font-weight:500;color:var(--ink-3);cursor:pointer;border-bottom:2px solid transparent;font-family:var(--mono);letter-spacing:.5px}
+  .tab:hover{color:var(--ink-2)}
+  .tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+
+  /* ─── RESUMEN BODY ─── */
+  .grid{display:grid;grid-template-columns:1.2fr 1.4fr 1fr;gap:16px;margin-top:20px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .box h3{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px;font-weight:500}
+  .clin-item{margin-bottom:12px}
+  .clin-item .lbl{font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px}
+  .clin-item .val{font-size:13px;color:var(--ink);margin-top:2px}
+  /* timeline */
+  .tl{position:relative;padding-left:22px}
+  .tl::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:1px;background:var(--line)}
+  .tl-ev{position:relative;margin-bottom:16px}
+  .tl-ev::before{content:"";position:absolute;left:-19px;top:3px;width:11px;height:11px;border-radius:50%;background:var(--panel);border:2px solid var(--gold)}
+  .tl-ev.rep::before{border-color:var(--repair)}
+  .tl-ev.lab::before{border-color:var(--balance)}
+  .tl-ev .d{font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:1px}
+  .tl-ev .t{font-size:13px;color:var(--ink);margin-top:1px}
+  .tl-ev .s{font-size:11px;color:var(--ink-3)}
+  /* indicators */
+  .ind{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .ind:last-child{border-bottom:none}
+  .ind .l .n{font-size:12px;color:var(--ink-2)}
+  .ind .l .v{font-family:var(--mono);font-size:16px;color:var(--ink);margin-top:1px}
+  .ind .l .v.warn{color:var(--energy)}
+  .ind .spark{width:80px;height:28px}
+  .ind .spark polyline{fill:none;stroke:var(--regen);stroke-width:1.6}
+  .ind .spark.up polyline{stroke:var(--regen)}
+  .ind .spark.dn polyline{stroke:var(--repair)}
+
+  /* ─── NOVA FLOTANTE ─────────────────────────────────────────────
+     En el portal real: <img src="/assets/icon-nova-galaxy.png"> dentro
+     del botón. Aquí simulo la galaxia con gradientes radiales. */
+  .nova-fab{position:fixed;right:26px;bottom:26px;z-index:50}
+  .nova-btn{width:62px;height:62px;border-radius:16px;border:1.5px solid rgba(217,164,65,.45);
+    cursor:pointer;position:relative;overflow:hidden;
+    background:radial-gradient(circle at 42% 46%, #F6D27a 0%, #E8A33D 12%, #5c3f12 40%, #0b0906 78%);
+    box-shadow:0 10px 30px rgba(217,164,65,.28),inset 0 0 20px rgba(255,210,120,.15)}
+  .nova-btn::before{content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%);
+    border-radius:50%;border:1.5px solid rgba(246,210,122,.7);border-right-color:transparent;border-bottom-color:transparent;
+    box-shadow:0 0 12px rgba(246,210,122,.5)}
+  .nova-btn::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;transform:translate(-50%,-50%);
+    border-radius:50%;background:#fff6de;box-shadow:0 0 14px 4px rgba(255,240,200,.9)}
+  .nova-btn:hover{transform:scale(1.06);transition:.25s}
+
+  /* Panel Copilot (barra horizontal) — se muestra al hacer hover en el boceto */
+  .nova-panel{position:absolute;right:0;bottom:74px;width:330px;
+    background:linear-gradient(135deg,rgba(11,13,15,.97),rgba(18,22,25,.97));
+    border:1px solid rgba(217,164,65,.35);border-radius:18px;padding:14px;display:flex;align-items:center;gap:14px;
+    box-shadow:0 16px 44px rgba(0,0,0,.6),0 0 30px rgba(217,164,65,.12);
+    opacity:0;transform:translateY(12px);pointer-events:none;transition:.28s}
+  .nova-fab:hover .nova-panel{opacity:1;transform:translateY(0)}
+  .nova-panel .gx{width:56px;height:56px;border-radius:12px;flex-shrink:0;position:relative;overflow:hidden;
+    background:radial-gradient(circle at 44% 48%, #F6D27a 0%, #E8A33D 12%, #5c3f12 42%, #0b0906 80%)}
+  .nova-panel .gx::after{content:"";position:absolute;left:50%;top:50%;width:5px;height:5px;transform:translate(-50%,-50%);
+    border-radius:50%;background:#fff6de;box-shadow:0 0 12px 3px rgba(255,240,200,.9)}
+  .nova-panel .tx .t{font-family:var(--sf);font-size:17px;font-weight:600;color:var(--ink)}
+  .nova-panel .tx .s{font-size:11px;color:var(--ink-2);margin-top:1px}
+  .nova-panel .arw{margin-left:auto;color:var(--gold);font-size:20px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div>
+      <div class="brand">CODE CELLS®</div>
+      <div class="brand-sub">Medicina Regenerativa</div>
+    </div>
+    <div class="side-sep"></div>
+    <nav class="nav">
+      <a class="on" href="#"><svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-6h6v6"/></svg>Inicio</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20a5 5 0 0 1 6-4"/></svg>Pacientes</a>
+      <a href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Agenda</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M9 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-4-4h-1"/><path d="M9 3a2 2 0 0 0 4 0"/><path d="M9 12h6M9 16h4"/></svg>Protocolos</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M5 3h14v6l-5 5v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-5L5 9z"/></svg>Laboratorios</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M16 6.5 8 10.5M16 17.5 8 13.5"/></svg>Interconsultas</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M8 13h8M8 17h5"/></svg>Recetas</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><rect x="8" y="12" width="3" height="6"/><rect x="14" y="8" width="3" height="10"/></svg>Reportes</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg>NOVA</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>Configuración</a>
+    </nav>
+    <div class="side-foot">CLINICAL OS · v2.0</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- HEADER -->
+    <header class="topbar">
+      <div class="greet">Buenos días, Dr. Rodríguez<small>Miércoles 5 de agosto, 2026</small></div>
+      <div class="top-right">
+        <div class="timer"><span class="dot"></span>Sesión 05:41:12</div>
+        <div class="doc">
+          <div class="doc-i">V</div>
+          <div class="doc-t">Dr. Víctor Rodríguez<small>CCMED-VIRN01</small></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- PATIENT CARD -->
+      <div class="pcard">
+        <div class="halo"><div class="ring"></div><div class="core">M</div></div>
+        <div class="pinfo">
+          <div class="pname">María González López <span class="badge">ENERGY · Nivel II</span></div>
+          <div class="prow">
+            <span class="it">Código<b>CC-PAC-000004</b></span>
+            <span class="it">Edad<b>45 años</b></span>
+            <span class="it">Sexo<b>Femenino</b></span>
+            <span class="it">Ciudad<b>Culiacán, SIN</b></span>
+          </div>
+          <div class="pclin">
+            <div class="m"><div class="k">Protocolo</div><div class="v sys">ENERGY</div></div>
+            <div class="m"><div class="k">Sesión</div><div class="v">6 / 10</div></div>
+            <div class="m"><div class="k">Peso</div><div class="v">72.4 kg <small>−3.2</small></div></div>
+            <div class="m"><div class="k">IMC</div><div class="v">25.3</div></div>
+            <div class="m"><div class="k">Última consulta</div><div class="v">Hace 7 días</div></div>
+          </div>
+        </div>
+        <div class="pactions">
+          <button class="abtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Consulta</button>
+          <button class="abtn"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Receta</button>
+          <button class="abtn"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M16 6.5 8 10.5M16 17.5 8 13.5"/></svg>Interconsulta</button>
+          <button class="abtn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Exportar</button>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <div class="tab on">RESUMEN</div>
+        <div class="tab">DATOS GENERALES</div>
+        <div class="tab">HISTORIA CLÍNICA</div>
+        <div class="tab">CONSULTAS</div>
+        <div class="tab">NOVA LABS</div>
+        <div class="tab">EVOLUCIÓN</div>
+        <div class="tab">ARCHIVOS</div>
+      </div>
+
+      <!-- RESUMEN GRID -->
+      <div class="grid">
+        <!-- Resumen clínico -->
+        <div class="box">
+          <h3>Resumen Clínico</h3>
+          <div class="clin-item"><div class="lbl">Diagnóstico principal</div><div class="val">E66.3 — Sobrepeso</div></div>
+          <div class="clin-item"><div class="lbl">Condiciones asociadas</div><div class="val">Resistencia a la insulina · Dislipidemia</div></div>
+          <div class="clin-item"><div class="lbl">Alergias</div><div class="val">Ninguna conocida</div></div>
+          <div class="clin-item"><div class="lbl">Medicamentos</div><div class="val">Metformina 850mg</div></div>
+        </div>
+        <!-- Timeline -->
+        <div class="box">
+          <h3>Línea de Tiempo Clínica</h3>
+          <div class="tl">
+            <div class="tl-ev"><div class="d">4 AGO 2026</div><div class="t">Consulta médica</div><div class="s">Sesión 6 — Protocolo ENERGY</div></div>
+            <div class="tl-ev lab"><div class="d">20 JUL 2026</div><div class="t">Resultados de laboratorio</div><div class="s">3 estudios disponibles</div></div>
+            <div class="tl-ev"><div class="d">15 JUL 2026</div><div class="t">Consulta médica</div><div class="s">Sesión 5 — Protocolo ENERGY</div></div>
+            <div class="tl-ev rep"><div class="d">28 JUN 2026</div><div class="t">Aplicación de factores</div><div class="s">Péptidos — capa 3</div></div>
+          </div>
+        </div>
+        <!-- Indicadores -->
+        <div class="box">
+          <h3>Indicadores Clave</h3>
+          <div class="ind"><div class="l"><div class="n">Peso</div><div class="v">72.4 kg</div></div><svg class="spark dn" viewBox="0 0 80 28"><polyline points="0,6 20,10 40,14 60,18 80,22"/></svg></div>
+          <div class="ind"><div class="l"><div class="n">Glucosa</div><div class="v">95 mg/dL</div></div><svg class="spark up" viewBox="0 0 80 28"><polyline points="0,20 20,16 40,18 60,12 80,10"/></svg></div>
+          <div class="ind"><div class="l"><div class="n">HbA1c</div><div class="v warn">5.9 %</div></div><svg class="spark dn" viewBox="0 0 80 28"><polyline points="0,8 20,10 40,12 60,16 80,18"/></svg></div>
+          <div class="ind"><div class="l"><div class="n">PA</div><div class="v">118/76</div></div><svg class="spark up" viewBox="0 0 80 28"><polyline points="0,14 20,15 40,13 60,14 80,12"/></svg></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NOVA FLOTANTE (hover para ver el panel Copilot) -->
+<div class="nova-fab">
+  <div class="nova-panel">
+    <div class="gx"></div>
+    <div class="tx"><div class="t">NOVA Copilot</div><div class="s">Tu asistente clínico inteligente</div></div>
+    <div class="arw">›</div>
+  </div>
+  <button class="nova-btn" title="NOVA Copilot"></button>
+</div>
+</body>
+</html>
