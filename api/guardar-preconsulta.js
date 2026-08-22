@@ -5,6 +5,8 @@
 // no requiere confirmación de un médico porque es autorreporte del paciente
 // sobre sí mismo.
 
+const { MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
+
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
 const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';
 const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
@@ -28,9 +30,13 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Código de paciente inválido.' });
     }
 
+    // 403 uniforme, nunca 404: un código inexistente y uno inválido deben
+    // verse igual desde afuera — un 404 distinguible es un oráculo para
+    // enumerar códigos CC-PAC- en bloque (mismo principio que
+    // lib/autorizacion.js, aunque aquí no hay médico que autorizar).
     const pacienteRecord = await airtableGet(PACIENTES_TABLE_ID, `{Código de paciente} = "${codigoPaciente}"`);
     if (!pacienteRecord) {
-      return res.status(404).json({ error: 'Paciente no encontrado.' });
+      return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
     }
 
     const headers = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };

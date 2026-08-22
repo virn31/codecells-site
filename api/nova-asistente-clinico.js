@@ -12,12 +12,12 @@
 // accion: "sugerir_cie10" | "completitud_expediente"
 
 const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
+const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const BASE_ID = 'app6jyD9pDlTLpknA';
 const CONSULTAS_TABLE_ID = 'tbl1Xp2IGxdV178Ky';
-const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';
 const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
 
 async function airtableGet(tableId, formula, sort) {
@@ -81,18 +81,31 @@ async function sugerirCie10(req, res) {
 }
 
 // ── accion: completitud_expediente ───────────────────────────────
-async function completitudExpediente(req, res) {
+async function completitudExpediente(req, res, sesion) {
   const { codigoPaciente } = req.body || {};
   if (!codigoPaciente) return res.status(400).json({ error: 'Falta codigoPaciente.' });
 
-  const faltantes = [];
-  const [paciente, historia, ultimaConsulta] = await Promise.all([
-    airtableGet(PACIENTES_TABLE_ID, `{Código de paciente}="${codigoPaciente}"`),
-    airtableGet(HISTORIA_TABLE_ID, `{Código de paciente ref}="${codigoPaciente}"`),
-    airtableGet(CONSULTAS_TABLE_ID, `{Código de paciente ref}="${codigoPaciente}"`, 'Fecha de consulta'),
-  ]);
+  // Antes solo comprobaba que el código existiera — cualquier médico con
+  // sesión válida podía pedir la completitud del expediente de CUALQUIER
+  // paciente (hueco de autorización), y el 404 distinguía "no existe" de
+  // "sí existe", oráculo de enumeración. autorizarPaciente() cierra ambos:
+  // solo el médico dueño (o demo) puede pedirlo, y el error es uniforme.
+  let auth;
+  try {
+    auth = await autorizarPaciente(sesion.codigo, codigoPaciente);
+  } catch (errAuth) {
+    if (errAuth instanceof ErrorAutorizacion) {
+      return res.status(errAuth.status).json({ error: errAuth.message });
+    }
+    console.error('[nova-asistente-clinico] completitud_expediente autorizarPaciente:', errAuth.message);
+    return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+  }
 
-  if (!paciente) return res.status(404).json({ error: 'Paciente no encontrado.' });
+  const faltantes = [];
+  const [historia, ultimaConsulta] = await Promise.all([
+    airtableGet(HISTORIA_TABLE_ID, `{Código de paciente ref}="${auth.codigo}"`),
+    airtableGet(CONSULTAS_TABLE_ID, `{Código de paciente ref}="${auth.codigo}"`, 'Fecha de consulta'),
+  ]);
 
   if (!historia) {
     faltantes.push({ campo: 'Historia clínica', detalle: 'El paciente no tiene ningún antecedente capturado todavía.' });
@@ -126,7 +139,7 @@ module.exports = async (req, res) => {
   try {
     const accion = req.body && req.body.accion;
     if (accion === 'sugerir_cie10') return await sugerirCie10(req, res);
-    if (accion === 'completitud_expediente') return await completitudExpediente(req, res);
+    if (accion === 'completitud_expediente') return await completitudExpediente(req, res, sesion);
     return res.status(400).json({ error: 'Falta "accion" válida (sugerir_cie10 | completitud_expediente).' });
   } catch (err) {
     console.error('[nova-asistente-clinico] error:', err.message);

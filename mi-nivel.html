@@ -416,6 +416,9 @@ var _fetchOriginal = window.fetch.bind(window);
 window.fetch = function(url, opts) {
   opts = opts || {};
   var urlStr = typeof url === 'string' ? url : (url && url.url) || '';
+  // También /api/nova: paciente_comparativo_labs y paciente_subir_estudio
+  // ahora exigen que la sesión sea la del propio paciente — antes no
+  // mandaban ningún token. Las acciones que no lo verifican lo ignoran.
   if (urlStr.indexOf('/api/airtable') !== -1 || urlStr.indexOf('/api/nova') !== -1) {
     var token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {

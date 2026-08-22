@@ -130,6 +130,7 @@ test('autorizarPaciente: VIRN01 SÍ autoriza a su propio paciente (vía principa
     assert.strictEqual(auth.recId, REC_ABEL);
     assert.strictEqual(auth.via, 'principal');
     assert.strictEqual(auth.escritura, true);
+    assert.strictEqual(auth.medicoRecId, REC_VIRN01);
   } finally { restaurar(); }
 });
 
@@ -139,6 +140,7 @@ test('autorizarPaciente: demo se lee (vía demo) pero requiereEscritura da 403, 
     const auth = await autorizarPaciente('CCMED-JCG01', 'CC-PAC-DEMO01');
     assert.strictEqual(auth.via, 'demo');
     assert.strictEqual(auth.escritura, false);
+    assert.strictEqual(auth.medicoRecId, null);
 
     await assert.rejects(
       () => autorizarPaciente('CCMED-JCG01', 'CC-PAC-DEMO01', { requiereEscritura: true }),

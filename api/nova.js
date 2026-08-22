@@ -44,7 +44,7 @@ const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 // pedían NINGUNA identidad de médico — ni siquiera el formato de medicoCode
 // que otras acciones sí exigen — así que cualquiera con un pacienteCode
 // válido leía los labs de ese paciente sin sesión de ningún tipo.
-const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
+const { autorizarPaciente, ErrorAutorizacion, MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
 
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
@@ -838,6 +838,16 @@ module.exports = async function handler(req, res) {
       const pacienteCode = sesion.codigo;
       if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
+      // Mismo patrón que paciente_subir_estudio: el paciente lee SU PROPIO
+      // comparativo, no el de otro — autorizarPaciente() no aplica aquí.
+      const sesionPac = verificarToken(tokenDesdeRequest(req));
+      if (!sesionPac || sesionPac.tipo !== 'paciente') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      if (sesionPac.codigo !== pacienteCode) {
+        return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
@@ -890,10 +900,6 @@ module.exports = async function handler(req, res) {
         return res.status(403).json({ error: 'Código de paciente inválido.' });
       }
 
-      const sesion = verificarToken(tokenDesdeRequest(req));
-      if (!sesion || sesion.tipo !== 'medico') {
-        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
-      }
       try {
         await autorizarPaciente(sesion.codigo, pacienteCode);
       } catch (errAuth) {
@@ -1005,10 +1011,6 @@ module.exports = async function handler(req, res) {
         return res.status(403).json({ error: 'Código de paciente inválido.' });
       }
 
-      const sesion = verificarToken(tokenDesdeRequest(req));
-      if (!sesion || sesion.tipo !== 'medico') {
-        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
-      }
       try {
         await autorizarPaciente(sesion.codigo, pacienteCode);
       } catch (errAuth) {
@@ -1176,21 +1178,29 @@ module.exports = async function handler(req, res) {
         return res.status(403).json({ error: 'Código de paciente inválido.' });
       }
 
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_guardar_labs_rapidos autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
 
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) {
-        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Paciente no encontrado', endpoint: 'medico_guardar_labs_rapidos' });
-        return res.status(404).json({ error: 'Paciente no encontrado.' });
-      }
-
+      // auth.recId ya es el recordId del paciente resuelto por autorizarPaciente()
+      // — no se vuelve a buscar ni se reusa el pacienteCode crudo del body.
       const filas = Array.isArray(valoresRapidos) ? valoresRapidos.filter(v => v && v.analito && String(v.analito).trim()) : [];
       const hoy = new Date().toISOString().slice(0, 10);
 
@@ -1198,13 +1208,16 @@ module.exports = async function handler(req, res) {
       const fueraDeRangoAuto = filas.filter(v => v.bandera === 'Alto' || v.bandera === 'Bajo')
         .map(v => `${v.analito}: ${v.valor || ''} ${v.unidad || ''} (${v.bandera})`).join('\n');
 
+      const ahoraISO = new Date().toISOString();
       const labFields = {
-        'Código de paciente ref': pacienteCode,
-        'Paciente': [pacRecord.id],
+        'Código de paciente ref': auth.codigo,
+        'Paciente': [auth.recId],
         'Panel solicitado': panel || 'Personalizado',
         'Tipo de estudio': tipoEstudio || 'Laboratorio',
         'Resultados (texto)': (resultadosTexto && resultadosTexto.trim()) || textoAuto || 'Sin resultados capturados.',
         'Fecha de resultados': hoy,
+        'Registrado por': [auth.medicoRecId],
+        'Fecha de registro': ahoraISO,
       };
       const fueraFinal = (fueraDeRango && fueraDeRango.trim()) || fueraDeRangoAuto;
       if (fueraFinal) labFields['Valores fuera de rango'] = fueraFinal;
@@ -1236,9 +1249,11 @@ module.exports = async function handler(req, res) {
               'Es crítico': !!v.critico,
               'Relevante a patología': true, // el médico lo capturó a propósito en consultorio
               'Fecha del estudio': hoy,
-              'Código de paciente ref': pacienteCode,
-              'Paciente': [pacRecord.id],
+              'Código de paciente ref': auth.codigo,
+              'Paciente': [auth.recId],
               'Estudio (NOVA LABS)': [crearData.id],
+              'Registrado por': [auth.medicoRecId],
+              'Fecha de registro': ahoraISO,
             },
           };
         });
@@ -1279,18 +1294,33 @@ module.exports = async function handler(req, res) {
       const esImagen = mediaType.startsWith('image/');
       if (!esPDF && !esImagen) return res.status(400).json({ error: 'Solo se aceptan PDF o fotos.' });
 
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_validar_identidad_estudio autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
-      const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
-      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const pacData = await pacRes.json();
-      const pacRecord = pacData.records?.[0];
-      if (!pacRecord) {
-        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Paciente no encontrado', endpoint: 'medico_subir_estudio' });
-        return res.status(404).json({ error: 'Paciente no encontrado.' });
+      // El código tecleado ya se resolvió y autorizó arriba (auth.recId) — se
+      // lee el registro por recId directo, sin volver a buscar por el código
+      // crudo del body.
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${auth.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const pacRecord = await pacRes.json();
+      if (!pacRes.ok) {
+        return res.status(502).json({ error: 'No se pudo leer el registro del paciente.' });
       }
 
       const contentBlock = esPDF
@@ -1333,13 +1363,14 @@ module.exports = async function handler(req, res) {
       const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
       const relevantes = analitos.filter(a => a.relevante);
 
+      const ahoraISO = new Date().toISOString();
       const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           typecast: true,
           fields: {
-            'Código de paciente ref': pacienteCode,
+            'Código de paciente ref': auth.codigo,
             'Fecha de resultados': fechaEstudio,
             'Panel solicitado': panel,
             'Tipo de estudio': tipoEstudio,
@@ -1349,7 +1380,9 @@ module.exports = async function handler(req, res) {
               : 'Sin valores fuera de rango detectados.',
             'Interpretación NOVA': relevantes.length ? `Relevante a patologías activas: ${relevantes.map(a => a.nombre).join(', ')}.` : '',
             'Requiere seguimiento': fueraDeRango.some(a => a.relevante),
-            'Paciente': [pacRecord.id],
+            'Paciente': [auth.recId],
+            'Registrado por': [auth.medicoRecId],
+            'Fecha de registro': ahoraISO,
           },
         }),
       });
@@ -1382,9 +1415,11 @@ module.exports = async function handler(req, res) {
               'Es crítico': !!a.critico,
               'Relevante a patología': !!a.relevante,
               'Fecha del estudio': fechaEstudio,
-              'Código de paciente ref': pacienteCode,
-              'Paciente': [pacRecord.id],
+              'Código de paciente ref': auth.codigo,
+              'Paciente': [auth.recId],
               'Estudio (NOVA LABS)': [crearData.id],
+              'Registrado por': [auth.medicoRecId],
+              'Fecha de registro': ahoraISO,
             },
           };
         });
@@ -1408,19 +1443,16 @@ module.exports = async function handler(req, res) {
 
   // ─── REGISTRO PÚBLICO: alta de paciente desde el test de index.html ──
   if (action === 'registro_publico_paciente') {
-    // PAUSADO (2026-08-15, urgente/hotfix directo a main): este flujo creaba
-    // un expediente clínico PERMANENTE en PACIENTES (código CC-PAC- real, no
-    // un lead) desde el test público de index.html, con solo nombre +
-    // WhatsApp, SIN checkbox de consentimiento ni aviso de privacidad en el
-    // formulario — index.html no tiene ningún elemento de consentimiento
-    // cerca de #cf-nombre/#cf-wa en esta versión. El registro quedaba bajo
-    // NOM-004/LFPDPPP sin el trámite de consentimiento que eso exige. Se
-    // detiene SOLO la escritura — la lógica original (generarCodigoUnico +
-    // POST a PACIENTES) vive en el historial de git de este archivo, no
-    // aquí, para no dejar código muerto. El rediseño con consentimiento real
-    // (registrar_lead, a LEADS, no a PACIENTES) ya existe en
-    // fix/lab-valores-fecha-idempotencia (commit 93c6ab7) y llega con ese
-    // merge — este hotfix no lo adelanta, solo cierra la fuga mientras tanto.
+    // PAUSADO (2026-08-15, urgente): este flujo creaba un expediente clínico
+    // PERMANENTE en PACIENTES (código CC-PAC- real, no un lead) desde el
+    // test público de index.html, con solo nombre + WhatsApp, SIN checkbox
+    // de consentimiento ni aviso de privacidad en el formulario — verificado
+    // en index.html: no hay ningún elemento de consentimiento cerca de
+    // #cf-nombre/#cf-wa. El registro quedaba bajo NOM-004/LFPDPPP sin el
+    // trámite de consentimiento que eso exige. Se detiene SOLO la escritura
+    // — la lógica original (generarCodigoUnico + POST a PACIENTES) vive en
+    // el historial de git de este archivo, no aquí, para no dejar código
+    // muerto. El rediseño (con consentimiento real) es aparte.
     // El frontend (index.html) ya tiene un fallback para data.ok=false: en
     // vez de "Entrar a tu Portal" muestra "Hablar ahora con NOVA" — no hace
     // falta tocarlo.
@@ -2501,8 +2533,12 @@ module.exports = async function handler(req, res) {
         const pacData = await pacRes.json();
         const pacRecord = pacData.records?.[0];
 
+        // 403 uniforme, nunca 404: un código de paciente inexistente y uno que
+        // existe pero no corresponde deben verse igual — el chat es la
+        // superficie más usada y un 404 aquí era el oráculo de enumeración
+        // más barato de explotar de todo el sistema.
         if (!pacRecord) {
-          return res.status(404).json({ error: 'Paciente no reconocido.' });
+          return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
         }
 
         pacRecordId  = pacRecord.id;
