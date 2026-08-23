@@ -270,7 +270,7 @@
     <div class="scrim"></div>
     <div class="content">
       <div class="eyebrow">Code Cells®</div>
-      <h1 class="headline">Tu cuerpo corre <em id="decodeWord" class="decode-target">un código viejo</em>.</h1>
+      <h1 class="headline" data-no-i18n data-card="1">Tu cuerpo corre <em id="decodeWord" class="decode-target">un código viejo</em>.</h1>
       <p class="subline">Esto va de actualizarlo. Toca para ver cómo →</p>
     </div>
   </div>
@@ -302,7 +302,7 @@
     <div class="scrim"></div>
     <div class="content">
       <div class="eyebrow">¿Qué es exactamente?</div>
-      <h1 class="headline">Una clínica de <em>medicina regenerativa</em>.</h1>
+      <h1 class="headline" data-no-i18n data-card="3">Una clínica de <em>medicina regenerativa</em>.</h1>
       <p class="subline">Tratamientos médicos reales para que tu cuerpo se repare desde adentro. Nada de spa, nada de solo estética.</p>
       <div class="dot-cluster">
         <span class="d" style="width:30px; height:30px; left:64px; top:2px; background:radial-gradient(circle at 35% 30%,#8ff0da,#4FA8A0); box-shadow:0 0 10px 2px rgba(79,168,160,0.5);"></span>
@@ -325,7 +325,7 @@
     <div class="scrim"></div>
     <div class="content">
       <div class="eyebrow">¿Es seguro?</div>
-      <h1 class="headline">Sí. Respaldo <em>médico</em> real.</h1>
+      <h1 class="headline" data-no-i18n data-card="4">Sí. Respaldo <em>médico</em> real.</h1>
       <p class="subline">Protocolos institucionales y médicos con cédula verificada detrás. Esto no es una moda de garage.</p>
     </div>
   </div>
@@ -341,7 +341,7 @@
     <div class="scrim"></div>
     <div class="content">
       <div class="eyebrow">¿Cuánto cuesta?</div>
-      <h1 class="headline">Depende de lo que tu <em>cuerpo</em> necesite.</h1>
+      <h1 class="headline" data-no-i18n data-card="5">Depende de lo que tu <em>cuerpo</em> necesite.</h1>
       <p class="subline">Por eso empezamos con un test — ahí vemos qué tanto y qué tipo de protocolo te conviene.</p>
     </div>
   </div>
@@ -357,7 +357,7 @@
     <div class="scrim"></div>
     <div class="content">
       <div class="eyebrow">¿Duele?</div>
-      <h1 class="headline">Para nada del <em>otro mundo</em>.</h1>
+      <h1 class="headline" data-no-i18n data-card="6">Nada del <em>otro mundo</em>.</h1>
       <p class="subline">Terapias ambulatorias, sin cirugía, sin tiempos de recuperación largos.</p>
     </div>
   </div>
@@ -373,7 +373,7 @@
     <div class="scrim"></div>
     <div class="content">
       <div class="eyebrow">¿Cómo empiezo?</div>
-      <h1 class="headline">Con un <em>test</em> de 5 minutos.</h1>
+      <h1 class="headline" data-no-i18n data-card="7">Con un <em>test</em> de 5 minutos.</h1>
       <p class="subline">Te dice justo qué sistema de tu cuerpo necesita atención primero.</p>
     </div>
   </div>
@@ -485,10 +485,74 @@
     setTimeout(runDecodeEffect, 250);
   });
 
+  // 6 de los 8 titulares llevan un <em> interno. El TreeWalker de i18n.js
+  // traduce por nodo de texto suelto, así que una frase partida entre
+  // texto plano + <em> se traduce a medias (falta un fragmento sin clave
+  // en el diccionario) o rompe el orden gramatical (cada fragmento
+  // traducido por separado, sin ver la frase completa — ej. "Backing
+  // physician real." en vez de "Real medical backing."). Estos 6 se
+  // marcan data-no-i18n en su <h1> y se arman como una sola unidad HTML
+  // por idioma. Las tarjetas 2 y 8 son un solo nodo de texto sin <em> y
+  // el TreeWalker las traduce bien solo — no están aquí a propósito.
+  const HEADLINES = {
+    1: {
+      es: 'Tu cuerpo corre <em id="decodeWord" class="decode-target">un código viejo</em>.',
+      en: 'Your body is running <em id="decodeWord" class="decode-target">old code</em>.',
+      pt: 'Seu corpo roda <em id="decodeWord" class="decode-target">um código antigo</em>.'
+    },
+    3: {
+      es: 'Una clínica de <em>medicina regenerativa</em>.',
+      en: 'A clinic for <em>regenerative medicine</em>.',
+      pt: 'Uma clínica de <em>medicina regenerativa</em>.'
+    },
+    4: {
+      es: 'Sí. Respaldo <em>médico</em> real.',
+      en: 'Yes. Real <em>medical</em> backing.',
+      pt: 'Sim. Respaldo <em>médico</em> real.'
+    },
+    5: {
+      es: 'Depende de lo que tu <em>cuerpo</em> necesite.',
+      en: 'Depending on what your <em>body</em> needs.',
+      pt: 'Depende do que o seu <em>corpo</em> precisa.'
+    },
+    6: {
+      es: 'Nada del <em>otro mundo</em>.',
+      en: 'Nothing <em>out of this world</em>.',
+      pt: 'Nada de <em>outro mundo</em>.'
+    },
+    7: {
+      es: 'Con un <em>test</em> de 5 minutos.',
+      en: 'With just a 5-minute <em>test</em>.',
+      pt: 'Com um <em>teste</em> de 5 minutos.'
+    }
+  };
+  function currentLang(){
+    return (window.getLanguage && window.getLanguage()) || 'es';
+  }
+  function renderHeadlines(){
+    const lang = currentLang();
+    document.querySelectorAll('h1.headline[data-card]').forEach(function(h){
+      const map = HEADLINES[h.getAttribute('data-card')];
+      if (map) h.innerHTML = map[lang] || map.es;
+    });
+  }
+  renderHeadlines();
+  window.addEventListener('i18n:change', renderHeadlines);
+
+  // El scramble de la tarjeta 1 debe terminar en la palabra del idioma
+  // activo, no en "un código viejo" hardcodeado — si no, el efecto
+  // pisaba la traducción correcta apenas terminaba de animar.
+  function decodeWordFor(lang){
+    const tmp = document.createElement('div');
+    tmp.innerHTML = HEADLINES[1][lang] || HEADLINES[1].es;
+    const em = tmp.querySelector('em');
+    return em ? em.textContent : '';
+  }
+
   function runDecodeEffect(){
     const el = document.getElementById('decodeWord');
     if(!el) return;
-    const finalText = "un código viejo";
+    const finalText = decodeWordFor(currentLang());
     const chars = "01#$%_/\\{}[]•ΔΦΨ∆ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     el.classList.add('scrambling');
     el.classList.remove('settled');
