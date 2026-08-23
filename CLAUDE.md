@@ -146,6 +146,28 @@ Reglas que se derivan:
 
 ## 7. Reglas duras de datos clínicos
 
+### Regla dura — cero contenido fabricado en el expediente clínico
+
+En historia clínica, consultas, laboratorios, gráficas y NOVA, el sistema **nunca**
+muestra ni escribe contenido que no haya puesto un médico. Sin excepciones.
+
+- **Ante cualquier error se muestra el error.** Nunca datos demo, nunca valores por
+  defecto, nunca contenido de ejemplo — ni siquiera con un disclaimer chico al pie.
+  Un disclaimer no anula el dato: un médico que escanea rápido lee el dato, no la
+  letra pequeña.
+- Esto cubre tres formas concretas en que se ha colado antes: un `catch` que cae a
+  datos demo/mock/fabricados en vez de mostrar el fallo; un valor por defecto en un
+  campo clínico (especialmente **rango de referencia y unidad en laboratorios** — un
+  valor inventado ahí no es un error visual, se grafica y se compara contra
+  históricos, así que el daño es clínico); y cualquier pantalla donde un fallo de
+  lectura se renderiza como si fuera un dato real.
+- **NOVA no es la excepción.** Si falla al leer el expediente, dice que no pudo
+  leerlo — nunca responde con lo que "probablemente" hay, ni deja que el médico
+  interprete silencio como expediente limpio.
+- Esta regla es la versión dura de §6: ahí se documentan los sitios donde ya se
+  encontró violada; esto es la política que los vuelve no negociables hacia adelante,
+  no una corrección puntual de esos cuatro casos.
+
 Estas ya están probadas en producción y no se negocian:
 
 - **`Analito` nunca se sobrescribe.** Es el texto literal del laboratorio y constituye
