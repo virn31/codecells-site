@@ -159,7 +159,7 @@ var PRACTICE_CASES = [
       "COFEPRIS no tiene ninguna facultad sobre establecimientos de medicina regenerativa.",
       "COFEPRIS delega el licenciamiento por completo a la Secretaría de Educación Pública."
     ], correct: 1,
-    rationale: "COFEPRIS es la autoridad sanitaria federal que otorga licencias a nivel de establecimiento y vigila el cumplimiento de las NOM. Una institución puede sostener una licencia propia bajo la cual ejercen sus médicos certificados, sin que cada uno tramite la suya." },
+    rationale: "COFEPRIS es la autoridad sanitaria federal que otorga licencias a nivel de establecimiento y vigila el cumplimiento de las NOM. Una institución puede sostener una licencia propia bajo la cual ejercen sus médicos certificados, sin que cada uno tramite la suya — pero esa licencia ampara únicamente el domicilio del establecimiento que figure en ella, no los consultorios independientes de cada médico de la red. El trámite institucional de CODE CELLS® sigue en gestión activa (ver caso 5): confirma con administración si tu domicilio de consulta está amparado antes de asumir que lo está." },
 
   { tag: "gob",
     caseText: "Un médico pregunta si ya existe registro confirmado ante COFEPRIS/CNTS específicamente para el estado de Sinaloa. ¿Cuál es el estatus real, según la información institucional vigente?",
@@ -186,10 +186,10 @@ var PRACTICE_CASES = [
     opts: [
       "Médico → CODE CELLS® → Regene Global.",
       "COFEPRIS → médico → CODE CELLS®.",
-      "Regene Global (proveedor biológico, con sus propias autorizaciones) → CODE CELLS® (licencia institucional ante COFEPRIS) → médico certificado internamente, ejerciendo bajo ese respaldo.",
+      "Regene Global (proveedor biológico, con sus propias autorizaciones) → CODE CELLS® (licencia institucional ante COFEPRIS, en gestión) → médico certificado internamente, ejerciendo bajo ese respaldo dentro del domicilio amparado.",
       "CNTS → Regene Global → médico."
     ], correct: 2,
-    rationale: "El flujo real combina ambos planos: el gubernamental (COFEPRIS licencia a CODE CELLS® como institución, apoyada en el convenio con su proveedor biológico) y el interno (el médico certificado ejerce bajo ese respaldo, no de forma independiente)." },
+    rationale: "El flujo real combina ambos planos: el gubernamental (COFEPRIS licencia a CODE CELLS® como institución para el domicilio que figure en la licencia, trámite apoyado en el convenio con su proveedor biológico) y el interno (el médico certificado ejerce bajo ese respaldo, no de forma independiente). El registro específico en Sinaloa sigue pendiente de confirmación (caso 5) — no se declara resuelto de antemano." },
 
   { tag: "gob",
     caseText: "Antes de aplicar cualquier protocolo, el médico debe abrir un expediente clínico completo. ¿Qué instrumento legal obliga esto y qué debe contener como mínimo?",
@@ -284,8 +284,8 @@ var QUESTIONS = [
   { tag:"gob", q: "¿Qué significa la sigla RVOE?", opts: ["Registro de Validación Oficial Estatal", "Reconocimiento de Validez Oficial de Estudios", "Requisito de Verificación Operativa Externa", "Reglamento de Vigilancia Ocupacional Estatal"], correct: 1 },
   { tag:"gob", q: "¿Quién otorga el RVOE de un programa educativo, como el diplomado externo con RVOE que exige la política interna?", opts: ["COFEPRIS", "El CNTS", "La SEP, a través de la institución educativa", "CODE CELLS®"], correct: 2 },
   { tag:"gob", q: "¿Cuál es el estatus actual del registro de CODE CELLS® ante COFEPRIS/CNTS específicamente en Sinaloa?", opts: ["Confirmado y vigente", "Pendiente de confirmación", "Rechazado", "No aplica para Sinaloa"], correct: 1 },
-  { tag:"puente", q: "¿Quién sostiene la licencia sanitaria institucional bajo la que ejercen los médicos afiliados?", opts: ["Cada médico de forma individual, ante COFEPRIS", "CODE CELLS®, como institución (equipo legal propio + convenio con Regene Global)", "Regene Global directamente ante cada médico", "El paciente, mediante consentimiento informado"], correct: 1 },
-  { tag:"puente", q: "¿Los médicos afiliados a la Red CODE CELLS® deben tramitar una licencia sanitaria individual ante COFEPRIS?", opts: ["Sí, es obligatorio para cada médico", "No — ejercen bajo el respaldo de la licencia institucional que sostiene CODE CELLS®", "Solo los médicos de nivel Senior", "Solo si aplican protocolos GENESIS™"], correct: 1 },
+  { tag:"puente", q: "¿Quién gestiona la licencia sanitaria institucional bajo la que ejercen los médicos afiliados?", opts: ["Cada médico de forma individual, ante COFEPRIS", "CODE CELLS®, como institución (equipo legal propio + convenio con Regene Global) — trámite en gestión activa, no confirmado en todos los estados", "Regene Global directamente ante cada médico", "El paciente, mediante consentimiento informado"], correct: 1 },
+  { tag:"puente", q: "¿Los médicos afiliados a la Red CODE CELLS® deben tramitar una licencia sanitaria individual ante COFEPRIS?", opts: ["Sí, es obligatorio para cada médico", "No, mientras atiendan dentro del establecimiento amparado por la licencia institucional que CODE CELLS® gestiona — hay que confirmar con administración si el domicilio de consulta está incluido", "Solo los médicos de nivel Senior", "Solo si aplican protocolos GENESIS™"], correct: 1 },
   { tag:"interno", q: "¿Cuál es el plazo interno para que un médico afiliado curse el diplomado externo con RVOE?", opts: ["6 meses desde la afiliación", "1 año desde la afiliación", "2 años desde la afiliación", "No hay plazo definido"], correct: 2 },
   { tag:"interno", q: "Si no hay cupo disponible en el Diplomado, ¿qué puede solicitar el médico según la política interna?", opts: ["Una exención permanente del requisito", "Una prórroga", "La sustitución automática por la certificación interna", "No existe ninguna opción"], correct: 1 },
   { tag:"interno", q: "Para un médico nuevo (Flujo A), ¿cuándo obtiene acceso al portal médico y puede comenzar a aplicar protocolos?", opts: ["De inmediato al afiliarse, sin ningún requisito previo", "Únicamente después de completar la capacitación interna correspondiente con 80% mínimo", "Solo tras terminar el Diplomado externo con RVOE", "Nunca — siempre requiere aprobación caso por caso de los socios"], correct: 1 },
@@ -297,7 +297,7 @@ var QUESTIONS = [
   { tag:"interno", q: "Si un médico no completa el Diplomado dentro del plazo de 2 años y no solicitó prórroga a tiempo, ¿qué estatus refleja su registro?", opts: ["En curso", "Completado", "Vencido", "Prórroga otorgada"], correct: 2 },
   { tag:"interno", q: "¿Cuál es la modalidad del diplomado externo en Medicina Regenerativa (con RVOE) que el médico debe cursar?", opts: ["Presencial obligatorio todos los días", "Mixta: plataforma 24/7 más una sesión sincrónica no obligatoria por módulo", "Únicamente sesiones sincrónicas obligatorias en vivo", "Solo un examen final, sin contenido previo"], correct: 1 },
   { tag:"gob", q: "¿Qué exige la NOM-004-SSA3?", opts: ["El etiquetado de dispositivos médicos", "Un expediente clínico completo: historia clínica, exploración física, diagnóstico, consentimiento informado, notas de evolución, indicaciones y seguimiento", "La certificación de médicos especialistas", "El registro de proveedores biológicos"], correct: 1 },
-  { tag:"gob", q: "¿Qué regula la NOM-005-SSA3?", opts: ["La disposición de sangre humana", "Los requisitos mínimos para la práctica de la atención médica ambulatoria", "El etiquetado de nutracéuticos", "La importación de biológicos"], correct: 1 },
+  { tag:"gob", q: "¿Qué regula la NOM-005-SSA3-2018?", opts: ["La disposición de sangre humana", "Los requisitos mínimos de infraestructura y equipamiento para pacientes ambulatorios", "El etiquetado de nutracéuticos", "La importación de biológicos"], correct: 1 },
   { tag:"gob", q: "¿Qué regula la NOM-016-SSA3?", opts: ["Las características mínimas de infraestructura y equipamiento de hospitales y consultorios", "La disposición de tejidos y células", "El consentimiento informado", "La publicidad en servicios de salud"], correct: 0 },
   { tag:"gob", q: "¿Qué regula el Reglamento de Insumos para la Salud?", opts: ["Exclusivamente los honorarios médicos", "Medicamentos, dispositivos médicos y productos biológicos: su almacenamiento, distribución y prescripción", "La cédula profesional", "El expediente clínico"], correct: 1 },
   { tag:"interno", q: "Según el checklist mínimo de CODE CELLS®, ¿qué debe registrarse además de lo que ya exige la ley?", opts: ["Nada adicional, la ley ya es suficiente", "Trazabilidad completa del insumo (proveedor, lote, caducidad, fecha de aplicación, médico, paciente) y registro sistemático de eventos adversos", "Solo el nombre del paciente", "Solo la firma del médico"], correct: 1 },
@@ -369,7 +369,7 @@ var CELLS = [
         '<h4 style="color:var(--teal-light);">NOM-004-SSA3 · Expediente Clínico</h4>' +
         '<p style="margin:0 0 8px;">Obliga a documentar:</p>' +
         '<div class="chip-row"><span class="chip teal">Historia clínica</span><span class="chip teal">Exploración física</span><span class="chip teal">Diagnóstico</span><span class="chip teal">Consentimiento informado</span><span class="chip teal">Notas de evolución</span><span class="chip teal">Indicaciones</span><span class="chip teal">Seguimiento</span></div>' +
-        '<div class="card"><p style="margin:0;"><b style="color:#fff;">NOM-005-SSA3:</b> requisitos mínimos para la práctica de la atención médica ambulatoria.</p></div>' +
+        '<div class="card"><p style="margin:0;"><b style="color:#fff;">NOM-005-SSA3-2018:</b> requisitos mínimos de infraestructura y equipamiento para pacientes ambulatorios.</p></div>' +
         '<div class="card"><p style="margin:0;"><b style="color:#fff;">NOM-016-SSA3:</b> características mínimas de infraestructura y equipamiento de hospitales y consultorios, según el tipo de establecimiento.</p></div>';
     }
   },
@@ -448,7 +448,7 @@ var CELLS = [
         '<div class="cascade">' +
           '<div class="cascade-box"><span class="t" style="background:var(--teal-light);">REGENE GLOBAL</span><div class="d">Proveedor biológico, con sus propias autorizaciones.</div></div>' +
           '<span class="cascade-arrow">→</span>' +
-          '<div class="cascade-box"><span class="t" style="background:var(--gold-light);">CODE CELLS®</span><div class="d">Licencia institucional ante COFEPRIS + convenio con el proveedor.</div></div>' +
+          '<div class="cascade-box"><span class="t" style="background:var(--gold-light);">CODE CELLS®</span><div class="d">Licencia institucional ante COFEPRIS en gestión activa (ampara solo el domicilio registrado) + convenio con el proveedor.</div></div>' +
           '<span class="cascade-arrow">→</span>' +
           '<div class="cascade-box"><span class="t" style="background:var(--purple);">MÉDICO</span><div class="d">Certificado, ejerce bajo ese respaldo — no de forma independiente.</div></div>' +
         '</div>';
@@ -485,9 +485,9 @@ var CELLS = [
       return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
         '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Pregunta real de un médico:</strong> "Voy a aplicar exosomas RGCD042417 la próxima semana. ¿Necesito sacar mi propia licencia COFEPRIS antes de hacerlo?"</p></div>' +
         '<p><strong style="color:#fff;">Paso 1 — separar los dos planos.</strong> Hay una pregunta gubernamental real (¿existe requisito de licencia sanitaria?) y una pregunta interna (¿qué nivel de certificación necesito?). No son lo mismo.</p>' +
-        '<p><strong style="color:#fff;">Paso 2 — resolver el plano gubernamental.</strong> El uso terapéutico de exosomas cae en el Reglamento en Materia de Trasplantes, que exige licencia sanitaria — pero del establecimiento, no de cada médico. Esa licencia ya la sostiene CODE CELLS® ante COFEPRIS.</p>' +
+        '<p><strong style="color:#fff;">Paso 2 — resolver el plano gubernamental.</strong> El uso terapéutico de exosomas cae en el Reglamento en Materia de Trasplantes, que exige licencia sanitaria — pero del establecimiento, no de cada médico. CODE CELLS® tiene ese trámite en gestión activa ante COFEPRIS/CNTS; el registro específico en Sinaloa sigue pendiente de confirmación (ver caso 5 de Práctica). Cuando se confirme, esa licencia amparará únicamente el domicilio del establecimiento que figure en ella — no los consultorios independientes de cada médico de la red.</p>' +
         '<p><strong style="color:#fff;">Paso 3 — resolver el plano interno.</strong> Lo que sí depende del médico es su nivel de certificación clínica. Si el protocolo es GENESIS™ (Avanzado) y su nivel actual no lo cubre, aplica el Flujo B: acceso inmediato + compromiso de capacitación en 7 días — una regla de CODE CELLS®, no de ninguna autoridad.</p>' +
-        '<p style="margin:0;"><strong style="color:#fff;">Respuesta correcta:</strong> "No necesitas tramitar licencia COFEPRIS individual — eso ya está resuelto a nivel institucional. Lo que sí debes confirmar es tu nivel de certificación interna para ese protocolo específico."</p>';
+        '<p style="margin:0;"><strong style="color:#fff;">Respuesta correcta:</strong> "No necesitas tramitar tu propia licencia COFEPRIS si atiendes dentro del establecimiento que CODE CELLS® tiene registrado — ese trámite institucional está en gestión activa, no cerrado todavía en todos los estados. Confirma con administración si tu domicilio de consulta está amparado por esa licencia, y en paralelo revisa tu nivel de certificación interna para este protocolo."</p>';
     }
   },
   {
