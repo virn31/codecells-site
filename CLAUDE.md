@@ -168,6 +168,27 @@ muestra ni escribe contenido que no haya puesto un médico. Sin excepciones.
   encontró violada; esto es la política que los vuelve no negociables hacia adelante,
   no una corrección puntual de esos cuatro casos.
 
+### Regla dura — dictado a NOVA: transcribe y estructura, nunca redacta
+
+Kiosco (alta delegada — la autoría del registro es del médico que autorizó a su
+personal, no del staff que tecleó) y consulta son las **dos únicas vías autorizadas**
+de creación de expediente. El **dictado a NOVA** (llenar campos de consulta a partir
+de lo que el médico dicta en voz o texto) es una **tercera vía de llenado**, distinta
+de esas dos y sujeta a su propia regla:
+
+- **NOVA transcribe y estructura, no redacta.** Puede colocar lo dictado en el campo
+  correcto y ordenarlo. **No puede completar, inferir, agregar negativos clínicos, ni
+  llenar campos que el médico no mencionó.**
+- **Ningún campo se llena sin origen explícito en el dictado.** Si el médico no dijo
+  nada sobre un campo, ese campo queda vacío — no se infiere del contexto, del
+  padecimiento, ni de "lo que normalmente se pregunta".
+- Atención particular a lo que un modelo completa por defecto sin que se lo pidan:
+  **negativos clínicos** ("niega alergias", "sin antecedentes") que el médico no dictó,
+  **unidades** que se asumen por el tipo de valor, **valores numéricos** redondeados o
+  inferidos, y **fechas** completadas con "hoy" cuando no se dictó ninguna.
+- Debe quedar distinguible **qué escribió el médico y qué estructuró NOVA** — no se
+  funden en un solo texto sin autoría rastreable.
+
 Estas ya están probadas en producción y no se negocian:
 
 - **`Analito` nunca se sobrescribe.** Es el texto literal del laboratorio y constituye
