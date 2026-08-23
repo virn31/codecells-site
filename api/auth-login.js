@@ -40,8 +40,14 @@ module.exports = async (req, res) => {
     const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
     const data = await r.json();
 
+    // El cliente ya validó el FORMATO antes de llegar aquí (regex propia de
+    // cada pantalla) — si llegamos a este punto y Airtable no encontró nada,
+    // no es un problema de formato, es que ese código exacto no existe (o se
+    // truncó al escribirlo/pegarlo). No repetir "inválido" aquí: induce a
+    // pensar que el formato está mal cuando puede estar completo pero
+    // incompleto en un carácter, o simplemente no dado de alta todavía.
     if (!data.records || data.records.length === 0) {
-      return res.status(401).json({ error: 'Código no encontrado o inválido.' });
+      return res.status(401).json({ error: 'No encontramos ese código. Verifica que esté completo (revisa que no se haya cortado al escribirlo o pegarlo) o confirma con administración.' });
     }
 
     const registro = data.records[0];

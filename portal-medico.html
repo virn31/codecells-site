@@ -2704,7 +2704,6 @@
       id="input-codigo"
       type="text"
       placeholder="CCMED-XXXXXX"
-      maxlength="12"
       autocomplete="off"
       spellcheck="false"
     >
@@ -2918,7 +2917,7 @@
           <div style="display:flex;gap:6px;">
             <input type="text" id="input-pac-codigo" placeholder="CC-PAC-XXXXXX"
               style="flex:1;background:var(--black-3);border:0.5px solid var(--border-dim);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:11px;padding:7px 10px;outline:none;"
-              maxlength="14" autocomplete="off" spellcheck="false">
+              autocomplete="off" spellcheck="false">
             <button id="btn-buscar-pac"
               style="background:var(--gold-pale);border:0.5px solid var(--border);border-radius:var(--radius);color:var(--gold);font-family:var(--font-mono);font-size:10px;padding:7px 10px;cursor:pointer;">
               Ver
@@ -3669,7 +3668,7 @@
         </div>
         <div class="form-group">
           <label>Código de paciente *</label>
-          <input type="text" id="np-codigo" placeholder="CC-PAC-XXXXXX" maxlength="14">
+          <input type="text" id="np-codigo" placeholder="CC-PAC-XXXXXX">
         </div>
       </div>
       <div class="form-row">
@@ -4177,7 +4176,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   const errEl = document.getElementById('login-error');
   const btn = document.getElementById('btn-login');
 
-  if (!codigo.match(/^CCMED-[A-Z0-9]{4,8}$/)) {
+  if (!codigo.match(/^CCMED-[A-Z0-9]{4,}$/)) {
     errEl.textContent = 'Formato inválido. Ejemplo: CCMED-JCG001';
     return;
   }

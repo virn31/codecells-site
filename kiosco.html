@@ -152,7 +152,7 @@
 <div class="pantalla" id="p-staff">
   <div class="logo-block"><div class="logo-glyph">PASO 1 DE 2</div></div>
   <p style="font-size:17px;color:var(--text-2);max-width:400px;margin-bottom:24px;">Personal CODE CELLS®: ingresa tu código para iniciar la sesión</p>
-  <input class="kiosco-input" id="input-staff-codigo" placeholder="CCMED-XXXXXX" autocomplete="off" maxlength="14">
+  <input class="kiosco-input" id="input-staff-codigo" placeholder="CCMED-XXXXXX" autocomplete="off">
   <div class="campo-error" id="error-staff"></div>
   <div class="wizard-nav">
     <button class="btn-secundario" onclick="irA('p-inactivo')">Cancelar</button>
@@ -164,7 +164,7 @@
 <div class="pantalla" id="p-paciente">
   <div class="logo-block"><div class="logo-glyph">PASO 2 DE 2</div></div>
   <p style="font-size:17px;color:var(--text-2);max-width:400px;margin-bottom:24px;">¿El paciente ya tiene código, o es su primera vez?</p>
-  <input class="kiosco-input" id="input-paciente-codigo" placeholder="CC-PAC-XXXXXX (si ya tiene)" autocomplete="off" maxlength="14">
+  <input class="kiosco-input" id="input-paciente-codigo" placeholder="CC-PAC-XXXXXX (si ya tiene)" autocomplete="off">
   <div class="campo-error" id="error-paciente"></div>
   <div class="wizard-nav">
     <button class="btn-secundario" onclick="irA('p-staff')">Atrás</button>
@@ -318,7 +318,7 @@ async function verificarStaff() {
   const codigo = document.getElementById('input-staff-codigo').value.trim().toUpperCase();
   const err = document.getElementById('error-staff');
   err.textContent = '';
-  if (!/^CCMED-[A-Z0-9]{4,8}$/.test(codigo)) { err.textContent = 'Código inválido. Formato: CCMED-XXXXXX'; return; }
+  if (!/^CCMED-[A-Z0-9]{4,}$/.test(codigo)) { err.textContent = 'Código inválido. Formato: CCMED-XXXXXX'; return; }
 
   const btn = document.getElementById('btn-verificar-staff');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
