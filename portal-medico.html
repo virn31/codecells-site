@@ -4009,11 +4009,30 @@ function showToast(msg, type = 'success') {
 
 // Todas las llamadas pasan por nuestro propio backend — el token nunca
 // llega al navegador del médico.
+// Un 403 de este proxy es SIEMPRE una decisión de autorización del servidor
+// (rol o propiedad del paciente), nunca un fallo de red — y el cuerpo trae
+// el motivo real ("Tu tipo de acceso no permite...", "Paciente no
+// disponible", etc.). Antes se descartaba y se sustituía por un genérico
+// "Airtable error 403", así que cualquier catch() más arriba no tenía forma
+// de distinguir "sin acceso por tu rol" de "se cayó la conexión" — ambos
+// terminaban en el mismo "verifica tu conexión". Se preserva status +
+// mensaje real para que cada pantalla pueda mostrar la razón correcta.
+async function leerErrorAirtable(res) {
+  let mensaje = `Airtable error ${res.status}`;
+  try {
+    const body = await res.json();
+    if (body && body.error) mensaje = body.error;
+  } catch {}
+  const err = new Error(mensaje);
+  err.status = res.status;
+  return err;
+}
+
 async function airtableFetch(tabla, params = '') {
   const sep = params ? '&' : '?';
   const url = `/api/airtable?tabla=${tabla}${params.replace('?', sep)}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Airtable error ${res.status}`);
+  if (!res.ok) throw await leerErrorAirtable(res);
   return res.json();
 }
 
@@ -4024,8 +4043,20 @@ async function airtablePost(tabla, fields, pacienteBuscado = '') {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields, typecast: true })
   });
-  if (!res.ok) throw new Error(`Airtable error ${res.status}`);
+  if (!res.ok) throw await leerErrorAirtable(res);
   return res.json();
+}
+
+// Empty-state compartido para listados clínicos: si el servidor devolvió
+// 403, se muestra su motivo real (rol, propiedad del paciente) en vez de
+// disfrazarlo de "sin datos" o de error de conexión — CLAUDE.md §6, un
+// estado vacío se muestra vacío, un fallo se ve como fallo, nunca se
+// confunden entre sí.
+function mensajeErrorListado(err, fallbackGenerico) {
+  if (err && err.status === 403) {
+    return `<div class="data-cell"><div class="val" style="color:var(--gold);">🔒 ${err.message}</div></div>`;
+  }
+  return `<div class="data-cell"><div class="val">${fallbackGenerico}</div></div>`;
 }
 
 // ─── SESIÓN 6 HORAS ──────────────────────────────────────────────
@@ -4393,8 +4424,18 @@ async function cargarPacientes() {
 
   } catch (err) {
     todosPacientes = [];
-    renderPacientes(todosPacientes);
-    showToast('No se pudo cargar la lista de pacientes. Verifica tu conexión.', 'error');
+    if (err && err.status === 403) {
+      // No es "cero pacientes" (eso sí sería 0 real) — es que el servidor
+      // negó el acceso. "0" en las estadísticas insinuaría un dato
+      // confirmado que no existe; se deja "—" para no mentir tampoco ahí.
+      document.getElementById('stat-total').textContent = '—';
+      document.getElementById('stat-activos').textContent = '—';
+      document.getElementById('stat-hoy').textContent = '—';
+      document.getElementById('patient-list').innerHTML = mensajeErrorListado(err);
+    } else {
+      renderPacientes(todosPacientes);
+      showToast('No se pudo cargar la lista de pacientes. Verifica tu conexión.', 'error');
+    }
   }
 }
 
@@ -4444,7 +4485,7 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
       document.getElementById('input-pac-codigo').value = '';
     }
   } catch (err) {
-    errEl.textContent = 'Error de conexión.';
+    errEl.textContent = (err && err.status === 403) ? err.message : 'Error de conexión.';
   } finally {
     btn.textContent = 'Ver';
     btn.disabled = false;
@@ -5163,7 +5204,12 @@ async function cargarHistoria(pacId) {
     `).join('');
 
   } catch (err) {
-    cont.innerHTML = renderHistoriaDemo();
+    // Antes esto caía a renderHistoriaDemo() — antecedentes, alergias y
+    // medicamentos INVENTADOS, con un disclaimer chico fácil de pasar por
+    // alto, sin importar la causa real del fallo (403 por rol, red, 500).
+    // Es exactamente el patrón que CLAUDE.md §6 ya documenta como el error
+    // que más se repite en este repo. Un fallo se ve como fallo.
+    cont.innerHTML = mensajeErrorListado(err, 'No se pudo cargar la historia clínica. Verifica tu conexión e intenta de nuevo.');
   }
 }
 
@@ -5295,7 +5341,7 @@ async function cargarConsultas(pacId, soloMias = true) {
     }).join('');
 
   } catch (err) {
-    tl.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar las consultas. Verifica tu conexión e intenta de nuevo.</div></div>';
+    tl.innerHTML = mensajeErrorListado(err, 'No se pudieron cargar las consultas. Verifica tu conexión e intenta de nuevo.');
   }
 }
 
@@ -5363,7 +5409,10 @@ async function cargarLabs(pacId) {
     const data = await r.json();
 
     if (!data.ok) {
-      cont.innerHTML = '<div class="data-cell"><div class="val">No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.</div></div>';
+      // data.error ya trae el motivo real (autorización — rol o propiedad
+      // del paciente — devuelto por autorizarPaciente()/ErrorAutorizacion
+      // en api/nova.js), nunca un fallo de red. No lo descartes.
+      cont.innerHTML = mensajeErrorListado({ status: r.status, message: data.error }, 'No se pudieron cargar los laboratorios. Verifica tu conexión e intenta de nuevo.');
       return;
     }
 
