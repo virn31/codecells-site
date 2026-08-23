@@ -106,7 +106,13 @@
 <a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
 <div class="wrap">
   <div class="dots" id="dots"></div>
-  <div class="stage" id="stage"></div>
+  <!-- data-no-i18n a propósito: el contenido de este módulo son citas de
+       leyes, reglamentos y NOM mexicanas (LGS, NOM-004/005/016/253,
+       COFEPRIS, CNTS). Traducirlas introduce error regulatorio — una
+       traducción no oficial de un texto legal no es el texto legal.
+       No agregues estas claves al diccionario de lib/i18n.js sin que
+       alguien lo decida explícitamente. -->
+  <div class="stage" id="stage" data-no-i18n></div>
   <div class="nav">
     <button class="navbtn secondary" id="backBtn">← Anterior</button>
     <span class="label" id="cellLabel"></span>
