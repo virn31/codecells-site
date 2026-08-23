@@ -1380,9 +1380,11 @@ module.exports = async function handler(req, res) {
             'Panel solicitado': panel,
             'Tipo de estudio': tipoEstudio,
             'Resultados (texto)': analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Estudio de imagen — ver archivo adjunto.',
-            'Valores fuera de rango': fueraDeRango.length
-              ? fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'}, ref ${a.rango_texto || 'n/d'})`).join('\n')
-              : 'Sin valores fuera de rango detectados.',
+            'Valores fuera de rango': analitos.length === 0
+              ? 'No se detectaron valores de laboratorio en este documento — revísalo manualmente si esperabas resultados numéricos.'
+              : (fueraDeRango.length
+                  ? fueraDeRango.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''} (${a.bandera === 'alto' ? 'Alto' : 'Bajo'}, ref ${a.rango_texto || 'n/d'})`).join('\n')
+                  : 'Sin valores fuera de rango detectados.'),
             'Interpretación NOVA': relevantes.length ? `Relevante a patologías activas: ${relevantes.map(a => a.nombre).join(', ')}.` : '',
             'Requiere seguimiento': fueraDeRango.some(a => a.relevante),
             'Paciente': [auth.recId],
