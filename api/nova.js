@@ -1359,7 +1359,12 @@ module.exports = async function handler(req, res) {
       const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
       const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
       const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
-      const fechaEstudio = extraido.fecha_estudio || new Date().toISOString().slice(0, 10);
+      // Nunca una fecha plausible cuando NOVA no pudo leerla del documento —
+      // este campo se grafica y se compara contra el histórico del paciente
+      // (CLAUDE.md §7). Si el OCR no la extrajo, el campo queda vacío y se
+      // le pide al médico que la confirme, en vez de asumir "hoy".
+      const fechaExtraidaValida = typeof extraido.fecha_estudio === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(extraido.fecha_estudio.trim());
+      const fechaEstudio = fechaExtraidaValida ? extraido.fecha_estudio.trim() : null;
       const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
       const relevantes = analitos.filter(a => a.relevante);
 
@@ -1371,7 +1376,7 @@ module.exports = async function handler(req, res) {
           typecast: true,
           fields: {
             'Código de paciente ref': auth.codigo,
-            'Fecha de resultados': fechaEstudio,
+            ...(fechaEstudio ? { 'Fecha de resultados': fechaEstudio } : {}),
             'Panel solicitado': panel,
             'Tipo de estudio': tipoEstudio,
             'Resultados (texto)': analitos.length ? analitos.map(a => `${a.nombre}: ${a.valor} ${a.unidad || ''}`).join('\n') : 'Estudio de imagen — ver archivo adjunto.',
@@ -1414,7 +1419,7 @@ module.exports = async function handler(req, res) {
               'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
               'Es crítico': !!a.critico,
               'Relevante a patología': !!a.relevante,
-              'Fecha del estudio': fechaEstudio,
+              ...(fechaEstudio ? { 'Fecha del estudio': fechaEstudio } : {}),
               'Código de paciente ref': auth.codigo,
               'Paciente': [auth.recId],
               'Estudio (NOVA LABS)': [crearData.id],
@@ -1432,7 +1437,7 @@ module.exports = async function handler(req, res) {
 
       await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Exitoso', endpoint: 'medico_subir_estudio' });
       return res.status(200).json({
-        ok: true, tipoEstudio, panel, fecha: fechaEstudio,
+        ok: true, tipoEstudio, panel, fecha: fechaEstudio, fechaConfirmada: !!fechaEstudio,
         totalAnalitos: analitos.length, totalFueraDeRango: fueraDeRango.length,
       });
     } catch (err) {

@@ -6197,8 +6197,13 @@ document.getElementById('f-lab-archivo').addEventListener('change', (e) => {
       .then(data => {
         btn.disabled = false;
         if (data.ok) {
-          estadoEl.style.color = '#5FAE6E';
-          estadoEl.textContent = `Estudio agregado (${data.tipoEstudio}${data.totalAnalitos ? ', ' + data.totalAnalitos + ' valores' : ''}${data.totalFueraDeRango ? ', ' + data.totalFueraDeRango + ' fuera de rango' : ''}) ✓`;
+          if (!data.fechaConfirmada) {
+            estadoEl.style.color = '#E8A33D';
+            estadoEl.textContent = `Estudio agregado, pero NOVA no pudo leer la fecha del documento — captúrala manualmente antes de que se grafique (${data.tipoEstudio}${data.totalAnalitos ? ', ' + data.totalAnalitos + ' valores' : ''}).`;
+          } else {
+            estadoEl.style.color = '#5FAE6E';
+            estadoEl.textContent = `Estudio agregado (${data.tipoEstudio}${data.totalAnalitos ? ', ' + data.totalAnalitos + ' valores' : ''}${data.totalFueraDeRango ? ', ' + data.totalFueraDeRango + ' fuera de rango' : ''}) ✓`;
+          }
           document.getElementById('f-lab-archivo').value = '';
           cargarLabs(pacId);
         } else {
