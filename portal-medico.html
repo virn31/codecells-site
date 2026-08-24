@@ -2934,12 +2934,27 @@
         const f = new Date().toLocaleDateString(i18nDateLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         return f.charAt(0).toUpperCase() + f.slice(1);
       }
-      function actualizarHeader(){
+      // Única función que produce saludo + fecha localizados y los escribe en
+      // los DOS puntos de render (topbar y dashboard de bienvenida). Antes
+      // eran dos caminos separados: actualizarHeader() (solo saludo, se
+      // re-ejecutaba en DOMContentLoaded) y un bloque de fecha aparte que
+      // SOLO corría una vez, inline, antes de que i18n.js hubiera leído el
+      // idioma persistido de localStorage (su init() corre en su propio
+      // DOMContentLoaded, que dispara después que este script inline ya se
+      // ejecutó). Con idioma PT ya guardado de una sesión previa (sin que el
+      // usuario vuelva a tocar el selector — i18n:change nunca dispara), el
+      // saludo se recalculaba bien en DOMContentLoaded pero la fecha del
+      // topbar se quedaba congelada en el valor en español del primer cálculo
+      // — mientras la del dashboard sí salía en el idioma correcto, porque
+      // esa sí se recalculaba en DOMContentLoaded. Ahora ambos se escriben
+      // siempre juntos, desde el mismo lugar.
+      function actualizarSaludoYFecha(){
         const nombreEl = document.getElementById('topbar-nombre');
         const nombre = nombreEl ? nombreEl.textContent : '';
         const limpio = nombre && nombre !== '—' ? limpiarNombre(nombre) : '';
         const apellido = limpio ? apellidoPaterno(limpio) : '';
         const saludo = apellido ? `${saludoPorHora()}, Dr. ${apellido}` : saludoPorHora();
+        const fecha = fechaFormateada();
 
         const txt = document.getElementById('topbar-greeting-text');
         if (txt) txt.textContent = saludo;
@@ -2947,26 +2962,19 @@
         if (avatar) avatar.textContent = limpio ? limpio[0].toUpperCase() : '—';
         const dashGreeting = document.getElementById('dash-greeting');
         if (dashGreeting) dashGreeting.textContent = saludo;
+
+        const fechaEl = document.getElementById('topbar-greeting-date');
+        if (fechaEl) fechaEl.textContent = fecha;
+        const dashDate = document.getElementById('dash-date');
+        if (dashDate) dashDate.textContent = fecha;
       }
 
-      const fechaEl = document.getElementById('topbar-greeting-date');
-      if (fechaEl) fechaEl.textContent = fechaFormateada();
+      window.addEventListener('i18n:change', actualizarSaludoYFecha);
 
-      // Al cambiar de idioma con el selector ES/EN/PT, el diccionario de i18n.js
-      // re-traduce el texto existente solo, pero la fecha hay que regenerarla
-      // (no es texto fijo — ver nota en fechaFormateada/i18nDateLocale).
-      window.addEventListener('i18n:change', function () {
-        const fechaEl2 = document.getElementById('topbar-greeting-date');
-        if (fechaEl2) fechaEl2.textContent = fechaFormateada();
-        const dashDate2 = document.getElementById('dash-date');
-        if (dashDate2) dashDate2.textContent = fechaFormateada();
-        actualizarHeader();
-      });
-
-      actualizarHeader();
+      actualizarSaludoYFecha();
       const nombreEl = document.getElementById('topbar-nombre');
       if (nombreEl && window.MutationObserver) {
-        new MutationObserver(actualizarHeader).observe(nombreEl, { childList: true, characterData: true, subtree: true });
+        new MutationObserver(actualizarSaludoYFecha).observe(nombreEl, { childList: true, characterData: true, subtree: true });
       }
 
       // ─── Dashboard de bienvenida (#no-patient) ───
@@ -2986,9 +2994,11 @@
       ];
 
       document.addEventListener('DOMContentLoaded', function(){
-        actualizarHeader();
-        const dashDate = document.getElementById('dash-date');
-        if (dashDate) dashDate.textContent = fechaFormateada();
+        // Reconfirma saludo Y fecha aquí — es el punto donde i18n.js YA leyó
+        // el idioma persistido (su propio init() corre en este mismo evento,
+        // registrado antes que este listener). La primera llamada de arriba
+        // (actualizarSaludoYFecha() inline) es solo pintado optimista.
+        actualizarSaludoYFecha();
 
         const dashQuote = document.getElementById('dash-quote');
         if (dashQuote) dashQuote.textContent = FRASES_DASHBOARD[Math.floor(Math.random() * FRASES_DASHBOARD.length)];
