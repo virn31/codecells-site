@@ -3291,7 +3291,7 @@ function buildHerramientaFichaConsulta() {
         exploracion_fisica: { type: 'string' },
         diagnostico: {
           type: 'string',
-          description: 'Diagnóstico, con código CIE-10 solo si lo puedes inferir con confianza razonable; si no estás seguro del código exacto, escribe solo el diagnóstico en texto y dilo en el mensaje para que el médico lo confirme.',
+          description: 'Diagnóstico EXACTAMENTE como lo dictó el médico. Nunca inventes ni completes un código CIE-10 que el médico no haya dicho explícitamente — si solo dictó el diagnóstico en texto, transcríbelo en texto, sin código. Si tú sabrías el código pero el médico no lo dijo, no lo agregues.',
         },
         plan_terapeutico: { type: 'string' },
         notas_internas: { type: 'string', description: 'Cualquier dato adicional que no tenga campo propio (ej. grupo sanguíneo, escolaridad).' },
@@ -3329,6 +3329,11 @@ function buildHerramientaFichaConsulta() {
     },
   };
 }
+
+// Expuesta para test/ — permite verificar el texto de la herramienta (p.ej.
+// que 'diagnostico' nunca vuelva a autorizar inferir CIE-10) sin pasar por
+// todo el flujo de chat con Anthropic.
+module.exports.buildHerramientaFichaConsulta = buildHerramientaFichaConsulta;
 
 // ─── HERRAMIENTA: ALTA DE PACIENTE NUEVO POR DICTADO ────────────────
 // Opcional (tool_choice auto) — distinta de rellenar_ficha_consulta: esa es
