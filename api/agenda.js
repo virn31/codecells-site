@@ -3,6 +3,7 @@
 // Table ID Airtable: tbl8s038fJ3qRFKD6
 
 import fetch from 'node-fetch';
+import { verificarToken, tokenDesdeRequest } from '../lib/auth.js';
 
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
 const AGENDA_TABLE_ID = 'tbl8s038fJ3qRFKD6';
@@ -514,11 +515,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { action, medicoActual, ...datos } = req.body;
-
-    if (!medicoActual) {
-      return res.status(401).json({ error: 'Médico no autenticado' });
+    // El Bearer de Airtable (airtableRequest, arriba) es para el fetch
+    // saliente hacia Airtable — nunca sirvió como autenticación de entrada.
+    // Antes, cualquiera que mandara un `medicoActual` en el body podía
+    // operar la agenda de OTRO médico con solo conocer su código CCMED-,
+    // sin ninguna verificación de que el caller de verdad fuera esa
+    // persona. Mismo mecanismo que ya usan los endpoints clínicos
+    // (api/nova.js, api/nova-asistente-clinico.js): token de sesión
+    // firmado (lib/auth.js) en el header Authorization, nunca del body.
+    // El frontend (agenda/js/agenda-api.js) YA manda ese header hoy —
+    // esto no requiere ningún cambio de cliente.
+    const sesion = verificarToken(tokenDesdeRequest(req));
+    if (!sesion || sesion.tipo !== 'medico') {
+      return res.status(401).json({ error: 'Sesión médica requerida.' });
     }
+    const medicoActual = sesion.codigo;
+
+    const { action, ...datos } = req.body;
+    delete datos.medicoActual; // ignorar cualquier valor que mande el cliente
 
     switch (action) {
       case 'crear':
