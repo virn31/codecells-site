@@ -2,7 +2,6 @@
 // Backend completo para módulo Agenda - Desacoplado del portal, capacitaciones, etc
 // Table ID Airtable: tbl8s038fJ3qRFKD6
 
-import fetch from 'node-fetch';
 import { verificarToken, tokenDesdeRequest } from '../lib/auth.js';
 
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
