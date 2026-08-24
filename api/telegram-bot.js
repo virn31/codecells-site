@@ -533,6 +533,18 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ── Update real de Telegram — valida el secret token del webhook ────
+  // Telegram incluye X-Telegram-Bot-Api-Secret-Token en cada request cuando
+  // el webhook se registra con secret_token (setWebhook). Sin esta
+  // verificación, cualquiera que adivine la URL puede simular un update y
+  // resolver identidad de médico por chat.id sin más autenticación. 401
+  // (no 403): es un problema de autenticación, no de rol. El secret vive
+  // solo en la variable de entorno TELEGRAM_WEBHOOK_SECRET de Vercel.
+  const secretWebhook = req.headers['x-telegram-bot-api-secret-token'];
+  if (!process.env.TELEGRAM_WEBHOOK_SECRET || secretWebhook !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+
   try {
     const update = req.body;
 
