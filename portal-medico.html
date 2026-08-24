@@ -4658,7 +4658,7 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
   const errEl = document.getElementById('pac-codigo-error');
   const btn = document.getElementById('btn-buscar-pac');
 
-  if (!codigo.match(/^CC-PAC-[0-9]{4,8}$/)) {
+  if (!codigo.match(/^CC-PAC-(DEMO\d{2}|\d{4,8})$/)) {
     errEl.textContent = 'Formato: CC-PAC-XXXXXX';
     return;
   }

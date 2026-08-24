@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
 
   try {
     const { codigoPaciente, ...datos } = req.body;
-    if (!codigoPaciente || !/^CC-PAC-[0-9]{4,8}$/.test(codigoPaciente)) {
+    if (!codigoPaciente || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(codigoPaciente)) {
       return res.status(400).json({ error: 'Código de paciente inválido.' });
     }
 

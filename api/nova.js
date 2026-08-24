@@ -840,7 +840,7 @@ module.exports = async function handler(req, res) {
         return res.status(401).json({ error: 'Sesión de paciente requerida.' });
       }
       const pacienteCode = sesion.codigo;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) return res.status(403).json({ error: 'Código de paciente inválido.' });
 
       // Mismo patrón que paciente_subir_estudio: el paciente lee SU PROPIO
       // comparativo, no el de otro — autorizarPaciente() no aplica aquí.
@@ -899,7 +899,7 @@ module.exports = async function handler(req, res) {
       // completa de labs. Ahora exige sesión médica real.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs', resultado: 'Rechazado', endpoint: 'medico_tabla_labs' });
         return res.status(403).json({ error: 'Código de paciente inválido.' });
       }
@@ -1010,7 +1010,7 @@ module.exports = async function handler(req, res) {
       // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs', resultado: 'Rechazado', endpoint: 'medico_resumen_labs' });
         return res.status(403).json({ error: 'Código de paciente inválido.' });
       }
@@ -1177,7 +1177,7 @@ module.exports = async function handler(req, res) {
       // adivinado bastaba para inyectar datos clínicos falsos.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_guardar_labs_rapidos' });
         return res.status(403).json({ error: 'Código de paciente inválido.' });
       }
@@ -1289,7 +1289,7 @@ module.exports = async function handler(req, res) {
       // paciente.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
       const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
-      if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_subir_estudio' });
         return res.status(403).json({ error: 'Código de paciente inválido.' });
       }
@@ -2435,7 +2435,7 @@ module.exports = async function handler(req, res) {
     // esVIP/esPac quedan exactamente igual — fuera de alcance de este fix.
     const esMedico = !!(sesion && sesion.tipo === 'medico');
     const esVIP    = typeof vipCode    === 'string' && /^DZW-[0-9]{8}$/.test(vipCode);
-    const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode);
+    const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode);
 
     if (esMedico) {
       // El código de médico viene de la sesión verificada, nunca del
@@ -3020,7 +3020,7 @@ module.exports = async function handler(req, res) {
       // médico y se fuerza una segunda llamada obligando la herramienta de
       // backfill — así el guardado no depende de que el modelo "decida" usarla.
       const huboToolUse = Array.isArray(data.content) && data.content.some(b => b && b.type === 'tool_use');
-      if (!huboToolUse && pacienteCode && /^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+      if (!huboToolUse && pacienteCode && /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         const ultimoMensaje = typeof messages[messages.length - 1]?.content === 'string' ? messages[messages.length - 1].content : '';
         const fechasDetectadas = (ultimoMensaje.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/g) || []).length;
         if (fechasDetectadas >= 2) {
@@ -3185,7 +3185,7 @@ function buildHerramientaSeriesHistoricasLab() {
 // respondió solo en texto sin usar ninguna herramienta pese a que el
 // dictado claramente traía varias fechas).
 async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
-  if (!pacienteCode || !/^CC-PAC-[0-9]{4,8}$/.test(pacienteCode)) {
+  if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
     return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tengo un paciente seleccionado en el portal para guardar esto — abre su expediente primero y dicta de nuevo.` }] };
   }
 

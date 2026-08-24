@@ -946,7 +946,7 @@ module.exports = async (req, res) => {
         const filtroLista = `OR(${filtroPropios}, {Es demo}=1)`;
 
         const buscado = String(req.query.pacienteBuscado || '').trim();
-        const esInterconsulta = /^CC-PAC-[A-Z0-9]{4,8}$/.test(buscado);
+        const esInterconsulta = /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(buscado);
         // pacienteBuscado es señal de ESTA petición: nunca un campo real ni se
         // reenvía a Airtable.
         delete req.query.pacienteBuscado;
