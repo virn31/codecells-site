@@ -50,8 +50,17 @@ function registroDemo() {
     }],
   };
 }
-function registroMedico(codigo, recId) {
-  return { records: [{ id: recId, fields: { 'Código de médico': codigo } }] };
+// 'Tipo de acceso' default 'Clinico': mock desactualizado desde que el SPEC
+// de separación de roles (ago 2026) agregó verificarAccesoClinicoMedico()
+// como gate PREVIO a autorizarPaciente() en api/airtable.js (tabla=historia
+// y accion=graficas_series) — sin este campo, cualquier médico mockeado cae
+// en "sin registro = falla cerrado" y el 403 real es el de rol ("Tu tipo de
+// acceso no permite leer expedientes clínicos"), no el de autorizarPaciente()
+// que este archivo prueba. VIRN01 y JCG01 son Clinico en producción (SPEC
+// backfill de MÉDICOS) — el mock ahora refleja eso, para que el gate de rol
+// pase y lo que de verdad se ejercite sea la autorización por dueño.
+function registroMedico(codigo, recId, tipoAcceso = 'Clinico') {
+  return { records: [{ id: recId, fields: { 'Código de médico': codigo, 'Tipo de acceso': tipoAcceso } }] };
 }
 
 // Mock de fetch: enruta por tabla + código exacto pedido en filterByFormula,
