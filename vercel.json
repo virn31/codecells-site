@@ -6,6 +6,9 @@
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/aviso-privacidad", "destination": "/aviso-privacidad.html" }
   ],
+  "redirects": [
+    { "source": "/buscar-medico.html", "destination": "/directorio", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/portal-vip.html",
