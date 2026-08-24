@@ -40,6 +40,10 @@ const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
 // ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 
+// Nunca fabricar 'Fecha de nacimiento' desde una edad dictada/tecleada
+// (CLAUDE.md §7) — ver lib/datosPacienteNuevo.js.
+const { notaEdadSinFecha } = require('../lib/datosPacienteNuevo');
+
 // Autorización médico↔paciente. medico_tabla_labs y medico_resumen_labs no
 // pedían NINGUNA identidad de médico — ni siquiera el formato de medicoCode
 // que otras acciones sí exigen — así que cualquiera con un pacienteCode
@@ -1521,10 +1525,9 @@ module.exports = async function handler(req, res) {
       if (medicoRecordId) fields['Médico_principal'] = [medicoRecordId];
       if (sexo) fields['Sexo biológico'] = sexo;
       if (telefono) fields['Teléfono WhatsApp'] = telefono;
-      if (edad) {
-        const nacimientoAprox = new Date();
-        nacimientoAprox.setFullYear(nacimientoAprox.getFullYear() - edad);
-        fields['Fecha de nacimiento'] = nacimientoAprox.toISOString().slice(0, 10);
+      const notaEdad = notaEdadSinFecha(edad);
+      if (notaEdad) {
+        fields['Notas generales'] = fields['Notas generales'] ? `${fields['Notas generales']}\n${notaEdad}` : notaEdad;
       }
 
       const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}`, {
@@ -2906,11 +2909,6 @@ module.exports = async function handler(req, res) {
           if (medicoRecordId) fieldsNuevoPaciente['Médico_principal'] = [medicoRecordId];
           if (datos.sexo) fieldsNuevoPaciente['Sexo biológico'] = datos.sexo;
           if (datos.telefono_whatsapp) fieldsNuevoPaciente['Teléfono WhatsApp'] = datos.telefono_whatsapp;
-          if (datos.edad) {
-            const nacimientoAprox = new Date();
-            nacimientoAprox.setFullYear(nacimientoAprox.getFullYear() - datos.edad);
-            fieldsNuevoPaciente['Fecha de nacimiento'] = nacimientoAprox.toISOString().slice(0, 10);
-          }
           if (datos.peso_kg) fieldsNuevoPaciente['Peso actual (kg)'] = datos.peso_kg;
           if (datos.talla_cm) fieldsNuevoPaciente['Talla (cm)'] = datos.talla_cm;
           // patologias_detectadas viene ya separado de heredofamiliares por diseño de la herramienta
@@ -2919,6 +2917,8 @@ module.exports = async function handler(req, res) {
           }
           const notasGenerales = [];
           if (datos.presion_arterial) notasGenerales.push(`PA inicial: ${datos.presion_arterial}`);
+          const notaEdad = notaEdadSinFecha(datos.edad);
+          if (notaEdad) notasGenerales.push(notaEdad);
           if (notasGenerales.length) fieldsNuevoPaciente['Notas generales'] = notasGenerales.join(' | ');
 
           const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}`, {
