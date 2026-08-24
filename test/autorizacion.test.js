@@ -31,6 +31,7 @@ const REC_DEMO01 = 'recDEMO00000000001';
 
 const TBL_PACIENTES = 'tblyUcCfueFLJuvIv';
 const TBL_MEDICOS = 'tbl87DsuBMmb4DjFM';
+const TBL_INTERCONSULTAS = 'tbl9PS3KNBxbRVriV';
 
 // Fixture mínima: solo lo que autorizarPaciente() en verdad lee de cada
 // tabla (record id + los campos que usa). Nada de datos clínicos reales.
@@ -84,6 +85,12 @@ function instalarFetchMock() {
       if (u.includes(encodeURIComponent('CCMED-JCG01'))) return ok(registroMedico('CCMED-JCG01', REC_JCG01));
       return ok({ records: [] }); // incluye CCMED-JORGE: no existe tal médico
     }
+    // Esta suite prueba la vía 'principal' — ninguno de sus casos tiene una
+    // interconsulta real, así que el mock siempre responde "sin registros",
+    // que es justo lo que Airtable real devuelve para ese filtro (Estado=
+    // "Activa" ya va en la fórmula). El comportamiento de interconsulta en
+    // sí se prueba en test/interconsulta.test.js, no aquí.
+    if (u.includes(TBL_INTERCONSULTAS)) return ok({ records: [] });
     throw new Error(`fetch no mockeado en esta prueba: ${u}`);
   };
   return () => { global.fetch = original; };
