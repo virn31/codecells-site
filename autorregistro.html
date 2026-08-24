@@ -93,6 +93,13 @@
   <div class="subtitulo">Pide a tu médico que te comparta el link de registro nuevamente.</div>
 </div>
 
+<!-- Pantalla: autorregistro pausado (2026-08-23) — ver init() más abajo -->
+<div class="pantalla" id="p-pausado">
+  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="titulo">El registro por link está pausado</div>
+  <div class="subtitulo">Por ahora, pide a tu médico que te dé de alta directamente.</div>
+</div>
+
 <!-- Pantalla: preconsulta con NOVA -->
 <div class="pantalla" id="p-preconsulta" style="justify-content:flex-start;padding-top:24px;">
   <div class="logo-glyph" style="margin-bottom:16px;">CODE CELLS®</div>
@@ -129,6 +136,16 @@ function irA(id) {
 }
 
 function init() {
+  // PAUSADO (2026-08-23): autorregistro por regToken es una tercera vía de
+  // creación de expediente, no autorizada (CLAUDE.md §7 — solo kiosco y
+  // consulta). api/nova.js ya devuelve 503 para cualquier regToken, así que
+  // esta pantalla corta ANTES de eso, con un mensaje que sí explica lo que
+  // pasa. El resto del flujo (validación de token, formulario, preconsulta)
+  // queda intacto abajo, sin borrar, por si esta vía se retoma rediseñada.
+  irA('p-pausado');
+  return;
+
+  /* eslint-disable no-unreachable */
   var params = new URLSearchParams(window.location.search);
   tokenRegistro = params.get('token');
   if (!tokenRegistro || !/^REG-[A-Z0-9]{6,20}$/.test(tokenRegistro)) {

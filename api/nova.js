@@ -1479,6 +1479,22 @@ module.exports = async function handler(req, res) {
       const { staffCodigo, regToken, nombreCompleto, edad, sexo, telefono } = req.body;
       if (!nombreCompleto || typeof nombreCompleto !== 'string' || !nombreCompleto.trim()) return res.status(400).json({ error: 'Falta el nombre del paciente.' });
 
+      // PAUSADO (2026-08-23): autorregistro por regToken es una tercera vía de
+      // creación de expediente — las dos únicas autorizadas son kiosco (alta
+      // delegada, el médico autoriza a su personal) y consulta (CLAUDE.md §7).
+      // Se detiene SOLO la escritura, mismo criterio que registro_publico_paciente
+      // (2026-08-15, ver arriba): pausado y explícito, no eliminado — la lógica
+      // original vive en el historial de git, no aquí. autorregistro.html y el
+      // botón "Mi link" de portal-medico.html quedan ocultos/inertes hasta que
+      // se decida si esta vía se retira definitivamente.
+      if (regToken) {
+        return res.status(503).json({
+          ok: false,
+          error: 'El autorregistro por link está pausado temporalmente. Pide a tu médico que te dé de alta.',
+          motivo: 'autorregistro_pausado',
+        });
+      }
+
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
@@ -1487,27 +1503,14 @@ module.exports = async function handler(req, res) {
       let medicoRecordId = null;
       let medicoNombre = null;
 
-      if (regToken) {
-        // Autorregistro del propio paciente: el token NUNCA da acceso al portal,
-        // solo permite ejecutar esta acción puntual de alta de paciente.
-        if (!/^REG-[A-Z0-9]{6,20}$/.test(regToken)) return res.status(403).json({ error: 'Link de registro inválido.' });
-        const formulaTok = `{Token de autorregistro}="${regToken}"`;
-        const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaTok)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-        const medData = await medRes.json();
-        const medRecord = medData.records?.[0] || null;
-        medicoRecordId = medRecord?.id || null;
-        medicoNombre = medRecord?.fields?.['Nombre completo'] || null;
-        if (!medicoRecordId) return res.status(403).json({ error: 'Link de registro inválido.' });
-      } else {
-        // Flujo del kiosco de consultorio: requiere sesión de personal ya verificada
-        if (!staffCodigo || !/^CCMED-[A-Z0-9]{4,8}$/.test(staffCodigo)) return res.status(403).json({ error: 'Sesión de personal inválida.' });
-        const formulaMed = `{Código de médico}="${staffCodigo}"`;
-        const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaMed)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-        const medData = await medRes.json();
-        const medRecord = medData.records?.[0] || null;
-        medicoRecordId = medRecord?.id || null;
-        medicoNombre = medRecord?.fields?.['Nombre completo'] || null;
-      }
+      // Flujo del kiosco de consultorio: requiere sesión de personal ya verificada
+      if (!staffCodigo || !/^CCMED-[A-Z0-9]{4,8}$/.test(staffCodigo)) return res.status(403).json({ error: 'Sesión de personal inválida.' });
+      const formulaMed = `{Código de médico}="${staffCodigo}"`;
+      const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaMed)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      const medData = await medRes.json();
+      const medRecord = medData.records?.[0] || null;
+      medicoRecordId = medRecord?.id || null;
+      medicoNombre = medRecord?.fields?.['Nombre completo'] || null;
 
       // Siguiente código CC-PAC- disponible, con verificación anti-colisión
       // del lado del servidor (ver lib/codigos.js).

@@ -2890,8 +2890,12 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;gap:6px;">
           <div class="sidebar-title" style="margin-bottom:0;">Mis pacientes</div>
           <div style="display:flex;gap:6px;">
+            <!-- PAUSADO (2026-08-23): autorregistro por link es una tercera vía de
+                 creación de expediente, no autorizada (CLAUDE.md §7 — solo kiosco y
+                 consulta). Oculto, no eliminado: mismo criterio que api/nova.js
+                 kiosco_crear_paciente, que ya devuelve 503 si se le manda regToken. -->
             <button id="btn-link-autorregistro" title="Link para que el paciente se registre solo"
-              style="background:var(--black-3);border:0.5px solid var(--border-dim);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;padding:4px 10px;cursor:pointer;white-space:nowrap;">
+              style="display:none;background:var(--black-3);border:0.5px solid var(--border-dim);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;padding:4px 10px;cursor:pointer;white-space:nowrap;">
               🔗 Mi link
             </button>
             <button id="btn-nuevo-paciente" title="Registrar nuevo paciente"
