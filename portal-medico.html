@@ -1744,6 +1744,42 @@
   .form-group select:focus,
   .form-group textarea:focus { border-color: var(--gold-dim); }
 
+  .cie10-ac-wrap { position: relative; }
+  .cie10-ac-list {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 500;
+    background: var(--black-4);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 260px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .cie10-ac-list.open { display: block; }
+  .cie10-ac-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12.5px;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    border-bottom: 0.5px solid var(--border-dim);
+  }
+  .cie10-ac-item:last-child { border-bottom: none; }
+  .cie10-ac-item .cie10-ac-code {
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .cie10-ac-item .cie10-ac-desc { color: var(--text-1); }
+  .cie10-ac-item:hover, .cie10-ac-item.active { background: var(--cyan-pale); }
+  .cie10-ac-empty { padding: 10px 12px; font-size: 12px; color: var(--text-3); }
+
   /* Flash de "esto lo llenó NOVA" — se quita solo después de unos segundos */
   .campo-nova-llenado {
     border-color: var(--gold) !important;
@@ -2608,6 +2644,132 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="/lib/i18n.js"></script>
+  <script src="/lib/cie10-catalogo.js"></script>
+  <script>
+  // ─── AUTOCOMPLETE DE DIAGNÓSTICO (CIE-10) ───────────────────────
+  // El médico escribe texto libre (p.ej. "hipertension") y se le
+  // muestran categorías CIE-10 cuya descripción o código coincide,
+  // para elegir. El campo sigue siendo texto libre: si no elige nada,
+  // se guarda tal cual lo escribió.
+  (function () {
+    const catalogo = window.CIE10_CATALOGO || [];
+
+    function normalizar(s) {
+      return (s || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .trim();
+    }
+
+    const catalogoNorm = catalogo.map(e => ({
+      codigo: e.codigo,
+      descripcion: e.descripcion,
+      descNorm: normalizar(e.descripcion),
+      codNorm: normalizar(e.codigo),
+    }));
+
+    function buscarCie10(query, max) {
+      const q = normalizar(query);
+      if (!q) return [];
+      const porCodigo = [];
+      const inicioDesc = [];
+      const contieneDesc = [];
+      for (const e of catalogoNorm) {
+        if (e.codNorm.startsWith(q)) { porCodigo.push(e); continue; }
+        if (e.descNorm.startsWith(q)) { inicioDesc.push(e); continue; }
+        if (e.descNorm.includes(q)) { contieneDesc.push(e); }
+      }
+      return [...porCodigo, ...inicioDesc, ...contieneDesc].slice(0, max || 8);
+    }
+
+    function attachCie10Autocomplete(inputId, listId) {
+      const input = document.getElementById(inputId);
+      const list = document.getElementById(listId);
+      if (!input || !list) return;
+
+      let activeIndex = -1;
+      let resultados = [];
+
+      function cerrar() {
+        list.classList.remove('open');
+        list.innerHTML = '';
+        activeIndex = -1;
+        resultados = [];
+      }
+
+      function seleccionar(entry) {
+        input.value = entry.codigo + ' — ' + entry.descripcion;
+        cerrar();
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      function render() {
+        list.innerHTML = '';
+        if (resultados.length === 0) {
+          list.innerHTML = '<div class="cie10-ac-empty">Sin coincidencias — puedes seguir escribiendo libremente</div>';
+          list.classList.add('open');
+          return;
+        }
+        resultados.forEach((entry, i) => {
+          const item = document.createElement('div');
+          item.className = 'cie10-ac-item' + (i === activeIndex ? ' active' : '');
+          const code = document.createElement('span');
+          code.className = 'cie10-ac-code';
+          code.textContent = entry.codigo;
+          const desc = document.createElement('span');
+          desc.className = 'cie10-ac-desc';
+          desc.textContent = entry.descripcion;
+          item.appendChild(code);
+          item.appendChild(desc);
+          item.addEventListener('mousedown', (ev) => {
+            ev.preventDefault();
+            seleccionar(entry);
+          });
+          list.appendChild(item);
+        });
+        list.classList.add('open');
+      }
+
+      input.addEventListener('input', () => {
+        resultados = buscarCie10(input.value, 8);
+        activeIndex = -1;
+        if (input.value.trim().length < 3) { cerrar(); return; }
+        render();
+      });
+
+      input.addEventListener('keydown', (ev) => {
+        if (!list.classList.contains('open') || resultados.length === 0) return;
+        if (ev.key === 'ArrowDown') {
+          ev.preventDefault();
+          activeIndex = Math.min(activeIndex + 1, resultados.length - 1);
+          render();
+        } else if (ev.key === 'ArrowUp') {
+          ev.preventDefault();
+          activeIndex = Math.max(activeIndex - 1, 0);
+          render();
+        } else if (ev.key === 'Enter') {
+          if (activeIndex >= 0) {
+            ev.preventDefault();
+            seleccionar(resultados[activeIndex]);
+          }
+        } else if (ev.key === 'Escape') {
+          cerrar();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(cerrar, 150);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      attachCie10Autocomplete('f-diagnostico', 'f-diagnostico-ac');
+      attachCie10Autocomplete('rec-diagnostico', 'rec-diagnostico-ac');
+    });
+  })();
+  </script>
 </head>
 <body>
 
@@ -2756,8 +2918,17 @@
         if (partes.length >= 3) return partes[partes.length - 2];
         return partes[partes.length - 1] || '';
       }
+      // Fechas de interfaz (saludo, expediente, directorio) siguen el idioma
+      // elegido con el selector ES/EN/PT — no se pueden traducir por diccionario
+      // de texto exacto porque cambian todos los días. Fechas de documentos
+      // formales (receta, PDF exportado) se quedan fijas en es-MX a propósito:
+      // son el documento oficial bajo cédula profesional, no interfaz.
+      function i18nDateLocale(){
+        var lang = (window.getLanguage && window.getLanguage()) || 'es';
+        return lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-BR' : 'es-MX';
+      }
       function fechaFormateada(){
-        const f = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        const f = new Date().toLocaleDateString(i18nDateLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         return f.charAt(0).toUpperCase() + f.slice(1);
       }
       function actualizarHeader(){
@@ -2777,6 +2948,16 @@
 
       const fechaEl = document.getElementById('topbar-greeting-date');
       if (fechaEl) fechaEl.textContent = fechaFormateada();
+
+      // Al cambiar de idioma con el selector ES/EN/PT, el diccionario de i18n.js
+      // re-traduce el texto existente solo, pero la fecha hay que regenerarla
+      // (no es texto fijo — ver nota en fechaFormateada/i18nDateLocale).
+      window.addEventListener('i18n:change', function () {
+        const fechaEl2 = document.getElementById('topbar-greeting-date');
+        if (fechaEl2) fechaEl2.textContent = fechaFormateada();
+        const dashDate2 = document.getElementById('dash-date');
+        if (dashDate2) dashDate2.textContent = fechaFormateada();
+      });
 
       actualizarHeader();
       const nombreEl = document.getElementById('topbar-nombre');
@@ -3429,9 +3610,10 @@
             </div>
 
             <div class="form-row">
-              <div class="form-group">
+              <div class="form-group cie10-ac-wrap">
                 <label>Diagnóstico (CIE-10)</label>
-                <input type="text" id="f-diagnostico" placeholder="Ej. Z51.8 — Otra atención médica especificada">
+                <input type="text" id="f-diagnostico" placeholder="Ej. Z51.8 — Otra atención médica especificada" autocomplete="off">
+                <div class="cie10-ac-list" id="f-diagnostico-ac"></div>
               </div>
               <div class="form-group">
                 <label>Estado del protocolo</label>
@@ -3819,9 +4001,10 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group cie10-ac-wrap">
           <label>Diagnóstico (CIE-10)</label>
-          <input type="text" id="rec-diagnostico" placeholder="Ej. Z51.8 — Otra atención médica">
+          <input type="text" id="rec-diagnostico" placeholder="Ej. Z51.8 — Otra atención médica" autocomplete="off">
+          <div class="cie10-ac-list" id="rec-diagnostico-ac"></div>
         </div>
         <div class="form-group">
           <label>Fecha</label>
@@ -3993,7 +4176,7 @@ function actualizarLinksCapacitacion() {
 function formatDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(i18nDateLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // La "Edad" en Airtable es un campo fórmula — si el paciente no tiene
@@ -4386,7 +4569,7 @@ function iniciarApp() {
 
   document.getElementById('topbar-nombre').textContent = nombre;
   document.getElementById('topbar-code').textContent = codigo;
-  document.getElementById('consulta-fecha').textContent = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
+  document.getElementById('consulta-fecha').textContent = new Date().toLocaleDateString(i18nDateLocale(), { day:'2-digit', month:'short', year:'numeric' });
 
   cargarPacientes();
 }
@@ -6534,6 +6717,8 @@ async function generarPDF() {
   const medCedula = medicoActual?.['Cédula profesional'] || medicoActual?.['Cedula'] || '—';
   const medEsp    = medicoActual?.['Especialidad'] || '—';
   const medCodigo = medicoActual?.['Código de médico'] || medicoActual?.['Código'] || '—';
+  // Fecha fija en es-MX a propósito: va en el PDF exportado del expediente,
+  // documento formal — no debe cambiar con el idioma de la interfaz.
   const fechaHoy  = new Date().toLocaleDateString('es-MX', {day:'2-digit',month:'long',year:'numeric'});
 
   // Recopilar consultas del timeline
@@ -6637,6 +6822,8 @@ function abrirModalReceta() {
   const pacId  = f['Código de paciente'] || f['ID_Paciente'] || pacienteActual.id;
   document.getElementById('rec-paciente-nombre').textContent = nombre;
   document.getElementById('rec-paciente-id').textContent = pacId;
+  // Fecha fija en es-MX a propósito: es la receta médica bajo cédula
+  // profesional, documento formal — no debe cambiar con el idioma de la interfaz.
   document.getElementById('rec-fecha').value = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   // Prellenar diagnóstico si hay uno en el formulario activo
   // Precargar desde formulario activo de consulta
@@ -7103,7 +7290,7 @@ function iniciarApp() {
 
   document.getElementById('topbar-nombre').textContent = nombre;
   document.getElementById('topbar-code').textContent = codigo;
-  document.getElementById('consulta-fecha').textContent = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
+  document.getElementById('consulta-fecha').textContent = new Date().toLocaleDateString(i18nDateLocale(), { day:'2-digit', month:'short', year:'numeric' });
 
   actualizarLinksCapacitacion();
   iniciarTemporizador();
@@ -7449,7 +7636,7 @@ function validarPuedePublicarMiDir(campos) {
 function formatearFechaMiDir(iso) {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+    return d.toLocaleDateString(i18nDateLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
   } catch { return iso.substring(0, 10); }
 }
 
