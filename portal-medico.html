@@ -2903,9 +2903,12 @@
     (function(){
       function saludoPorHora(){
         const h = new Date().getHours();
-        if (h < 12) return 'Buenos días';
-        if (h < 19) return 'Buenas tardes';
-        return 'Buenas noches';
+        const base = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+        // Se traduce aquí, no se deja al escaneo pasivo de i18n.js: el saludo
+        // se concatena con el nombre del médico ("Buenos días, Dr. Rodríguez")
+        // y esa cadena completa nunca hace match exacto contra el diccionario
+        // (mismo problema que la fecha — ver i18nDateLocale más abajo).
+        return (window.t ? window.t(base) : base);
       }
       function limpiarNombre(nombre){
         return (nombre || '').replace(/^Dr\.?a?\.?\s+/i, '').trim();
@@ -2957,6 +2960,7 @@
         if (fechaEl2) fechaEl2.textContent = fechaFormateada();
         const dashDate2 = document.getElementById('dash-date');
         if (dashDate2) dashDate2.textContent = fechaFormateada();
+        actualizarHeader();
       });
 
       actualizarHeader();
