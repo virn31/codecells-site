@@ -58,11 +58,5 @@
       "source": "/capacitacion/(.*).html",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/agenda-sync-cron",
-      "schedule": "0 * * * *"
-    }
   ]
 }

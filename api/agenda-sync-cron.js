@@ -1,15 +1,26 @@
 // api/agenda-sync-cron.js
 // Sincroniza Google Calendar del médico con tabla AGENDA cada hora
-// Se ejecuta automáticamente vía Vercel Crons
 //
-// ⚠️ MÓDULO NO FUNCIONAL (mismo diagnóstico que api/agenda.js, 2026-08-24):
-// la tabla AGENDA (tbl8s038fJ3qRFKD6) es el esqueleto default de Airtable,
-// sin los campos que este archivo espera (Médico, Fecha, etc.). Este cron
-// SIGUE registrado en vercel.json ("0 * * * *", cada hora) y por lo tanto
-// sigue corriendo en producción contra una tabla que no tiene forma de
-// aceptar sus escrituras — falla en silencio cada hora, nadie lo revisa.
-// No reparar sin antes leer el diagnóstico completo de api/agenda.js
-// (orden de reconstrucción en memoria de proyecto).
+// ⛔ CRON DESACTIVADO (2026-08-24) — el bloque "crons" se quitó de
+// vercel.json a propósito. NO se ejecuta automáticamente. JSON no admite
+// comentarios, así que el porqué y el cómo reactivarlo viven aquí:
+//
+// Por qué: mismo diagnóstico que api/agenda.js — la tabla AGENDA
+// (tbl8s038fJ3qRFKD6) es el esqueleto default de Airtable, sin los campos
+// que este archivo espera (Médico, Fecha, etc.). Estuvo corriendo cada
+// hora en producción contra una tabla que no tiene forma de aceptar sus
+// escrituras — fallaba en silencio, nadie lo revisaba. Desactivarlo no
+// cambia nada funcional (ya fallaba), solo deja de gastar invocaciones y
+// de ensuciar los logs cada hora.
+//
+// Para reactivarlo: (1) reconstruir la tabla AGENDA con los campos reales
+// (ver diagnóstico completo y orden de reconstrucción en memoria de
+// proyecto / cabecera de api/agenda.js), (2) confirmar que este archivo
+// lee/escribe esos campos correctamente, (3) devolver este bloque a
+// vercel.json:
+//   "crons": [{ "path": "/api/agenda-sync-cron", "schedule": "0 * * * *" }]
+// No reactivar solo restaurando el cron sin antes hacer (1) y (2) — volvería
+// a fallar en silencio.
 
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
 const AGENDA_TABLE_ID = 'tbl8s038fJ3qRFKD6';
