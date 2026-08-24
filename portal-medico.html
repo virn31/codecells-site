@@ -4496,16 +4496,6 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
   }
 });
 
-function demoPacientes() {
-  return [
-    { id: 'p1', fields: { Nombre: 'Arturo Mendoza Ríos', ID_Paciente: 'CC-PAC-001847', Edad: 52, Sexo: 'Masculino', Estado: 'activo', Protocolo: 'CODE REGEN™', Fecha_ingreso: '2024-11-15' }},
-    { id: 'p2', fields: { Nombre: 'Valeria Ibarra Castro', ID_Paciente: 'CC-PAC-002311', Edad: 38, Sexo: 'Femenino', Estado: 'activo', Protocolo: 'CODE ENERGY™', Fecha_ingreso: '2025-01-08' }},
-    { id: 'p3', fields: { Nombre: 'Rodrigo Salazar Vega', ID_Paciente: 'CC-PAC-002890', Edad: 61, Sexo: 'Masculino', Estado: 'pendiente', Protocolo: 'DEZAWA PROTOCOL™', Fecha_ingreso: '2025-03-22' }},
-    { id: 'p4', fields: { Nombre: 'Laura Montiel Fierro', ID_Paciente: 'CC-PAC-003104', Edad: 45, Sexo: 'Femenino', Estado: 'activo', Protocolo: 'CODE BALANCE™', Fecha_ingreso: '2025-04-10' }},
-    { id: 'p5', fields: { Nombre: 'Ernesto Cázares León', ID_Paciente: 'CC-PAC-003299', Edad: 57, Sexo: 'Masculino', Estado: 'inactivo', Protocolo: 'CODE NEURO™', Fecha_ingreso: '2024-09-30' }},
-  ];
-}
-
 function renderPacientes(records) {
   const lista = document.getElementById('patient-list');
   const activos = records.filter(r => (r.fields['Estado del expediente'] || '').toLowerCase() === 'activo').length;
@@ -5360,38 +5350,6 @@ document.getElementById('btn-toggle-interconsultas').addEventListener('click', (
   if (pacIdActualConsultas) cargarConsultas(pacIdActualConsultas, !viendoInterconsultas);
 });
 
-function demoConsultas() {
-  return `
-    <div class="timeline-item">
-      <div class="tl-date">15 May 2025</div>
-      <div class="tl-content">
-        <div class="tl-title">CODE REGEN™ — Sesión 3</div>
-        <div class="tl-note">Paciente refiere mejora en niveles de energía. Ajuste en dosis.</div>
-      </div>
-      <span class="tag tag-cyan" style="font-size:9px;">Completado</span>
-    </div>
-    <div class="timeline-item">
-      <div class="tl-date">01 Abr 2025</div>
-      <div class="tl-content">
-        <div class="tl-title">CODE REGEN™ — Sesión 2</div>
-        <div class="tl-note">Evaluación de respuesta inicial. Labs dentro de rangos esperados.</div>
-      </div>
-      <span class="tag tag-cyan" style="font-size:9px;">Completado</span>
-    </div>
-    <div class="timeline-item">
-      <div class="tl-date">12 Mar 2025</div>
-      <div class="tl-content">
-        <div class="tl-title">CODE REGEN™ — Sesión 1</div>
-        <div class="tl-note">Primera aplicación. Sin eventos adversos.</div>
-      </div>
-      <span class="tag tag-cyan" style="font-size:9px;">Completado</span>
-    </div>
-    <div style="margin-top:8px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
-      Historial de ejemplo — no cargado desde Airtable.
-    </div>
-  `;
-}
-
 // ─── NOVA LABS ────────────────────────────────────────────────────
 var labsEstudiosActuales = [];
 var labsSubtabActual = 'Todos';
@@ -5830,30 +5788,6 @@ function renderLabsFiltrados() {
       ${e.archivos.length ? `<div style="margin-top:8px;"><a href="${e.archivos[0].url}" target="_blank" style="font-size:11px;color:var(--gold);">📎 Ver archivo adjunto</a></div>` : ''}
     </div>
   `).join('');
-}
-
-function demoLabs() {
-  return `
-    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-bottom:8px;">Fecha: 15 May 2025 — NOVA LABS™</div>
-    <table class="labs-table">
-      <thead><tr><th>Parámetro</th><th>Resultado</th><th>Referencia</th><th>Estado</th></tr></thead>
-      <tbody>
-        <tr><td>Glucosa en ayuno</td><td>98 mg/dL</td><td>70–100</td><td class="val-normal">Normal</td></tr>
-        <tr><td>HbA1c</td><td>5.6%</td><td>&lt;5.7%</td><td class="val-normal">Normal</td></tr>
-        <tr><td>Cortisol AM</td><td>22.4 µg/dL</td><td>6–23</td><td class="val-normal">Normal</td></tr>
-        <tr><td>IGF-1</td><td>89 ng/mL</td><td>115–307</td><td class="val-bajo">Bajo</td></tr>
-        <tr><td>Testosterona total</td><td>412 ng/dL</td><td>300–1000</td><td class="val-normal">Normal</td></tr>
-        <tr><td>Vitamina D3</td><td>18 ng/mL</td><td>30–80</td><td class="val-bajo">Bajo</td></tr>
-        <tr><td>PCR ultrasensible</td><td>0.4 mg/L</td><td>&lt;1.0</td><td class="val-normal">Normal</td></tr>
-        <tr><td>Ferritina</td><td>8 µg/L</td><td>12–300</td><td class="val-bajo">Bajo</td></tr>
-        <tr><td>TSH</td><td>2.1 mUI/L</td><td>0.4–4.0</td><td class="val-normal">Normal</td></tr>
-        <tr><td>Telómero relativo</td><td>0.82 T/S</td><td>&gt;1.0</td><td class="val-bajo">Reducido</td></tr>
-      </tbody>
-    </table>
-    <div style="margin-top:8px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
-      Laboratorios de ejemplo — no cargados desde Airtable NOVA LABS.
-    </div>
-  `;
 }
 
 // ─── GUARDAR CONSULTA ─────────────────────────────────────────────
