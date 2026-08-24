@@ -155,6 +155,14 @@ muestra ni escribe contenido que no haya puesto un médico. Sin excepciones.
   defecto, nunca contenido de ejemplo — ni siquiera con un disclaimer chico al pie.
   Un disclaimer no anula el dato: un médico que escanea rápido lee el dato, no la
   letra pequeña.
+- **Consecuencia operativa, sin ambigüedad:** ante un fallo de lectura (OCR que no
+  extrae un dato, un campo que el médico no dictó, cualquier extracción incompleta),
+  el campo queda **vacío** más un aviso explícito de que falta y hay que capturarlo a
+  mano. Nunca un valor plausible — ni la fecha de hoy, ni una fecha calculada desde
+  una edad, ni un código inferido, ni el texto de "todo salió normal" reciclado para
+  decir en realidad "no se leyó nada". Un campo vacío con aviso es honesto; un valor
+  plausible sin aviso es indistinguible de un dato real y contamina el expediente en
+  silencio.
 - Esto cubre tres formas concretas en que se ha colado antes: un `catch` que cae a
   datos demo/mock/fabricados en vez de mostrar el fallo; un valor por defecto en un
   campo clínico (especialmente **rango de referencia y unidad en laboratorios** — un
