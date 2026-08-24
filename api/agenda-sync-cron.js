@@ -1,6 +1,15 @@
 // api/agenda-sync-cron.js
 // Sincroniza Google Calendar del médico con tabla AGENDA cada hora
 // Se ejecuta automáticamente vía Vercel Crons
+//
+// ⚠️ MÓDULO NO FUNCIONAL (mismo diagnóstico que api/agenda.js, 2026-08-24):
+// la tabla AGENDA (tbl8s038fJ3qRFKD6) es el esqueleto default de Airtable,
+// sin los campos que este archivo espera (Médico, Fecha, etc.). Este cron
+// SIGUE registrado en vercel.json ("0 * * * *", cada hora) y por lo tanto
+// sigue corriendo en producción contra una tabla que no tiene forma de
+// aceptar sus escrituras — falla en silencio cada hora, nadie lo revisa.
+// No reparar sin antes leer el diagnóstico completo de api/agenda.js
+// (orden de reconstrucción en memoria de proyecto).
 
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
 const AGENDA_TABLE_ID = 'tbl8s038fJ3qRFKD6';

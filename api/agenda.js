@@ -1,6 +1,26 @@
 // api/agenda.js
 // Backend completo para módulo Agenda - Desacoplado del portal, capacitaciones, etc
 // Table ID Airtable: tbl8s038fJ3qRFKD6
+//
+// ⚠️ MÓDULO NO FUNCIONAL (diagnosticado 2026-08-24, sin reparar a propósito
+// — ver memoria de proyecto). Tres fallas independientes, cualquiera basta
+// para tumbarlo:
+//  1. La tabla AGENDA (tbl8s038fJ3qRFKD6) en Airtable es el esqueleto
+//     default sin terminar (Name/Notes/Assignee/Status/Attachments) — no
+//     tiene NINGUNO de los 11 campos que este archivo lee o escribe
+//     (Médico, Paciente, Fecha, Hora_inicio, Hora_fin, Duración_minutos,
+//     Motivo, Notas, Estatus, Notificar_SMS, Notificar_Email).
+//  2. El frontend (agenda/js/agenda-app.js) solo ejecuta listarCitas() al
+//     cargar — "crear" y "editar" son botones con alert('Función en
+//     desarrollo...'), nunca llaman a este endpoint.
+//  3. No existe ningún puente NOVA↔Agenda: ni api/nova.js ni
+//     api/nova-asistente-clinico.js referencian este archivo o
+//     /api/agenda — pese a que el alert de "crear" le dice al médico
+//     "Usa NOVA para crear citas".
+// El gate de autenticación (verificarToken/tokenDesdeRequest, abajo) SÍ es
+// real y SÍ se probó en producción — pero protege una funcionalidad que
+// todavía no existe de verdad. No reconstruir sin antes leer el
+// diagnóstico completo (orden de reconstrucción en memoria de proyecto).
 
 import { verificarToken, tokenDesdeRequest } from '../lib/auth.js';
 
