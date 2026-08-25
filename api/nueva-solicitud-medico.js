@@ -9,6 +9,7 @@
 // acotados — no expone lectura ni el secreto de alertas.
 
 const { sendTelegramMessage } = require('../lib/telegram');
+const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
 const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';
@@ -30,6 +31,11 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // CONGELAMIENTO 2026-08-24 (instrucción legal): registro de médicos — el
+  // endpoint compartido por unete.html y code-cells-network/index.html. Ver
+  // lib/congelamientoDatosPersonales.js.
+  if (CONGELADO) return respuestaCongelada(res);
 
   try {
     const { nombre, especialidad, cedula, ciudad, whatsapp, email, recordId, codigoCortesia } = req.body;

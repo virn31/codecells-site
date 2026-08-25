@@ -6,6 +6,7 @@
 // sobre sí mismo.
 
 const { MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
+const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
 const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';
@@ -23,6 +24,13 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // CONGELAMIENTO 2026-08-24 (instrucción legal): preconsulta de
+  // autorregistro (PACIENTES + HISTORIA). Defensa en profundidad — el flujo
+  // que la alimenta (autorregistro por regToken) ya está pausado desde
+  // antes, este endpoint queda cerrado también por si acaso. Ver
+  // lib/congelamientoDatosPersonales.js.
+  if (CONGELADO) return respuestaCongelada(res);
 
   try {
     const { codigoPaciente, ...datos } = req.body;

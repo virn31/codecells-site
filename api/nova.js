@@ -49,6 +49,7 @@ const { notaEdadSinFecha } = require('../lib/datosPacienteNuevo');
 // que otras acciones sí exigen — así que cualquiera con un pacienteCode
 // válido leía los labs de ese paciente sin sesión de ningún tipo.
 const { autorizarPaciente, ErrorAutorizacion, MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
+const { CONGELADO, MENSAJE_CONGELAMIENTO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
@@ -632,6 +633,8 @@ module.exports = async function handler(req, res) {
 
   // ─── CREAR LEAD (paciente o médico interesado) ────────────────────
   if (action === 'airtable_create_lead') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal). Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const sanitize = (s, max = 200) => typeof s === 'string' ? s.slice(0, max).replace(/[<>]/g, '') : '';
       const { nombre, telefono, motivo, canal, especialidad, ciudad, codigo } = req.body;
@@ -675,6 +678,9 @@ module.exports = async function handler(req, res) {
 
   // ─── ASIGNAR CÓDIGO PROMOCIONAL (10 códigos, un solo uso, no transferibles) ─
   if (action === 'asignar_codigo_promocional') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): captura Nombre/WhatsApp
+    // del destinatario. Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const sanitize = (s, max = 200) => typeof s === 'string' ? s.slice(0, max).replace(/[<>]/g, '') : '';
       const { nombre, whatsapp } = req.body;
@@ -1130,6 +1136,10 @@ module.exports = async function handler(req, res) {
   // médico no ha conectado su Google Calendar, responde ok:false sin generar
   // error — es una comodidad opcional, nunca bloquea el flujo de la consulta.
   if (action === 'medico_crear_evento_calendario') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): escribe nombre del
+    // paciente + motivo en Google Calendar. Ver lib/congelamientoDatosPersonales.js.
+    // status 200/ok:false, mismo estilo que el resto de esta acción (p.ej. 'sin_conectar').
+    if (CONGELADO) return res.status(200).json({ ok: false, motivo: 'congelamiento_datos_personales_2026-08-24', error: MENSAJE_CONGELAMIENTO });
     try {
       const { medicoCode, pacienteNombre, fecha, hora, motivo } = req.body;
       if (!medicoCode || !/^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode)) return res.status(400).json({ ok: false, error: 'Código de médico inválido.' });
@@ -1171,6 +1181,9 @@ module.exports = async function handler(req, res) {
   }
 
   if (action === 'medico_guardar_labs_rapidos') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): escritura de laboratorios
+    // (NOVA LABS / LAB_VALORES). Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba. Esta acción
       // ESCRIBE resultados de laboratorio; sin este gate, el mismo código
@@ -1282,6 +1295,9 @@ module.exports = async function handler(req, res) {
   // paciente sube un estudio desde mi-nivel.html. Corre síncrono (a diferencia
   // del flujo de paciente) para que el médico vea de inmediato qué se extrajo.
   if (action === 'medico_subir_estudio') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): escritura de laboratorios
+    // (NOVA LABS / LAB_VALORES). Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba. Esta acción
       // ni siquiera pedía un código de médico; ESCRIBE un estudio completo
@@ -1475,6 +1491,9 @@ module.exports = async function handler(req, res) {
   }
 
   if (action === 'kiosco_crear_paciente') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): creación de expediente
+    // (kiosco). Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const { staffCodigo, regToken, nombreCompleto, edad, sexo, telefono } = req.body;
       if (!nombreCompleto || typeof nombreCompleto !== 'string' || !nombreCompleto.trim()) return res.status(400).json({ error: 'Falta el nombre del paciente.' });
@@ -1552,6 +1571,9 @@ module.exports = async function handler(req, res) {
   // Lo llena el personal (asistente/médico) en el tablet del consultorio.
   // Requiere que la sesión ya haya verificado un código de personal válido.
   if (action === 'kiosco_guardar_signos') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): escritura al expediente
+    // (signos vitales, kiosco). Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const { pacienteRecordId, staffCodigo, peso, talla, presion, temperatura, frecuenciaCardiaca, frecuenciaRespiratoria } = req.body;
       if (!pacienteRecordId) return res.status(400).json({ error: 'Falta pacienteRecordId.' });
@@ -1594,6 +1616,9 @@ module.exports = async function handler(req, res) {
   // escribió, sin que NOVA interprete ni reclasifique nada aquí (eso puede
   // pasar después, vía interpretar_perfil_clinico, cuando el médico revise).
   if (action === 'kiosco_guardar_historia') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): escritura a HISTORIA
+    // CLÍNICA (kiosco). Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const { pacienteRecordId, pacienteCodigo, staffCodigo, respuestas } = req.body;
       if (!pacienteRecordId || !pacienteCodigo) return res.status(400).json({ error: 'Falta información del paciente.' });
@@ -1645,6 +1670,11 @@ module.exports = async function handler(req, res) {
   }
 
   if (action === 'generar_plan_semanal') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): guarda el plan generado
+    // en el expediente del paciente. Generación y guardado no están
+    // separados en este endpoint, así que se congela completo. Ver
+    // lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const { pacienteRecordId, medicoCode, peso: pesoReq, talla: tallaReq, edad: edadReq, sexo: sexoReq, factorActividad, objetivo, preferencias, dias, objetivosSemana, tipoDieta, planNutricional, ayunoIntermitente } = req.body;
       if (!pacienteRecordId) return res.status(400).json({ error: 'Falta pacienteRecordId.' });
@@ -2021,6 +2051,9 @@ module.exports = async function handler(req, res) {
   // deja el expediente listo para que el siguiente generar_plan_semanal
   // ya lo use automáticamente (no hace falta volver a mandar peso/talla).
   if (action === 'actualizar_seguimiento_paciente') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): escritura al expediente
+    // (peso, historial de peso). Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const { pacienteRecordId, pesoNuevo, nota } = req.body;
       if (!pacienteRecordId || !pesoNuevo) return res.status(400).json({ error: 'Faltan pacienteRecordId o pesoNuevo.' });
@@ -2259,6 +2292,10 @@ module.exports = async function handler(req, res) {
   // que el médico guarda una consulta — nunca antes de que la revise.
   // Solo AGREGA a "Patologías activas", nunca quita nada en automático.
   if (action === 'interpretar_perfil_clinico') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): escribe patologías,
+    // severidad ERC, alergias y notas al expediente del paciente. Ver
+    // lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     try {
       const { pacienteRecordId, diagnostico, motivoConsulta, planTerapeutico } = req.body;
       if (!pacienteRecordId || typeof pacienteRecordId !== 'string') {
@@ -2791,6 +2828,10 @@ module.exports = async function handler(req, res) {
         ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'autorizar_invitacion_dzw')
         : null;
       if (toolAutorizarDZW && typeof toolAutorizarDZW.input?.nombre_completo === 'string') {
+        // CONGELAMIENTO 2026-08-24 (instrucción legal): crea invitación DZW
+        // (Nombre/WhatsApp) en `temp`. Responde como NOVA para que se vea
+        // en el chat. Ver lib/congelamientoDatosPersonales.js.
+        if (CONGELADO) return res.status(200).json({ content: [{ type: 'text', text: MENSAJE_CONGELAMIENTO }] });
         try {
           const datos = toolAutorizarDZW.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -2840,6 +2881,10 @@ module.exports = async function handler(req, res) {
         ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'generar_invitacion_medico')
         : null;
       if (toolInvitar && typeof toolInvitar.input?.nombre_completo === 'string') {
+        // CONGELAMIENTO 2026-08-24 (instrucción legal): crea registro en
+        // SOLICITUDES_MEDICO — tercer canal de registro de médico (además de
+        // unete.html y code-cells-network). Ver lib/congelamientoDatosPersonales.js.
+        if (CONGELADO) return res.status(200).json({ content: [{ type: 'text', text: MENSAJE_CONGELAMIENTO }] });
         try {
           const datos = toolInvitar.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -2881,6 +2926,10 @@ module.exports = async function handler(req, res) {
         ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'crear_paciente_dictado')
         : null;
       if (toolAlta && typeof toolAlta.input?.nombre_completo === 'string') {
+        // CONGELAMIENTO 2026-08-24 (instrucción legal): alta de paciente por
+        // dictado de NOVA (PACIENTES + HISTORIA). Ver
+        // lib/congelamientoDatosPersonales.js.
+        if (CONGELADO) return res.status(200).json({ content: [{ type: 'text', text: MENSAJE_CONGELAMIENTO }] });
         try {
           const datos = toolAlta.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -3185,6 +3234,13 @@ function buildHerramientaSeriesHistoricasLab() {
 // respondió solo en texto sin usar ninguna herramienta pese a que el
 // dictado claramente traía varias fechas).
 async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
+  // CONGELAMIENTO 2026-08-24 (instrucción legal): backfill de laboratorio
+  // por dictado (NOVA LABS / LAB_VALORES), escribe directo sin esperar
+  // "Guardar". Único choke point para ambos call sites (tool normal y el
+  // forzado por detección de fechas). Ver lib/congelamientoDatosPersonales.js.
+  if (CONGELADO) {
+    return { content: [{ type: 'text', text: MENSAJE_CONGELAMIENTO }] };
+  }
   if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
     return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tengo un paciente seleccionado en el portal para guardar esto — abre su expediente primero y dicta de nuevo.` }] };
   }
@@ -3613,6 +3669,17 @@ async function enviarAlertaMedico({ medicoAsignadoId, mensaje, pacienteRecordId,
 
 // ─── EJECUCIÓN DE ACCIONES (Airtable) ──────────────────────────────
 async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, esVipReal, pacienteCode, ultimoMensajePaciente }) {
+  // CONGELAMIENTO 2026-08-24 (instrucción legal): efectos secundarios
+  // silenciosos de cada turno de chat paciente/VIP — SOLICITUDES_CITA,
+  // RECORDATORIOS, REFERIDOS_VIP (nombre+teléfono de un tercero), Memoria
+  // NOVA en PACIENTES, y el log de NOVA_CONVERSACIONES. Se omiten todas
+  // (no se toca Airtable) sin afectar la respuesta al paciente — mismo
+  // comportamiento que ya tenía esta función ante un fallo (best-effort,
+  // invisible al usuario). Ver lib/congelamientoDatosPersonales.js.
+  if (CONGELADO) {
+    console.error('[nova] ejecutarAccionesPaciente omitida por congelamiento de datos personales (2026-08-24).');
+    return;
+  }
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
   const headers = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
   const tareas = [];

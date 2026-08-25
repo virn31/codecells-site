@@ -10,6 +10,7 @@
 
 const { sendTelegramMessage } = require('../lib/telegram');
 const { generarCodigoUnico } = require('../lib/codigos');
+const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 const BASE_ID = 'app6jyD9pDlTLpknA';
 const TBL_PACIENTES_VIP = 'pacientes_vip'; // alias whitelisteado en api/airtable.js
@@ -77,6 +78,11 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // CONGELAMIENTO 2026-08-24 (instrucción legal): activación pública de
+  // cuenta VIP (PACIENTES_VIP) — captura Nombre/WhatsApp/Email/scores. Ver
+  // lib/congelamientoDatosPersonales.js.
+  if (CONGELADO) return respuestaCongelada(res);
 
   try {
     const {

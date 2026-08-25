@@ -13,6 +13,7 @@ const { sendTelegramMessage, sendTelegramMessageChunked, answerCallbackQuery, ed
 const { generarPlanNutricional } = require('../lib/nutricion');
 const { generarToken } = require('../lib/auth');
 const { generarCodigoPorIniciales } = require('../lib/codigos');
+const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -428,6 +429,17 @@ async function manejarCallbackQuery(callbackQuery, res) {
       });
       await answerCallbackQuery(callbackQuery.id, 'Solicitud rechazada.');
       await editarMensaje(chatId, messageId, textoOriginal + '\n\n❌ RECHAZADA');
+      return res.status(200).json({ ok: true });
+    }
+
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): esta rama crea el
+    // registro nuevo en MÉDICOS (última etapa del pipeline de registro de
+    // médicos, después de unete.html/code-cells-network → nueva-solicitud-
+    // medico.js). "Rechazar" no captura datos nuevos — se deja funcionando.
+    // Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) {
+      await answerCallbackQuery(callbackQuery.id, 'Registro de médicos pausado temporalmente (actualización del aviso de privacidad).');
+      await editarMensaje(chatId, messageId, textoOriginal + '\n\n⏸️ Pausado — registro de médicos nuevos suspendido temporalmente por actualización del aviso de privacidad. Esta solicitud sigue pendiente.');
       return res.status(200).json({ ok: true });
     }
 

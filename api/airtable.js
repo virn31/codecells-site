@@ -21,6 +21,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 // ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
+const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 const BASE_ID = 'app6jyD9pDlTLpknA';
 
@@ -338,6 +339,10 @@ module.exports = async (req, res) => {
     req.query.accion === 'registrar';
 
   if (esRegistroPacientePublico) {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): formulario de contacto
+    // del directorio — el que estampa versión de aviso de privacidad. Se
+    // rechaza antes de tocar Airtable. Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
     const b = req.body || {};
     const nombre = String(b.nombre || '').trim().slice(0, 120);
     const telefono = String(b.telefono || '').trim().slice(0, 30);
@@ -1137,6 +1142,15 @@ module.exports = async (req, res) => {
   ) {
     return res.status(403).json({ error: 'Paciente no disponible' });
   }
+
+  // CONGELAMIENTO 2026-08-24 (instrucción legal): cubre TODA escritura que
+  // llega hasta aquí — directorio_medico (perfil de médico), pacientes,
+  // historia/consultas/labs, paciente/vip (auto-servicio), y también el
+  // POST público a `temp` (esCreacionInvitacionPublica) y el PATCH pre-auth
+  // (esEscrituraPreAuth), que no tienen bloque propio y caen aquí. La
+  // lectura (GET) sigue funcionando sin cambios. Ver
+  // lib/congelamientoDatosPersonales.js.
+  if (CONGELADO && req.method !== 'GET') return respuestaCongelada(res);
 
   // ── Reenvío real a Airtable ──
   try {
