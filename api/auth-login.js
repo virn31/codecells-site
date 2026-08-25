@@ -40,6 +40,15 @@ module.exports = async (req, res) => {
     const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
     const data = await r.json();
 
+    // Un fallo de Airtable (429 por cuota agotada, 5xx, etc.) NUNCA debe
+    // leerse como "código no encontrado" — data.records viene undefined en
+    // ambos casos, y antes de este check un 429 cola-abajo se disfrazaba de
+    // "código inexistente" (CLAUDE.md §6/§7: un fallo debe verse como fallo).
+    if (!r.ok) {
+      console.error('[auth-login] Airtable no-ok verificando código:', r.status, JSON.stringify(data));
+      return res.status(503).json({ error: 'No se pudo verificar tu código en este momento. Intenta de nuevo en unos minutos.' });
+    }
+
     // El cliente ya validó el FORMATO antes de llegar aquí (regex propia de
     // cada pantalla) — si llegamos a este punto y Airtable no encontró nada,
     // no es un problema de formato, es que ese código exacto no existe (o se
