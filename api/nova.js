@@ -314,6 +314,199 @@ const TBL_RECORDATORIOS      = 'tblw4tiZhPMbFhB8w';
 const TBL_SOLICITUDES_CITA   = 'tblIj7vRoMhLg9CsL';
 const TBL_REFERIDOS_VIP      = 'tblmPWoSdeSwfLJ6T';
 
+// ─── LEADS: única lógica de escritura a Airtable ──────────────────────────
+// Entidad separada de PACIENTES a propósito — un lead no es un expediente
+// clínico. Reemplaza a la vieja acción airtable_create_lead, que escribía
+// leads comerciales directo en PACIENTES con Status='Lead' (eliminada).
+const ORIGENES_LEAD_VALIDOS = ['Test biológico', 'Directorio', 'Otro'];
+const TBL_LEADS = 'tblfX4f6Bq6OXsvs2';
+// Contador de repeticiones del test — campo "Veces que hizo el test" (Number,
+// entero) en LEADS.
+const CAMPO_CONTADOR_TEST = 'Veces que hizo el test';
+
+// Versión del aviso de privacidad vigente (cubre /directorio y leads del
+// test). Debe coincidir siempre con el literal publicado en
+// aviso-privacidad.html — hoy 'v1.0', sin sufijo de jurisdicción.
+const AVISO_PRIVACIDAD_VERSION = 'v1.0';
+
+// Único punto de validación de idioma del cliente para el campo Idioma de
+// LEADS. Cualquier valor fuera de esta lista cerrada cae a 'es'; nunca se
+// acepta prosa.
+const IDIOMAS_VALIDOS = ['es', 'en', 'pt'];
+function idiomaValido(idioma) {
+  return IDIOMAS_VALIDOS.includes(idioma) ? idioma : 'es';
+}
+
+// ─── Comparación de nombres (dedup de leads por teléfono+nombre) ─────────
+// Umbral: ≥2 tokens significativos en común (nombre + apellido); si el más
+// corto tiene <2 significativos, exige que todos coincidan. Nombres que
+// comparten un solo apellido NO coinciden.
+const CONECTORES_NOMBRE = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'Y', 'E', 'DA', 'DAS', 'DO', 'DOS', 'VON', 'VAN']);
+
+function normalizarNombre(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function tokensSignificativosNombre(tokens) {
+  return tokens.filter(t => t.length >= 2 && !CONECTORES_NOMBRE.has(t));
+}
+
+function compararNombres(registrado, documento) {
+  const sigReg = tokensSignificativosNombre(normalizarNombre(registrado));
+  const sigDoc = tokensSignificativosNombre(normalizarNombre(documento));
+  const setDoc = new Set(sigDoc);
+  const comunes = [...new Set(sigReg)].filter(t => setDoc.has(t));
+  const minSig = Math.min(sigReg.length, sigDoc.length);
+  const requeridos = minSig >= 2 ? 2 : minSig;
+  const coincide = minSig > 0 && comunes.length >= requeridos;
+  return { coincide, comunes, sigReg, sigDoc };
+}
+
+// Búsqueda por teléfono, EXACTA (filterByFormula, no difusa — CLAUDE.md §8: el
+// matching difuso nunca sirve para verificar existencia/identidad). Sin
+// normalizar el teléfono: se compara el mismo string ya recortado que se usa
+// al guardar, no se adivina formato.
+async function buscarLeadsPorTelefono(whatsapp) {
+  const esc = (v) => String(v || '').replace(/"/g, '\\"');
+  const params = new URLSearchParams();
+  params.set('filterByFormula', `{WhatsApp}="${esc(whatsapp)}"`);
+  params.set('maxRecords', '20');
+  params.append('fields[]', 'Nombre');
+  params.append('fields[]', CAMPO_CONTADOR_TEST);
+  const res = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_LEADS}?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` },
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    console.error('[nova] buscarLeadsPorTelefono error:', JSON.stringify(data));
+    throw new Error('No se pudo consultar leads existentes.');
+  }
+  return data.records || [];
+}
+
+async function ejecutarRegistrarLead({ nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento, idioma, requiereConsentimiento = false, resolucion }) {
+  if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
+    return { ok: false, status: 400, error: 'Falta el nombre.' };
+  }
+  if (!whatsapp || typeof whatsapp !== 'string' || !whatsapp.trim()) {
+    return { ok: false, status: 400, error: 'Falta el WhatsApp.' };
+  }
+  // El formulario del test (requiereConsentimiento=true) exige el checkbox
+  // marcado. Un llamador futuro sin checkbox posible (ej. chat) debe crear el
+  // registro igual, solo que con Consentimiento=false — no implementado aquí.
+  if (requiereConsentimiento && consentimiento !== true) {
+    return { ok: false, status: 400, error: 'Se requiere aceptar el aviso de privacidad para continuar.' };
+  }
+
+  const nombreTrim = nombre.trim();
+  const whatsappTrim = whatsapp.trim();
+
+  // Deduplicación: mismo teléfono no implica misma persona (un teléfono puede
+  // ser de una familia entera) — solo teléfono + nombre que compararNombres()
+  // reconoce como el mismo cuenta como "puede ser la misma". En ese caso NO
+  // se escribe hasta que quien llama mande `resolucion`.
+  let existentesMismoTelefono;
+  try {
+    existentesMismoTelefono = await buscarLeadsPorTelefono(whatsappTrim);
+  } catch (err) {
+    return { ok: false, status: 502, error: 'No se pudo verificar si ya existe un registro con este teléfono.' };
+  }
+
+  const coincidencia = existentesMismoTelefono.find(rec =>
+    compararNombres((rec.fields || {})['Nombre'] || '', nombreTrim).coincide
+  );
+
+  if (coincidencia && resolucion !== 'misma_persona' && resolucion !== 'familiar_nuevo') {
+    // Ambiguo: mismo teléfono Y nombre que ya coincide con alguien registrado
+    // antes. Puede ser la misma persona repitiendo el test, o un familiar con
+    // el mismo nombre. No se decide por coincidencia de texto — se detiene y
+    // se devuelve para que se pregunte.
+    return {
+      ok: false, status: 409, ambiguo: true,
+      error: 'Ya existe un registro con este teléfono y un nombre que coincide.',
+      existente: { id: coincidencia.id, nombre: (coincidencia.fields || {})['Nombre'] || '' },
+    };
+  }
+
+  if (coincidencia && resolucion === 'misma_persona') {
+    // Actualiza el registro existente — no crea uno nuevo. El contador es
+    // señal de interés repetido, no basura: cuenta veces, no sustituye nada.
+    const actual = (coincidencia.fields || {})[CAMPO_CONTADOR_TEST];
+    const nuevoContador = (typeof actual === 'number' && !Number.isNaN(actual) ? actual : 1) + 1;
+    const patchRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_LEADS}/${coincidencia.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ typecast: true, fields: { [CAMPO_CONTADOR_TEST]: nuevoContador } }),
+    });
+    const patchData = await patchRes.json();
+    if (!patchRes.ok) {
+      console.error('[nova] registrar_lead error actualizando contador:', JSON.stringify(patchData));
+      return { ok: false, status: 502, error: 'No se pudo actualizar el registro existente.' };
+    }
+    return { ok: true, status: 200, id: coincidencia.id, actualizado: true, vecesTotal: nuevoContador };
+  }
+
+  // Registro nuevo: teléfono no existía, o existía pero con un nombre
+  // distinto (familiar), o resolucion==='familiar_nuevo' confirmado.
+  const origenFinal = ORIGENES_LEAD_VALIDOS.includes(origen) ? origen : 'Otro';
+  // Nunca por default en true. Solo es true cuando quien llama lo manda
+  // explícitamente así — hoy, únicamente el formulario del test, que ya lo
+  // gatea con su propio checkbox antes de mandar la petición. Sin eso, false
+  // es el valor correcto: vacío es información válida, un consentimiento
+  // inventado no lo es.
+  const consentimientoFinal = consentimiento === true;
+
+  const fields = {
+    'Nombre': nombreTrim.slice(0, 200),
+    'WhatsApp': whatsappTrim.slice(0, 30),
+    'Origen': origenFinal,
+    'Consentimiento': consentimientoFinal,
+    'Versión del aviso': AVISO_PRIVACIDAD_VERSION,
+    'Estado': 'Nuevo',
+    'Fecha de creación': new Date().toISOString(),
+    'Idioma': idiomaValido(idioma),
+    [CAMPO_CONTADOR_TEST]: 1,
+  };
+  // Un timestamp de consentimiento sin consentimiento real no es constancia
+  // de nada — se omite el campo por completo (vacío), nunca una fecha falsa.
+  if (consentimientoFinal) fields['Fecha de consentimiento'] = new Date().toISOString();
+  if (typeof email === 'string' && email.trim()) fields['Email'] = email.trim().slice(0, 200);
+  if (typeof sistemaPrioritario === 'string' && sistemaPrioritario.trim()) {
+    fields['Sistema prioritario'] = sistemaPrioritario.trim().slice(0, 200);
+  }
+  // Los 5 scores, sin omitir ninguno — un bug histórico en el flujo viejo
+  // perdía BALANCE en silencio al construir este mismo tipo de objeto a mano.
+  if (scores && typeof scores === 'object') {
+    const MAPA_SCORES = {
+      energy: 'Score ENERGY', repair: 'Score REPAIR', balance: 'Score BALANCE',
+      neuro: 'Score NEURO', regen: 'Score REGEN',
+    };
+    for (const [clave, campo] of Object.entries(MAPA_SCORES)) {
+      if (typeof scores[clave] === 'number' && !Number.isNaN(scores[clave])) {
+        fields[campo] = Math.round(scores[clave]);
+      }
+    }
+  }
+
+  const createRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_LEADS}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ typecast: true, records: [{ fields }] }),
+  });
+  const createData = await createRes.json();
+  if (!createRes.ok || !createData.records?.[0]) {
+    console.error('[nova] registrar_lead error creando registro:', JSON.stringify(createData));
+    return { ok: false, status: 502, error: 'No se pudo guardar el registro. Intenta de nuevo.' };
+  }
+
+  return { ok: true, status: 200, id: createData.records[0].id };
+}
+
 function isAllowedOrigin(origin) {
   if (!origin) return false;
   return ALLOWED_ORIGINS.some(o => origin.startsWith(o));
@@ -631,48 +824,26 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // ─── CREAR LEAD (paciente o médico interesado) ────────────────────
-  if (action === 'airtable_create_lead') {
+  // ─── REGISTRAR LEAD (tabla LEADS, separada de PACIENTES) ──────────
+  if (action === 'registrar_lead') {
     // CONGELAMIENTO 2026-08-24 (instrucción legal). Ver lib/congelamientoDatosPersonales.js.
     if (CONGELADO) return respuestaCongelada(res);
     try {
-      const sanitize = (s, max = 200) => typeof s === 'string' ? s.slice(0, max).replace(/[<>]/g, '') : '';
-      const { nombre, telefono, motivo, canal, especialidad, ciudad, codigo } = req.body;
-
-      const notasParts = [];
-      if (especialidad) notasParts.push(`Especialidad: ${sanitize(especialidad, 150)}`);
-      if (ciudad)       notasParts.push(`Ciudad: ${sanitize(ciudad, 150)}`);
-      if (motivo)       notasParts.push(`Interés: ${sanitize(motivo, 500)}`);
-      if (codigo)       notasParts.push(`Código promocional asignado: ${sanitize(codigo, 40)}`);
-      const notas = notasParts.length ? notasParts.join(' | ') : sanitize(motivo, 500);
-
-      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const atRes = await fetch(`https://api.airtable.com/v0/app6jyD9pDlTLpknA/tblyUcCfueFLJuvIv`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${AIRTABLE_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          typecast: true,
-          fields: {
-            'Nombre completo'   : sanitize(nombre),
-            'Teléfono WhatsApp' : sanitize(telefono, 20),
-            'Notas generales'   : notas,
-            'Status'            : 'Lead',
-            'Canal de entrada'  : sanitize(canal) || 'codecells.mx',
-            'Fecha de registro' : new Date().toISOString(),
-          },
-        }),
+      const { nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento, idioma, resolucion } = req.body || {};
+      const resultado = await ejecutarRegistrarLead({
+        nombre, whatsapp, email, origen, scores, sistemaPrioritario, consentimiento, idioma, resolucion,
+        requiereConsentimiento: true,
       });
-      if (!atRes.ok) {
-        console.error('[nova] create_lead Airtable error:', await atRes.text());
-        return res.status(502).json({ error: 'Error guardando el registro.' });
+      if (!resultado.ok) {
+        return res.status(resultado.status).json({
+          ok: false, error: resultado.error,
+          ...(resultado.ambiguo ? { ambiguo: true, existente: resultado.existente } : {}),
+        });
       }
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true, id: resultado.id });
     } catch (err) {
-      console.error('[nova] create_lead error:', err.message);
-      return res.status(500).json({ error: 'Error creando lead.' });
+      console.error('[nova] registrar_lead error:', err.message);
+      return res.status(500).json({ error: 'Error interno registrando el lead.' });
     }
   }
 
@@ -3393,6 +3564,7 @@ function buildHerramientaFichaConsulta() {
 // que 'diagnostico' nunca vuelva a autorizar inferir CIE-10) sin pasar por
 // todo el flujo de chat con Anthropic.
 module.exports.buildHerramientaFichaConsulta = buildHerramientaFichaConsulta;
+module.exports.compararNombres = compararNombres;
 
 // ─── HERRAMIENTA: ALTA DE PACIENTE NUEVO POR DICTADO ────────────────
 // Opcional (tool_choice auto) — distinta de rellenar_ficha_consulta: esa es
