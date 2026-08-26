@@ -908,19 +908,31 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // Único mapa de fundadores para las dos acciones de abajo — código de
+  // sesión real (nunca un nombre mandado por el cliente) como llave.
+  const FUNDADORES_CODIGO = {
+    'CCMED-VIRN01': { nombre: 'Dr. Víctor Iván Rodríguez Nava', otro: 'Dr. Juan Carlos Galván López' },
+    'CCMED-JCG01' : { nombre: 'Dr. Juan Carlos Galván López',   otro: 'Dr. Víctor Iván Rodríguez Nava' },
+  };
+
   // ─── GENERAR LOTE ADICIONAL DE CÓDIGOS (solo fundadores) ──────────
   // Deja registrado quién lo generó y para quién queda pendiente el aviso,
   // para que se le informe al otro fundador la próxima vez que NOVA lo
   // reconozca (aviso informativo dentro del chat, no restrictivo).
   if (action === 'generar_codigos_adicionales') {
+    // CONGELAMIENTO 2026-08-24 (instrucción legal): crea 10 registros
+    // nuevos en CODIGOS_PROMOCIONALES. Ver lib/congelamientoDatosPersonales.js.
+    if (CONGELADO) return respuestaCongelada(res);
+    // Auditoría de roles 2026-08-26: antes confiaba en `fundador` (un
+    // nombre de texto) mandado por el cliente, verificado solo contra un
+    // objeto hardcodeado en el propio código público — cualquiera que
+    // conociera (o adivinara) el nombre exacto podía mintar códigos sin
+    // ninguna sesión real. Ahora exige sesión real de médico fundador.
+    if (!sesion || sesion.tipo !== 'medico' || !FUNDADORES_CODIGO[sesion.codigo]) {
+      return res.status(401).json({ error: 'Sesión de médico fundador requerida.' });
+    }
     try {
-      const FUNDADORES_NOMBRE = {
-        'Dr. Víctor Iván Rodríguez Nava': 'Dr. Juan Carlos Galván López',
-        'Dr. Juan Carlos Galván López'  : 'Dr. Víctor Iván Rodríguez Nava',
-      };
-      const { fundador } = req.body;
-      const otro = FUNDADORES_NOMBRE[fundador];
-      if (!otro) return res.status(400).json({ error: 'Fundador no reconocido.' });
+      const { nombre: fundador, otro } = FUNDADORES_CODIGO[sesion.codigo];
 
       const cantidad = 10;
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -953,9 +965,16 @@ module.exports = async function handler(req, res) {
   // Al reconocer a un fundador, se consulta si el OTRO fundador generó
   // códigos adicionales desde la última vez, para mencionárselo en el chat.
   if (action === 'revisar_avisos_fundador') {
+    // Auditoría de roles 2026-08-26: mismo criterio que generar_codigos_
+    // adicionales — antes aceptaba cualquier string `fundador` del body sin
+    // verificar sesión. Es de solo lectura (no expone dato personal nuevo,
+    // por eso sin CONGELADO), pero igual exige sesión real de fundador para
+    // no revelar el estado interno de avisos a cualquiera.
+    if (!sesion || sesion.tipo !== 'medico' || !FUNDADORES_CODIGO[sesion.codigo]) {
+      return res.status(401).json({ error: 'Sesión de médico fundador requerida.' });
+    }
     try {
-      const { fundador } = req.body;
-      if (typeof fundador !== 'string') return res.status(400).json({ error: 'Falta fundador.' });
+      const fundador = FUNDADORES_CODIGO[sesion.codigo].nombre;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = 'app6jyD9pDlTLpknA';
@@ -2640,10 +2659,16 @@ module.exports = async function handler(req, res) {
     // cliente, sin médico real detrás, bastaba para entrar en modo médico
     // completo (todas las herramientas). Ahora exige la sesión firmada que
     // ya emite api/auth-login.js tras validar el código contra Airtable.
-    // esVIP/esPac quedan exactamente igual — fuera de alcance de este fix.
+    // esVIP/esPac ahora siguen el mismo patrón (auditoría de roles,
+    // 2026-08-26): antes solo exigían que pacienteCode/vipCode TUVIERAN el
+    // formato correcto — conocer un código real y existente (sin sesión,
+    // sin PIN) bastaba para obtener el chat completo de paciente. Si la
+    // sesión no coincide con ninguno de los tres tipos, cae a modo público
+    // (mismo comportamiento que ya tenía esMedico al fallar: nunca 401 aquí,
+    // solo se degradan las herramientas disponibles).
     const esMedico = !!(sesion && sesion.tipo === 'medico');
-    const esVIP    = typeof vipCode    === 'string' && /^DZW-[0-9]{8}$/.test(vipCode);
-    const esPac    = typeof pacienteCode === 'string' && /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode);
+    const esVIP    = !!(sesion && sesion.tipo === 'vip');
+    const esPac    = !!(sesion && sesion.tipo === 'paciente');
 
     if (esMedico) {
       // El código de médico viene de la sesión verificada, nunca del
@@ -2744,6 +2769,13 @@ module.exports = async function handler(req, res) {
       herramientaAutorizarDZW = buildHerramientaAutorizarDZW();
       herramientaSeriesLab = buildHerramientaSeriesHistoricasLab();
     } else if (esPac) {
+      // El código de paciente viene de la sesión verificada, nunca del
+      // pacienteCode que mande el cliente — mismo criterio que medicoCode
+      // arriba (auditoría de roles, 2026-08-26): antes, conocer un código
+      // CC-PAC- real y existente bastaba para operar el chat como ese
+      // paciente sin sesión ni PIN.
+      pacienteCode = sesion.codigo;
+
       // El nivel (VIP o no) y la memoria NUNCA se confían del cliente — se
       // consultan aquí contra Airtable, para que nadie pueda "volverse VIP"
       // con solo editar el request.
@@ -2788,6 +2820,26 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'Error consultando el expediente del paciente.' });
       }
     } else if (esVIP) {
+      // El código DZW viene de la sesión verificada, nunca del vipCode que
+      // mande el cliente — mismo criterio que medicoCode/pacienteCode arriba
+      // (auditoría de roles, 2026-08-26). Antes, un vipCode con formato
+      // válido (sin verificar contra Airtable) bastaba para entrar aquí.
+      vipCode = sesion.codigo;
+
+      // PENDIENTE (fuera de alcance de este fix, para quien diseñe el rol
+      // VIP): sesion.codigo aquí es el "Código DZW" de PACIENTES_VIP, no el
+      // "Código de paciente" (CC-PAC-) que usa el resto del modo paciente.
+      // No existe hoy un mapeo DZW→CC-PAC en este archivo — por eso esta
+      // rama sigue siendo solo un persona de demo/tour, sin herramientas ni
+      // datos reales, aunque la sesión sea legítima. Para dar a un VIP real
+      // el mismo chat con herramientas que un paciente normal, hay que:
+      // 1) buscar PACIENTES_VIP por "Código DZW"=sesion.codigo,
+      // 2) resolver el link "Paciente (expediente clínico)" a su registro
+      //    de PACIENTES, y 3) usar el "Código de paciente" (CC-PAC-) de ESE
+      // registro para reutilizar exactamente la rama esPac de arriba — no
+      // duplicar su lógica aquí. (Nota: paciente_comparativo_labs, líneas
+      // ~1010-1030, tiene este mismo mapeo sin resolver — mismo pendiente.)
+      //
       // Código maestro DZW de demo/tour — no está atado a un paciente real
       // en Airtable, así que aquí NO se activan herramientas (no hay dónde
       // escribir la solicitud de cita ni la memoria). Solo conversación.

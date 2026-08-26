@@ -1223,14 +1223,6 @@ async function cargarPrecarga() {
 }
 cargarPrecarga();
 
-// Rastrea si un fundador se verificó en esta conversación (escribió su código),
-// para poder atribuir correctamente los códigos de cortesía que pida.
-const FOUNDER_CODES = {
-  'CCMED-VIRN01': 'Dr. Víctor Iván Rodríguez Nava',
-  'CCMED-JCG01' : 'Dr. Juan Carlos Galván López',
-};
-let founderActivo = null;
-
 function initNovaSlide() {
   const input = document.getElementById('nova-slide-input');
   const send  = document.getElementById('nova-slide-send');
@@ -1283,13 +1275,6 @@ async function sendNovaSlide() {
   input.value = '';
   send.disabled = true;
   addNovaMsg('user', texto);
-
-  // Si lo que escribió es exactamente un código de fundador, lo registramos
-  // localmente (además de que NOVA lo valida por su cuenta en el prompt).
-  const eraFundadorAntes = !!founderActivo;
-  const posibleCodigo = texto.trim().toUpperCase();
-  if (FOUNDER_CODES[posibleCodigo]) founderActivo = FOUNDER_CODES[posibleCodigo];
-  const fundadorReciénVerificado = !eraFundadorAntes && !!founderActivo;
 
   novaSlideHistory.push({ role: 'user', content: texto });
   showNovaTyping();
@@ -1369,9 +1354,14 @@ TONO: Mayo Clinic + Apple + Mercedes-Benz. Elegante, cálido, breve. Máximo 3-4
     const marker = resp.match(/\[DATOS\]([\s\S]*?)\[\/DATOS\]/);
     resp = resp.replace(/\[DATOS\][\s\S]*?\[\/DATOS\]/, '').trim();
 
-    // Detectar el marcador [CORTESIA] — solo lo emite NOVA para un fundador
-    // ya verificado en esta misma conversación (ver founderActivo).
-    const pideCortesia = /\[CORTESIA\]/.test(resp);
+    // Auditoría de roles 2026-08-26: el flujo de cortesía/avisos de
+    // fundador (que dependía de founderActivo, detectado solo por texto
+    // sin sesión real) se retiró de este archivo — ver api/nova.js,
+    // generar_codigos_adicionales/revisar_avisos_fundador ahora exigen
+    // sesión real de médico fundador, que esta página nunca emite. El
+    // marcador [CORTESIA] se sigue quitando del texto visible por si el
+    // system prompt (sin tocar en este cambio) lo sigue emitiendo — ya no
+    // dispara ninguna acción.
     resp = resp.replace(/\[CORTESIA\]/g, '').trim();
 
     addNovaMsg('assistant', resp);
@@ -1384,12 +1374,6 @@ TONO: Mayo Clinic + Apple + Mercedes-Benz. Elegante, cálido, breve. Máximo 3-4
         finalizarCaptacion(captado);
       }
     }
-    if (pideCortesia && founderActivo) {
-      entregarCodigoCortesia();
-    }
-    if (fundadorReciénVerificado) {
-      revisarAvisosFundador();
-    }
   } catch (err) {
     console.error('[NOVA] fallo en el chat:', err);
     hideNovaTyping();
@@ -1400,117 +1384,6 @@ TONO: Mayo Clinic + Apple + Mercedes-Benz. Elegante, cálido, breve. Máximo 3-4
   } finally {
     send.disabled = false;
     input.focus();
-  }
-}
-
-// Entrega un código de cortesía + mensaje de WhatsApp listo para copiar,
-// solo invocable cuando un fundador ya verificado lo pide en el chat.
-async function entregarCodigoCortesia() {
-  showNovaTyping();
-  try {
-    const codRes = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'asignar_codigo_promocional',
-        nombre: `Cortesía de ${founderActivo}`,
-        whatsapp: '',
-      }),
-    });
-    const codData = await codRes.json().catch(() => ({}));
-    hideNovaTyping();
-
-    if (!codRes.ok || codData.agotado) {
-      addNovaMsg('assistant', 'Doctor, llegamos al código de cortesía número 10 — el lote actual se agotó. ¿Le gustaría que genere más?');
-      mostrarBotonesSiNo(
-        () => generarMasYEntregarCortesia(),
-        () => addNovaMsg('assistant', 'Entendido, doctor. Quedo a su disposición.')
-      );
-      return;
-    }
-
-    const mensaje =
-`🧬 Te comparto acceso exclusivo a CODE CELLS® — The Biological Network.
-
-Es una red médica de medicina regenerativa de alto nivel. Este es tu código de acceso personal, de un solo uso:
-
-${codData.codigo}
-
-Actívalo aquí: https://codecells.mx/code-cells-network/
-
-Nos vemos del otro lado.`;
-
-    addNovaMsg('assistant',
-      `Aquí tiene su código de cortesía: **${codData.codigo}**\n\nMensaje listo para copiar y enviar por WhatsApp:\n\n${mensaje}`);
-  } catch (err) {
-    hideNovaTyping();
-    console.error('[NOVA] error entregando código de cortesía:', err);
-    addNovaMsg('assistant', 'Tuve un problema generando el código. ¿Podría pedírmelo de nuevo?');
-  }
-}
-
-// Botones Sí/No embebidos en el chat (para decisiones que no dependen del LLM).
-function mostrarBotonesSiNo(onSi, onNo) {
-  const msgs = document.getElementById('nova-slide-msgs');
-  if (!msgs) return;
-  const div = document.createElement('div');
-  div.style.cssText = 'display:flex;gap:8px;justify-content:center;margin-top:4px;';
-  const btnSi = document.createElement('button');
-  btnSi.textContent = 'Sí, genera más';
-  btnSi.style.cssText = 'background:var(--c-energy);color:#06200F;border:none;border-radius:8px;padding:9px 16px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;';
-  const btnNo = document.createElement('button');
-  btnNo.textContent = 'No, gracias';
-  btnNo.style.cssText = 'background:transparent;color:var(--ink-muted);border:1px solid rgba(242,239,230,0.15);border-radius:8px;padding:9px 16px;font-family:var(--font-body);font-size:12px;cursor:pointer;';
-  btnSi.onclick = () => { div.remove(); onSi(); };
-  btnNo.onclick = () => { div.remove(); onNo(); };
-  div.appendChild(btnSi);
-  div.appendChild(btnNo);
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-// Genera un nuevo lote de 10 códigos y entrega el que se había pedido.
-async function generarMasYEntregarCortesia() {
-  showNovaTyping();
-  try {
-    const genRes = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'generar_codigos_adicionales', fundador: founderActivo }),
-    });
-    const genData = await genRes.json().catch(() => ({}));
-    hideNovaTyping();
-    if (!genRes.ok) {
-      addNovaMsg('assistant', 'Tuve un problema generando el nuevo lote. ¿Podría pedírmelo de nuevo en un momento?');
-      return;
-    }
-    addNovaMsg('assistant', `Listo, doctor — generé ${genData.cantidad} códigos nuevos. Le entrego el suyo:`);
-    entregarCodigoCortesia();
-  } catch (err) {
-    hideNovaTyping();
-    console.error('[NOVA] error generando lote adicional:', err);
-    addNovaMsg('assistant', 'Tuve un problema generando el nuevo lote.');
-  }
-}
-
-// Al reconocer a un fundador, revisa si el OTRO generó códigos desde la
-// última vez y se lo avisa dentro del chat (aviso informativo, no restrictivo).
-async function revisarAvisosFundador() {
-  if (!founderActivo) return;
-  try {
-    const res = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'revisar_avisos_fundador', fundador: founderActivo }),
-    });
-    const data = await res.json().catch(() => ({}));
-    const avisos = Array.isArray(data.avisos) ? data.avisos : [];
-    if (avisos.length > 0) {
-      const resumen = avisos.map(n => `• ${n.replace(/ — pendiente de avisar a .+$/, '')}`).join('\n');
-      addNovaMsg('assistant', `Por cierto, doctor — antes de continuar, le aviso:\n\n${resumen}`);
-    }
-  } catch (err) {
-    console.error('[NOVA] error revisando avisos de fundador:', err);
   }
 }
 
