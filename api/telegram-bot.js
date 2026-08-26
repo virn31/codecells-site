@@ -355,6 +355,12 @@ async function esDuplicado(chatId, updateId) {
  * el webhook de abajo sepa a qué paciente entregarle la respuesta.
  */
 async function crearHiloPacienteAlerta({ messageId, chatId, pacienteRecordId, preguntaPaciente }) {
+  // CONGELAMIENTO 2026-08-24 (instrucción legal): vincula el mensaje a un
+  // paciente identificado (Paciente + Pregunta del paciente) — se verifica
+  // aquí mismo, no solo en el llamador (hoy únicamente api/nova.js, ya
+  // congelado), para que esta escritura nunca dependa de que otro lugar
+  // recuerde congelarla primero. Ver lib/congelamientoDatosPersonales.js.
+  if (CONGELADO) return;
   await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HILOS_TABLE_ID}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
@@ -633,6 +639,16 @@ module.exports = async (req, res) => {
     if (message.reply_to_message) {
       const hilo = await buscarHiloPaciente(chatId, message.reply_to_message.message_id);
       if (hilo) {
+        // CONGELAMIENTO 2026-08-24 (instrucción legal): entregarRespuestaAlPaciente
+        // escribe contenido nuevo al expediente del paciente (Respuesta médico
+        // pendiente). Ver lib/congelamientoDatosPersonales.js.
+        if (CONGELADO) {
+          await sendTelegramMessage(
+            chatId,
+            'Estamos actualizando nuestro aviso de privacidad y políticas de datos. La entrega de respuestas al paciente no está disponible temporalmente.'
+          );
+          return res.status(200).json({ ok: true });
+        }
         const nombrePaciente = await entregarRespuestaAlPaciente(hilo, texto);
         await sendTelegramMessage(
           chatId,
@@ -647,6 +663,16 @@ module.exports = async (req, res) => {
     if (/^(s[ií]|confirmar|guardar|correcto|ok|dale)\.?!?$/i.test(texto)) {
       const pendiente = await obtenerPendiente(chatId);
       if (pendiente && pendiente.fields['Ficha JSON']) {
+        // CONGELAMIENTO 2026-08-24 (instrucción legal): guardarFichaEnExpediente
+        // escribe datos clínicos permanentes (CONSULTAS/LABS/HISTORIA/PACIENTES).
+        // Ver lib/congelamientoDatosPersonales.js.
+        if (CONGELADO) {
+          await sendTelegramMessage(
+            chatId,
+            'Estamos actualizando nuestro aviso de privacidad y políticas de datos. El registro de nueva información clínica no está disponible temporalmente. Tu dictado sigue pendiente de confirmar cuando se reactive.'
+          );
+          return res.status(200).json({ ok: true });
+        }
         try {
           const ficha = JSON.parse(pendiente.fields['Ficha JSON']);
           const pacienteRecord = await buscarPacientePorCodigo(pendiente.fields['Código de paciente']);
@@ -685,6 +711,17 @@ module.exports = async (req, res) => {
     }
 
     if (matchPaciente || esComandoConsulta || pendienteEsperando) {
+      // CONGELAMIENTO 2026-08-24 (instrucción legal): este flujo interpreta y
+      // guarda (vía guardarPendiente, aunque sea de forma pendiente de
+      // confirmar) datos clínicos de un paciente identificado. Ver
+      // lib/congelamientoDatosPersonales.js.
+      if (CONGELADO) {
+        await sendTelegramMessage(
+          chatId,
+          'Estamos actualizando nuestro aviso de privacidad y políticas de datos. El dictado de expediente no está disponible temporalmente.'
+        );
+        return res.status(200).json({ ok: true });
+      }
       const codigoPaciente = matchPaciente
         ? matchPaciente[0].toUpperCase()
         : pendienteEsperando
