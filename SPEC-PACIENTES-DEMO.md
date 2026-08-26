@@ -104,14 +104,29 @@ Recordatorio del bug recurrente: `ARRAYJOIN()` sobre un campo link devuelve el v
 primario, no el record ID. Para resolver el paciente destino usar record IDs crudos y
 `OR(RECORD_ID()="rec...", ...)`.
 
-### 4.3 Login — los códigos demo no emiten token de paciente
+### 4.3 Login — los códigos demo emiten un tipo de sesión distinto, nunca 'paciente'
 
-`api/auth-login.js` debe rechazar los códigos `CC-PAC-DEMO*` y `CC-PAC-9900*` en la ruta de
-paciente.
+**Actualizado 2026-08-26 — reemplaza la decisión original de este apartado.** El plan inicial
+era que `api/auth-login.js` rechazara `CC-PAC-DEMO*`/`CC-PAC-9900*` en la ruta de paciente. Se
+detectó como hallazgo pendiente que el rechazo nunca se implementó (`Es demo` no se consultaba
+en el login) y, al revisitarlo, se decidió NO rechazar: las demos necesitan mostrarse
+self-service, no solo por médico. En su lugar, `api/auth-login.js` emite un tipo de sesión
+`'demo'` (nunca `'paciente'`) cuando `Es demo`=true:
 
-Estos códigos van a aparecer en capturas de pantalla, videos de capacitación y presentaciones a
-médicos prospecto. Si `CC-PAC-DEMO04` emite un token de paciente válido de 24 horas, es una
-credencial publicada en una diapositiva.
+- TTL de 30 minutos, no 24 horas.
+- Solo lectura de su propio expediente — escritura 403 incondicional en cualquier tabla, sin
+  depender de `CONGELADO` y sin bypass (`api/airtable.js`, bloque `tipo === 'demo'`).
+- NOVA no construye herramientas de escritura para sesión demo ni persiste memoria/transcripción
+  (falla cerrado por default: `sesion.tipo === 'demo'` no coincide con ningún check `=== 'medico'
+  | 'paciente' | 'vip'` existente en `api/nova.js`).
+- Todo acceso demo queda marcado `Es demo`=true en `ACCESOS_EXPEDIENTE` (filtrable y excluible de
+  métricas).
+
+Sigue siendo cierto el motivo original: estos códigos aparecen en capturas y presentaciones, y un
+token de escritura de 24h ahí sería una credencial publicada. La mitigación ahora es TTL corto +
+solo-lectura estructural, no el rechazo del login.
+
+Ver `test/auth-login-demo.test.js` y `test/airtable-sesion-demo.test.js`.
 
 ---
 

@@ -15,7 +15,7 @@ const TABLAS = {
   vip:      { id: 'tblquF2fzFgUC5nll', campo: 'Código DZW' },
 };
 
-const HORAS_SESION = { medico: 6, paciente: 24, vip: 24 };
+const HORAS_SESION = { medico: 6, paciente: 24, vip: 24, demo: 0.5 };
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', 'https://codecells.mx');
@@ -70,11 +70,23 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'Esta cuenta VIP aún no ha sido activada.' });
     }
 
-    const token = generarToken({ tipo, codigo: codigo.trim(), horas: HORAS_SESION[tipo] });
+    // CLAUDE.md §5: los códigos demo (CC-PAC-DEMO*/9900*, campo `Es demo` en
+    // PACIENTES) no deben poder iniciar sesión CON LOS MISMOS PRIVILEGIOS que
+    // un paciente real — aparecen en capturas y presentaciones, y un token de
+    // 24h de escritura ahí es una credencial publicada. En vez de rechazar el
+    // login (eso rompería las demos que SÍ necesitan mostrarse), se emite un
+    // tipo de sesión distinto ('demo'): TTL corto y sin privilegios de
+    // escritura en ningún endpoint que revise `sesion.tipo` — nunca 'paciente'.
+    const esDemo = tipo === 'paciente' && registro.fields['Es demo'] === true;
+    const tipoSesion = esDemo ? 'demo' : tipo;
+    const horas = HORAS_SESION[tipoSesion];
+
+    const token = generarToken({ tipo: tipoSesion, codigo: codigo.trim(), horas });
     return res.status(200).json({
       ok: true,
       token,
-      horasValidez: HORAS_SESION[tipo],
+      tipo: tipoSesion,
+      horasValidez: horas,
       recordId: registro.id,
       fields: registro.fields,
     });

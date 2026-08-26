@@ -676,7 +676,7 @@ module.exports = async (req, res) => {
     }
 
     let codigoPaciente = String(req.query.codigoPaciente || '').trim();
-    if (sesion.tipo === 'paciente' || sesion.tipo === 'vip') {
+    if (sesion.tipo === 'paciente' || sesion.tipo === 'vip' || sesion.tipo === 'demo') {
       codigoPaciente = sesion.codigo; // no puede leer expediente ajeno
     }
     if (!codigoPaciente) {
@@ -1125,6 +1125,38 @@ module.exports = async (req, res) => {
           }
         }
       }
+    } else if (tipo === 'demo') {
+      // Sesión demo (api/auth-login.js: código CC-PAC-DEMO*/9900* con
+      // `Es demo`=true) — lectura de su propio expediente sí, exactamente
+      // como paciente; escritura NUNCA, sin excepción y sin depender de
+      // CONGELADO (esto no es el freeze legal, es permanente y estructural:
+      // aunque CONGELADO se levante, una sesión demo sigue sin poder
+      // escribir). El 403 se decide aquí, antes de tocar Airtable o el
+      // check de CONGELADO más abajo — no hay bypass posible cambiando
+      // `tabla` o `accion`, porque esta rama nunca llega al reenvío
+      // genérico en un método que no sea GET.
+      const tablasPermitidasDemo = ['pacientes', 'historia', 'consultas', 'labs', 'protocolos'];
+      if (!tablasPermitidasDemo.includes(tabla)) {
+        return res.status(403).json({ error: 'Tu sesión no tiene acceso a esta información.' });
+      }
+
+      if (req.method !== 'GET') {
+        await registrarAccesoExpediente({
+          pacienteCode: codigo,
+          codigoMedico: '(sesión demo)',
+          accion: 'Escritura',
+          resultado: 'Rechazado',
+          endpoint: `airtable:${tabla}:${req.method}`,
+          esDemo: true,
+        });
+        return res.status(403).json({ error: 'Las sesiones demo son de solo lectura.' });
+      }
+
+      const campoDuenio = CAMPO_DUENIO[tabla];
+      if (campoDuenio) {
+        req.query.filterByFormula = `{${campoDuenio}}="${escaparFormula(codigo)}"`;
+      }
+      logAccesoExpediente = { pacienteCode: codigo, codigoMedico: '(sesión demo)', accion: 'Lectura de expediente', endpoint: `airtable:${tabla}:GET`, esDemo: true };
     }
   }
 
