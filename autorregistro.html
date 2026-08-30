@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Bienvenido a CODE CELLS®</title>
+<title>Bienvenido a CODE CELLS™</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -77,7 +77,7 @@
 
 <!-- Pantalla: formulario -->
 <div class="pantalla activa" id="p-form">
-  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="logo-glyph">CODE CELLS™</div>
   <div class="titulo">Bienvenido — vamos a registrarte</div>
   <div class="subtitulo">Solo necesitamos tu nombre completo para crear tu expediente. Tu médico ya está enterado de este registro.</div>
   <input type="text" class="kiosco-input" id="input-nombre" placeholder="Nombre completo" autocomplete="off">
@@ -88,21 +88,21 @@
 
 <!-- Pantalla: enlace inválido -->
 <div class="pantalla" id="p-invalido">
-  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="logo-glyph">CODE CELLS™</div>
   <div class="titulo">Este enlace no es válido</div>
   <div class="subtitulo">Pide a tu médico que te comparta el link de registro nuevamente.</div>
 </div>
 
 <!-- Pantalla: autorregistro pausado (2026-08-23) — ver init() más abajo -->
 <div class="pantalla" id="p-pausado">
-  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="logo-glyph">CODE CELLS™</div>
   <div class="titulo">El registro por link está pausado</div>
   <div class="subtitulo">Por ahora, pide a tu médico que te dé de alta directamente.</div>
 </div>
 
 <!-- Pantalla: preconsulta con NOVA -->
 <div class="pantalla" id="p-preconsulta" style="justify-content:flex-start;padding-top:24px;">
-  <div class="logo-glyph" style="margin-bottom:16px;">CODE CELLS®</div>
+  <div class="logo-glyph" style="margin-bottom:16px;">CODE CELLS™</div>
   <div class="chat-wrap">
     <div class="nova-msgs" id="nova-msgs"></div>
     <div class="chat-input-row">
@@ -115,7 +115,7 @@
 
 <!-- Pantalla: éxito -->
 <div class="pantalla" id="p-exito">
-  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="logo-glyph">CODE CELLS™</div>
   <div class="titulo">Gracias, <span id="exito-nombre"></span></div>
   <div class="subtitulo">Tu expediente ha sido creado correctamente. Tu médico ya podrá verlo antes de tu cita.</div>
   <div class="codigo-final" id="exito-codigo"></div>
@@ -231,7 +231,7 @@ Ya sabes que se llama __NOMBRE__. NO le vuelvas a preguntar su nombre.
 
 TU TAREA: platica con calidez (nunca como formulario/interrogatorio rígido) y ve capturando, en el orden que fluya natural en la conversación:
 - Fecha de nacimiento (o al menos su edad — si solo te da la edad, calcula tú una fecha de nacimiento aproximada usando el 1 de enero del año que corresponda, tomando como hoy la fecha actual)
-- Motivo de consulta (por qué busca atención en CODE CELLS®)
+- Motivo de consulta (por qué busca atención en CODE CELLS™)
 - Antecedentes heredofamiliares (enfermedades de papás/hermanos — aclara que es SOLO de familiares, no de él/ella)
 - Antecedentes personales patológicos (enfermedades que él/ella mismo tiene o ha tenido, con tratamiento si aplica)
 - Antecedentes quirúrgicos (cirugías previas)
@@ -250,13 +250,13 @@ Deja vacío ("") cualquier campo que no aplique o no se haya mencionado. Hazlo U
 ESTILO: español, cercano y humano, oraciones cortas, ágil (una pregunta a la vez, avanza en cuanto tengas lo suficiente, sin alargar de más). Emojis: casi nunca, como máximo uno si de verdad aporta calidez — la mayoría de tus respuestas no llevan ninguno. Nunca clínico-frío.`;
 
 function iniciarPreconsulta() {
-  var introMedico = nombreMedicoRemitente ? ('Dr(a). ' + nombreMedicoRemitente) : 'CODE CELLS®';
+  var introMedico = nombreMedicoRemitente ? ('Dr(a). ' + nombreMedicoRemitente) : 'CODE CELLS™';
   SYSTEM_PROMPT = SYSTEM_PROMPT.replace(/__MEDICO_INTRO__/g, introMedico).replace(/__NOMBRE__/g, nombrePacienteCreado.split(' ')[0]);
   irA('p-preconsulta');
   var saludoMedico = nombreMedicoRemitente
     ? ('Hola ' + nombrePacienteCreado.split(' ')[0] + ', soy NOVA, la asistente del Dr(a). ' + nombreMedicoRemitente + '. ')
     : ('Hola ' + nombrePacienteCreado.split(' ')[0] + ', qué gusto. ');
-  var bienvenida = saludoMedico + 'Antes de tu cita quiero conocerte un poco para que tu médico llegue mejor preparado — cuéntame, ¿qué te trae a CODE CELLS®?';
+  var bienvenida = saludoMedico + 'Antes de tu cita quiero conocerte un poco para que tu médico llegue mejor preparado — cuéntame, ¿qué te trae a CODE CELLS™?';
   novaHistory.push({ role: 'assistant', content: bienvenida });
   renderNovaMessage(bienvenida, 'nova');
 }

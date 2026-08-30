@@ -82,7 +82,7 @@ module.exports = async (req, res) => {
     // "Sí procede" o cualquier otra frase escrita a mano NO autoriza nada;
     // antes este mensaje no tenía ningún mecanismo real de aprobación.
     const mensaje =
-      `Nueva solicitud de afiliación a la Red CODE CELLS®\n\n` +
+      `Nueva solicitud de afiliación a la Red CODE CELLS™\n\n` +
       `Nombre: ${nombre}\n` +
       `Especialidad: ${especialidad || '(no especificada)'}\n` +
       `Cédula: ${cedula || '(no especificada)'}\n` +

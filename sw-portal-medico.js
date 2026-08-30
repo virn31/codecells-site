@@ -1,4 +1,4 @@
-// Service Worker mínimo del Portal Médico CODE CELLS®.
+// Service Worker mínimo del Portal Médico CODE CELLS™.
 // Su único propósito es cumplir el requisito técnico que Chrome/Android
 // exige para ofrecer el prompt nativo de "Instalar app". No cachea nada
 // todavía — cada carga sigue yendo a la red, como hasta ahora.

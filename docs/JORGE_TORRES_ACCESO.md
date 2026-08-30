@@ -1,4 +1,4 @@
-# Jorge Torres · Acceso CEO a CODE CELLS®
+# Jorge Torres · Acceso CEO a CODE CELLS™
 
 **Documento confidencial para Jorge Torres, CEO de Regene Global**
 
@@ -8,7 +8,7 @@
 
 **Código de acceso:** `CCMED-JORGE01`
 
-**Rol:** CEO Estratégico — Alianza Regene Global × CODE CELLS®
+**Rol:** CEO Estratégico — Alianza Regene Global × CODE CELLS™
 
 ---
 
@@ -44,7 +44,7 @@ https://codecells.mx/jorge-torres-welcome.html
 
 Cuando te identifiques con `CCMED-JORGE01`, NOVA responderá así:
 
-> **NOVA:** "Jorge Torres, socio de máxima confianza en la alianza CODE CELLS® × Regene Global. Bienvenido a tu panel de acceso estratégico."
+> **NOVA:** "Jorge Torres, socio de máxima confianza en la alianza CODE CELLS™ × Regene Global. Bienvenido a tu panel de acceso estratégico."
 
 Luego tendrás acceso a:
 
@@ -54,7 +54,7 @@ Luego tendrás acceso a:
 ✓ **Trazabilidad de biológicos** — cada uso de MUSE Cells y Exosomas en el sistema  
 ✓ **Comunicación directa** — di "Conectarme con Víctor" o "Hablar con Galván" dentro del chat  
 ✓ **Dashboards de alianza** — expansión, métricas conjuntas, proyecciones  
-✓ **Voz consultiva** — participación en decisiones estratégicas de CODE CELLS®
+✓ **Voz consultiva** — participación en decisiones estratégicas de CODE CELLS™
 
 ---
 
@@ -89,7 +89,7 @@ Una vez identificado como CEO, puedes:
 | **Nombre** | Jorge Torres |
 | **Rol** | CEO Estratégico |
 | **Empresa** | Regene Global |
-| **Alianza** | CODE CELLS® × Regene Global |
+| **Alianza** | CODE CELLS™ × Regene Global |
 | **Estado** | ✅ Activo |
 | **Privilegios** | Consultivo + Red Médica |
 
@@ -110,7 +110,7 @@ Si algo no funciona:
 
 - Tu acceso como CEO es personal e intransferible
 - NOVA nunca revelará tus datos internos a otros médicos
-- La comunicación Regene Global ↔ CODE CELLS® es encriptada
+- La comunicación Regene Global ↔ CODE CELLS™ es encriptada
 - Los outcomes de pacientes se muestran agregados, nunca individuales
 
 ---
@@ -125,7 +125,7 @@ Si algo no funciona:
 ---
 
 **Fecha de activación:** 1 de agosto de 2026  
-**Vigencia:** Vigente mientras dure la alianza Regene Global × CODE CELLS®
+**Vigencia:** Vigente mientras dure la alianza Regene Global × CODE CELLS™
 
 ---
 

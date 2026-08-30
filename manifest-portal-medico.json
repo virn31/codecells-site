@@ -1,7 +1,7 @@
 {
-  "name": "Portal Médico — CODE CELLS®",
+  "name": "Portal Médico — CODE CELLS™",
   "short_name": "CODE CELLS",
-  "description": "Portal médico de la Red CODE CELLS® — expedientes, consultas y NOVA.",
+  "description": "Portal médico de la Red CODE CELLS™ — expedientes, consultas y NOVA.",
   "start_url": "/portal-medico.html",
   "scope": "/",
   "display": "standalone",

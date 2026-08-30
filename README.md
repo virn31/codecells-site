@@ -1,6 +1,6 @@
-# CODE CELLS® — Plataforma Digital
+# CODE CELLS™ — Plataforma Digital
 
-Ecosistema digital de CODE CELLS®, plataforma de medicina regenerativa con sede en
+Ecosistema digital de CODE CELLS™, plataforma de medicina regenerativa con sede en
 Culiacán, Sinaloa. Sitio público, portal médico, portal de pacientes, centro de
 capacitación y asistente clínico NOVA.
 

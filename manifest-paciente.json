@@ -1,7 +1,7 @@
 {
-  "name": "CODE CELLS® — Mi Nivel",
+  "name": "CODE CELLS™ — Mi Nivel",
   "short_name": "CODE CELLS",
-  "description": "Tu portal de paciente CODE CELLS® — habla con NOVA, revisa tu protocolo y sube tus estudios.",
+  "description": "Tu portal de paciente CODE CELLS™ — habla con NOVA, revisa tu protocolo y sube tus estudios.",
   "start_url": "/mi-nivel.html",
   "scope": "/",
   "display": "standalone",

@@ -1,6 +1,6 @@
-# 🌍 Sistema i18n - CODE CELLS®
+# 🌍 Sistema i18n - CODE CELLS™
 
-Sistema de internacionalización global para toda la plataforma CODE CELLS®.
+Sistema de internacionalización global para toda la plataforma CODE CELLS™.
 
 **Estado:** ✅ Implementado y operativo  
 **Idiomas:** Español (es) + English (en)  

@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
     // Página simple que se cierra sola / regresa al Portal Médico.
     return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>CODE CELLS® — Google Calendar</title>
+      <title>CODE CELLS™ — Google Calendar</title>
       <style>
         body{background:#0E1410;color:#F2EFE9;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:24px;}
         .card{max-width:420px;}
@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
       return res.status(200).send(paginaResultado(
         false,
         !tokenData.refresh_token
-          ? 'Google no envió permiso de acceso permanente — esto pasa si ya habías conectado antes. Ve a myaccount.google.com/permissions, quita el acceso de "CODE CELLS® Agenda", y vuelve a intentarlo desde el Portal.'
+          ? 'Google no envió permiso de acceso permanente — esto pasa si ya habías conectado antes. Ve a myaccount.google.com/permissions, quita el acceso de "CODE CELLS™ Agenda", y vuelve a intentarlo desde el Portal.'
           : 'No se pudo completar la conexión con Google. Intenta de nuevo.'
       ));
     }

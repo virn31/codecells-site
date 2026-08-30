@@ -1,4 +1,4 @@
-# CODE CELLS® — The Biological Network
+# CODE CELLS™ — The Biological Network
 
 Contexto para trabajar en este repositorio. Léelo antes de proponer arquitectura o
 tocar autorización, expedientes o datos clínicos.
@@ -7,7 +7,7 @@ tocar autorización, expedientes o datos clínicos.
 
 ## 1. Qué se está construyendo
 
-Este repositorio es la plataforma clínica de CODE CELLS®, una red de medicina
+Este repositorio es la plataforma clínica de CODE CELLS™, una red de medicina
 regenerativa y biológica que opera bajo GALONAVA GROUP en Culiacán, Sinaloa.
 Es la primera implementación de lo que internamente se llama **CCOS™** — el sistema
 operativo de la red. El portal, NOVA, el expediente, el motor de gráficas y el
@@ -49,7 +49,7 @@ ancla a la **consulta** (que lleva firma y cédula), no al expediente.
   plataforma no se interpone entre médico y paciente en lo económico.
 - Consultas en línea: esquema de comisiones por definir.
 
-Esto explica por qué CODE CELLS® **no obliga** a ningún médico afiliado a ofrecer
+Esto explica por qué CODE CELLS™ **no obliga** a ningún médico afiliado a ofrecer
 tratamientos específicos ni a dominar los cinco sistemas. Se vende infraestructura,
 no pacientes ni protocolos.
 
@@ -254,7 +254,7 @@ Estas ya están probadas en producción y no se negocian:
 
 **Regene Global** (Jorge Torres, CEO — `CCMED-JORGE01`) es la alianza biotecnológica
 estructural del proyecto, no solo un proveedor. Aporta la capacidad regenerativa;
-CODE CELLS® aporta la red clínica, la metodología y la tecnología. Jorge **no es
+CODE CELLS™ aporta la red clínica, la metodología y la tecnología. Jorge **no es
 médico**: su acceso al portal es para demostrar el sistema a la red de Regene Global,
 por lo que solo debe alcanzar pacientes demo, nunca expedientes reales.
 
@@ -267,7 +267,7 @@ folleto publicitario y perdería credibilidad justo ante la audiencia que import
 Dr. Juan Carlos Galván López (`CCMED-JCG01`, Codirector Médico), Lic. Pavel Galván
 López (Director Comercial y Representante Legal).
 
-CODE CELLS® **no verifica** la competencia individual de cada médico por herramienta.
+CODE CELLS™ **no verifica** la competencia individual de cada médico por herramienta.
 El médico declara bajo su propia responsabilidad clínica lo que ofrece. Su nivel
 interno (Asociado / Certificado / Senior / Partner) **nunca se muestra a pacientes**
 ni en el directorio público.

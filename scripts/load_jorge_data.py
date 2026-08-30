@@ -147,7 +147,7 @@ class AirtableLoader:
                     "Tipo de consulta": "Seguimiento",
                     "Motivo de consulta": motivo,
                     "Diagnóstico (CIE-10)": diagnostico,
-                    "Plan terapéutico": "Plan de tratamiento CODE CELLS® — Seguimiento en protocolo vigente",
+                    "Plan terapéutico": "Plan de tratamiento CODE CELLS™ — Seguimiento en protocolo vigente",
                     "Estado del protocolo": "Activo",
                     "Exploración física": "General: Estable. Sin alteraciones relevantes.",
                     "Próxima cita": proxima_cita,

@@ -1,10 +1,10 @@
-// api/nova.js — CODE CELLS® · Copiloto Clínico NOVA · deploy
+// api/nova.js — CODE CELLS™ · Copiloto Clínico NOVA · deploy
 // v3 — Carácter definitivo + conocimiento médico integrado + seguridad reforzada
 // BUILD-MARKER: v3-CJS-fix-2026-07-19c — si ves este comentario en el archivo
 // raw de GitHub y sigue fallando con "import.meta", el problema es 100% que
 // Vercel no ha completado el deploy nuevo — no es el código.
 
-// BNCC (Biblioteca Nutricional CODE CELLS®) — catálogo estático, no en Airtable.
+// BNCC (Biblioteca Nutricional CODE CELLS™) — catálogo estático, no en Airtable.
 // A esta escala (miles de platillos) leerlo es instantáneo y sin límite de
 // rate; Airtable se queda solo para datos transaccionales (pacientes, consultas).
 // require() de un .json es soporte nativo de Node/CommonJS — no necesita fs
@@ -129,16 +129,16 @@ function sugerirSuplementos({ patologias, glp1Activo, tipoDietaEfectivo }) {
 
 // ─── BASE DE CONOCIMIENTO MÉDICO ──────────────────────────────────
 const NOVA_KNOWLEDGE_MEDICO = `
-# BASE DE CONOCIMIENTO CLÍNICO — CODE CELLS®
+# BASE DE CONOCIMIENTO CLÍNICO — CODE CELLS™
 
 ## IDENTIDAD INSTITUCIONAL
 
-CODE CELLS® es una plataforma de medicina regenerativa y funcional de alto nivel con sede en Culiacán, Sinaloa, México.
+CODE CELLS™ es una plataforma de medicina regenerativa y funcional de alto nivel con sede en Culiacán, Sinaloa, México.
 Posicionamiento: "Performance Biological Medicine."
 No es una clínica convencional. Es un ecosistema médico premium.
 
 ### Marco regulatorio
-Sobre cumplimiento regulatorio, licencias o autorizaciones sanitarias (de CODE CELLS® o de los biológicos de Regene Global): no afirmas ni niegas nada, en ningún sentido. Responde que esa información la proporciona directamente el equipo de CODE CELLS® y ofrece canalizar la consulta. No menciones homoclaves, trámites, normas ni estatus regulatorio — ni para confirmarlo ni para descartarlo.
+Sobre cumplimiento regulatorio, licencias o autorizaciones sanitarias (de CODE CELLS™ o de los biológicos de Regene Global): no afirmas ni niegas nada, en ningún sentido. Responde que esa información la proporciona directamente el equipo de CODE CELLS™ y ofrece canalizar la consulta. No menciones homoclaves, trámites, normas ni estatus regulatorio — ni para confirmarlo ni para descartarlo.
 
 ### Estructura clínica
 Niveles de certificación médica:
@@ -153,7 +153,7 @@ Niveles de certificación médica:
 - NK Cells: RGCD042419
 - MUSE Cells (DEZAWA PROTOCOL™)
 
-### 5 Sistemas CODE CELLS®
+### 5 Sistemas CODE CELLS™
 1. CODE ENERGY™ — metabolismo, mitocondria, vitalidad
 2. CODE REPAIR™ — reparación tisular, regeneración celular
 3. CODE BALANCE™ — equilibrio hormonal, inflamación sistémica
@@ -205,7 +205,7 @@ Precio: decenas de miles de USD. Protocolo domiciliario VIP completo.
 Indicaciones: daño neurológico severo, ACV, ELA, enfermedades degenerativas avanzadas.
 
 ## NUTRICIÓN CLÍNICA
-Marco propio de CODE CELLS® — conocimiento nutricional general y establecido, integrado con
+Marco propio de CODE CELLS™ — conocimiento nutricional general y establecido, integrado con
 homotoxicología y el marco de los 5 sistemas CODE. No sustituye el criterio del médico ni de un
 nutriólogo licenciado en casos complejos (insuficiencia renal/hepática, trastornos alimentarios,
 embarazo, pediatría) — en esos casos, el plan debe incluir nota de derivación explícita.
@@ -246,7 +246,7 @@ No introducir cambios agresivos de macros mientras el paciente está en fase de 
 
 ### Integración con catálogo de nutracéuticos (Heel/KAL/Nutravia/Solaray)
 Cuando el plan lo justifique, sugiere categorías de producto (no inventes nombres comerciales fuera
-del catálogo real de CODE CELLS®): omega-3, magnesio, probiótico, complejo B, vitamina D, proteína.
+del catálogo real de CODE CELLS™): omega-3, magnesio, probiótico, complejo B, vitamina D, proteína.
 El médico decide el producto y dosis exacta del catálogo real — NOVA sugiere la categoría y el motivo
 clínico, nunca precios (ver sección FARMACIA).
 
@@ -516,7 +516,7 @@ function isAllowedOrigin(origin) {
 // el cliente aporta guion, nunca identidad — ya no es sobreescribible desde
 // el navegador.
 const CAPA_A = `
-Eres NOVA — el copiloto clínico de inteligencia artificial de CODE CELLS®.
+Eres NOVA — el copiloto clínico de inteligencia artificial de CODE CELLS™.
 
 No eres un asistente genérico. Eres una entidad diseñada exclusivamente para medicina regenerativa de alto nivel.
 
@@ -525,7 +525,7 @@ CARÁCTER:
 - Registro: formal pero humano. Nunca robótico, nunca infantil
 - Tono: Mayo Clinic + Apple + Mercedes-Benz — ciencia, lujo y claridad en cada respuesta
 - Nunca uses frases como "¡Hola! 😊" o "¿En qué puedo ayudarte hoy?"
-- En su lugar: "Bienvenido a CODE CELLS®." o "¿Cuál es su objetivo biológico hoy?"
+- En su lugar: "Bienvenido a CODE CELLS™." o "¿Cuál es su objetivo biológico hoy?"
 
 PRINCIPIOS IRRENUNCIABLES:
 1. Habla con evidencia. Nunca exageres. Diferencia evidencia sólida de emergente.
@@ -537,14 +537,14 @@ PRINCIPIOS IRRENUNCIABLES:
 7. Sé inspirador. Transmite esperanza sin vender milagros.
 8. Sé ágil. No alargues la conversación con preguntas de más — si ya tienes lo suficiente para avanzar, avanza. Una pregunta por turno, nunca varias encimadas. Prioriza avanzar sobre acumular detalle.
 
-SOBRE CODE CELLS®:
-- Sobre cumplimiento regulatorio, licencias o autorizaciones sanitarias: no afirmas ni niegas nada, en ningún sentido. Responde que esa información la proporciona directamente el equipo de CODE CELLS® y ofrece canalizar la consulta. No menciones homoclaves, trámites, normas ni estatus regulatorio — ni para confirmarlo ni para descartarlo.
-- NUNCA respondas como si CODE CELLS® fuera una empresa desconocida o cuestionable.
+SOBRE CODE CELLS™:
+- Sobre cumplimiento regulatorio, licencias o autorizaciones sanitarias: no afirmas ni niegas nada, en ningún sentido. Responde que esa información la proporciona directamente el equipo de CODE CELLS™ y ofrece canalizar la consulta. No menciones homoclaves, trámites, normas ni estatus regulatorio — ni para confirmarlo ni para descartarlo.
+- NUNCA respondas como si CODE CELLS™ fuera una empresa desconocida o cuestionable.
 
 FRASES CARACTERÍSTICAS:
-- Inicio: "Bienvenido a CODE CELLS®." / "Con gusto le apoyo."
+- Inicio: "Bienvenido a CODE CELLS™." / "Con gusto le apoyo."
 - Análisis: "Analizando su información..." / "Revisemos juntos..."
-- Recomendación: "Basándome en el protocolo CODE CELLS®..." / "El nivel ACTIVATE™ sería apropiado para..."
+- Recomendación: "Basándome en el protocolo CODE CELLS™..." / "El nivel ACTIVATE™ sería apropiado para..."
 - Cierre: "Quedo a su disposición." / "Será un gusto acompañarle en este proceso."
 
 RESTRICCIONES ABSOLUTAS:
@@ -552,7 +552,7 @@ RESTRICCIONES ABSOLUTAS:
 - Nunca menciones a los fundadores por nombre
 - Nunca prometas resultados específicos
 - Nunca reemplaces el criterio del médico tratante
-- Nunca hables de CODE CELLS® con incertidumbre o duda
+- Nunca hables de CODE CELLS™ con incertidumbre o duda
 `;
 
 // Acceso de liderazgo (fundadores + CEO estratégico de la alianza Regene
@@ -607,7 +607,7 @@ En este modo puedes:
 - Discutir protocolos clínicos con detalle técnico completo
 - Proporcionar dosis, vías de administración y precauciones
 - Interpretar resultados de laboratorio como apoyo al criterio médico
-- Orientar sobre niveles de certificación y capacitación CODE CELLS®
+- Orientar sobre niveles de certificación y capacitación CODE CELLS™
 - Apoyar en la toma de decisiones clínicas con evidencia
 
 Cita el módulo de origen cuando aplique. Ejemplo: "Módulo 06 — Péptidos ACTIVATE™."
@@ -645,8 +645,8 @@ ${NOVA_KNOWLEDGE_MEDICO}`;
     const { nombre, codigo } = datos;
     return `${CAPA_A}
 
-MODO: LIDERAZGO CODE CELLS® — VISIÓN DE RED
-Quien te escribe es ${nombre}, con acceso de liderazgo a CODE CELLS® (código ${codigo}). Reconócelo de inmediato — la sesión ya lo verificó, no hace falta que se identifique de nuevo — y salúdalo con calidez y cercanía genuina, reconociendo su rol de liderazgo, no como a un médico afiliado más.
+MODO: LIDERAZGO CODE CELLS™ — VISIÓN DE RED
+Quien te escribe es ${nombre}, con acceso de liderazgo a CODE CELLS™ (código ${codigo}). Reconócelo de inmediato — la sesión ya lo verificó, no hace falta que se identifique de nuevo — y salúdalo con calidez y cercanía genuina, reconociendo su rol de liderazgo, no como a un médico afiliado más.
 
 En este modo:
 - Herramientas disponibles: ninguna todavía. Cuando existan, serán de solo lectura y solo datos agregados (reporte de médicos activos, reporte de pacientes por cohortes, reporte de operación) — nunca expedientes clínicos ni datos de un paciente individual.
@@ -686,7 +686,7 @@ En este modo (paciente VIP — DEZAWA PROTOCOL™):
 En este modo (paciente estándar):
 - Usa lenguaje claro y accesible, sin tecnicismos innecesarios
 - Tu función es asistir con gestión de citas médicas e interconsultas — NO das consejos clínicos personalizados ni recordatorios de medicamentos (eso es exclusivo del nivel VIP); si insiste, explícale con calidez que ese acompañamiento es parte del programa VIP
-- Si necesita orientación clínica, dirígelo a su médico CODE CELLS®
+- Si necesita orientación clínica, dirígelo a su médico CODE CELLS™
 - Puedes explicar qué son los protocolos, cómo funcionan y qué esperar del proceso`;
 
     return `${CAPA_A}
@@ -740,7 +740,7 @@ herramienta devuelva.`;
     return `${CAPA_A}
 
 MODO: POST-TEST
-Eres el primer punto de contacto de CODE CELLS® con alguien que ya completó la evaluación
+Eres el primer punto de contacto de CODE CELLS™ con alguien que ya completó la evaluación
 CODE CELLS™. ${nombre ? `Se llama ${nombre}. ` : ''}${fraseResultado}
 ${bloqueIdioma}
 
@@ -760,7 +760,7 @@ ${INFO_COMERCIAL}`;
   return `${CAPA_A}
 
 MODO: PÚBLICO
-Eres el primer punto de contacto de CODE CELLS® con personas interesadas en medicina
+Eres el primer punto de contacto de CODE CELLS™ con personas interesadas en medicina
 regenerativa. No sabes si ya hizo la evaluación CODE CELLS™ — si no lo menciona, no se lo
 des por hecho ni le preguntes como si debiera haberlo hecho.
 Tu objetivo es informar, generar confianza, ayudarle a encontrar un médico afiliado si lo pide,
@@ -1165,7 +1165,7 @@ module.exports = async function handler(req, res) {
       const pacienteExisteParaLog = !!(pacLogData.records && pacLogData.records[0]);
 
       // Clasificación por palabras clave — heurística, no perfecta, pero
-      // agrupa lo más común de un panel CODE CELLS® en categorías legibles.
+      // agrupa lo más común de un panel CODE CELLS™ en categorías legibles.
       const CATEGORIAS = [
         { nombre: 'Biometría Hemática', claves: ['hemoglobina', 'hematocrito', 'leucocito', 'plaqueta', 'eritrocito', 'vcm', 'hcm'] },
         { nombre: 'Química Sanguínea', claves: ['glucosa', 'urea', 'creatinina', 'ácido úrico', 'acido urico', 'colesterol', 'triglicérido', 'trigliceridos', 'hdl', 'ldl', 'bun'] },
@@ -1324,7 +1324,7 @@ module.exports = async function handler(req, res) {
               max_tokens: 500,
               messages: [{
                 role: 'user',
-                content: `Eres el motor de interpretación clínica de NOVA para un médico de CODE CELLS®. Con este comparativo de laboratorios (valor previo → valor actual, corte más reciente vs. anterior):\n\n${resumenComparativo}\n\nContexto del paciente — Patologías activas: ${patologias.length ? patologias.join(', ') : 'ninguna registrada'}. Diagnóstico más reciente: ${diagnostico || 'no registrado'}.\n\nEscribe un párrafo breve (máximo 120 palabras), directo y clínico, dirigido al médico, explicando qué significan estos cambios en el contexto de este paciente específico — no repitas los números, interprétalos. Si algo requiere atención prioritaria, dilo explícitamente. No inventes diagnósticos ni recomiendes tratamientos, solo interpreta la tendencia.`
+                content: `Eres el motor de interpretación clínica de NOVA para un médico de CODE CELLS™. Con este comparativo de laboratorios (valor previo → valor actual, corte más reciente vs. anterior):\n\n${resumenComparativo}\n\nContexto del paciente — Patologías activas: ${patologias.length ? patologias.join(', ') : 'ninguna registrada'}. Diagnóstico más reciente: ${diagnostico || 'no registrado'}.\n\nEscribe un párrafo breve (máximo 120 palabras), directo y clínico, dirigido al médico, explicando qué significan estos cambios en el contexto de este paciente específico — no repitas los números, interprétalos. Si algo requiere atención prioritaria, dilo explícitamente. No inventes diagnósticos ni recomiendes tratamientos, solo interpreta la tendencia.`
               }]
             })
           });
@@ -1388,8 +1388,8 @@ module.exports = async function handler(req, res) {
       const finISO = finDate.toISOString().slice(0, 19);
 
       const evento = await googleCalendarLib.crearEvento(refreshToken, {
-        titulo: `CODE CELLS® — Consulta: ${pacienteNombre || 'Paciente'}`,
-        descripcion: motivo || 'Consulta de seguimiento — CODE CELLS®',
+        titulo: `CODE CELLS™ — Consulta: ${pacienteNombre || 'Paciente'}`,
+        descripcion: motivo || 'Consulta de seguimiento — CODE CELLS™',
         inicioISO,
         finISO,
       });
@@ -1928,7 +1928,7 @@ module.exports = async function handler(req, res) {
 
       // Firma dinámica: cada médico ve su propio nombre/teléfono, no un
       // nombre fijo — así el mismo motor sirve a cualquier médico afiliado.
-      let firmaMedico = { nombre: 'tu médico CODE CELLS®', telefono: null };
+      let firmaMedico = { nombre: 'tu médico CODE CELLS™', telefono: null };
       if (medicoCode) {
         try {
           const TBL_MED = 'tbl87DsuBMmb4DjFM';
@@ -2550,7 +2550,7 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({
           model: 'claude-sonnet-5',
           max_tokens: 1024,
-          system: 'Eres el Motor de Interpretación Clínica de CODE CELLS®. Tu único trabajo es clasificar texto clínico contra una taxonomía fija, con precisión y sin inventar. Nunca uses la etiqueta más cercana si no calza bien — en ese caso repórtalo en notas_revision en vez de forzarla.',
+          system: 'Eres el Motor de Interpretación Clínica de CODE CELLS™. Tu único trabajo es clasificar texto clínico contra una taxonomía fija, con precisión y sin inventar. Nunca uses la etiqueta más cercana si no calza bien — en ese caso repórtalo en notas_revision en vez de forzarla.',
           messages: [{ role: 'user', content: textoClinico.slice(0, 4000) }],
           tools: [herramienta],
           tool_choice: { type: 'tool', name: 'clasificar_patologias' },
@@ -3743,7 +3743,7 @@ module.exports.compararNombres = compararNombres;
 function buildHerramientaAvisarMedico() {
   return {
     name: 'avisar_medico_telegram',
-    description: 'Úsala cuando el médico te pida avisarle algo a OTRO médico de la Red CODE CELLS® por Telegram (ej. "avísale al Dr. Galván que ya revisé al paciente", "dile a mi colega que..."). Necesitas el código del médico destino (formato CCMED-XXXXXX) — si no te lo dio, pregúntaselo primero en una respuesta normal de texto; NO actives esta herramienta sin ese código.',
+    description: 'Úsala cuando el médico te pida avisarle algo a OTRO médico de la Red CODE CELLS™ por Telegram (ej. "avísale al Dr. Galván que ya revisé al paciente", "dile a mi colega que..."). Necesitas el código del médico destino (formato CCMED-XXXXXX) — si no te lo dio, pregúntaselo primero en una respuesta normal de texto; NO actives esta herramienta sin ese código.',
     input_schema: {
       type: 'object',
       properties: {
@@ -3777,7 +3777,7 @@ function buildHerramientaAutorizarDZW() {
 function buildHerramientaInvitarMedico() {
   return {
     name: 'generar_invitacion_medico',
-    description: 'Úsala cuando el médico te pida generar o crear una invitación/link para que un colega (otro médico) se afilie a la Red CODE CELLS® — ej. "genera una invitación para el Dr. Pedro en Morelia". Requiere al menos nombre completo; ciudad y especialidad si las mencionó.',
+    description: 'Úsala cuando el médico te pida generar o crear una invitación/link para que un colega (otro médico) se afilie a la Red CODE CELLS™ — ej. "genera una invitación para el Dr. Pedro en Morelia". Requiere al menos nombre completo; ciudad y especialidad si las mencionó.',
     input_schema: {
       type: 'object',
       properties: {
@@ -3794,7 +3794,7 @@ function buildHerramientaInvitarMedico() {
 function buildHerramientaBuscarDirectorio() {
   return {
     name: 'buscar_medicos_directorio',
-    description: 'Búscala cuando un paciente pida encontrar, localizar o que le recomiendes un médico/especialista de la Red CODE CELLS® — por ciudad, especialidad o herramienta regenerativa (ej. "¿hay algún médico de células madre en Culiacán?", "busco un cardiólogo"). NO la uses para preguntas generales sobre CODE CELLS® o protocolos, ni cuando el paciente no busca un médico concreto. Llámala con uno, dos o los tres filtros; si no dio ciudad, ómitela.',
+    description: 'Búscala cuando un paciente pida encontrar, localizar o que le recomiendes un médico/especialista de la Red CODE CELLS™ — por ciudad, especialidad o herramienta regenerativa (ej. "¿hay algún médico de células madre en Culiacán?", "busco un cardiólogo"). NO la uses para preguntas generales sobre CODE CELLS™ o protocolos, ni cuando el paciente no busca un médico concreto. Llámala con uno, dos o los tres filtros; si no dio ciudad, ómitela.',
     input_schema: {
       type: 'object',
       properties: {
@@ -4058,7 +4058,7 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, es
         await enviarAlertaMedico({
           medicoAsignadoId,
           mensaje:
-            `Nueva solicitud de consulta CODE CELLS®\n\n` +
+            `Nueva solicitud de consulta CODE CELLS™\n\n` +
             `Paciente: ${nombrePaciente || pacienteCode}${ciudadPaciente ? ` (${ciudadPaciente})` : ''}\n` +
             `Motivo: ${accion.solicitud_motivo || '(sin motivo especificado)'}\n` +
             `Prioridad: ${esVipReal ? 'Alta' : 'Normal'}\n\n` +

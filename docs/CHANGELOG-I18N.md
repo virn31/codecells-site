@@ -1,4 +1,4 @@
-# Changelog - Sistema i18n CODE CELLS®
+# Changelog - Sistema i18n CODE CELLS™
 
 ## [2.0.0] - Agosto 2, 2026
 
@@ -125,7 +125,7 @@
 ### 👤 Contribuyentes
 
 - **Arquitectura & Diccionario:** Claude (Anthropic)
-- **Integración & Testing:** Víctor Iván Rodríguez Nava (CODE CELLS®)
+- **Integración & Testing:** Víctor Iván Rodríguez Nava (CODE CELLS™)
 
 ---
 

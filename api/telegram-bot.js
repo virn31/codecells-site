@@ -1,5 +1,5 @@
 // api/telegram-bot.js
-// Webhook de Telegram para @Drvirnbot (CODE CELLS®).
+// Webhook de Telegram para @Drvirnbot (CODE CELLS™).
 //
 // Dos funciones:
 // 1) Vincular el chat_id de Telegram de cada médico con su registro en la tabla
@@ -511,7 +511,7 @@ const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
-    return res.status(200).send('CODE CELLS® Telegram bot activo.');
+    return res.status(200).send('CODE CELLS™ Telegram bot activo.');
   }
 
   // ── Alerta interna (fusionado desde api/telegram-alert.js) ──────────
@@ -589,7 +589,7 @@ module.exports = async (req, res) => {
     if (texto === '/start') {
       await sendTelegramMessage(
         chatId,
-        'Hola, soy el bot de notificaciones y apoyo clínico de CODE CELLS® Red Médica.\n\n' +
+        'Hola, soy el bot de notificaciones y apoyo clínico de CODE CELLS™ Red Médica.\n\n' +
           'Para vincular tu cuenta, envíame tu código de médico (formato CCMED-XXXXXX).\n\n' +
           'Una vez vinculado:\n' +
           '• Escribe "plan" + datos del paciente → plan nutricional de 7 días.\n' +
@@ -607,7 +607,7 @@ module.exports = async (req, res) => {
       if (!medico) {
         await sendTelegramMessage(
           chatId,
-          `No encontré el código ${codigo} en la Red CODE CELLS®. Verifica que esté bien escrito o contacta a Víctor.`
+          `No encontré el código ${codigo} en la Red CODE CELLS™. Verifica que esté bien escrito o contacta a Víctor.`
         );
         return res.status(200).json({ ok: true });
       }
@@ -617,7 +617,7 @@ module.exports = async (req, res) => {
       const nombre = medico.fields[CAMPO_NOMBRE] || 'Doctor(a)';
       await sendTelegramMessage(
         chatId,
-        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS® (certificaciones, recordatorios del Diplomado, avisos de NOVA).\n\nPara generar un plan nutricional, escribe "plan" seguido de los datos del paciente. Para dictar un expediente, escribe el código del paciente (CC-PAC-XXXXXX) seguido de lo que quieras registrar.`
+        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS™ (certificaciones, recordatorios del Diplomado, avisos de NOVA).\n\nPara generar un plan nutricional, escribe "plan" seguido de los datos del paciente. Para dictar un expediente, escribe el código del paciente (CC-PAC-XXXXXX) seguido de lo que quieras registrar.`
       );
       return res.status(200).json({ ok: true });
     }
@@ -628,7 +628,7 @@ module.exports = async (req, res) => {
     if (!medicoVinculado) {
       await sendTelegramMessage(
         chatId,
-        'Este bot es exclusivo para médicos de la Red CODE CELLS®. Si aún no vinculaste tu cuenta, envíame tu código CCMED-XXXXXX.'
+        'Este bot es exclusivo para médicos de la Red CODE CELLS™. Si aún no vinculaste tu cuenta, envíame tu código CCMED-XXXXXX.'
       );
       return res.status(200).json({ ok: true });
     }
@@ -801,7 +801,7 @@ module.exports = async (req, res) => {
       const firma =
         `\n\n${nombreMedico}` +
         (cedulaMedico ? `\nCédula profesional: ${cedulaMedico}` : '') +
-        `\n\nNOVA by CODE CELLS®`;
+        `\n\nNOVA by CODE CELLS™`;
 
       await sendTelegramMessageChunked(chatId, plan + firma);
     } catch (errPlan) {

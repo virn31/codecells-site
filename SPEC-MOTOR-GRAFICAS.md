@@ -1,6 +1,6 @@
 # SPEC — Motor de gráficas configurable
 
-**Proyecto:** CODE CELLS® · Portal Médico
+**Proyecto:** CODE CELLS™ · Portal Médico
 **Repo:** github.com/virn31/codecells-site
 **Base Airtable:** `app6jyD9pDlTLpknA`
 **Fecha:** 12 ago 2026

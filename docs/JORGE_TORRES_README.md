@@ -1,8 +1,8 @@
-# 🎯 Jorge Torres, CEO Regene Global — Acceso a Portal CODE CELLS®
+# 🎯 Jorge Torres, CEO Regene Global — Acceso a Portal CODE CELLS™
 
 ## Bienvenida
 
-Como CEO de Regene Global, tienes acceso estratégico completo a la alianza CODE CELLS® × Regene.
+Como CEO de Regene Global, tienes acceso estratégico completo a la alianza CODE CELLS™ × Regene.
 
 **Tu Código de Acceso:** `CCMED-JORGE01`  
 **Tu Rol:** CEO Estratégico de Alianza (Observador)  
@@ -100,7 +100,7 @@ Cuando entres con `CCMED-JORGE01`, NOVA te saludará así:
 
 > **NOVA**
 >
-> Jorge Torres, CEO de Regene Global. Bienvenido a CODE CELLS®.
+> Jorge Torres, CEO de Regene Global. Bienvenido a CODE CELLS™.
 >
 > Tu acceso incluye:
 > - Visualización completa de la red médica
@@ -167,7 +167,7 @@ Cuando entres con `CCMED-JORGE01`, NOVA te saludará así:
 
 ### ❌ No Puedes:
 - Modificar códigos de médicos (NOVA te guía, nunca edita)
-- Ver reportes financieros internos de CODE CELLS®
+- Ver reportes financieros internos de CODE CELLS™
 - Acceder a expedientes universales (búsqueda wild no permitida)
 - Crear/editar registros de médicos
 
@@ -212,7 +212,7 @@ Cuando entres con `CCMED-JORGE01`, NOVA te saludará así:
 
 ## 🎯 Objetivo de la Alianza
 
-CODE CELLS® × Regene Global = **Medicina regenerativa de vanguardia accesible a través de red médica certificada**
+CODE CELLS™ × Regene Global = **Medicina regenerativa de vanguardia accesible a través de red médica certificada**
 
 Tu rol como CEO: **Observador estratégico, voz consultiva, conexión con la red latinoamericana de Regene Global**
 
@@ -222,4 +222,4 @@ Tu rol como CEO: **Observador estratégico, voz consultiva, conexión con la red
 **Código de Acceso:** CCMED-JORGE01  
 **Estatus:** Activo | Consultivo | Acceso Full Read  
 
-¡Bienvenido a CODE CELLS®!
+¡Bienvenido a CODE CELLS™!

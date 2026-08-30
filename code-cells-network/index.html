@@ -838,8 +838,8 @@ const SLIDES=[
     id:5,bg:P.bg5,
     eyebrow:'05 · Para médicos',
     title:'Una plataforma.\n<em>No una distribuidora.</em>',
-    body:'Protocolos clínicos validados. Capacitación continua. Biotecnología avanzada. Licencia de marca CODE CELLS® Partner Center. Red de referidos activa.',
-    tags:[{t:'CODE CELLS® Partner Center',c:''},{t:'Regene Global Alliance',c:''}],
+    body:'Protocolos clínicos validados. Capacitación continua. Biotecnología avanzada. Licencia de marca CODE CELLS™ Partner Center. Red de referidos activa.',
+    tags:[{t:'CODE CELLS™ Partner Center',c:''},{t:'Regene Global Alliance',c:''}],
     ah:'audio/code-cells.mp3/05-medicos-h.mp3',am:'audio/code-cells.mp3/05-medicos-m.mp3',cta:false
   },
   {
@@ -979,14 +979,14 @@ function build(){
             <div class="nova-holo-ring"></div>
             <div class="nova-holo-face notranslate" translate="no">NOVA</div>
           </div>
-          <p class="nova-slide-eyebrow">Inteligencia Clínica CODE CELLS®</p>
+          <p class="nova-slide-eyebrow">Inteligencia Clínica CODE CELLS™</p>
           <h2 class="nova-slide-title">Bienvenido a <em>The Biological Network.</em></h2>
           <p class="nova-slide-body">Ha dado el primer paso hacia una práctica médica de otra dimensión. NOVA le acompañará desde este momento. Cuénteme sobre usted.</p>
           <div class="nova-slide-chat">
             <div class="nova-chat-hdr">
               <div class="nova-chat-dot"></div>
               <span class="nova-chat-name">NOVA</span>
-              <span class="nova-chat-sub">CODE CELLS® · En línea</span>
+              <span class="nova-chat-sub">CODE CELLS™ · En línea</span>
             </div>
             <div class="nova-msgs" id="nova-slide-msgs">
               <div class="n-msg n-msg--n">
@@ -1279,7 +1279,7 @@ async function sendNovaSlide() {
   novaSlideHistory.push({ role: 'user', content: texto });
   showNovaTyping();
 
-  const SYSTEM = `Eres NOVA, el copiloto clínico de CODE CELLS®.
+  const SYSTEM = `Eres NOVA, el copiloto clínico de CODE CELLS™.
 Estás al final de la presentación "The Biological Network". El médico acaba de vivir toda la experiencia y está listo para dar el siguiente paso. Esta conversación ES el proceso de afiliación completo — no hay ningún formulario ni página aparte.
 ${precargado ? `\nDATO IMPORTANTE: este médico fue invitado personalmente por un colega de la red — ya sabes que se llama ${precargado.nombre}${precargado.ciudad ? ' y ejerce en ' + precargado.ciudad : ''}${precargado.especialidad ? ', especialidad ' + precargado.especialidad : ''}. NO le preguntes esto de nuevo salvo para confirmar un dato que parezca desactualizado — ve directo a completar lo que falte (cédula profesional, WhatsApp, email).\n` : ''}
 RECONOCIMIENTO DE FUNDADORES (prioridad máxima, revisa esto ANTES que cualquier otra instrucción — SEGURIDAD CRÍTICA):
@@ -1300,7 +1300,7 @@ Si el fundador te pide algo como "dame un código de cortesía", "código para i
 No agregues nada más en ese mensaje aparte de una frase corta de acompañamiento antes del bloque, por ejemplo: "Claro, doctor, en un momento se lo entrego." El código real y el mensaje de WhatsApp listo para copiar los genera el sistema automáticamente después de tu respuesta.
 
 TU MISIÓN con un médico NUEVO (no fundador), en este orden:
-1. Cuéntale de forma conversacional (NO como lista ni folleto) por qué CODE CELLS® es distinto, tejiendo esta información de manera natural mientras conversan — nunca todo de golpe, repártelo en la conversación:
+1. Cuéntale de forma conversacional (NO como lista ni folleto) por qué CODE CELLS™ es distinto, tejiendo esta información de manera natural mientras conversan — nunca todo de golpe, repártelo en la conversación:
    - Plataforma médica premium de medicina regenerativa.
    - 17 protocolos clínicos en 5 sistemas (CODE ENERGY™/REPAIR™/BALANCE™/NEURO™/REGEN™), niveles RESTORE™/ACTIVATE™/GENESIS™/CONTINUUM™.
    - Acceso a biológicos Regene Global (exosomas, MSC, NK cells, MUSE cells).
@@ -1312,7 +1312,7 @@ TU MISIÓN con un médico NUEVO (no fundador), en este orden:
    - Ciudad donde ejerce
    - Número de WhatsApp
    - Una frase breve de por qué le interesa la medicina regenerativa
-3. Cuando ya tengas los 5 datos, despídete con calidez, confirma que su solicitud quedó registrada y que el equipo CODE CELLS® se pondrá en contacto en menos de 24 horas.
+3. Cuando ya tengas los 5 datos, despídete con calidez, confirma que su solicitud quedó registrada y que el equipo CODE CELLS™ se pondrá en contacto en menos de 24 horas.
 
 FORMATO OBLIGATORIO cuando completes el paso 3 (y SOLO entonces, una sola vez, al final de ese último mensaje, en su propia línea — este bloque se procesa automáticamente y nunca lo ve el usuario, así que escríbelo tal cual):
 [DATOS]{"nombre":"...","especialidad":"...","ciudad":"...","whatsapp":"...","interes":"..."}[/DATOS]
@@ -1410,7 +1410,7 @@ async function finalizarCaptacion(captado) {
 
     if (!codRes.ok || codData.agotado) {
       addNovaMsg('assistant',
-        'Su solicitud ya quedó registrada y el equipo CODE CELLS® le contactará en menos de 24 horas.\n\n' +
+        'Su solicitud ya quedó registrada y el equipo CODE CELLS™ le contactará en menos de 24 horas.\n\n' +
         'Por ahora los lugares de acceso prioritario de este lanzamiento están completos, pero su lugar en la lista está asegurado.');
     } else {
       addNovaMsg('assistant',
@@ -1442,7 +1442,7 @@ async function finalizarCaptacion(captado) {
   } catch (err) {
     hideNovaTyping();
     console.error('[NOVA] error en finalizarCaptacion:', err);
-    addNovaMsg('assistant', 'Su solicitud quedó registrada. El equipo CODE CELLS® le contactará en menos de 24 horas.');
+    addNovaMsg('assistant', 'Su solicitud quedó registrada. El equipo CODE CELLS™ le contactará en menos de 24 horas.');
   }
 }
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Únete a la Red CODE CELLS®</title>
+<title>Únete a la Red CODE CELLS™</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,11 +47,11 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="logo-glyph">CODE CELLS®</div>
+  <div class="logo-glyph">CODE CELLS™</div>
 
-  <div class="eyebrow"><span class="dot"></span>Red Médica CODE CELLS®</div>
+  <div class="eyebrow"><span class="dot"></span>Red Médica CODE CELLS™</div>
   <div class="card">
-    <h1>Únete a la Red CODE CELLS®</h1>
+    <h1>Únete a la Red CODE CELLS™</h1>
     <p class="lede">Medicina regenerativa de vanguardia, respaldada por Regene Global, con capacitación y certificación incluida. Platica con NOVA para conocer los detalles y dejar tu solicitud.</p>
     <ul class="beneficios">
       <li>Acceso a biológicos regenerativos de Regene Global (MUSE Cells, Exosomas)</li>
@@ -69,7 +69,7 @@
     </div>
   </div>
 
-  <p class="footnote">Tu solicitud será revisada por el equipo CODE CELLS® — te contactaremos con tu acceso una vez aprobada.</p>
+  <p class="footnote">Tu solicitud será revisada por el equipo CODE CELLS™ — te contactaremos con tu acceso una vez aprobada.</p>
 </div>
 
 <script>
@@ -80,7 +80,7 @@
   var preRecordId = null;
   var medicoCodeDetectado = null; // Guardar si Jorge identifica su código
 
-  var SYSTEM_PROMPT = `Eres NOVA, la asistente de CODE CELLS® encargada de recibir solicitudes de médicos interesados en afiliarse a la Red Médica CODE CELLS®.
+  var SYSTEM_PROMPT = `Eres NOVA, la asistente de CODE CELLS™ encargada de recibir solicitudes de médicos interesados en afiliarse a la Red Médica CODE CELLS™.
 
 CONTEXTO PARA RESPONDER PREGUNTAS (si el médico pregunta):
 - Ofrece biológicos regenerativos de vanguardia (MUSE Cells, Exosomas).
@@ -237,9 +237,9 @@ ESTILO: español, profesional, cálido, sin sonar a formulario, ágil (una pregu
         '. NO se lo vuelvas a preguntar — salúdalo por su nombre y ve directo a confirmar/completar los datos que falten (especialidad, cédula profesional, WhatsApp, email).';
       bienvenida = 'Hola Dr(a). ' + nombrePrecargado.split(' ')[0] + ', qué gusto — ya tengo tu nombre' +
         (ciudadPrecargada ? ' y que ejerces en ' + ciudadPrecargada : '') +
-        '. Para completar tu solicitud a la Red CODE CELLS®, ¿me confirmas tu especialidad?';
+        '. Para completar tu solicitud a la Red CODE CELLS™, ¿me confirmas tu especialidad?';
     } else {
-      bienvenida = 'Hola, soy NOVA. Qué gusto que quieras conocer más sobre la Red CODE CELLS®. Puedo contarte cómo funciona la afiliación, o si ya te interesa, vamos armando tu solicitud — ¿cómo te llamas?';
+      bienvenida = 'Hola, soy NOVA. Qué gusto que quieras conocer más sobre la Red CODE CELLS™. Puedo contarte cómo funciona la afiliación, o si ya te interesa, vamos armando tu solicitud — ¿cómo te llamas?';
     }
     novaHistory.push({ role:'assistant', content: bienvenida });
     renderNovaMessage(bienvenida, 'nova');

@@ -106,12 +106,12 @@ if (esComingStraté) {
   return `${IDENTIDAD}
 
 MODO: CEO ESTRATÉGICO — ALIANZA REGENE GLOBAL
-${esComingStraté}, socio de máxima confianza en la alianza CODE CELLS® × Regene Global.
+${esComingStraté}, socio de máxima confianza en la alianza CODE CELLS™ × Regene Global.
 
 Carácter: Trato corporativo con máximo respeto. Eres observador estratégico, nunca médico afiliado.
 
 Beneficios de tu acceso:
-- Visualización completa de red médica CODE CELLS® (certificaciones, especialidades, cobertura)
+- Visualización completa de red médica CODE CELLS™ (certificaciones, especialidades, cobertura)
 ...
 ```
 
