@@ -513,9 +513,15 @@ function isAllowedOrigin(origin) {
 }
 
 // ─── SYSTEM PROMPT MAESTRO DE NOVA ───────────────────────────────
-function buildSystemPrompt(modo, contexto = {}) {
-
-  const IDENTIDAD = `
+// CAPA A — identidad y prohibiciones. Idéntica en TODOS los contextos, sin
+// excepción (rediseño 2026-08-30: antes el modo fundador/CEO estratégico se
+// auto-eximía de estas restricciones — "responde con total transparencia
+// sobre costos internos, arquitectura, estrategia" — eso desapareció; ver
+// contexto 'ceo' más abajo). El servidor la inyecta SIEMPRE, incluso cuando
+// el caller manda su propio `system` (ver HANDLER PRINCIPAL, modo público):
+// el cliente aporta guion, nunca identidad — ya no es sobreescribible desde
+// el navegador.
+const CAPA_A = `
 Eres NOVA — el copiloto clínico de inteligencia artificial de CODE CELLS®.
 
 No eres un asistente genérico. Eres una entidad diseñada exclusivamente para medicina regenerativa de alto nivel.
@@ -563,22 +569,24 @@ RESTRICCIONES ABSOLUTAS:
 - Nunca hables de CODE CELLS® con incertidumbre o duda
 `;
 
-  // Códigos de los fundadores — reconocimiento y trato especial en
-  // CUALQUIER superficie donde ya se envíe medicoCode (Portal Médico, etc.)
-  const FUNDADORES = {
-    'CCMED-VIRN01': 'Dr. Víctor Iván Rodríguez Nava',
-    'CCMED-JCG01' : 'Dr. Juan Carlos Galván López',
-  };
+// Acceso de liderazgo (fundadores + CEO estratégico de la alianza Regene
+// Global) — reemplaza los antiguos modos "fundador" y "CEO estratégico"
+// (rediseño 2026-08-30). Ya NO da acceso clínico total ni exime de las
+// restricciones de identidad — ver contexto 'ceo'. Se activa solo por
+// sesión verificada de médico (sesion.tipo==='medico') con este código,
+// nunca por texto libre.
+const CEO_CODIGOS = {
+  'CCMED-VIRN01' : 'Dr. Víctor Iván Rodríguez Nava',
+  'CCMED-JCG01'  : 'Dr. Juan Carlos Galván López',
+  'CCMED-JORGE01': 'Jorge Torres, CEO de Regene Global',
+};
 
-  // CEOs estratégicos — acceso equiparable a fundadores con restricciones específicas
-  const CEOS_ESTRATEGICOS = {
-    'CCMED-JORGE01': 'Jorge Torres, CEO de Regene Global',
-  };
-
-  // Instrucciones para planes nutricionales — el motor ya está construido
-  // (sección NUTRICIÓN CLÍNICA de la base de conocimiento). Antes esto era
-  // un bloqueo total; ahora NOVA sí genera el plan, siguiendo ese formato.
-  const REGLA_NUTRICION = `
+// Instrucciones para planes nutricionales — el motor ya está construido
+// (sección NUTRICIÓN CLÍNICA de la base de conocimiento). Antes esto era
+// un bloqueo total; ahora NOVA sí genera el plan, siguiendo ese formato.
+// Exclusiva del contexto 'medico' — el contexto 'ceo' no tiene herramientas
+// clínicas, así que no aplica ahí.
+const REGLA_NUTRICION = `
 PLANES NUTRICIONALES:
 Cuando te pidan un plan nutricional para un paciente, sigue exactamente la sección "NUTRICIÓN CLÍNICA"
 de tu base de conocimiento (evaluación, macros por objetivo, integración con homotoxicología y con los
@@ -591,68 +599,20 @@ nota de supervisión médica. Si el caso tiene una condición compleja (insufici
 enfermedad autoinmune activa como lupus, trastorno alimentario, embarazo, paciente pediátrico), agrega
 una nota explícita recomendando derivar a un nutriólogo licenciado además de dar el marco general.`;
 
-  if (modo === 'medico') {
-    const { nombre, codigo, especialidad, memoria } = contexto;
-    const esFundador = FUNDADORES[codigo];
-    const esComingStraté = CEOS_ESTRATEGICOS[codigo];
+// contexto: 'medico' | 'ceo' | 'demo' | 'paciente' | 'post_test' | 'publico'
+// — el servidor decide cuál según sesion.tipo (nunca según lo que pida el
+// cliente sin sesión que lo respalde). El cliente aporta datos del guion
+// (nombre, memoria, resultadoTest...); CAPA_A se antepone siempre, aquí y
+// en el HANDLER PRINCIPAL para el caso de `system` heredado del cliente.
+function buildSystemPrompt(contexto, datos = {}) {
+
+  if (contexto === 'medico') {
+    const { nombre, codigo, especialidad, memoria } = datos;
     const bloqueMemoria = memoria
       ? `\nCONTEXTO DE LA ÚLTIMA SESIÓN (pasó más de 1 hora sin actividad — retoma el hilo con naturalidad, ej. "Nos quedamos en esto: ...", sin sonar robótico ni repetirlo textual):\n${memoria}\n`
       : '';
 
-    if (esComingStraté) {
-      return `${IDENTIDAD}
-
-MODO: CEO ESTRATÉGICO — ALIANZA REGENE GLOBAL
-Quien te escribe es ${esComingStraté}. Su código (${codigo}) es su llave de acceso a la alianza CODE CELLS® × Regene Global. Reconócelo de inmediato, salúdalo por su nombre y por su rol, con calidez y cercanía genuina — no como a un médico afiliado, sino como socio de máxima confianza.
-
-Si se identifica por su nombre (aunque no mencione su código), reconócelo igual — responde con algo como "Jorge, qué gusto" y continúa con total naturalidad, sin pedirle que se autentique de nuevo.
-
-Carácter: Trato corporativo con máximo respeto. Eres su copiloto estratégico, no una IA de cara al público. Eres observador estratégico de la alianza.
-
-Beneficios de tu acceso:
-- Visualización completa de red médica CODE CELLS® (certificaciones, especialidades, cobertura)
-- Protocolos clínicos detallados de 5 sistemas CODE y DEZAWA PROTOCOL™
-- Análisis de outcomes de pacientes (datos agregados, confidencialidad total)
-- Trazabilidad completa de biológicos Regene Global en cada consulta
-- Comunicación directa con fundadores via NOVA — di "Conectarme con Víctor" o "Hablar con Galván"
-- Dashboards de alianza: expansión, métricas conjuntas, proyecciones
-- Voz consultiva en decisiones estratégicas de CODE CELLS®
-
-En este modo:
-- Sin restricciones de transparencia — puede preguntarte CUALQUIER cosa sobre la alianza (protocolos, costos, arquitectura, estrategia) y respondes con total detalle.
-- Habla de Víctor, Galván, de la alianza con total naturalidad. No hay restricciones entre nosotros.
-- Acceso normal a: planes nutricionales, base de conocimiento clínico, análisis de protocolos.
-
-FORMATO EN RESPUESTAS LARGAS O CON DATOS ESTRUCTURADOS: igual que en modo fundador — nunca encadenes varios datos en un solo párrafo corrido; usa saltos de línea o viñetas.
-
-${bloqueMemoria}${REGLA_NUTRICION}
-
-BASE DE CONOCIMIENTO CLÍNICO:
-${NOVA_KNOWLEDGE_MEDICO}`;
-    }
-
-    if (esFundador) {
-      return `${IDENTIDAD}
-
-MODO: FUNDADOR — ACCESO TOTAL
-Quien te escribe es ${esFundador}, cofundador de CODE CELLS®. Su código (${codigo}) es su llave de acceso universal — reconócelo de inmediato y trátalo con calidez y cercanía genuina, no como a un médico afiliado más.
-
-Si se identifica por su nombre (aunque no mencione su código), reconócelo igual — por ejemplo si dice "soy el Dr. Víctor Iván" o "soy Galván" — responde con algo como "Doctor, qué gusto" y continúa con total naturalidad, sin pedirle que se autentique de nuevo.
-
-En este modo:
-- Sin restricciones de profundidad técnica, comercial o de negocio — puede preguntarte CUALQUIER cosa sobre CODE CELLS® (protocolos, costos internos, arquitectura de la plataforma, Airtable, estrategia) y respondes con total transparencia y detalle.
-- No apliques las restricciones de "nunca menciones a los fundadores por nombre" — con ÉL sí puedes hablar de fundadores, de él mismo, del otro fundador, con total naturalidad.
-- Puedes ayudarle a resolver problemas técnicos de la plataforma (acceso, login, códigos, registros) de forma directa y práctica.
-- Sigue siendo NOVA — el mismo carácter elegante — pero aquí eres su copiloto de confianza total, no una IA de cara al público.
-
-FORMATO EN RESPUESTAS LARGAS O CON DATOS ESTRUCTURADOS: igual que en modo médico — nunca encadenes varios datos o hallazgos en un solo párrafo corrido; usa saltos de línea o viñetas.
-${bloqueMemoria}${REGLA_NUTRICION}
-
-BASE DE CONOCIMIENTO CLÍNICO:
-${NOVA_KNOWLEDGE_MEDICO}`;
-    }
-
-    return `${IDENTIDAD}
+    return `${CAPA_A}
 
 MODO: MÉDICO EXCLUSIVO
 Estás asistiendo a ${nombre} (${codigo}), especialista en ${especialidad}.
@@ -687,8 +647,49 @@ BASE DE CONOCIMIENTO CLÍNICO:
 ${NOVA_KNOWLEDGE_MEDICO}`;
   }
 
-  if (modo === 'paciente') {
-    const { nombre, id, memoria, vip, respuestaMedicoPendiente } = contexto;
+  // Acceso de liderazgo — reemplaza fundador/CEO estratégico. Cambia el
+  // saludo y las herramientas disponibles, nunca las restricciones de
+  // información: CAPA_A aplica exactamente igual que en cualquier otro
+  // contexto, sin excepción. Herramientas futuras (pendientes de construir):
+  // reporte_medicos, reporte_pacientes, reporte_operacion — siempre de solo
+  // lectura y solo datos agregados, nunca expedientes clínicos ni un
+  // paciente individual. Por ahora la lista de herramientas está vacía
+  // (ver HANDLER PRINCIPAL) — este contexto solo cambia el tono.
+  if (contexto === 'ceo') {
+    const { nombre, codigo } = datos;
+    return `${CAPA_A}
+
+MODO: LIDERAZGO CODE CELLS® — VISIÓN DE RED
+Quien te escribe es ${nombre}, con acceso de liderazgo a CODE CELLS® (código ${codigo}). Reconócelo de inmediato — la sesión ya lo verificó, no hace falta que se identifique de nuevo — y salúdalo con calidez y cercanía genuina, reconociendo su rol de liderazgo, no como a un médico afiliado más.
+
+En este modo:
+- Herramientas disponibles: ninguna todavía. Cuando existan, serán de solo lectura y solo datos agregados (reporte de médicos activos, reporte de pacientes por cohortes, reporte de operación) — nunca expedientes clínicos ni datos de un paciente individual.
+- Las restricciones de arriba (nunca reveles arquitectura, estrategia ni costos internos, nunca dosis o protocolos clínicos con este perfil) aplican exactamente igual que en cualquier otro contexto. Este modo no las suspende ni las relaja.
+- Si te pide un reporte o un dato operativo que hoy no puedes dar, dile con calidez que esa herramienta está en construcción — nunca inventes un dato ni actúes como si ya existiera.`;
+  }
+
+  // Sesión demo (api/auth-login.js: código CC-PAC-DEMO*/9900* con `Es
+  // demo`=true) — igual que paciente pero de solo lectura: cero
+  // herramientas (no se le pasa `herramientaPaciente` en el HANDLER
+  // PRINCIPAL, así que no puede llamar crear_solicitud_cita ni
+  // actualizar_memoria), cero memoria entre conversaciones, cero
+  // transcripción guardada. Cada conversación empieza limpia a propósito.
+  if (contexto === 'demo') {
+    const { nombre, id } = datos;
+    return `${CAPA_A}
+
+MODO: PACIENTE DEMO — SOLO LECTURA
+${nombre ? `Estás acompañando a ${nombre} (${id}), un expediente de práctica compartido por todos los médicos de la red — no es un paciente real.` : 'Estás en conversación sobre un expediente de práctica compartido por todos los médicos de la red — no es un paciente real.'}
+
+En este modo:
+- Conversa sobre lo que ya existe en este expediente de práctica, con el mismo tono que con un paciente estándar.
+- No tienes ninguna herramienta: no puedes crear solicitudes de cita, recordatorios, ni guardar nada en el expediente.
+- No hay memoria entre conversaciones ni transcripción de esta sesión — cada conversación empieza desde cero, sin arrastrar nada de una vez anterior.
+- Si quien te escribe parece estar practicando el uso del portal, puedes orientarlo, pero nunca digas que algo quedó guardado, agendado o registrado — en este modo nada se guarda de verdad.`;
+  }
+
+  if (contexto === 'paciente') {
+    const { nombre, id, memoria, vip, respuestaMedicoPendiente } = datos;
 
     const capacidades = vip ? `
 En este modo (paciente VIP — DEZAWA PROTOCOL™):
@@ -702,7 +703,7 @@ En este modo (paciente estándar):
 - Si necesita orientación clínica, dirígelo a su médico CODE CELLS®
 - Puedes explicar qué son los protocolos, cómo funcionan y qué esperar del proceso`;
 
-    return `${IDENTIDAD}
+    return `${CAPA_A}
 
 MODO: PACIENTE${vip ? ' — DEZAWA PROTOCOL™ (VIP)' : ''}
 ${nombre ? `Estás acompañando a ${nombre} (${id}).` : 'Estás en conversación con un paciente.'}
@@ -718,24 +719,68 @@ HERRAMIENTA "respuesta_nova_paciente": SIEMPRE respondes usando esta herramienta
 - requiere_valoracion_medica: actívalo cuando lo que pregunte o reporte el paciente necesite el criterio de su médico y no algo que tú debas resolver sola (nunca sustituyes al médico). Esto alerta directamente a su médico. En tu "reply" dile con calidez que ya se le avisó a su médico y que le dará seguimiento.`;
   }
 
-  // Modo público por defecto
+  // Contenido comercial compartido entre 'publico' y 'post_test' — precios,
+  // cobertura y herramienta de directorio (migrado del prompt que antes
+  // vivía solo en index.html/buildNovaSystem, cliente). Se construye una
+  // vez y cada contexto decide cómo enmarcarlo.
   const NOMBRES_IDIOMA = { es: 'español', en: 'inglés', pt: 'portugués' };
-  const idiomaPublico = NOMBRES_IDIOMA[contexto.idioma] ? contexto.idioma : 'es';
-  const nombreIdiomaPublico = NOMBRES_IDIOMA[idiomaPublico];
+  const idiomaResuelto = NOMBRES_IDIOMA[datos.idioma] ? datos.idioma : 'es';
+  const nombreIdioma = NOMBRES_IDIOMA[idiomaResuelto];
+  const bloqueIdioma = `Conversas en ${nombreIdioma} (código ${idiomaResuelto}). Si en cualquier
+momento te piden cambiar de idioma, o simplemente te escriben en uno distinto, cambias de
+inmediato y sigues en el idioma que usen, sin comentarlo ni pedir confirmación.`;
 
-  return `${IDENTIDAD}
+  const INFO_COMERCIAL = `
+COBERTURA Y PRECIOS:
+- Culiacán, Sinaloa y Guadalajara, Jalisco: consulta presencial o virtual.
+- Otras ciudades de México: solo consulta virtual.
+- Primera consulta: $1,500 MXN, aproximadamente 60 minutos.
+No des indicaciones de tratamiento, no diagnostiques, no des precios de nada que no sea la
+primera consulta. Invita siempre a una evaluación personalizada con un especialista.
+
+Tienes la herramienta buscar_medicos_directorio para encontrar médicos afiliados por ciudad,
+especialidad o herramienta regenerativa — úsala cuando te pidan un especialista concreto.
+Presenta los resultados con calidez y en lenguaje natural. Si no hay resultados, dilo con
+amabilidad y sugiere ampliar la búsqueda. Nunca inventes médicos ni datos: solo lo que la
+herramienta devuelva.`;
+
+  if (contexto === 'post_test') {
+    const { nombre, resultadoTest } = datos;
+    const tieneResultado = resultadoTest && resultadoTest.sistema;
+    const fraseResultado = tieneResultado
+      ? `Su sistema biológico prioritario es ${resultadoTest.sistema}${typeof resultadoTest.porcentaje === 'number' ? ` (${resultadoTest.porcentaje}%)` : ''}. Ya lo sabes por el resultado de su evaluación — no se lo repitas de forma mecánica ni le pidas que lo confirme; úsalo con naturalidad para dar la bienvenida y profundizar.`
+      : 'Acaba de completar la evaluación CODE CELLS™, pero el resultado no llegó estructurado en esta conversación — pregúntale con naturalidad qué fue lo que más le llamó la atención de su resultado, en vez de asumir un sistema específico.';
+
+    return `${CAPA_A}
+
+MODO: POST-TEST
+Eres el primer punto de contacto de CODE CELLS® con alguien que ya completó la evaluación
+CODE CELLS™. ${nombre ? `Se llama ${nombre}. ` : ''}${fraseResultado}
+${bloqueIdioma}
+
+FLUJO SUGERIDO (adáptalo con naturalidad — una sola pregunta por turno, nunca una lista de
+cuestionario):
+1. Bienvenida personalizada mencionando su sistema prioritario (si lo tienes).
+2. Profundiza en el síntoma que más le preocupa.
+3. Contexto de vida: ocupación, nivel de estrés.
+4. Historia relevante: diagnósticos previos, medicamentos actuales.
+5. Objetivo personal: qué quiere recuperar primero.
+6. Ciudad, para confirmar modalidad de atención.
+7. Cierre cálido invitando a agendar su primera consulta.
+${INFO_COMERCIAL}`;
+  }
+
+  // Modo público por defecto — NO asume que el visitante ya hizo el test.
+  return `${CAPA_A}
 
 MODO: PÚBLICO
-Eres el primer punto de contacto de CODE CELLS® con personas interesadas en medicina regenerativa.
-Tu objetivo es orientar, generar confianza y motivar al visitante a dar el siguiente paso:
-agendar una evaluación inicial con el equipo médico.
-No des indicaciones de tratamiento. No des precios específicos.
-Invita siempre a una evaluación personalizada.
-
-Este visitante hizo el test en ${nombreIdiomaPublico} (código ${idiomaPublico}). Inicias y
-continúas la conversación en ese idioma. Si en cualquier momento te pide cambiar de idioma,
-o simplemente te escribe en uno distinto, cambias de inmediato y sigues en el idioma que use
-él, sin comentarlo ni pedir confirmación.`;
+Eres el primer punto de contacto de CODE CELLS® con personas interesadas en medicina
+regenerativa. No sabes si ya hizo la evaluación CODE CELLS™ — si no lo menciona, no se lo
+des por hecho ni le preguntes como si debiera haberlo hecho.
+Tu objetivo es informar, generar confianza, ayudarle a encontrar un médico afiliado si lo pide,
+y motivarlo a tomar la evaluación CODE CELLS™ o agendar una evaluación inicial.
+${bloqueIdioma}
+${INFO_COMERCIAL}`;
 }
 
 // ─── HANDLER PRINCIPAL ────────────────────────────────────────────
@@ -2612,6 +2657,11 @@ module.exports = async function handler(req, res) {
       system: clientSystem,
       max_tokens,
       idioma,
+      // Guion propuesto por el cliente — el servidor decide si lo honra
+      // según la sesión (ver resolución de `contexto` más abajo). Nunca
+      // determina por sí solo el modo médico/paciente/demo.
+      contexto: contextoSolicitado,
+      resultadoTest,
       // Identificadores de modo
       medicoCode,
       medicoNombre,
@@ -2669,7 +2719,21 @@ module.exports = async function handler(req, res) {
     const esMedico = !!(sesion && sesion.tipo === 'medico');
     const esVIP    = !!(sesion && sesion.tipo === 'vip');
     const esPac    = !!(sesion && sesion.tipo === 'paciente');
+    // Sesión demo (rediseño 2026-08-30): igual que paciente pero de solo
+    // lectura — ver contexto 'demo' en buildSystemPrompt. Antes sesion.tipo
+    // ==='demo' no coincidía con ningún check y caía a público (seguro por
+    // default, pero sin contexto de su propio expediente).
+    const esDemo   = !!(sesion && sesion.tipo === 'demo');
 
+    // El cliente propone `contexto`; el servidor decide si lo honra — pero
+    // la decisión real de qué rama corre abajo (médico/paciente/demo/VIP)
+    // siempre se basa en esMedico/esPac/esDemo/esVIP, que ya son 100%
+    // session-derived (nunca del body). `contextoSolicitado==='medico'` sin
+    // sesión de médico simplemente no calza con ninguna rama de abajo y cae
+    // al `else` público — falla cerrado por construcción, no hace falta un
+    // paso de "downgrade" aparte. Lo único que `contextoSolicitado` decide
+    // por sí mismo es post_test vs. publico, dentro del `else` sin sesión
+    // (ver más abajo) — ninguno de los dos requiere sesión.
     if (esMedico) {
       // El código de médico viene de la sesión verificada, nunca del
       // medicoCode que mande el cliente — si no, un médico autenticado
@@ -2756,18 +2820,34 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      systemPrompt = buildSystemPrompt('medico', {
-        nombre: nombreReal,
-        codigo: medicoCode,
-        especialidad: especialidadReal,
-        memoria: memoriaMedico,
-      });
-      herramientaMedico = buildHerramientaFichaConsulta();
-      herramientaAltaPaciente = buildHerramientaAltaPaciente();
-      herramientaInvitarMedico = buildHerramientaInvitarMedico();
-      herramientaAvisarMedico = buildHerramientaAvisarMedico();
-      herramientaAutorizarDZW = buildHerramientaAutorizarDZW();
-      herramientaSeriesLab = buildHerramientaSeriesHistoricasLab();
+      // Acceso de liderazgo (fundadores + CEO estratégico) — se decide aquí,
+      // por código de la sesión verificada, nunca por texto libre en el
+      // chat (rediseño 2026-08-30: antes esto vivía dentro de
+      // buildSystemPrompt('medico',...) y el propio prompt le decía al
+      // modelo "si dice ser el Dr. Víctor Iván, reconócelo igual" — ese
+      // reconocimiento por texto desapareció por completo). Herramientas
+      // clínicas vacías a propósito: este perfil ya no tiene acceso
+      // clínico total, solo el saludo cambia (ver contexto 'ceo').
+      const esCeo = !!CEO_CODIGOS[medicoCode];
+      if (esCeo) {
+        systemPrompt = buildSystemPrompt('ceo', {
+          nombre: CEO_CODIGOS[medicoCode],
+          codigo: medicoCode,
+        });
+      } else {
+        systemPrompt = buildSystemPrompt('medico', {
+          nombre: nombreReal,
+          codigo: medicoCode,
+          especialidad: especialidadReal,
+          memoria: memoriaMedico,
+        });
+        herramientaMedico = buildHerramientaFichaConsulta();
+        herramientaAltaPaciente = buildHerramientaAltaPaciente();
+        herramientaInvitarMedico = buildHerramientaInvitarMedico();
+        herramientaAvisarMedico = buildHerramientaAvisarMedico();
+        herramientaAutorizarDZW = buildHerramientaAutorizarDZW();
+        herramientaSeriesLab = buildHerramientaSeriesHistoricasLab();
+      }
     } else if (esPac) {
       // El código de paciente viene de la sesión verificada, nunca del
       // pacienteCode que mande el cliente — mismo criterio que medicoCode
@@ -2819,6 +2899,34 @@ module.exports = async function handler(req, res) {
         console.error('[nova] error consultando paciente:', err.message);
         return res.status(502).json({ error: 'Error consultando el expediente del paciente.' });
       }
+    } else if (esDemo) {
+      // Sesión demo (api/auth-login.js) — igual que paciente pero de solo
+      // lectura: se resuelve el nombre del expediente compartido para
+      // personalizar el saludo, pero deliberadamente NO se lee memoria ni
+      // respuesta médico pendiente (cero persistencia, cada conversación
+      // empieza limpia), y NO se construye `herramientaPaciente` — sin
+      // tool, el modelo no tiene forma de llamar crear_solicitud_cita,
+      // actualizar_memoria, etc. Esto es lo que hace el modo de solo
+      // lectura real, no una instrucción de texto que el modelo podría
+      // ignorar.
+      pacienteCode = sesion.codigo;
+      try {
+        const formula = `{Código de paciente}="${pacienteCode}"`;
+        const url = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_PACIENTES}?filterByFormula=${encodeURIComponent(formula)}`;
+        const pacRes = await fetch(url, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
+        const pacData = await pacRes.json();
+        const pacRecord = pacData.records?.[0];
+
+        if (!pacRecord) {
+          return res.status(403).json({ error: MENSAJE_NO_DISPONIBLE });
+        }
+
+        const nombreReal = pacRecord.fields['Nombre completo'] || '';
+        systemPrompt = buildSystemPrompt('demo', { nombre: nombreReal, id: pacienteCode });
+      } catch (err) {
+        console.error('[nova] error consultando paciente demo:', err.message);
+        return res.status(502).json({ error: 'Error consultando el expediente demo.' });
+      }
     } else if (esVIP) {
       // El código DZW viene de la sesión verificada, nunca del vipCode que
       // mande el cliente — mismo criterio que medicoCode/pacienteCode arriba
@@ -2849,17 +2957,40 @@ module.exports = async function handler(req, res) {
         vip: true,
       });
     } else {
-      // Modo público — permite system prompt del cliente solo en este modo.
-      // idioma sí se valida y se usa siempre (aunque venga system del
-      // cliente), porque fix/lab-valores-fecha-idempotencia (93c6ab7) quita
-      // el destructure de `system` por completo en este modo — cuando ese
-      // merge llegue, esta rama deja de depender del system del cliente y
-      // buildSystemPrompt('publico') pasa a ser la única fuente. Que idioma
-      // ya viaje validado aquí evita que ese día haya que tocar este bloque.
+      // Sin sesión: público o post_test — ninguno de los dos la requiere.
+      // `contextoSolicitado==='post_test'` es lo único que decide sin
+      // sesión, porque post_test no es un privilegio, es solo un guion
+      // distinto para un visitante anónimo.
       const idiomaValido = ['es', 'en', 'pt'].includes(idioma) ? idioma : 'es';
-      systemPrompt = typeof clientSystem === 'string'
-        ? clientSystem.slice(0, 8000)
-        : buildSystemPrompt('publico', { idioma: idiomaValido });
+      const esPostTest = contextoSolicitado === 'post_test';
+
+      let datosGuion = { idioma: idiomaValido };
+      if (esPostTest) {
+        datosGuion.nombre = typeof pacienteNombre === 'string' ? pacienteNombre.slice(0, 100) : null;
+        // resultadoTest viaja como campo estructurado (rediseño 2026-08-30)
+        // — ya no como frase libre que el modelo tenía que parsear del
+        // primer mensaje. Se sanea aquí: nunca se confía texto largo o un
+        // porcentaje fuera de rango tal cual venga del cliente.
+        if (resultadoTest && typeof resultadoTest === 'object') {
+          datosGuion.resultadoTest = {
+            sistema: typeof resultadoTest.sistema === 'string' ? resultadoTest.sistema.slice(0, 100) : null,
+            porcentaje: typeof resultadoTest.porcentaje === 'number' && isFinite(resultadoTest.porcentaje)
+              ? Math.max(0, Math.min(100, resultadoTest.porcentaje))
+              : null,
+          };
+        }
+      }
+      const guionServidor = buildSystemPrompt(esPostTest ? 'post_test' : 'publico', datosGuion);
+
+      // CAPA A SIEMPRE se inyecta, incluso para callers no migrados que
+      // todavía mandan su propio `system` (kiosco/autorregistro.html,
+      // code-cells-network — fuera de alcance de este rediseño, conservan
+      // su guion propio). Antes: `clientSystem` reemplazaba el prompt
+      // completo, incluida la identidad — eso ya no es posible desde el
+      // navegador. El cliente aporta guion; nunca identidad.
+      systemPrompt = typeof clientSystem === 'string' && clientSystem.trim()
+        ? `${CAPA_A}\n\n${clientSystem.slice(0, 8000)}`
+        : guionServidor;
       herramientaDirectorio = buildHerramientaBuscarDirectorio();
     }
 
