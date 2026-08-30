@@ -1065,6 +1065,17 @@ html, body {
   <script src="/lib/i18n.js"></script>
 </head>
 <body>
+<!-- ─── AVISO: CAPACITACIÓN EN ACTUALIZACIÓN ───
+     Todo el contenido de los 11 módulos está bajo revisión legal/regulatoria
+     (2026-08-30) — ningún archivo se borró, se archivaron en
+     capacitacion/_pendiente-dictamen/ para reescribirse tras el dictamen.
+     Este aviso + el bloqueo de abrirModulo() de abajo son la capa de UI;
+     la protección real es que cada modulo_*.html en esta carpeta ahora es
+     un placeholder — no queda contenido real accesible por URL directa. -->
+<div style="position:sticky;top:0;z-index:9999;background:#b03a2e;color:#fff;text-align:center;padding:0.75rem 1rem;font-size:0.9rem;font-weight:600;">
+  ⚠ Capacitación en actualización — el contenido de los módulos no está disponible temporalmente.
+</div>
+
 <!-- ─── AUDIO AMBIENTAL PARA PRESENTACIÓN ─── -->
 <audio id="ambient-audio" autoplay loop muted style="display:none;">
   <source src="../assets/helix-in-gold.mp3" type="audio/mpeg">
@@ -1608,47 +1619,29 @@ function actualizarUI() {
   document.getElementById('lbl-exam').textContent = `${ex} / 1 completado`;
   document.getElementById('fill-exam').style.width = (ex*100) + '%';
 
-  // Cards
+  // Cards — CAPACITACIÓN EN ACTUALIZACIÓN (2026-08-30): el badge/botón real
+  // de cada tarjeta (COMPLETADO/PENDIENTE según progreso) se sobreescribe
+  // siempre a "EN ACTUALIZACIÓN" — ver abrirModulo() más abajo, que bloquea
+  // el acceso real. Lógica original en el historial de git. No restaurar
+  // sin instrucción explícita.
   for (let i = 1; i <= TOTAL; i++) {
     const badge = document.getElementById(`badge-${i}`);
     const btn   = document.getElementById(`btn-${i}`);
     if (!badge) continue;
-    if (p[i]) {
-      badge.textContent = '✓ COMPLETADO';
-      badge.className = 'card-badge completado';
-      if (btn) btn.textContent = i === 10 ? 'Repasar examen ↩' : 'Repasar módulo ↩';
-      document.querySelector(`.card[data-id="${i}"]`)?.classList.add('completado');
-    } else {
-      badge.textContent = 'PENDIENTE';
-      badge.className = 'card-badge pendiente';
-      if (btn) btn.textContent = i === 10 ? 'Presentar examen →' : 'Iniciar módulo →';
-    }
+    badge.textContent = 'EN ACTUALIZACIÓN';
+    badge.className = 'card-badge pendiente';
+    if (btn) btn.textContent = 'No disponible';
+    document.querySelector(`.card[data-id="${i}"]`)?.style.setProperty('opacity', '0.55');
   }
 }
 
+// CAPACITACIÓN EN ACTUALIZACIÓN (2026-08-30) — bloqueo deliberado, no
+// eliminar sin instrucción explícita. Los 11 archivos de módulo en esta
+// carpeta son placeholders; el contenido real (y la lógica original de esta
+// función, que abría el iframe del módulo) está en el historial de git y en
+// capacitacion/_pendiente-dictamen/, pendiente de dictamen legal/regulatorio.
 function abrirModulo(id) {
-  actual = id;
-  const m = MODS[id];
-  document.getElementById('modal-title').textContent = `${id === 10 ? '⋆' : '0'+id} — ${m.nombre}`;
-  document.getElementById('modal-iframe').src = m.file;
-  document.getElementById('modal-overlay').classList.add('active');
-  document.body.style.overflow = 'hidden';
-
-  const p = prog();
-  if (p[id]) {
-    document.getElementById('modal-completar').style.display = 'none';
-    document.getElementById('modal-cert').classList.add('visible');
-  } else {
-    // Módulos 1-9 avisan solos al terminar Y aprobar (postMessage) — ya no
-    // Los 10 módulos ya avisan solos vía postMessage al terminar (con o sin
-    // calificación según el tipo de módulo) — este botón manual ya no se
-    // usa para ninguno, se deja oculto siempre para no permitir marcar
-    // completado sin haber cursado el contenido real.
-    document.getElementById('modal-completar').style.display = 'none';
-    document.getElementById('modal-cert').classList.remove('visible');
-  }
-  document.getElementById('modal-prev').disabled = id <= 1;
-  document.getElementById('modal-next').disabled = id >= TOTAL;
+  alert('Este módulo está en actualización. El contenido no está disponible temporalmente.');
 }
 
 function cerrarModulo() {

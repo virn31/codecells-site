@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Casos Clínicos Integradores</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185; --purple: #b79ae0;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:3px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:440px; max-height:660px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:52px; height:52px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:16px; font-size:24px; }
+  h3 { margin:0 0 12px; font-size:19px; font-weight:600; color:#fff; }
+  h4 { margin:16px 0 6px; font-size:12.5px; font-weight:700; color:var(--gold-light); letter-spacing:0.03em; text-transform:uppercase; }
+  p { font-size:14.5px; line-height:1.65; color:var(--text-secondary); margin:0 0 10px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .step-label { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--teal-light); background:rgba(79,209,192,0.1); border-radius:20px; padding:4px 10px; margin-bottom:10px; }
+  .chip-row { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px; }
+  .chip { background:var(--surface); border-radius:20px; padding:7px 12px; font-size:12px; font-weight:600; color:var(--text); }
+  .protocard { background:var(--surface); border-left:3px solid var(--teal-light); border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+  .protocard .pname { font-weight:700; color:#fff; font-size:13.5px; margin-bottom:4px; }
+  .protocard .pcomp { font-size:12.5px; color:var(--text-secondary); margin-bottom:4px; }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:10.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+</style>
+  <script src="/lib/i18n.js"></script>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<script>
+// Repaso sin calificación (reemplaza al antiguo "Examen Integrador por
+// Niveles"). No mide un porcentaje — el objetivo es reforzar el
+// razonamiento de integrar varios sistemas/módulos frente a un mismo
+// paciente real, algo que ningún examen de opción múltiple por módulo
+// puede evaluar por separado. Avisa al hub al terminar, como Portal Médico.
+var MODULO_ID = 10;
+
+var CASOS = [
+  {
+    nombre: "María Elena R.",
+    resumen: "65 años · síndrome climatérico multisistémico",
+    ficha: "65 años, femenino, profesora jubilada, casada.",
+    motivo: '"Desde hace varios años siento que perdí mi energía. Tengo bochornos, no descanso, me irrito con facilidad y siento que he envejecido muy rápido."',
+    antecedentes: "Heredofamiliares: madre con osteoporosis, padre con HTA, hermana con hipotiroidismo. Personales: HTA controlada, osteopenia (hace 3 años), dislipidemia leve. Gineco-obstétricos: menopausia a los 52 años (13 años postmenopausia), nunca recibió terapia hormonal.",
+    padecimiento: "Desde hace ~8 años: bochornos, sudoración nocturna, fatiga persistente, disminución de masa muscular, aumento de grasa abdominal, insomnio, ansiedad, irritabilidad, libido baja, sequedad vaginal, piel seca, dolor articular generalizado.",
+    exploracion: "IMC 28.4, circunferencia abdominal 94cm, TA 128/76. Piel seca, sarcopenia leve, grasa visceral aumentada, dolor leve en rodillas con rigidez matutina.",
+    labs: "Perfil hormonal (estradiol/FSH/LH/DHEA-S/testosterona/SHBG), metabólico (glucosa/insulina/HbA1c/HOMA-IR/lípidos), inflamación (PCR/ferritina/homocisteína), vitaminas (D/B12/folato), tiroides, zinc/magnesio — todos solicitados por el cuadro multisistémico.",
+    diagnostico: "Síndrome climatérico tardío: deficiencia estrogénica, disfunción neuroendocrina, inflamación crónica de bajo grado, estrés oxidativo, disfunción mitocondrial, sarcopenia, resistencia parcial a la insulina, alteración del sueño.",
+    pregunta: "¿Cuál es el primer error de razonamiento que hay que evitar en este caso?",
+    opciones: [
+      "Tratar cada síntoma por separado (un remedio para el bochorno, otro para el insomnio, otro para el dolor) en vez de reconocerlos como expresión de un mismo desequilibrio neuroendocrino-metabólico-inflamatorio.",
+      "Pedir demasiados laboratorios para un caso de menopausia.",
+      "Considerar la sarcopenia como parte del cuadro."
+    ],
+    correcta: 0,
+    justificacionPregunta: "Este es exactamente el error que la homotoxicología busca corregir: la paciente no tiene 8 síntomas independientes, tiene un estado biológico integrado que se manifiesta en varios sistemas a la vez.",
+    enfoque: [
+      { sistema: "Optimización Biológica Intravenosa", detalle: "Protocolo tipo Longevity/Anti-aging IV (NAD+ + Glutatión + Complejo B + Ubichinon Compositum) — ataca directamente la fatiga, disfunción mitocondrial y estrés oxidativo del diagnóstico funcional." },
+      { sistema: "Homotoxicología", detalle: "Ovarheel + Placenta Suis (dúo femenino, regulación del eje neuroendocrino) + Nervoheel (ansiedad/irritabilidad/insomnio) + Lymphomyosot (drenaje transversal)." },
+      { sistema: "Nutracéuticos", detalle: "Corrección dirigida por labs — vitamina D, magnesio, omega-3, colágeno para piel y articulaciones, según déficits confirmados." },
+      { sistema: "Seguimiento", detalle: "Reevaluar perfil hormonal/metabólico/inflamatorio en 3 meses — el objetivo terapéutico es medible, no solo \"sentirse mejor\"." }
+    ],
+    notaLimite: "Nunca recibió terapia hormonal — si el caso ameritara valorarla, es una decisión que corresponde a valoración ginecológica específica, fuera del catálogo biorregulador de CODE CELLS®."
+  },
+  {
+    nombre: "Roberto A.",
+    resumen: "58 años · síndrome metabólico + hipogonadismo + gonartrosis",
+    ficha: "58 años, masculino, comerciante.",
+    motivo: '"Ya no tengo la misma energía, subí de peso, y las rodillas me duelen al subir escaleras."',
+    antecedentes: "Heredofamiliares: padre con infarto a los 60, madre con DM2. Personales: prediabetes, HTA controlada, sobrepeso, sin cirugías previas.",
+    padecimiento: "Fatiga, disminución de libido, disfunción eréctil leve, aumento de grasa abdominal, dolor bilateral de rodillas (crepitación, sin derrame), disminución de fuerza, sueño no reparador, irritabilidad.",
+    exploracion: "Peso 92kg, talla 1.72m, IMC 31, circunferencia abdominal 106cm, TA 134/86. Crepitación bilateral de rodillas, sin derrame ni eritema.",
+    labs: "Testosterona total baja con SHBG normal, glucosa en ayuno 108, HbA1c 5.9%, HOMA-IR elevado, LDL elevado, PCR ligeramente elevada, vitamina D baja.",
+    diagnostico: "Síndrome metabólico + hipogonadismo de inicio tardío + gonartrosis bilateral temprana + inflamación de bajo grado.",
+    pregunta: "El paciente pregunta si puede simplemente pedir testosterona directamente, \"para resolver todo de un jalón\". ¿Cuál es la respuesta clínicamente correcta?",
+    opciones: [
+      "Sí, la testosterona baja explica todo el cuadro, se indica de inmediato sin más evaluación.",
+      "No como primera línea aislada: el cuadro es metabólico-articular-hormonal integrado — el reemplazo hormonal aislado no resuelve la resistencia a la insulina ni la gonartrosis, y su indicación/vigilancia excede el catálogo biorregulador de CODE CELLS®, requiere valoración médica específica del eje gonadal.",
+      "No, la testosterona nunca debe considerarse en ningún paciente."
+    ],
+    correcta: 1,
+    justificacionPregunta: "El error de \"un síntoma, un remedio\" aplica igual en hombres — la testosterona baja es parte del cuadro, no la explicación completa, y su manejo directo rebasa el catálogo regenerativo hacia terreno de endocrinología específica.",
+    enfoque: [
+      { sistema: "Optimización Biológica Intravenosa", detalle: "Protocolo metabólico (Diabetes IV: Vit C + Magnesio + Zinc + Coenzima Compositum + Carboxilasa) para la resistencia a la insulina." },
+      { sistema: "Articular", detalle: "Flexmotion IV (homotoxicología) como primer escalón; si el caso lo amerita y el médico está certificado, valorar MSC o exosomas intraarticulares (GENESIS™) para la gonartrosis." },
+      { sistema: "Nutracéuticos", detalle: "Vitamina D y omega-3 dirigidos por labs, apoyo antiinflamatorio general." },
+      { sistema: "Límite del catálogo", detalle: "El manejo específico del hipogonadismo (reemplazo hormonal) se remite a valoración médica dedicada — no es parte del protocolo biorregulador de primera línea." }
+    ],
+    notaLimite: "Este caso ilustra un límite real: no todo lo que aparece en el diagnóstico funcional se resuelve dentro del catálogo de CODE CELLS® — reconocer esos límites es tan importante como saber combinar lo que sí aplica."
+  },
+  {
+    nombre: "Daniela M.",
+    resumen: "45 años · síndrome post-viral con inflamación de bajo grado",
+    ficha: "45 años, femenino, diseñadora gráfica.",
+    motivo: '"Desde que tuve COVID hace 8 meses no recupero mi energía, me cuesta concentrarme y duermo mal."',
+    antecedentes: "Sin antecedentes patológicos relevantes. Tabaquismo negativo.",
+    padecimiento: "Fatiga post-esfuerzo, niebla mental, mialgias difusas, insomnio, ansiedad leve, taquicardia ocasional, intolerancia al ejercicio.",
+    exploracion: "Signos vitales normales, sin datos de alarma, IMC normal.",
+    labs: "PCR ultrasensible ligeramente elevada, ferritina elevada, vitamina D baja, homocisteína elevada, perfil tiroideo normal.",
+    diagnostico: "Síndrome post-viral con inflamación crónica de bajo grado y disfunción mitocondrial secundaria.",
+    pregunta: "¿Qué combinación de sistemas responde mejor al diagnóstico funcional de este caso?",
+    opciones: [
+      "Solo un ansiolítico convencional, ya que el componente principal es la ansiedad.",
+      "Optimización Biológica Intravenosa orientada a soporte inmune/energético + homotoxicología para inmunomodulación y sueño + nutracéuticos dirigidos por labs — atacando inflamación, mitocondria y regulación nerviosa a la vez, no solo el síntoma más visible.",
+      "Ningún tratamiento hasta que pasen 12 meses del cuadro viral."
+    ],
+    correcta: 1,
+    justificacionPregunta: "La ansiedad y el insomnio son parte de un cuadro más amplio de inflamación/disfunción mitocondrial post-viral — tratar solo el síntoma más visible (ansiedad) sin abordar el terreno de fondo deja intacta la causa real.",
+    enfoque: [
+      { sistema: "Optimización Biológica Intravenosa", detalle: "Boost Immunity IV o Energy IV (Glutatión, Vitamina C, Complejo B, CoQ10) — soporte inmune y energético directo." },
+      { sistema: "Homotoxicología", detalle: "Engystol (inmunomodulador) + Nervoheel (sueño/ansiedad) + Lymphomyosot (drenaje)." },
+      { sistema: "Nutracéuticos", detalle: "Vitamina D y magnesio dirigidos por los déficits confirmados en labs." },
+      { sistema: "Honestidad con la paciente", detalle: "Comunicar que la evidencia sobre manejo post-viral sigue en desarrollo — se ofrece un enfoque razonable de soporte, no una cura garantizada." }
+    ],
+    notaLimite: "Cuidado con la publicidad responsable: nunca prometer \"cura del síndrome post-viral\" — se comunica como apoyo biológico razonado, con seguimiento y ajuste según respuesta real."
+  },
+  {
+    nombre: "Jorge L.",
+    resumen: "62 años · osteoartritis + interés en longevidad preventiva",
+    ficha: "62 años, masculino, empresario retirado.",
+    motivo: '"Quiero sentirme como hace 10 años, mis rodillas ya no aguantan y quiero prevenir lo que le pasó a mi papá."',
+    antecedentes: "Heredofamiliar: padre con Alzheimer a los 75 años. Personales: osteoartritis de rodilla bilateral moderada (radiografía con pinzamiento), HTA controlada, ex-fumador.",
+    padecimiento: "Dolor articular limitante, rigidez matutina mayor a 30 minutos, fatiga, preocupación explícita por deterioro cognitivo, interés activo en prevención.",
+    exploracion: "Crepitación bilateral de rodillas, derrame leve en rodilla derecha, marcha antálgica leve.",
+    labs: "PCR elevada, vitamina D baja, perfil lipídico limítrofe, HbA1c normal-alto.",
+    diagnostico: "Osteoartritis moderada bilateral + inflamación crónica de bajo grado + preocupación por longevidad cognitiva (sin datos clínicos de deterioro actual).",
+    pregunta: "El paciente pide \"algo para el Alzheimer también, ya que aquí lo cuidan bien\". ¿Cuál es la respuesta más responsable?",
+    opciones: [
+      "Ofrecer directamente un protocolo \"anti-Alzheimer\" con biológicos, ya que el paciente lo está pidiendo.", 
+      "Explicar que hoy no presenta ningún dato clínico de deterioro cognitivo, que la investigación de biológicos en el terreno neurodegenerativo está en una etapa muy temprana, y enfocar el plan en lo que sí tiene evidencia razonable para su caso actual (articular, inflamatorio, longevidad general) — sin prometer prevención específica de una enfermedad que no tiene.",
+      "Decirle que nada se puede hacer preventivamente y que espere a tener síntomas."
+    ],
+    correcta: 1,
+    justificacionPregunta: "Ofrecer un \"protocolo anti-Alzheimer\" a alguien sin deterioro cognitivo, basado en investigación todavía muy temprana, sería publicidad irresponsable — la honestidad sobre los límites de la evidencia es parte del manejo correcto de este caso." ,
+    enfoque: [
+      { sistema: "Articular", detalle: "MSC o exosomas intraarticulares (GENESIS™, si certificado) o C-Art/Flexmotion IV como escalón previo — combinación de MSC/exosomas está documentada específicamente para reparación osteoarticular." },
+      { sistema: "Longevidad general", detalle: "NAD+ IV / Longevity Premium — apoyo mitocondrial y antiinflamatorio de base, con expectativas realistas." },
+      { sistema: "Nutracéuticos", detalle: "Vitamina D y omega-3 dirigidos por labs." },
+      { sistema: "Comunicación", detalle: "Preocupación cognitiva familiar se documenta y se sugiere vigilancia clínica apropiada — no se convierte en venta de un protocolo sin base real para su situación actual." }
+    ],
+    notaLimite: "Este caso pone a prueba la honestidad clínica más que la técnica: saber decir \"no\" a una petición del paciente cuando la evidencia no la respalda es tan parte de la integración de sistemas como saber combinarlos bien."
+  }
+];
+
+var CELLS = [
+  { label: "Bienvenida", render: function() {
+    return '<div class="icon-badge">🧩</div><h3>Casos Clínicos Integradores</h3>' +
+      '<p>Este es un repaso, no un examen calificado. Los 9 módulos anteriores ya certifican tu conocimiento específico de cada sistema — este espacio existe para practicar algo que ningún examen por módulo evalúa: <strong style="color:#fff;">razonar un caso real combinando varios sistemas a la vez</strong>.</p>' +
+      '<div class="card"><p style="margin:0;">Vas a revisar <strong style="color:#fff;">4 casos clínicos reales</strong>, cada uno con su ficha completa, y una pregunta de razonamiento por caso — sin porcentaje ni aprobado/no aprobado.</p></div>';
+  }},
+  { label: "Caso 1 · Presentación", render: function() {
+    var c = CASOS[0];
+    return '<div class="icon-badge">📋</div><span class="step-label">Caso 1 de 4</span><h3>' + c.nombre + '</h3>' +
+      '<p style="margin:0 0 8px;color:var(--teal-light);font-weight:600;">' + c.resumen + '</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Ficha:</strong> ' + c.ficha + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Motivo de consulta:</strong> ' + c.motivo + '</p></div>';
+  }},
+  { label: "Caso 1 · Antecedentes", render: function() {
+    var c = CASOS[0];
+    return '<div class="icon-badge">📖</div><span class="step-label">Caso 1 de 4</span><h3>Antecedentes y padecimiento actual</h3>' +
+      '<div class="card"><p style="margin:0;">' + c.antecedentes + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Padecimiento actual:</strong> ' + c.padecimiento + '</p></div>';
+  }},
+  { label: "Caso 1 · Exploración y labs", render: function() {
+    var c = CASOS[0];
+    return '<div class="icon-badge">🔬</div><span class="step-label">Caso 1 de 4</span><h3>Exploración y laboratorios</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Exploración:</strong> ' + c.exploracion + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Labs solicitados:</strong> ' + c.labs + '</p></div>' +
+      '<div class="card" style="border-left:3px solid var(--gold-light);"><p style="margin:0;"><strong style="color:#fff;">Diagnóstico funcional:</strong> ' + c.diagnostico + '</p></div>';
+  }},
+  { label: "Caso 1 · Razonamiento", render: function(st) {
+    return renderPregunta(0, st);
+  }},
+  { label: "Caso 1 · Enfoque integrador", render: function() {
+    return renderEnfoque(0);
+  }},
+  { label: "Caso 2 · Presentación", render: function() {
+    var c = CASOS[1];
+    return '<div class="icon-badge">📋</div><span class="step-label">Caso 2 de 4</span><h3>' + c.nombre + '</h3>' +
+      '<p style="margin:0 0 8px;color:var(--teal-light);font-weight:600;">' + c.resumen + '</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Ficha:</strong> ' + c.ficha + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Motivo de consulta:</strong> ' + c.motivo + '</p></div>';
+  }},
+  { label: "Caso 2 · Antecedentes", render: function() {
+    var c = CASOS[1];
+    return '<div class="icon-badge">📖</div><span class="step-label">Caso 2 de 4</span><h3>Antecedentes y padecimiento actual</h3>' +
+      '<div class="card"><p style="margin:0;">' + c.antecedentes + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Padecimiento actual:</strong> ' + c.padecimiento + '</p></div>';
+  }},
+  { label: "Caso 2 · Exploración y labs", render: function() {
+    var c = CASOS[1];
+    return '<div class="icon-badge">🔬</div><span class="step-label">Caso 2 de 4</span><h3>Exploración y laboratorios</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Exploración:</strong> ' + c.exploracion + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Labs:</strong> ' + c.labs + '</p></div>' +
+      '<div class="card" style="border-left:3px solid var(--gold-light);"><p style="margin:0;"><strong style="color:#fff;">Diagnóstico funcional:</strong> ' + c.diagnostico + '</p></div>';
+  }},
+  { label: "Caso 2 · Razonamiento", render: function(st) {
+    return renderPregunta(1, st);
+  }},
+  { label: "Caso 2 · Enfoque integrador", render: function() {
+    return renderEnfoque(1);
+  }},
+  { label: "Caso 3 · Presentación", render: function() {
+    var c = CASOS[2];
+    return '<div class="icon-badge">📋</div><span class="step-label">Caso 3 de 4</span><h3>' + c.nombre + '</h3>' +
+      '<p style="margin:0 0 8px;color:var(--teal-light);font-weight:600;">' + c.resumen + '</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Ficha:</strong> ' + c.ficha + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Motivo de consulta:</strong> ' + c.motivo + '</p></div>';
+  }},
+  { label: "Caso 3 · Antecedentes", render: function() {
+    var c = CASOS[2];
+    return '<div class="icon-badge">📖</div><span class="step-label">Caso 3 de 4</span><h3>Antecedentes y padecimiento actual</h3>' +
+      '<div class="card"><p style="margin:0;">' + c.antecedentes + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Padecimiento actual:</strong> ' + c.padecimiento + '</p></div>';
+  }},
+  { label: "Caso 3 · Exploración y labs", render: function() {
+    var c = CASOS[2];
+    return '<div class="icon-badge">🔬</div><span class="step-label">Caso 3 de 4</span><h3>Exploración y laboratorios</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Exploración:</strong> ' + c.exploracion + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Labs:</strong> ' + c.labs + '</p></div>' +
+      '<div class="card" style="border-left:3px solid var(--gold-light);"><p style="margin:0;"><strong style="color:#fff;">Diagnóstico funcional:</strong> ' + c.diagnostico + '</p></div>';
+  }},
+  { label: "Caso 3 · Razonamiento", render: function(st) {
+    return renderPregunta(2, st);
+  }},
+  { label: "Caso 3 · Enfoque integrador", render: function() {
+    return renderEnfoque(2);
+  }},
+  { label: "Caso 4 · Presentación", render: function() {
+    var c = CASOS[3];
+    return '<div class="icon-badge">📋</div><span class="step-label">Caso 4 de 4</span><h3>' + c.nombre + '</h3>' +
+      '<p style="margin:0 0 8px;color:var(--teal-light);font-weight:600;">' + c.resumen + '</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Ficha:</strong> ' + c.ficha + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Motivo de consulta:</strong> ' + c.motivo + '</p></div>';
+  }},
+  { label: "Caso 4 · Antecedentes", render: function() {
+    var c = CASOS[3];
+    return '<div class="icon-badge">📖</div><span class="step-label">Caso 4 de 4</span><h3>Antecedentes y padecimiento actual</h3>' +
+      '<div class="card"><p style="margin:0;">' + c.antecedentes + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Padecimiento actual:</strong> ' + c.padecimiento + '</p></div>';
+  }},
+  { label: "Caso 4 · Exploración y labs", render: function() {
+    var c = CASOS[3];
+    return '<div class="icon-badge">🔬</div><span class="step-label">Caso 4 de 4</span><h3>Exploración y laboratorios</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Exploración:</strong> ' + c.exploracion + '</p></div>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Labs:</strong> ' + c.labs + '</p></div>' +
+      '<div class="card" style="border-left:3px solid var(--gold-light);"><p style="margin:0;"><strong style="color:#fff;">Diagnóstico funcional:</strong> ' + c.diagnostico + '</p></div>';
+  }},
+  { label: "Caso 4 · Razonamiento", render: function(st) {
+    return renderPregunta(3, st);
+  }},
+  { label: "Caso 4 · Enfoque integrador", render: function() {
+    return renderEnfoque(3);
+  }},
+  { label: "Resumen", render: function() {
+    return '<div class="icon-badge">🏁</div><h3>Resumen y cierre</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>Un paciente real casi nunca encaja en un solo sistema — el diagnóstico funcional casi siempre pide combinar Optimización Biológica Intravenosa, homotoxicología, péptidos y/o biológicos.</li>' +
+      '<li>Tratar síntoma por síntoma, sin ver el estado biológico integrado, es el mismo error que ya vimos en Homotoxicología — aquí se practicó con casos reales.</li>' +
+      '<li>Reconocer los límites del catálogo (lo que SÍ es CODE CELLS® vs. lo que requiere valoración médica específica) es tan importante como saber combinar bien lo que sí aplica.</li>' +
+      '<li>La honestidad sobre el nivel de evidencia disponible — incluso cuando el paciente pide más — es parte del manejo clínico correcto, no un obstáculo para vender un protocolo.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="margin:0;">Este repaso se completó automáticamente al llegar aquí — no se califica, y puedes volver a repasar cualquier caso cuando quieras.</p></div>';
+  }}
+];
+
+function renderPregunta(idx, st) {
+  var c = CASOS[idx];
+  var key = 'preg' + idx;
+  var answered = st.respuestas[key];
+  var html = '<div class="icon-badge">🤔</div><span class="step-label">Caso ' + (idx+1) + ' de 4</span><h3>' + c.pregunta + '</h3>';
+  c.opciones.forEach(function(o, i) {
+    var cls = "opt";
+    if (answered !== undefined) { if (i === c.correcta) cls += " correct"; else if (i === answered) cls += " wrong"; }
+    html += '<button class="' + cls + '" onclick="responder(\'' + key + '\',' + i + ')">' + o + '</button>';
+  });
+  if (answered !== undefined) {
+    var ok = answered === c.correcta;
+    html += '<p class="feedback ' + (ok ? "ok" : "bad") + '">' + (ok ? "Correcto." : "La opción correcta está marcada.") + '</p>' +
+      '<p class="rationale">' + c.justificacionPregunta + '</p>';
+  }
+  return html;
+}
+
+function renderEnfoque(idx) {
+  var c = CASOS[idx];
+  var html = '<div class="icon-badge">🧭</div><span class="step-label">Caso ' + (idx+1) + ' de 4</span><h3>Enfoque integrador sugerido</h3>';
+  c.enfoque.forEach(function(e) {
+    html += '<div class="protocard"><div class="pname">' + e.sistema + '</div><div class="pcomp">' + e.detalle + '</div></div>';
+  });
+  html += '<div class="card" style="border-left:3px solid var(--danger);"><p style="margin:0;"><strong style="color:var(--danger);">Límite a respetar:</strong> ' + c.notaLimite + '</p></div>';
+  return html;
+}
+
+var state = { current: 0, respuestas: {} };
+var yaAvisoCompletado = false;
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent = (state.current+1) + " · " + CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn");
+  var label = CELLS[state.current].label;
+  var blocked = false;
+  if (label.indexOf("Razonamiento") !== -1) {
+    var idx = parseInt(label.charAt(5)) - 1; // "Caso N · Razonamiento"
+    blocked = state.respuestas['preg' + idx] === undefined;
+  }
+  nextBtn.disabled = blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar repaso" : (blocked ? "Responde para continuar" : "Siguiente →");
+  renderDots();
+  stage.scrollTop = 0;
+
+  if (label === "Resumen" && !yaAvisoCompletado) {
+    yaAvisoCompletado = true;
+    try { window.parent.postMessage({ tipo: 'code_cells_modulo_completado', moduloId: MODULO_ID }, '*'); } catch (e) {}
+  }
+}
+function responder(key, i) {
+  if (state.respuestas[key] !== undefined) return;
+  state.respuestas[key] = i;
+  renderStage();
+}
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,respuestas:{}}; yaAvisoCompletado=false; renderStage(); } };
+renderStage();
+</script>
+</body>
+</html>

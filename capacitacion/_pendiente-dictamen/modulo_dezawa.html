@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>MUSE Cells — GENESIS™</title>
+<style>
+  :root {
+    --navy: #081327; --navy-800: #0f2444; --surface: #14294c;
+    --teal: #12968a; --teal-light: #4fd1c0; --danger: #e0665f;
+    --gold: #c8a050; --gold-light: #e0c185; --purple: #b79ae0;
+    --text: #eef2f6; --text-secondary: #a7b4c9; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--navy); color:var(--text); display:flex; justify-content:center; padding:32px 16px; }
+  .wrap { width:100%; max-width:660px; }
+  .dots { display:flex; gap:4px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--surface); transition:background .3s; }
+  .dot.active { background:var(--teal-light); }
+  .stage { position:relative; min-height:420px; max-height:640px; overflow-y:auto; background:var(--navy-800); border-radius:20px; padding:30px 28px; }
+  .cell { opacity:0; transform:translateX(20px); transition:opacity .35s ease, transform .35s ease; }
+  .cell.active { opacity:1; transform:translateX(0); }
+  .icon-badge { width:52px; height:52px; border-radius:50%; background:rgba(79,209,192,0.12); display:flex; align-items:center; justify-content:center; margin-bottom:16px; font-size:24px; }
+  h3 { margin:0 0 12px; font-size:19px; font-weight:600; color:#fff; }
+  h4 { margin:16px 0 6px; font-size:12.5px; font-weight:700; color:var(--gold-light); letter-spacing:0.03em; text-transform:uppercase; }
+  p { font-size:14.5px; line-height:1.65; color:var(--text-secondary); margin:0 0 10px; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+  .card p { margin:0; }
+  .step-label { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--teal-light); background:rgba(79,209,192,0.1); border-radius:20px; padding:4px 10px; margin-bottom:10px; }
+  .step-label.p2 { color:var(--gold-light); background:rgba(200,160,80,0.1); }
+  .step-label.p3 { color:var(--purple); background:rgba(183,154,224,0.1); }
+  .chip-row { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px; }
+  .chip { background:var(--surface); border-radius:20px; padding:7px 12px; font-size:12px; font-weight:600; color:var(--text); }
+  .protocard { background:var(--surface); border-left:3px solid var(--teal-light); border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+  .protocard .pname { font-weight:700; color:#fff; font-size:13.5px; margin-bottom:4px; }
+  .protocard .pcomp { font-size:12.5px; color:var(--text-secondary); margin-bottom:4px; }
+  .protocard .pmeta { font-size:11px; color:var(--teal-light); font-family:monospace; margin-bottom:4px; }
+  .protocard .pwarn { font-size:11.5px; color:var(--danger); }
+  .mini-table { width:100%; border-collapse:collapse; margin-bottom:10px; }
+  .mini-table th, .mini-table td { text-align:left; padding:7px 8px; font-size:11.5px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .mini-table th { color:var(--gold-light); font-size:10px; text-transform:uppercase; letter-spacing:0.02em; }
+  .opt { display:block; width:100%; text-align:left; background:var(--surface); color:var(--text); border:1.5px solid transparent; border-radius:10px; padding:11px 14px; font-size:13.5px; margin-bottom:8px; cursor:pointer; }
+  .opt:hover { border-color:var(--teal); }
+  .opt.correct { border-color:var(--teal-light); color:var(--teal-light); }
+  .opt.wrong { border-color:var(--danger); color:var(--danger); }
+  .feedback { font-size:13px; margin:8px 0 0; }
+  .feedback.ok { color:var(--teal-light); }
+  .feedback.bad { color:var(--danger); }
+  .nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+  button.navbtn { background:var(--teal); color:#04211d; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.navbtn.secondary { background:transparent; color:var(--text-secondary); border:1px solid var(--surface); }
+  button.navbtn:disabled { opacity:0.3; cursor:default; }
+  .label { font-size:10.5px; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase; }
+  button.retry { background:transparent; border:1px solid var(--teal); color:var(--teal-light); border-radius:8px; padding:7px 14px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .subcounter { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+  .rationale { border-left:2px solid var(--teal); padding-left:12px; margin-top:10px; }
+  .nova-btn {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--teal); color: #04211d; text-decoration: none;
+    font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; font-size: 13px;
+    padding: 12px 18px; border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    transition: transform .15s ease;
+  }
+  .nova-btn:hover { transform: translateY(-2px); }
+  @media (max-width: 480px) {
+    .nova-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 12px; }
+  }
+  .vip-overlay {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: #000; flex-direction: column;
+  }
+  .vip-overlay.active { display: flex; }
+  .vip-overlay-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: var(--navy); border-bottom: 1px solid var(--surface);
+    flex-shrink: 0;
+  }
+  .vip-overlay-bar span { font-size: 12.5px; color: var(--text-secondary); }
+  .vip-close-btn {
+    background: var(--teal); color: #04211d; border: none; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .vip-overlay iframe { flex: 1; border: none; width: 100%; }
+</style>
+  <script src="/lib/i18n.js"></script>
+</head>
+<body>
+<a href="/portal-medico.html?nova=1" target="_blank" rel="noopener" class="nova-btn">💬 Preguntar a NOVA</a>
+<div class="wrap">
+  <div class="dots" id="dots"></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button class="navbtn secondary" id="backBtn">← Anterior</button>
+    <span class="label" id="cellLabel"></span>
+    <button class="navbtn" id="nextBtn">Siguiente →</button>
+  </div>
+</div>
+
+<div class="vip-overlay" id="vipOverlay">
+  <div class="vip-overlay-bar">
+    <span>Vista de referencia — así la vive el paciente invitado</span>
+    <button class="vip-close-btn" onclick="cerrarDezawaVip()">← Regresar al módulo</button>
+  </div>
+  <iframe id="vipIframe" title="Experiencia DEZAWA VIP"></iframe>
+</div>
+
+<script>
+// Aviso automático al hub de capacitación cuando se llega al final Y se
+// aprobó (>=80%) — reemplaza el botón manual "Marcar completado", que
+// antes se podía pulsar sin haber visto nada del contenido.
+var MODULO_ID = 9;
+
+var PRACTICE_CASES = [
+  { caseText: "Un paciente pregunta si las MUSE 'son iguales a las MSC, nada más con otro nombre de marketing'.",
+    opts: ["No: las MUSE son pluripotentes (tres capas germinales) y migran de forma dirigida con diferenciación directa; las MSC son multipotentes (linaje mesenquimal) con efecto predominantemente paracrino. Son biológicamente distintas, no un mismo producto renombrado.", "Sí, son exactamente lo mismo, solo cambia el nombre comercial.", "Solo se diferencian en el precio, biológicamente son idénticas."], correct: 0,
+    rationale: "Confundir MUSE con MSC ignora diferencias reales de potencial de diferenciación, mecanismo de migración y persistencia en el tejido — están relacionadas (ambas se encuentran en poblaciones mesenquimales) pero no son el mismo tipo celular." },
+  { caseText: "Un médico calcula la dosis de MUSE para un paciente de 70 kg usando 2.5 × 10⁵ células/kg.",
+    opts: ["70 millones de células.", "17.5 millones de células.", "7 millones de células."], correct: 1,
+    rationale: "250,000 × 70 = 17,500,000 células = 17.5 millones — aplicando la fórmula de cálculo por peso." },
+  { caseText: "Paciente con antecedente de cáncer activo hace 8 meses, actualmente en remisión, pregunta si puede recibir MUSE para una indicación no oncológica.",
+    opts: ["Sí, sin ninguna evaluación adicional, ya que las MUSE no son tumorigénicas.", "No puede recibirlas bajo ninguna circunstancia, es una contraindicación absoluta.", "Se requiere evaluación oncológica previa por la precaución teórica de modulación del microambiente tumoral, aunque las MUSE mismas no sean tumorales — no se procede sin esa valoración."], correct: 2,
+    rationale: "El cáncer activo o reciente es una contraindicación relativa que exige evaluación oncológica previa — no es absoluta, pero tampoco se omite solo porque las MUSE no sean tumorigénicas por sí mismas." },
+  { caseText: "A las 48 horas de la infusión de MUSE, un paciente presenta fiebre y signos de posible infección.",
+    opts: ["Se considera una señal de alarma a vigilar en las primeras 72 horas — se evalúa activamente, no se asume que es irrelevante.", "Se documenta como evento esperable de cualquier infusión IV y no se hace nada más.", "Se suspende de forma permanente cualquier biológico futuro sin evaluar la causa."], correct: 0,
+    rationale: "Fiebre o signos de infección en las primeras 72 horas post-infusión está explícitamente listado como señal de alarma a vigilar — requiere evaluación activa." },
+  { caseText: "Un médico quiere aplicar MUSE a un paciente con lesión medular traumática y decide omitir la firma de consentimiento informado porque 'el paciente ya lo mencionó verbalmente'.",
+    opts: ["Es aceptable, el consentimiento verbal es suficiente para biológicos de este tipo.", "No es aceptable: el consentimiento informado firmado es un criterio de inclusión explícito en los ensayos revisados y un requisito de buena práctica clínica — no se sustituye por una mención verbal.", "Solo se requiere firma si el paciente lo solicita expresamente."], correct: 1,
+    rationale: "El consentimiento informado firmado es parte de los criterios de inclusión documentados y una exigencia de buena práctica clínica en cualquier biológico de nivel Avanzado." },
+  { caseText: "Un médico se pregunta si un paciente con desajuste de HLA frente al donante del producto MUSE requiere inmunosupresión previa, igual que en otros trasplantes celulares alogénicos.",
+    opts: ["Sí, siempre se requiere inmunosupresión ante cualquier desajuste HLA.", "El HLA no es relevante en ningún biológico de la red.", "No necesariamente: las MUSE han mostrado tolerancia a HLA-mismatch sin requerir inmunosupresión, por mecanismos inmunomoduladores descritos como similares a los del tejido placentario."], correct: 2,
+    rationale: "Esta es una de las características más distintivas de las MUSE frente a otras terapias celulares alogénicas — tolerancia a HLA-mismatch sin inmunosupresión, con permanencia reportada del producto por más de 6 meses sin rechazo." },
+  { caseText: "Un paciente con ELA pregunta por qué su esquema de MUSE es distinto al de un paciente con infarto agudo de miocardio.",
+    opts: ["El esquema varía según la indicación: el infarto usa una dosis única de 15 millones, mientras que en ELA se ha explorado un esquema de dosis múltiple (15 millones mensuales × 6 meses) — cada protocolo se evalúa según la enfermedad.", "Es un error, todas las indicaciones usan exactamente la misma dosis y frecuencia.", "Las MUSE no se usan en enfermedades neurodegenerativas bajo ninguna circunstancia."], correct: 0,
+    rationale: "El esquema de dosis (única vs. múltiple) depende de la indicación y del protocolo específico — no es un esquema universal para todas las enfermedades." },
+  { caseText: "Una clínica anuncia que las MUSE son 'el descubrimiento que va a curar el Alzheimer y cualquier enfermedad neurodegenerativa, comprobado científicamente'.",
+    opts: ["Es una publicidad aceptable dado el potencial descrito en la literatura.", "Es publicidad irresponsable: las aplicaciones en enfermedades neurodegenerativas están en fase de investigación emergente, no existe evidencia clínica robusta de cura — se debe comunicar el nivel real de evidencia disponible.", "Es aceptable siempre que se mencione que es 'evidencia preliminar' en letras pequeñas."], correct: 1,
+    rationale: "Las aplicaciones en Alzheimer y otras neurodegenerativas están listadas como emergentes/en investigación — prometer cura o 'comprobación científica' no tiene respaldo y viola la política de Publicidad Responsable." }
+];
+
+var DIFFERENTIAL_CASES = [
+  { caseText: "Un médico asume que, como ya está certificado para aplicar MSC placentarias, automáticamente puede aplicar MUSE, 'porque ambas son básicamente lo mismo'.",
+    opts: ["Incorrecto: aunque comparten criterio de dosis y vía dentro de GENESIS™, son biológicamente distintas (pluripotentes vs. multipotentes) — la certificación específica y el protocolo de cada biológico deben confirmarse por separado, no asumirse por similitud aparente.", "Correcto: la certificación de MSC habilita automáticamente el uso de MUSE."], correct: 0,
+    rationale: "La similitud operativa (mismo esquema de dosis/vía) no implica equivalencia biológica ni de certificación — son productos distintos con mecanismos distintos." },
+  { caseText: "Un médico entiende que, como las MUSE tienen buen perfil de seguridad reportado en varios ensayos pequeños, la eficacia para cualquier indicación ya está firmemente demostrada.",
+    opts: ["Correcto: buen perfil de seguridad implica eficacia clínica robusta y concluyente.", "Incorrecto: la mayoría de los ensayos son fase I/II con muestras pequeñas (3 a 35 pacientes) — son evidencia temprana informativa y prometedora, no ensayos fase III concluyentes para ninguna indicación específica."], correct: 1,
+    rationale: "Confundir buena seguridad en estudios pequeños con eficacia clínica firmemente establecida es un error frecuente — ambas variables deben comunicarse con el nivel de evidencia real que tienen." },
+  { caseText: "Un médico calcula la dosis de un paciente de 90 kg usando la dosis única estándar de 15 millones sin ajustar por peso, asumiendo que siempre es una cifra fija sin importar el paciente.",
+    opts: ["Depende del protocolo: la dosis única típica reportada en varios ensayos es 15 millones, pero también existe un rango por kilogramo (2.0–2.7×10⁵ células/kg) que sí varía según el peso del paciente — debe confirmarse cuál criterio aplica según indicación y protocolo vigente.", "Correcto: 15 millones es siempre la dosis, sin excepción, independientemente del peso."], correct: 0,
+    rationale: "Existen dos formas de reportar la dosis en la literatura (fija de 15 millones, o por kg de peso) — asumir una sin verificar cuál aplica al protocolo específico puede llevar a errores de dosificación." },
+  { caseText: "Un médico decide no verificar la trazabilidad del lote de MUSE recibido porque 'el producto CL2020 ya tiene ensayos clínicos publicados, así que su calidad está garantizada'.",
+    opts: ["Correcto: la existencia de ensayos publicados garantiza la calidad de cualquier lote recibido.", "Incorrecto: que el producto tenga ensayos clínicos publicados no sustituye la verificación de trazabilidad de cada lote específico recibido — la responsabilidad de confirmar que el lote corresponda a su documentación sigue siendo del médico y de CODE CELLS®."], correct: 1,
+    rationale: "La evidencia clínica publicada valida al producto en general, no exime de verificar cada lote individual recibido — son dos niveles de control distintos y ambos son necesarios." }
+];
+
+var QUESTIONS = [
+  { q: "¿Qué significa el acrónimo MUSE?", opts: ["Multilineage-differentiating Stress-Enduring", "Multipotent Umbilical Stem Endogenous", "Muscle Undifferentiated Stem Entity", "Mesenchymal Universal Stem Element"], correct: 0 },
+  { q: "¿En qué año se publicó el artículo seminal que describió a las células MUSE?", opts: ["1998", "2010", "2015", "2020"], correct: 1 },
+  { q: "¿Quién es la investigadora principal reconocida por el descubrimiento de las MUSE?", opts: ["Dra. Jane Goodall", "Dr. Arnold Caplan", "Dra. Mari Dezawa", "Dra. Rolf Kiessling"], correct: 2 },
+  { q: "¿Qué marcador de superficie se usa para identificar células MUSE?", opts: ["HLA-DR", "CD34", "CD19", "SSEA-3+"], correct: 3 },
+  { q: "¿En cuántas capas germinales pueden diferenciarse las células MUSE?", opts: ["Las tres (ectodermo, mesodermo, endodermo)", "Solo una (mesodermo)", "Cuatro, incluyendo trofoblasto", "Ninguna, no tienen capacidad de diferenciación"], correct: 0 },
+  { q: "¿Qué diferencia crítica de seguridad tienen las MUSE frente a las iPSC o células embrionarias?", opts: ["No existe ninguna diferencia de seguridad", "Las MUSE no forman teratomas (no tumorigénicas)", "Las MUSE solo se usan en animales", "Las MUSE son más baratas de producir"], correct: 1 },
+  { q: "¿Qué molécula guía la migración dirigida de las MUSE hacia el tejido dañado?", opts: ["Insulina", "Adrenalina", "Esfingosina-1-fosfato (S1P)", "Colesterol"], correct: 2 },
+  { q: "¿Qué secuencia de acción describe el mecanismo de fagocitosis de las MUSE?", opts: ["Producen anticuerpos específicos contra el tejido dañado", "Se dividen indefinidamente sin ninguna función reparadora", "Bloquean por completo la respuesta inmune local", "Capturan células dañadas/apoptóticas, las eliminan y luego se diferencian en el tipo celular del tejido reparado"], correct: 3 },
+  { q: "A diferencia de las MSC, ¿qué mecanismo adicional tienen las MUSE?", opts: ["Diferenciación directa e integración estructural en el tejido, además del efecto paracrino", "Solo tienen efecto placebo", "Solo actúan por vía oral", "Ningún mecanismo adicional, son idénticas a las MSC"], correct: 0 },
+  { q: "¿Qué ocurre típicamente con las MSC tras la infusión intravenosa, a diferencia de las MUSE?", opts: ["Migran igual de dirigido que las MUSE", "Tienden a quedar atrapadas en el pulmón, con efecto predominantemente paracrino", "Se convierten inmediatamente en células cardiacas", "Desaparecen del organismo en minutos"], correct: 1 },
+  { q: "¿Qué característica inmunológica distintiva se ha reportado en las MUSE?", opts: ["No tienen ninguna interacción con el sistema inmune del receptor", "Requieren siempre compatibilidad HLA estricta", "Toleran desajuste de HLA sin requerir inmunosupresión", "Provocan rechazo agudo en el 100% de los casos"], correct: 2 },
+  { q: "¿Cuánto tiempo se ha reportado que las MUSE permanecen diferenciadas en el tejido receptor sin rechazo?", opts: ["Nunca permanecen, se eliminan de inmediato", "Menos de 24 horas", "Exactamente 10 años en todos los casos", "Más de 6 meses"], correct: 3 },
+  { q: "¿Qué mostró el ensayo fase I/II en infarto agudo de miocardio con MUSE alogénicas?", opts: ["Seguridad sin eventos adversos relacionados, con mejoría en fracción de eyección a las 12 semanas", "Ningún resultado, el ensayo fue suspendido por seguridad", "Empeoramiento significativo de la función cardiaca", "Curación completa del infarto en el 100% de los pacientes"], correct: 0 },
+  { q: "¿Qué diseño tuvo el ensayo de MUSE en ictus isquémico subagudo?", opts: ["Estudio observacional retrospectivo de registros", "Aleatorizado, controlado con placebo, en 35 pacientes", "Serie de casos sin grupo control ni aleatorización", "Solo modelo animal, sin pacientes humanos"], correct: 1 },
+  { q: "¿Cuál es el nivel real de evidencia clínica disponible hoy para la mayoría de las aplicaciones de MUSE?", opts: ["Ensayos fase III de gran escala, ya concluyentes", "Solo evidencia anecdótica sin ningún estudio formal", "Estudios fase I/II de tamaño pequeño — informativos y prometedores, pero no concluyentes", "No existe ningún ensayo clínico publicado"], correct: 2 },
+  { q: "¿De quién es la responsabilidad de cumplir los estándares de fabricación y criopreservación de MUSE?", opts: ["No es responsabilidad de nadie en particular", "Del gobierno mexicano directamente", "Exclusivamente del paciente", "Del laboratorio/proveedor"], correct: 3 },
+  { q: "¿Cuál es la dosis única típica reportada para MUSE en adultos?", opts: ["15 millones de células", "1.5 millones de células", "1,500 millones de células", "150 millones de células"], correct: 0 },
+  { q: "¿Cuál es el rango de dosis por kilogramo de peso reportado para MUSE?", opts: ["No existe ningún rango por kg documentado", "2.0–2.7 × 10⁵ células/kg", "2.0–2.7 × 10⁹ células/kg", "2.0–2.7 × 10² células/kg"], correct: 1 },
+  { q: "¿Cuál es el producto específico de MUSE alogénicas derivado de cordón umbilical mencionado en los ensayos?", opts: ["DZW-100", "MSC-2010", "CL2020", "RGCD042417"], correct: 2 },
+  { q: "¿Qué esquema de dosis se ha explorado en ELA?", opts: ["Dosis única de 15 millones, igual que en infarto", "No se ha estudiado MUSE en ELA", "1 millón diario de por vida", "15 millones mensuales durante 6 meses (total 90 millones)"], correct: 3 },
+  { q: "¿Cuál de las siguientes es una contraindicación relativa (no absoluta) para el uso de MUSE?", opts: ["Cáncer activo o reciente, por precaución teórica", "Tener más de 18 años", "Haber firmado el consentimiento informado", "Tener función hepática y renal preservada"], correct: 0 },
+  { q: "¿Qué señal de alarma debe vigilarse en las primeras 72 horas post-infusión?", opts: ["Mejoría del estado de ánimo", "Fiebre o signos de infección", "Aumento normal del apetito", "Ninguna, no hay señales de alarma documentadas"], correct: 1 },
+  { q: "¿Qué evaluación es parte del seguimiento recomendado tras la infusión de MUSE?", opts: ["Solo una llamada telefónica anual", "Ninguna, no se requiere seguimiento", "Evaluación clínica a las 24-48h y laboratorio a la semana/mes, más escala funcional según la enfermedad", "Únicamente radiografía de tórax"], correct: 2 },
+  { q: "¿Qué deben aplicar los médicos al comunicar sobre MUSE con pacientes, según Publicidad Responsable?", opts: ["Evitar mencionar cualquier riesgo o limitación", "Prometer cura para enfermedades neurodegenerativas", "Solo mencionar los casos con mejores resultados reportados", "Comunicar honestamente que la evidencia proviene de estudios fase I/II tempranos, sin garantizar resultados"], correct: 3 }
+];
+
+var CELLS = [
+  { label: "Bienvenida", render: function() {
+    return '<div class="icon-badge">🧬</div><h3>MUSE Cells — GENESIS™</h3>' +
+      '<p>Las células MUSE son, hoy, uno de los biológicos más relevantes de la red — con historia, mecanismo y evidencia clínica propios. Este módulo cubre su descubrimiento, biología, aplicaciones por especialidad, y su aplicación práctica dentro de GENESIS™.</p>' +
+      '<div class="card"><p style="font-weight:600;color:#fff;margin-bottom:4px;">Objetivo de este módulo</p>' +
+      '<p style="margin:0;">Podrás explicar el origen y mecanismo de las MUSE, distinguirlas claramente de las MSC, entender el nivel real de evidencia clínica por indicación, y aplicar correctamente dosis, cálculo por peso, contraindicaciones y seguimiento.</p></div>';
+  }},
+  { label: "Introducción", render: function() {
+    return '<div class="icon-badge">🌟</div><span class="step-label">Panorama general</span><h3>Uno de los hallazgos más relevantes en dos décadas</h3>' +
+      '<p>Las MUSE (<em>Multilineage-differentiating Stress-Enduring</em>) son células pluripotentes, endógenas y <strong style="color:#fff;">no tumorales</strong>, con capacidad excepcional de reparación tisular, diferenciación multilínea y tolerancia al estrés.</p>';
+  }},
+  { label: "Historia: Dra. Mari Dezawa", render: function() {
+    return '<div class="icon-badge">👩‍🔬</div><span class="step-label">Historia</span><h3>La Dra. Mari Dezawa</h3>' +
+      '<p>Profesora y jefa del Departamento de Biología de Células Madre e Histología de la Facultad de Medicina de la Universidad de Tohoku, Japón. Con más de 200 publicaciones, es reconocida mundialmente por descubrir las MUSE en 2010.</p>';
+  }},
+  { label: "Historia: el descubrimiento", render: function() {
+    return '<div class="icon-badge">🔬</div><span class="step-label">Historia</span><h3>El descubrimiento (2010)</h3>' +
+      '<p>Surgió de una observación de laboratorio: dentro de poblaciones mesenquimales, un subtipo de células <strong style="color:#fff;">"no moría"</strong> bajo estrés severo, y aun así conservaba capacidad de diferenciación.</p>' +
+      '<div class="card"><p style="margin:0;">El artículo seminal, <em>"Unique multipotent cells in adult human mesenchymal cell populations"</em>, se publicó en 2010 con la Dra. Dezawa como autora principal.</p></div>';
+  }},
+  { label: "Definición", render: function() {
+    return '<div class="icon-badge">🧭</div><span class="step-label">Biología</span><h3>¿Qué son las células MUSE?</h3>' +
+      '<p>Células madre <strong style="color:#fff;">pluripotentes, endógenas y no tumorales</strong>, presentes en médula ósea, sangre periférica, tejido conectivo y cordón umbilical.</p>' +
+      '<div class="card"><p style="margin:0;">Se identifican por el marcador <strong style="color:var(--teal-light);">SSEA-3+</strong>, clásicamente asociado a pluripotencia.</p></div>';
+  }},
+  { label: "Característica: diferenciación", render: function() {
+    return '<div class="icon-badge">🌐</div><span class="step-label">Características distintivas</span><h3>Poder de diferenciación</h3>' +
+      '<p>Se diferencian en células de las <strong style="color:#fff;">tres capas germinales</strong> (ectodermo, mesodermo, endodermo) — un rango mucho más amplio que el de las MSC, limitadas al linaje mesenquimal.</p>';
+  }},
+  { label: "Característica: tolerancia al estrés", render: function() {
+    return '<div class="icon-badge">💪</div><span class="step-label">Características distintivas</span><h3>Tolerancia al estrés</h3>' +
+      '<p>Sobreviven condiciones extremas (hipoxia, privación de nutrientes, exposición a proteasas) que eliminarían a la mayoría de las células — la propiedad que permitió su descubrimiento.</p>';
+  }},
+  { label: "Característica: no tumorigenicidad", render: function() {
+    return '<div class="icon-badge">🛡️</div><span class="step-label">Características distintivas</span><h3>No tumorigenicidad</h3>' +
+      '<p>No forman teratomas — una diferencia <strong style="color:var(--danger);">crítica</strong> frente a iPSC o células embrionarias, cuyo principal riesgo de seguridad es la formación de tumores.</p>';
+  }},
+  { label: "Característica: endogeneidad", render: function() {
+    return '<div class="icon-badge">🫀</div><span class="step-label">Características distintivas</span><h3>Endogeneidad</h3>' +
+      '<p>Están presentes de forma natural en el cuerpo humano adulto — no son un producto exclusivo de laboratorio, sino una población que ya existe y cumple un rol de reparación fisiológica basal.</p>';
+  }},
+  { label: "Mecanismo: migración dirigida", render: function() {
+    return '<div class="icon-badge">🧭</div><span class="step-label">Mecanismo de acción</span><h3>Migración dirigida</h3>' +
+      '<p>Detectan señales de daño como la <strong style="color:#fff;">esfingosina-1-fosfato (S1P)</strong> y migran específicamente hacia el tejido lesionado — no se distribuyen al azar.</p>';
+  }},
+  { label: "Mecanismo: fagocitosis", render: function() {
+    return '<div class="icon-badge">🧹</div><span class="step-label">Mecanismo de acción</span><h3>Fagocitosis</h3>' +
+      '<p>Capturan células dañadas o apoptóticas, las eliminan, y <strong style="color:#fff;">después se diferencian</strong> en el tipo celular del tejido reparado — "limpieza y luego reemplazo".</p>';
+  }},
+  { label: "Mecanismo: diferenciación directa", render: function() {
+    return '<div class="icon-badge">🔗</div><span class="step-label">Mecanismo de acción</span><h3>Diferenciación directa</h3>' +
+      '<p>Se integran como células funcionales del propio tejido dañado — reparación estructural real, no solo señales a distancia.</p>';
+  }},
+  { label: "Mecanismo: efectos paracrinos", render: function() {
+    return '<div class="icon-badge">📡</div><span class="step-label">Mecanismo de acción</span><h3>Efectos paracrinos</h3>' +
+      '<p>Igual que las MSC (recuerda: paracrino = señal que actúa sobre células vecinas), también liberan factores tróficos, antiinflamatorios y proangiogénicos.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Clave:</strong> las MUSE combinan efecto paracrino <strong style="color:var(--teal-light);">con</strong> diferenciación e integración estructural directa — algo que las MSC, por sí solas, no hacen igual.</p></div>';
+  }},
+  { label: "MUSE vs. MSC", render: function() {
+    return '<div class="icon-badge">⚖️</div><span class="step-label">Comparación</span><h3>Diferencias con las MSC</h3>' +
+      '<table class="mini-table"><tr><th></th><th>MSC</th><th>MUSE</th></tr>' +
+      '<tr><td>Pluripotencia</td><td>Limitada (trilinaje)</td><td>Amplia (3 capas)</td></tr>' +
+      '<tr><td>Migración</td><td>Atrapadas en pulmón, paracrino</td><td>Dirigida por S1P, diferenciación directa</td></tr>' +
+      '<tr><td>Inmunogenicidad</td><td>Baja, con límites</td><td>HLA-mismatch tolerado sin inmunosupresión</td></tr>' +
+      '<tr><td>Persistencia</td><td>Corta, "bystander"</td><td>&gt;6 meses diferenciadas</td></tr></table>';
+  }},
+  { label: "Nota metodológica", render: function() {
+    return '<div class="icon-badge">📊</div><span class="step-label">Evidencia clínica</span><h3>Antes de ver los resultados</h3>' +
+      '<p>Los ensayos que siguen son, en su mayoría, <strong style="color:#fff;">fase I/II con muestras pequeñas</strong> (3 a 35 pacientes).</p>' +
+      '<div class="card"><p style="margin:0;">Son evidencia clínica temprana — informativa sobre seguridad y señales preliminares, <strong style="color:var(--danger);">no equivalente</strong> a ensayos fase III de gran escala.</p></div>';
+  }},
+  { label: "Aplicación: infarto de miocardio", render: function() {
+    return '<div class="icon-badge">❤️</div><span class="step-label p2">Evidencia clínica</span><h3>Infarto agudo de miocardio</h3>' +
+      '<p>Fase I/II, 3 pacientes con FEVI ≤45% post-intervención. Sin eventos adversos relacionados; mejoría en fracción de eyección y movimiento de pared a 12 semanas.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">¿Por qué interesa a cardiólogos?</strong> Una infusión IV simple, sin cirugía adicional, en pacientes que ya tuvieron daño miocárdico — el atractivo es la simplicidad del procedimiento frente a alternativas más invasivas.</p></div>';
+  }},
+  { label: "Aplicación: ictus isquémico", render: function() {
+    return '<div class="icon-badge">🧠</div><span class="step-label p2">Evidencia clínica</span><h3>Ictus isquémico subagudo</h3>' +
+      '<p>Aleatorizado, controlado con placebo, 35 pacientes (ventana 14–28 días post-ictus). Respuesta en 40% del grupo tratado vs. 10% en placebo.</p>' +
+      '<div class="card"><p style="margin:0;">Es uno de los diseños más rigurosos disponibles hasta ahora (con grupo placebo) — por eso se cita con frecuencia como el ensayo más sólido del catálogo de MUSE.</p></div>';
+  }},
+  { label: "Aplicación: epidermólisis bullosa", render: function() {
+    return '<div class="icon-badge">🩹</div><span class="step-label p2">Evidencia clínica</span><h3>Epidermólisis bullosa</h3>' +
+      '<p>5 pacientes; 2 mostraron reducción &gt;50% del tamaño de úlceras a las 4 semanas, con mejoría moderada del dolor.</p>' +
+      '<div class="card"><p style="margin:0;">Interesa en dermatología porque es una enfermedad genética severa con muy pocas opciones terapéuticas — cualquier señal de mejoría, aunque preliminar, es clínicamente relevante.</p></div>';
+  }},
+  { label: "Aplicación: encefalopatía neonatal", render: function() {
+    return '<div class="icon-badge">👶</div><span class="step-label p2">Evidencia clínica</span><h3>Encefalopatía hipóxico-isquémica neonatal</h3>' +
+      '<p>9 neonatos, sin eventos adversos graves (elevación transitoria de gamma-GT en uno, resolución espontánea). 67% con desarrollo normal a los 12 meses.</p>' +
+      '<div class="card"><p style="margin:0;">Interesa en neonatología porque las opciones terapéuticas para daño hipóxico-isquémico perinatal son muy limitadas — el mismo perfil de seguridad que se observa en adultos aquí es especialmente relevante, dado lo vulnerable de la población.</p></div>';
+  }},
+  { label: "Aplicación: lesión medular", render: function() {
+    return '<div class="icon-badge">🦴</div><span class="step-label p2">Evidencia clínica</span><h3>Lesión medular traumática</h3>' +
+      '<p>10 pacientes con lesión cervical; mejoras en puntuación motora, actividad diaria y calidad de vida. 2 eventos adversos graves, no relacionados con el tratamiento.</p>' +
+      '<div class="card"><p style="margin:0;">La lesión medular es, históricamente, una de las condiciones con menor capacidad de recuperación espontánea del sistema nervioso central — cualquier señal de mejoría funcional real, aunque en muestra pequeña, es de interés clínico alto para rehabilitación y neurocirugía.</p></div>';
+  }},
+  { label: "Aplicación: ELA", render: function() {
+    return '<div class="icon-badge">🔬</div><span class="step-label p2">Evidencia clínica</span><h3>Esclerosis lateral amiotrófica</h3>' +
+      '<p>5 pacientes, esquema de dosis múltiple (15M mensual × 6 meses). Sin eventos adversos graves relacionados con las células.</p>' +
+      '<div class="card"><p style="margin:0;">Neurólogos exploran esto por la ausencia casi total de tratamientos modificadores de enfermedad en ELA — cualquier plataforma seguible con seguridad aceptable genera interés real.</p></div>';
+  }},
+  { label: "Seguridad e inmunogenicidad", render: function() {
+    return '<div class="icon-badge">🔒</div><span class="step-label">Seguridad</span><h3>Tolerancia a HLA-mismatch</h3>' +
+      '<p>Hallazgo revolucionario: toleran desajuste HLA <strong style="color:var(--teal-light);">sin inmunosupresión</strong>, por mecanismos similares a los de la placenta.</p>' +
+      '<div class="card"><p style="margin:0;">Permanecen diferenciadas en el tejido receptor por <strong style="color:#fff;">más de 6 meses</strong>, sin evidencia de rechazo.</p></div>';
+  }},
+  { label: "Perfil de seguridad general", render: function() {
+    return '<div class="icon-badge">📋</div><span class="step-label">Seguridad</span><h3>Resumen de eventos reportados</h3>' +
+      '<p style="font-size:12.5px;">IAM: sin eventos. Ictus: 1 estatus epiléptico no relacionado. Lesión medular: 2 EAG no relacionados. Epidermólisis: sin EAG. Neonatal: γ-GT transitoria. ELA: sin EAG.</p>';
+  }},
+  { label: "Potencial en salud pública", render: function() {
+    return '<div class="icon-badge">🌍</div><span class="step-label">Panorama y potencial</span><h3>Un potencial de gran escala</h3>' +
+      '<p>Terapia IV simple, sin cirugía, sin HLA-matching, sin inmunosupresión, con amplia gama de indicaciones.</p>' +
+      '<div class="card"><p style="margin:0;">Esto podría <strong style="color:#fff;">democratizar el acceso</strong> a terapias regenerativas avanzadas, si la evidencia de mayor escala confirma lo visto hasta ahora.</p></div>';
+  }},
+  { label: "Aplicaciones emergentes", render: function() {
+    return '<div class="icon-badge">🔭</div><span class="step-label">Panorama y potencial</span><h3>En investigación</h3>' +
+      '<div class="chip-row"><span class="chip">Osteoartritis</span><span class="chip">Alzheimer / demencia</span><span class="chip">Radiodermitis</span><span class="chip">Anti-envejecimiento</span></div>' +
+      '<p>Todas en etapa emergente — sin evidencia clínica robusta todavía.</p>';
+  }},
+  { label: "Ensayos actuales", render: function() {
+    return '<div class="icon-badge">🧪</div><span class="step-label">Panorama y potencial</span><h3>Estado de los ensayos</h3>' +
+      '<p>6 ensayos fase I/II publicados del producto CL2020, con 5 adicionales en preparación (EE.UU., Emiratos Árabes, Alemania). Registros de vida real en curso.</p>';
+  }},
+  { label: "Por qué revoluciona", render: function() {
+    return '<div class="icon-badge">⚡</div><span class="step-label">Panorama y potencial</span><h3>Seguridad + potencia + simplicidad</h3>' +
+      '<div class="chip-row"><span class="chip">Seguridad</span><span class="chip">Potencia (reparación real)</span><span class="chip">Accesibilidad</span><span class="chip">Simplicidad (IV, sin HLA-matching)</span></div>';
+  }},
+  { label: "DEZAWA: el protocolo integral", render: function() {
+    return '<div class="icon-badge">🧩</div><span class="step-label p3">DEZAWA PROTOCOL™</span><h3>No es solo aplicar MUSE</h3>' +
+      '<p>El nombre honra a la Dra. Mari Dezawa, pero <strong style="color:#fff;">DEZAWA PROTOCOL™ no es sinónimo de "aplicar MUSE"</strong> — es integrar el biológico con homotoxicología, nutracéuticos y el resto del catálogo de CODE CELLS® según lo que el caso necesite.</p>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:var(--purple);">Es un principio clínico, no un paquete fijo:</strong> cada combinación se personaliza por paciente. No existe "la receta DEZAWA" — existe el criterio de combinar bien, caso por caso. Y ese criterio está disponible para cualquier médico de la red, con cualquier paciente que lo amerite.</p></div>';
+  }},
+  { label: "DEZAWA vs. DEZAWA VIP", render: function() {
+    return '<div class="icon-badge">💎</div><span class="step-label p3">DEZAWA PROTOCOL™</span><h3>El tratamiento vs. la experiencia</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">DEZAWA</strong> es el criterio clínico integral — universal, no exclusivo.<br><strong style="color:var(--gold-light);">DEZAWA VIP</strong> es la experiencia de servicio alrededor de ese mismo criterio: coordinación dedicada, acceso prioritario, seguimiento más cercano — para el paciente cuyo caso o necesidad pide ir un nivel más profundo en esa atención.</p></div>' +
+      '<p style="margin:0;">La exclusividad no está en la calidad de la medicina — esa es la misma para todos. Está en la intensidad del servicio alrededor de ella.</p>' +
+      '<button class="retry" style="margin-top:10px;width:100%;text-align:center;" onclick="abrirDezawaVip()">🎬 Ver la experiencia DEZAWA VIP →</button>';
+  }},
+  { label: "Limitaciones y retos", render: function() {
+    return '<div class="icon-badge">⚠️</div><span class="step-label">Panorama y potencial</span><h3>Retos reales</h3>' +
+      '<div class="chip-row"><span class="chip">Faltan ensayos fase III</span><span class="chip">Estandarización de manufactura</span><span class="chip">Costo/disponibilidad</span><span class="chip">Regulación variable</span></div>' +
+      '<div class="card"><p style="margin:0;">Cumplir estos estándares es tarea del <strong style="color:var(--gold-light);">laboratorio</strong>. Verificar que el lote recibido corresponda a su documentación es tarea de <strong style="color:var(--teal-light);">CODE CELLS® y el médico</strong>.</p></div>';
+  }},
+  { label: "El producto: CL2020", render: function() {
+    return '<div class="icon-badge">🧊</div><span class="step-label">Aplicación práctica</span><h3>CL2020</h3>' +
+      '<p>MUSE alogénicas derivadas de MSC de cordón umbilical humano. Criopreservado — requiere descongelación controlada antes de la infusión.</p>';
+  }},
+  { label: "Dosis estándar", render: function() {
+    return '<div class="icon-badge">💉</div><span class="step-label">Aplicación práctica</span><h3>Dosis estándar</h3>' +
+      '<div class="protocard"><div class="pname">Dosis única típica</div><div class="pcomp">15 millones de células (1.5×10⁷), vía IV.</div><div class="pmeta">Rango por kg: 2.0–2.7 × 10⁵ células/kg</div></div>';
+  }},
+  { label: "Fórmula de cálculo", render: function() {
+    return '<div class="icon-badge">🧮</div><span class="step-label">Aplicación práctica</span><h3>Cómo calcular la dosis</h3>' +
+      '<div class="card"><p style="margin:0;font-family:monospace;font-size:12.5px;">Células totales = (Dosis por kg × Peso kg) / 1,000,000</p></div>' +
+      '<p><strong style="color:#fff;">Ejemplo:</strong> paciente de 70 kg, 2.5×10⁵ células/kg → 250,000 × 70 = 17,500,000 = <strong style="color:var(--teal-light);">17.5 millones</strong>.</p>';
+  }},
+  { label: "Dosis por indicación", render: function() {
+    return '<div class="icon-badge">📑</div><span class="step-label">Aplicación práctica</span><h3>Resumen por indicación</h3>' +
+      '<table class="mini-table"><tr><th>Indicación</th><th>Dosis</th><th>Frecuencia</th></tr>' +
+      '<tr><td>IAM</td><td>15M</td><td>Única</td></tr>' +
+      '<tr><td>Ictus</td><td>15M</td><td>Única</td></tr>' +
+      '<tr><td>Lesión medular</td><td>15M (2.1-2.7×10⁵/kg)</td><td>Única</td></tr>' +
+      '<tr><td>Epidermólisis</td><td>15M</td><td>Única</td></tr>' +
+      '<tr><td>ELA</td><td>15M ×6</td><td>Mensual</td></tr></table>';
+  }},
+  { label: "Criterios de inclusión", render: function() {
+    return '<div class="icon-badge">✅</div><span class="step-label">Aplicación práctica</span><h3>Criterios de inclusión típicos</h3>' +
+      '<p style="font-size:12.5px;">≥18 años (salvo estudios pediátricos), diagnóstico confirmado, estado clínico estable, función hepática/renal mínimamente preservada, sin infección activa grave, consentimiento informado firmado.</p>';
+  }},
+  { label: "Contraindicaciones", render: function() {
+    return '<div class="icon-badge">🚫</div><span class="step-label">Aplicación práctica</span><h3>Contraindicaciones relativas</h3>' +
+      '<div class="chip-row"><span class="chip">Embarazo/lactancia</span><span class="chip">Cáncer activo/reciente</span><span class="chip">Infección sistémica activa</span><span class="chip">Autoinmune grave no controlada</span></div>' +
+      '<p>No hay contraindicaciones absolutas reportadas explícitamente — pero estas exigen evaluación previa.</p>';
+  }},
+  { label: "Precauciones", render: function() {
+    return '<div class="icon-badge">⚕️</div><span class="step-label">Aplicación práctica</span><h3>Precauciones</h3>' +
+      '<p style="font-size:12.5px;">Evaluación oncológica previa (antecedente de cáncer), verificar función hepática/renal, considerar riesgo teórico en inmunosuprimidos, documentar toda medicación concomitante.</p>';
+  }},
+  { label: "Señales de alarma", render: function() {
+    return '<div class="icon-badge">🚨</div><span class="step-label">Aplicación práctica</span><h3>Vigilar post-infusión</h3>' +
+      '<p style="font-size:12.5px;">Fiebre/infección (72h), reacción alérgica durante infusión, cambios neurológicos agudos, elevación de enzimas hepáticas o deterioro renal, signos de trombosis/embolia.</p>';
+  }},
+  { label: "Seguimiento clínico", render: function() {
+    return '<div class="icon-badge">📈</div><span class="step-label">Aplicación práctica</span><h3>Seguimiento recomendado</h3>' +
+      '<p style="font-size:12.5px;">Clínico a 24-48h; laboratorio a la semana y al mes; escala funcional según enfermedad (Rankin/NIHSS, ASIA, fracción de eyección, calidad de vida/dolor).</p>';
+  }},
+  { label: "Ejemplo guiado", render: function() {
+    return '<div class="icon-badge">🩺</div><h3>Ejemplo guiado</h3>' +
+      '<div class="card"><p style="margin:0;"><strong style="color:#fff;">Caso:</strong> Paciente de 70 kg, ictus isquémico subagudo (día 20 post-evento), sin comorbilidades relevantes.</p></div>' +
+      '<p><strong style="color:#fff;">Paso 1 — confirmar ventana.</strong> 14-28 días post-ictus: cumple.</p>' +
+      '<p><strong style="color:#fff;">Paso 2 — calcular dosis.</strong> Si se usa esquema por kg (2.5×10⁵/kg): 17.5 millones de células.</p>' +
+      '<p><strong style="color:#fff;">Paso 3 — trazabilidad y consentimiento.</strong> Verificar lote de CL2020 y firmar consentimiento antes de proceder.</p>' +
+      '<p style="margin:0;"><strong style="color:var(--purple);">Paso 4 — pensar en protocolo integral (DEZAWA), no solo en el biológico.</strong> Según el caso, el médico puede evaluar sumar apoyo con homotoxicología o nutracéuticos orientados a recuperación neurológica y estado general — siempre personalizado, nunca como combo fijo.</p>';
+  }},
+  { label: "Práctica", render: function(st) {
+    var idx = st.practiceIndex || 0; var c = PRACTICE_CASES[idx]; var answered = st.practiceAnswers[idx];
+    var html = '<div class="icon-badge">✏️</div><h3>Práctica clínica</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + PRACTICE_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickPractice('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<PRACTICE_CASES.length-1) html += '<button class="retry" onclick="nextPracticeCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste los casos de práctica. Continúa al diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "Diagnóstico diferencial", render: function(st) {
+    var idx = st.diffIndex || 0; var c = DIFFERENTIAL_CASES[idx]; var answered = st.diffAnswers[idx];
+    var html = '<div class="icon-badge">🔍</div><h3>Cuando dos criterios compiten</h3><p class="subcounter">Caso ' + (idx+1) + ' de ' + DIFFERENTIAL_CASES.length + '</p><div class="card"><p style="margin:0;">' + c.caseText + '</p></div>';
+    c.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===c.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickDiff('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===c.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"No es correcto.")+'</p><p class="rationale">'+c.rationale+'</p>';
+      if(idx<DIFFERENTIAL_CASES.length-1) html += '<button class="retry" onclick="nextDiffCase()">Siguiente caso →</button>';
+      else html += '<p style="font-size:13px;color:var(--teal-light);margin-top:10px;">Terminaste el diagnóstico diferencial.</p>'; }
+    return html;
+  }},
+  { label: "Evaluación", render: function(st) {
+    var idx = st.quizIndex || 0;
+    if (idx >= QUESTIONS.length) {
+      var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+      var pct = Math.round((correct/QUESTIONS.length)*100); var passed = pct>=80;
+      return '<div class="icon-badge">✅</div><h3>Resultado de la evaluación</h3><div class="card"><p style="font-size:32px;font-weight:700;margin:0 0 6px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">'+pct+'%</p><p style="margin:0;">'+correct+' de '+QUESTIONS.length+' correctas — '+(passed?"Aprobado (mínimo 80%)":"No aprobado, se requiere 80% o más")+'</p></div>' + (passed?"":'<button class="retry" onclick="restartQuiz()">Reintentar evaluación completa</button>');
+    }
+    var qu = QUESTIONS[idx]; var answered = st.quizAnswers[idx];
+    var html = '<div class="icon-badge">✅</div><h3>Evaluación</h3><p class="subcounter">Reactivo ' + (idx+1) + ' de ' + QUESTIONS.length + '</p><div class="card"><p style="margin:0;font-weight:600;color:#fff;">' + qu.q + '</p></div>';
+    qu.opts.forEach(function(o,i){ var cls="opt"; if(answered!==undefined){ if(i===qu.correct) cls+=" correct"; else if(i===answered) cls+=" wrong"; } html += '<button class="'+cls+'" onclick="pickQuiz('+i+')">'+o+'</button>'; });
+    if(answered!==undefined){ var ok=answered===qu.correct; html += '<p class="feedback '+(ok?"ok":"bad")+'">'+(ok?"Correcto.":"Incorrecto — la respuesta correcta está marcada.")+'</p><button class="retry" onclick="nextQuizQuestion()">'+(idx===QUESTIONS.length-1?"Ver resultado":"Siguiente reactivo →")+'</button>'; }
+    return html;
+  }},
+  { label: "Resumen", render: function(st) {
+    var correct=0; QUESTIONS.forEach(function(qu,qi){ if(st.quizAnswers[qi]===qu.correct) correct++; });
+    var pct = Math.round((correct/QUESTIONS.length)*100) || 0; var passed = pct>=80;
+    return '<div class="icon-badge">🏁</div><h3>Resumen y siguiente paso</h3>' +
+      '<ul style="padding-left:18px;font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:1rem;">' +
+      '<li>MUSE: pluripotentes, endógenas, no tumorales — descubiertas por la Dra. Mari Dezawa en 2010.</li>' +
+      '<li>A diferencia de las MSC: migración dirigida (S1P), fagocitosis, y diferenciación directa — no solo efecto paracrino.</li>' +
+      '<li>Toleran HLA-mismatch sin inmunosupresión — permanecen diferenciadas más de 6 meses.</li>' +
+      '<li>La evidencia clínica es fase I/II en su mayoría — prometedora, no concluyente todavía.</li>' +
+      '<li>Dosis estándar: 15 millones IV, o 2.0-2.7×10⁵ células/kg según protocolo — verificar cuál aplica.</li>' +
+      '</ul>' +
+      '<div class="card"><p style="font-weight:600;margin:0 0 4px;color:'+(passed?"var(--teal-light)":"var(--danger)")+';">Tu resultado: '+pct+'% — '+(passed?"módulo aprobado":"no aprobado, reintenta la evaluación")+'</p>' +
+      '<p style="margin:8px 0 0;">Siguiente módulo sugerido: Portal Médico.</p></div>';
+  }}
+];
+
+var state = { current: 0, practiceIndex: 0, practiceAnswers: {}, diffIndex: 0, diffAnswers: {}, quizIndex: 0, quizAnswers: {} };
+var yaAvisoCompletado = false;
+function renderDots(){ var dots=document.getElementById("dots"); dots.innerHTML=""; CELLS.forEach(function(c,i){ var d=document.createElement("div"); d.className="dot"+(i===state.current?" active":""); dots.appendChild(d); }); }
+function renderStage(){
+  var stage=document.getElementById("stage");
+  stage.innerHTML='<div class="cell active">'+CELLS[state.current].render(state)+'</div>';
+  document.getElementById("cellLabel").textContent = (state.current+1) + " · " + CELLS[state.current].label;
+  document.getElementById("backBtn").disabled=state.current===0;
+  var nextBtn=document.getElementById("nextBtn"); var blocked=false;
+  if(CELLS[state.current].label==="Práctica") blocked=!(state.practiceIndex===PRACTICE_CASES.length-1 && state.practiceAnswers[PRACTICE_CASES.length-1]!==undefined);
+  else if(CELLS[state.current].label==="Diagnóstico diferencial") blocked=!(state.diffIndex===DIFFERENTIAL_CASES.length-1 && state.diffAnswers[DIFFERENTIAL_CASES.length-1]!==undefined);
+  else if(CELLS[state.current].label==="Evaluación") blocked=state.quizIndex<QUESTIONS.length;
+  nextBtn.disabled=blocked;
+  nextBtn.textContent = state.current===CELLS.length-1 ? "Reiniciar módulo" : (blocked?"Completa los casos para continuar":"Siguiente →");
+  renderDots();
+
+  // Avisar al hub SOLO al llegar a la última pantalla (Resumen) Y solo si
+  // se aprobó — nunca por abrir el módulo o navegar libremente.
+  if (state.current === CELLS.length - 1 && !yaAvisoCompletado) {
+    var _correct = 0; QUESTIONS.forEach(function(_qu,_qi){ if(state.quizAnswers[_qi]===_qu.correct) _correct++; });
+    var _pct = QUESTIONS.length ? Math.round((_correct/QUESTIONS.length)*100) : 0;
+    if (_pct >= 80) {
+      yaAvisoCompletado = true;
+      try { window.parent.postMessage({ tipo: 'code_cells_modulo_completado', moduloId: MODULO_ID }, '*'); } catch (e) {}
+    }
+  }
+}
+function pickPractice(i){ var idx=state.practiceIndex; if(state.practiceAnswers[idx]!==undefined) return; state.practiceAnswers[idx]=i; renderStage(); }
+function nextPracticeCase(){ state.practiceIndex++; renderStage(); }
+function pickDiff(i){ var idx=state.diffIndex; if(state.diffAnswers[idx]!==undefined) return; state.diffAnswers[idx]=i; renderStage(); }
+function nextDiffCase(){ state.diffIndex++; renderStage(); }
+function pickQuiz(i){ var idx=state.quizIndex; if(state.quizAnswers[idx]!==undefined) return; state.quizAnswers[idx]=i; renderStage(); }
+function nextQuizQuestion(){ state.quizIndex++; renderStage(); }
+function restartQuiz(){ state.quizIndex=0; state.quizAnswers={}; renderStage(); }
+document.getElementById("backBtn").onclick=function(){ if(state.current>0){ state.current--; renderStage(); } };
+document.getElementById("nextBtn").onclick=function(){ if(state.current<CELLS.length-1){ state.current++; renderStage(); } else { state={current:0,practiceIndex:0,practiceAnswers:{},diffIndex:0,diffAnswers:{},quizIndex:0,quizAnswers:{}}; renderStage(); } };
+renderStage();
+
+// Overlay de la experiencia DEZAWA VIP — se usa SIEMPRE con ?demo=1 para que,
+// aunque el médico complete el test por curiosidad, no se cree ninguna cuenta
+// VIP real ni se dispare la notificación por Telegram a los médicos (ver
+// api/vip-activar.js). Carga perezosa: el iframe no tiene src hasta que se
+// abre, para no cargar ese archivo (pesado, con audio/video) de entrada.
+function abrirDezawaVip(){
+  var iframe = document.getElementById("vipIframe");
+  if(!iframe.src){ iframe.src = "/dezawavip.html?demo=1&from=CAPACITACION"; }
+  document.getElementById("vipOverlay").classList.add("active");
+}
+function cerrarDezawaVip(){
+  document.getElementById("vipOverlay").classList.remove("active");
+}
+</script>
+</body>
+</html>
