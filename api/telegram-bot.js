@@ -569,6 +569,16 @@ module.exports = async (req, res) => {
   // (no 403): es un problema de autenticación, no de rol. El secret vive
   // solo en la variable de entorno TELEGRAM_WEBHOOK_SECRET de Vercel.
   const secretWebhook = req.headers['x-telegram-bot-api-secret-token'];
+  // INSTRUMENTACIÓN TEMPORAL — diagnóstico 401 persistente del webhook.
+  // Nunca loguea el valor de ninguno de los dos secretos, solo booleanos y
+  // longitudes. Revertir en cuanto se lea el resultado.
+  console.log('[diag-401]', JSON.stringify({
+    envDefinida: !!process.env.TELEGRAM_WEBHOOK_SECRET,
+    envLongitud: process.env.TELEGRAM_WEBHOOK_SECRET ? process.env.TELEGRAM_WEBHOOK_SECRET.length : 0,
+    headerLlego: !!secretWebhook,
+    headerLongitud: secretWebhook ? secretWebhook.length : 0,
+    coinciden: !!(process.env.TELEGRAM_WEBHOOK_SECRET && secretWebhook) && secretWebhook === process.env.TELEGRAM_WEBHOOK_SECRET,
+  }));
   if (!process.env.TELEGRAM_WEBHOOK_SECRET || secretWebhook !== process.env.TELEGRAM_WEBHOOK_SECRET) {
     return res.status(401).json({ error: 'No autorizado' });
   }
