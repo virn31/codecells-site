@@ -140,6 +140,15 @@ async function borrarPendiente(recordId) {
  * botón "Guardar consulta" del Portal Médico.
  */
 async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
+  // Falla ruidosa, no escritura parcial: una CONSULTA sin Paciente enlazado
+  // queda huérfana del expediente para siempre (Airtable no permite
+  // enlazarla después por lote) — CLAUDE.md §6/§4. Se corta aquí, antes de
+  // escribir nada, en vez de crear el registro y confiar en que el llamador
+  // ya validó pacienteRecord.
+  if (!pacienteRecord || !pacienteRecord.id) {
+    throw new Error('guardarFichaEnExpediente: pacienteRecord.id no disponible — no se crea la consulta sin paciente enlazado.');
+  }
+
   const headers = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
   const pacId = pacienteRecord.fields['Código de paciente'];
 
@@ -151,6 +160,7 @@ async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
 
   const consultaFields = {
     'Código de paciente ref': pacId,
+    'Paciente': [pacienteRecord.id],
     'Médico': medico.fields[CAMPO_NOMBRE] || 'Médico',
     'Código de médico ref': medico.fields[CAMPO_CODIGO] || '—',
     'Firma / Cédula médico': (medico.fields[CAMPO_NOMBRE] || 'Médico') + (medico.fields[CAMPO_CEDULA] ? ' — Céd. ' + medico.fields[CAMPO_CEDULA] : ''),
