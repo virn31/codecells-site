@@ -1044,11 +1044,25 @@ module.exports = async (req, res) => {
             ? `AND({${campoDuenio}}="${escaparFormula(auth.codigo)}", {Código de médico ref}="${escaparFormula(codigo)}")`
             : `{${campoDuenio}}="${escaparFormula(auth.codigo)}"`;
         } else if (req.method === 'POST') {
+          // Falla ruidosa, no escritura parcial: sin recId no hay a qué
+          // enlazar el registro nuevo (auth.recId siempre viene poblado si
+          // autorizarPaciente() no lanzó arriba, pero no se asume — un
+          // registro de HISTORIA/CONSULTAS/LABS sin 'Paciente' queda
+          // huérfano del expediente para siempre, Airtable no lo enlaza
+          // después por lote).
+          if (!auth.recId) {
+            return res.status(502).json({ error: 'No se pudo resolver el registro del paciente — no se creó el registro.' });
+          }
           const fields = (req.body && req.body.fields) || {};
           if (fields[campoDuenio] !== undefined && fields[campoDuenio] !== auth.codigo) {
             return res.status(403).json({ error: 'No puedes crear registros a nombre de otro código.' });
           }
-          req.body.fields = { ...fields, [campoDuenio]: auth.codigo };
+          // 'Paciente' se fuerza aquí, nunca se confía en el que mande el
+          // cliente — mismo criterio que campoDuenio. Antes solo se forzaba
+          // el texto; el registro de CONSULTAS (btn-guardar del Portal, que
+          // nunca manda 'Paciente') quedaba con el código correcto en texto
+          // pero sin Link al expediente.
+          req.body.fields = { ...fields, [campoDuenio]: auth.codigo, 'Paciente': [auth.recId] };
         } else if (req.method === 'PATCH') {
           const { recordId } = req.query;
           if (!recordId) return res.status(400).json({ error: 'Falta recordId.' });
