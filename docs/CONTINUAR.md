@@ -6,18 +6,17 @@
 > historial vive en git (`git log`) y en la memoria del proyecto.
 
 **Última actualización:** 2026-10-03 (cierre del día)
-**Rama:** `feat/kiosco-antecedentes-go` — 15 commits sobre `main`, **SIN PUSH**
+**Rama:** `feat/kiosco-antecedentes-go` — 15 commits sobre `main`, **en GitHub** (push 2026-10-03; PR aún no abierto)
 **Base de trabajo:** prueba `appCQ0RdhqFMGxWL5` · producción `app6jyD9pDlTLpknA` (no tocar)
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Push de la rama** — a Claude se lo bloquea el clasificador de permisos;
-   correrlo Víctor: `! git push -u origin feat/kiosco-antecedentes-go`
-2. **Cerrar los 3 bloqueadores del kiosco** (B1–B3, abajo). Es lo que impide
+1. **Cerrar los 3 bloqueadores del kiosco** (B1–B3, abajo). Es lo que impide
    llevar el kiosco a producción y lo que no debe quedar debajo de la Fase 2.
-3. Después, lo que Víctor priorice de la lista §4 o las entrevistas (§5).
+2. Después, lo que Víctor priorice de la lista §4 o las entrevistas (§5).
+3. PR a `main` solo cuando §3 esté resuelto (crear antes tablas/campos en prod).
 
 ## 2. Hecho — NO repetir
 
@@ -112,7 +111,9 @@ node --test test/*.test.js              # esperado: 91 pasan, 7 fallan (congelam
 
 - Usar `127.0.0.1`, no `localhost` (IPv6 se cuelga). La 1ª llamada de cada
   proceso Node a Airtable tarda ~10 s o falla: reintentar.
-- `git push` lo bloquea el clasificador → lo corre Víctor con `!`.
+- `git push` lo bloquea el clasificador → lo corre Víctor con `!` y SIEMPRE con
+  `cd /c/Users/virn3/Documents/codecells-site && …` (el `!` corre en la carpeta
+  actual de Claude, que puede no ser el repo).
 - `core.autocrlf=true`: el working tree es CRLF, el repo LF. Para commits
   parciales se usó `git apply --cached --recount` por bloques.
 - Chrome controlado en segundo plano pausa animaciones, `requestAnimationFrame`
