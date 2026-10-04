@@ -551,9 +551,17 @@ async function ejecutarRegistrarLead({ nombre, whatsapp, email, origen, scores, 
   return { ok: true, status: 200, id: createData.records[0].id };
 }
 
+// Las URLs de Preview de Vercel (una por rama/commit) solo se aceptan en el
+// ambiente Preview — VERCEL_ENV lo pone Vercel, no el cliente. En producción
+// esta regla no existe.
+const ORIGEN_PREVIEW = /^https:\/\/codecells-site-[a-z0-9-]+-codecells\.vercel\.app$/;
+
 function isAllowedOrigin(origin) {
   if (!origin) return false;
-  return ALLOWED_ORIGINS.some(o => origin.startsWith(o));
+  // Comparación EXACTA: el header Origin no lleva ruta. Antes era startsWith,
+  // y "https://codecells.mx.otro-dominio.com" pasaba como codecells.mx.
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  return process.env.VERCEL_ENV === 'preview' && ORIGEN_PREVIEW.test(origin);
 }
 
 // ─── SYSTEM PROMPT MAESTRO DE NOVA ───────────────────────────────
@@ -4283,6 +4291,7 @@ function buildHerramientaFichaConsulta() {
 // todo el flujo de chat con Anthropic.
 module.exports.buildHerramientaFichaConsulta = buildHerramientaFichaConsulta;
 module.exports.compararNombres = compararNombres;
+module.exports.isAllowedOrigin = isAllowedOrigin;
 
 // ─── HERRAMIENTA: ALTA DE PACIENTE NUEVO POR DICTADO ────────────────
 // Opcional (tool_choice auto) — distinta de rellenar_ficha_consulta: esa es
