@@ -1812,11 +1812,23 @@ module.exports = async function handler(req, res) {
       if (temperatura) notas.push(`Temp: ${temperatura}°C`);
       if (frecuenciaCardiaca) notas.push(`FC: ${frecuenciaCardiaca}lpm`);
       if (frecuenciaRespiratoria) notas.push(`FR: ${frecuenciaRespiratoria}`);
+      if (Object.keys(fields).length === 2 && !notas.length) return res.status(400).json({ error: 'No se capturó ningún dato.' });
       if (notas.length) {
+        // Se AGREGA a 'Notas generales', nunca se reemplaza: el PATCH de
+        // Airtable sobrescribe el campo completo, y antes de esto cada toma
+        // de signos borraba lo que hubiera ahí (edad dictada, notas previas,
+        // signos anteriores). Si no se puede leer el valor actual, no se
+        // escribe nada — escribir a ciegas es justo el bug que esto cierra.
+        const actualRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`, {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        });
+        if (!actualRes.ok) return res.status(502).json({ error: 'No se pudieron leer las notas actuales del paciente — no se guardaron los signos.' });
+        const actual = await actualRes.json();
+        const previas = (actual.fields && actual.fields['Notas generales']) || '';
         const fecha = new Date().toISOString().slice(0,10);
-        fields['Notas generales'] = `[${fecha}] Signos vitales (kiosco): ${notas.join(', ')}`;
+        const linea = `[${fecha}] Signos vitales (kiosco): ${notas.join(', ')}`;
+        fields['Notas generales'] = previas ? `${previas}\n${linea}` : linea;
       }
-      if (Object.keys(fields).length === 2) return res.status(400).json({ error: 'No se capturó ningún dato.' });
 
       const patchRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`, {
         method: 'PATCH',
