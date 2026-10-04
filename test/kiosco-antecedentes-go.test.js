@@ -168,3 +168,44 @@ test('kiosco antecedentes GO: CONGELADO (producción) → 503 y nada llega a la 
   } finally { restaurar(); }
 });
 
+// Bajo carga Airtable responde 429. Verificar el tipo de acceso NO puede
+// convertir eso en "tu tipo de acceso no permite..." (403 falso) ni dejar un
+// "Denegado" en ACCESOS_EXPEDIENTE: es 502 y nada se escribe.
+test('kiosco antecedentes GO: Airtable 429 al verificar tipo de acceso → 502 honesto, sin "Denegado" en bitácora', async () => {
+  const capturas = {};
+  const original = global.fetch;
+  global.fetch = async (url, opts = {}) => {
+    const u = decodeURIComponent(String(url));
+    if (u.includes(TBL_MEDICOS)) return { ok: false, status: 429, json: async () => ({ errors: [{ error: 'RATE_LIMIT_REACHED' }] }) };
+    if (u.includes(TBL_ACCESOS)) { capturas.bitacora = JSON.parse(opts.body); return { ok: true, status: 200, json: async () => ({ records: [{ id: 'recACC' }] }) }; }
+    if ((opts.method || 'GET') === 'POST' && u.includes(TBL_ANTECEDENTES)) { capturas.postAntecedentes = true; }
+    throw new Error(`fetch no mockeado: ${u}`);
+  };
+  try {
+    const handler = cargarHandler({ congelado: false });
+    const res = fakeRes();
+    await handler(reqPost({ codigoMedico: MED_PROPIO, pacienteBuscado: PAC_REAL, fields: FIELDS_KIOSCO }), res);
+    assert.strictEqual(res.statusCode, 502, JSON.stringify(res.body));
+    assert.doesNotMatch(res.body.error, /tipo de acceso no permite/);
+    assert.strictEqual(capturas.bitacora, undefined, 'un 429 no es una denegación: no debe registrarse como "Denegado"');
+    assert.strictEqual(capturas.postAntecedentes, undefined);
+  } finally { global.fetch = original; }
+});
+
+test('kiosco antecedentes GO: médico con Tipo de acceso ≠ Clinico sigue recibiendo 403 (la corrección del 429 no abre nada)', async () => {
+  const capturas = {};
+  const original = global.fetch;
+  global.fetch = async (url, opts = {}) => {
+    const u = decodeURIComponent(String(url));
+    if (u.includes(TBL_MEDICOS)) return { ok: true, status: 200, json: async () => ({ records: [{ id: 'recMEDPROP', fields: { 'Código de médico': MED_PROPIO, 'Tipo de acceso': 'Revisor' } }] }) };
+    if (u.includes(TBL_ACCESOS)) { capturas.bitacora = true; return { ok: true, status: 200, json: async () => ({ records: [{ id: 'recACC' }] }) }; }
+    throw new Error(`fetch no mockeado: ${u}`);
+  };
+  try {
+    const handler = cargarHandler({ congelado: false });
+    const res = fakeRes();
+    await handler(reqPost({ codigoMedico: MED_PROPIO, pacienteBuscado: PAC_REAL, fields: FIELDS_KIOSCO }), res);
+    assert.strictEqual(res.statusCode, 403);
+    assert.strictEqual(capturas.bitacora, true, 'una denegación real sí se registra');
+  } finally { global.fetch = original; }
+});

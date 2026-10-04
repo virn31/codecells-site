@@ -136,17 +136,24 @@ const NUCLEO_CLINICO_TABLAS = new Set(['pacientes', 'historia', 'consultas', 'la
 async function verificarAccesoClinicoMedico(codigo, AIRTABLE_TOKEN) {
   const formula = `{Código de médico}="${escaparFormula(codigo)}"`;
   const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLAS_PERMITIDAS.medicos}?filterByFormula=${encodeURIComponent(formula)}&maxRecords=1&fields%5B%5D=${encodeURIComponent('Código de médico')}&fields%5B%5D=${encodeURIComponent('Tipo de acceso')}`;
+  // `errorInfra`: Airtable no respondió (429 por límite de velocidad, 5xx,
+  // red). Sigue fallando cerrado (permitido=false), pero NO es una decisión
+  // de acceso — quien llama responde 502 y no deja un "Denegado" falso en
+  // ACCESOS_EXPEDIENTE. Antes un 429 bajo carga se mostraba como "Tu tipo de
+  // acceso no permite..." (CLAUDE.md §6: un fallo debe verse como fallo).
   try {
     const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-    if (!r.ok) return { permitido: false, recordId: null };
+    if (!r.ok) return { permitido: false, recordId: null, errorInfra: true };
     const d = await r.json();
     const rec = d.records?.[0];
     if (!rec) return { permitido: false, recordId: null };
     return { permitido: rec.fields?.['Tipo de acceso'] === 'Clinico', recordId: rec.id };
   } catch {
-    return { permitido: false, recordId: null };
+    return { permitido: false, recordId: null, errorInfra: true };
   }
 }
+
+const MENSAJE_ACCESO_NO_VERIFICABLE = 'No se pudo verificar tu tipo de acceso en este momento. Intenta de nuevo en unos segundos.';
 
 // Tablas donde, ANTES de que exista sesión, el propio código/token que el
 // cliente ya trae en memoria (de la URL, o recién generado) funciona como
@@ -665,6 +672,7 @@ module.exports = async (req, res) => {
     // validación inicial.
     if (sesion.tipo === 'medico') {
       const acceso = await verificarAccesoClinicoMedico(sesion.codigo, AIRTABLE_TOKEN);
+      if (acceso.errorInfra) return res.status(502).json({ error: MENSAJE_ACCESO_NO_VERIFICABLE });
       if (!acceso.permitido) {
         await registrarAccesoExpediente({
           codigoMedico: sesion.codigo,
@@ -861,6 +869,7 @@ module.exports = async (req, res) => {
 
     if (tipo === 'medico' && NUCLEO_CLINICO_TABLAS.has(tabla)) {
       const acceso = await verificarAccesoClinicoMedico(codigo, AIRTABLE_TOKEN);
+      if (acceso.errorInfra) return res.status(502).json({ error: MENSAJE_ACCESO_NO_VERIFICABLE });
       if (!acceso.permitido) {
         await registrarAccesoExpediente({
           codigoMedico: codigo,
