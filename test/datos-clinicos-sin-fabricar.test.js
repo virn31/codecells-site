@@ -79,7 +79,7 @@ function instalarFetchMock({ extraido, capturas }) {
       return ok({ id: REC_PAC, fields: { 'Código de paciente': COD_PAC, 'Patologías activas': [] } });
     }
     if (u.includes(`/${TBL_MEDICOS}?filterByFormula=`)) {
-      return ok({ records: [{ id: REC_MED, fields: { 'Código de médico': COD_MED } }] });
+      return ok({ records: [{ id: REC_MED, fields: { 'Código de médico': COD_MED, 'Tipo de acceso': 'Clinico' } }] });
     }
     if (metodo === 'POST' && u.includes(`/${TBL_LABS}`)) {
       capturas.labsBody = JSON.parse(opts.body);
@@ -239,8 +239,8 @@ test('kiosco_crear_paciente: solo edad dictada → "Fecha de nacimiento" AUSENTE
     const novaHandler = requerirNovaFresco();
     const req = {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: { action: 'kiosco_crear_paciente', staffCodigo: COD_MED, nombreCompleto: 'ZZ Prueba Unitaria', edad: 52 },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${generarToken({ tipo: 'medico', codigo: COD_MED })}` },
+      body: { action: 'kiosco_crear_paciente', nombreCompleto: 'ZZ Prueba Unitaria', edad: 52 },
     };
     const res = fakeRes();
     await novaHandler(req, res);

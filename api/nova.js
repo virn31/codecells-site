@@ -48,8 +48,54 @@ const { notaEdadSinFecha } = require('../lib/datosPacienteNuevo');
 // pedían NINGUNA identidad de médico — ni siquiera el formato de medicoCode
 // que otras acciones sí exigen — así que cualquiera con un pacienteCode
 // válido leía los labs de ese paciente sin sesión de ningún tipo.
-const { autorizarPaciente, ErrorAutorizacion, MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
+const { autorizarPaciente, ErrorAutorizacion, MENSAJE_NO_DISPONIBLE, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
 const { CONGELADO, MENSAJE_CONGELAMIENTO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+
+// Puerta común de las acciones kiosco_* — las mismas reglas que
+// /api/airtable aplica a ANTECEDENTES_OBSTETRICOS desde el mismo kiosco.
+// Antes estas acciones solo revisaban que el body trajera algo con forma
+// "CCMED-": sin sesión, cualquiera escribía signos o historia en cualquier
+// paciente, o creaba pacientes a nombre de cualquier médico.
+//  - El médico sale del TOKEN, nunca del body (staffCodigo se ignora).
+//  - Tipo de acceso = Clinico (Revisor/Desarrollo no escriben expediente).
+//  - Con paciente: autorizarPaciente() con escritura (propio o
+//    interconsulta con escritura; demo nunca) y medicoRecId resuelto, que
+//    es el autor del registro (kiosco = alta delegada, CLAUDE.md §7).
+// Devuelve { error: {status, mensaje} } o { medicoRecId, auth }.
+async function puertaKiosco(sesion, pacienteCode, endpoint) {
+  if (!sesion || sesion.tipo !== 'medico') {
+    return { error: { status: 401, mensaje: 'Sesión de personal no válida o expirada. Vuelve a iniciar el kiosco.' } };
+  }
+  const acceso = await verificarAccesoClinicoMedico(sesion.codigo, process.env.AIRTABLE_TOKEN);
+  if (acceso.errorInfra) return { error: { status: 502, mensaje: MENSAJE_ACCESO_NO_VERIFICABLE } };
+  if (!acceso.permitido) {
+    await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, medicoRecId: acceso.recordId, accion: 'Escritura', resultado: 'Denegado', endpoint });
+    return { error: { status: 403, mensaje: 'Tu tipo de acceso no permite escribir en expedientes clínicos.' } };
+  }
+  // Alta de paciente nuevo: todavía no hay paciente que autorizar; el
+  // paciente queda atribuido al médico del token.
+  if (pacienteCode === null) return { medicoRecId: acceso.recordId, auth: null };
+
+  if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
+    await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint });
+    return { error: { status: 403, mensaje: MENSAJE_NO_DISPONIBLE } };
+  }
+  let auth;
+  try {
+    auth = await autorizarPaciente(sesion.codigo, pacienteCode, { requiereEscritura: true });
+  } catch (err) {
+    if (err instanceof ErrorAutorizacion) {
+      await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint });
+      return { error: { status: err.status, mensaje: err.message } };
+    }
+    console.error(`[nova] ${endpoint} autorizarPaciente:`, err.message);
+    return { error: { status: err.status || 502, mensaje: 'No se pudo verificar el acceso al paciente.' } };
+  }
+  if (!auth.medicoRecId) {
+    return { error: { status: 502, mensaje: 'No se pudo resolver al médico que registra — no se guardó nada.' } };
+  }
+  return { medicoRecId: auth.medicoRecId, auth };
+}
 
 // Taxonomía fija de 30 patologías — compartida entre el Motor de
 // Interpretación Clínica y la herramienta de alta de paciente nuevo.
@@ -2031,7 +2077,7 @@ module.exports = async function handler(req, res) {
     // (kiosco). Ver lib/congelamientoDatosPersonales.js.
     if (CONGELADO) return respuestaCongelada(res);
     try {
-      const { staffCodigo, regToken, nombreCompleto, edad, sexo, telefono } = req.body;
+      const { regToken, nombreCompleto, edad, sexo, telefono } = req.body;
       if (!nombreCompleto || typeof nombreCompleto !== 'string' || !nombreCompleto.trim()) return res.status(400).json({ error: 'Falta el nombre del paciente.' });
 
       // PAUSADO (2026-08-23): autorregistro por regToken es una tercera vía de
@@ -2053,19 +2099,13 @@ module.exports = async function handler(req, res) {
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
-      const TBL_MED = 'tbl87DsuBMmb4DjFM';
 
-      let medicoRecordId = null;
-      let medicoNombre = null;
-
-      // Flujo del kiosco de consultorio: requiere sesión de personal ya verificada
-      if (!staffCodigo || !/^CCMED-[A-Z0-9]{4,8}$/.test(staffCodigo)) return res.status(403).json({ error: 'Sesión de personal inválida.' });
-      const formulaMed = `{Código de médico}="${staffCodigo}"`;
-      const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaMed)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const medData = await medRes.json();
-      const medRecord = medData.records?.[0] || null;
-      medicoRecordId = medRecord?.id || null;
-      medicoNombre = medRecord?.fields?.['Nombre completo'] || null;
+      // Sesión médica del token (kiosco paso 1). Antes se buscaba el médico
+      // por el staffCodigo del body y, si la búsqueda fallaba, el paciente
+      // se creaba SIN Médico_principal — huérfano, invisible para todos.
+      const puerta = await puertaKiosco(sesion, null, 'kiosco_crear_paciente');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      const medicoRecordId = puerta.medicoRecId;
 
       // Siguiente código CC-PAC- disponible, con verificación anti-colisión
       // del lado del servidor (ver lib/codigos.js).
@@ -2079,8 +2119,8 @@ module.exports = async function handler(req, res) {
         'Nombre completo': nombreCompleto.trim(),
         'Última actividad': new Date().toISOString(),
         'Estado del expediente': 'Activo',
+        'Médico_principal': [medicoRecordId],
       };
-      if (medicoRecordId) fields['Médico_principal'] = [medicoRecordId];
       if (sexo) fields['Sexo biológico'] = sexo;
       if (telefono) fields['Teléfono WhatsApp'] = telefono;
       const notaEdad = notaEdadSinFecha(edad);
@@ -2096,7 +2136,8 @@ module.exports = async function handler(req, res) {
       const createData = await createRes.json();
       if (!createRes.ok) return res.status(502).json({ error: 'No se pudo registrar al paciente en Airtable.' });
 
-      return res.status(200).json({ ok: true, codigo: nuevoCodigo, recordId: createData.records[0].id, nombre: nombreCompleto.trim(), medicoNombre });
+      await registrarAccesoExpediente({ pacienteCode: nuevoCodigo, codigoMedico: sesion.codigo, medicoRecId: medicoRecordId, accion: 'Escritura', resultado: 'Exitoso', endpoint: 'kiosco_crear_paciente' });
+      return res.status(200).json({ ok: true, codigo: nuevoCodigo, recordId: createData.records[0].id, nombre: nombreCompleto.trim() });
     } catch (err) {
       console.error('[nova] kiosco_crear_paciente error:', err.message);
       return res.status(500).json({ error: 'Error interno registrando al paciente.' });
@@ -2111,9 +2152,14 @@ module.exports = async function handler(req, res) {
     // (signos vitales, kiosco). Ver lib/congelamientoDatosPersonales.js.
     if (CONGELADO) return respuestaCongelada(res);
     try {
-      const { pacienteRecordId, staffCodigo, peso, talla, presion, temperatura, frecuenciaCardiaca, frecuenciaRespiratoria } = req.body;
-      if (!pacienteRecordId) return res.status(400).json({ error: 'Falta pacienteRecordId.' });
-      if (!staffCodigo || !/^CCMED-[A-Z0-9]{4,8}$/.test(staffCodigo)) return res.status(403).json({ error: 'Sesión de personal inválida.' });
+      const { pacienteCodigo, peso, talla, presion, temperatura, frecuenciaCardiaca, frecuenciaRespiratoria } = req.body;
+      if (!pacienteCodigo) return res.status(400).json({ error: 'Falta el código del paciente.' });
+
+      // El recordId que se modifica es el que resolvió autorizarPaciente(),
+      // nunca uno que mande el cliente (antes: pacienteRecordId del body).
+      const puerta = await puertaKiosco(sesion, pacienteCodigo, 'kiosco_guardar_signos');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      const pacienteRecordId = puerta.auth.recId;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
@@ -2152,6 +2198,7 @@ module.exports = async function handler(req, res) {
       });
       if (!patchRes.ok) return res.status(502).json({ error: 'No se pudo guardar en Airtable.' });
 
+      await registrarAccesoExpediente({ pacienteCode: puerta.auth.codigo, codigoMedico: sesion.codigo, medicoRecId: puerta.medicoRecId, accion: 'Escritura', resultado: 'Exitoso', endpoint: 'kiosco_guardar_signos' });
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[nova] kiosco_guardar_signos error:', err.message);
@@ -2168,10 +2215,13 @@ module.exports = async function handler(req, res) {
     // CLÍNICA (kiosco). Ver lib/congelamientoDatosPersonales.js.
     if (CONGELADO) return respuestaCongelada(res);
     try {
-      const { pacienteRecordId, pacienteCodigo, staffCodigo, respuestas } = req.body;
-      if (!pacienteRecordId || !pacienteCodigo) return res.status(400).json({ error: 'Falta información del paciente.' });
-      if (!staffCodigo || !/^CCMED-[A-Z0-9]{4,8}$/.test(staffCodigo)) return res.status(403).json({ error: 'Sesión de personal inválida.' });
+      const { pacienteCodigo, respuestas } = req.body;
+      if (!pacienteCodigo) return res.status(400).json({ error: 'Falta información del paciente.' });
       if (!respuestas || typeof respuestas !== 'object') return res.status(400).json({ error: 'Faltan las respuestas.' });
+
+      const puerta = await puertaKiosco(sesion, pacienteCodigo, 'kiosco_guardar_historia');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      const pacienteRecordId = puerta.auth.recId;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
@@ -2184,10 +2234,16 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({ typecast: true, fields: { 'Última actividad': new Date().toISOString(), 'Estado del expediente': 'Activo' } }),
       }).catch(e => console.error('[nova] error actualizando última actividad:', e.message));
 
+      // Paciente, código y autor los fija el servidor desde la autorización.
+      // 'Registrado por' = el médico que inició la sesión del kiosco: lo
+      // tecleó el paciente, pero la autoría del registro es del médico que
+      // autorizó la captura (alta delegada, CLAUDE.md §7). Antes quedaba
+      // sin autor.
       const fields = {
-        'Código de paciente ref': pacienteCodigo,
+        'Código de paciente ref': puerta.auth.codigo,
         'Fecha entrevista NOVA': new Date().toISOString(),
         'Paciente': [pacienteRecordId],
+        'Registrado por': [puerta.medicoRecId],
         'Motivo de consulta': (respuestas.motivo || '').slice(0, 2000),
         'AHF — Heredo-familiares': (respuestas.ahf || '').slice(0, 2000),
         'APNP — Alimentación': (respuestas.alimentacion || '').slice(0, 2000),
@@ -2210,6 +2266,7 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'No se pudo guardar la historia clínica.' });
       }
 
+      await registrarAccesoExpediente({ pacienteCode: puerta.auth.codigo, codigoMedico: sesion.codigo, medicoRecId: puerta.medicoRecId, accion: 'Escritura', resultado: 'Exitoso', endpoint: 'kiosco_guardar_historia' });
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[nova] kiosco_guardar_historia error:', err.message);

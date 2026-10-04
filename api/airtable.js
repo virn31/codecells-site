@@ -20,7 +20,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 // Capa 1 de constancia de acceso a expedientes — solo observa, no decide
 // ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
-const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
+const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
@@ -129,33 +129,9 @@ async function obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN) {
 // entran por la misma puerta (mismo token de sesión) pero nunca deben tocar
 // expediente de paciente — esa distinción antes no existía, era un solo tipo
 // de sesión "medico" para clínicos, QA y accesos técnicos por igual.
+// verificarAccesoClinicoMedico() vive en lib/autorizacion.js (la comparte
+// api/nova.js para las acciones kiosco_*).
 const NUCLEO_CLINICO_TABLAS = new Set(['pacientes', 'historia', 'consultas', 'labs', 'pacientes_vip', 'antecedentes_obstetricos']);
-
-// Resuelve `Tipo de acceso` desde el registro MÉDICOS a partir del código del
-// TOKEN (nunca de un parámetro del cliente — regla dura del SPEC). Sin
-// registro o sin fetch exitoso, permitido=false: falla cerrado, igual que un
-// registro con el campo vacío (ver nota junto a NUCLEO_CLINICO_TABLAS).
-async function verificarAccesoClinicoMedico(codigo, AIRTABLE_TOKEN) {
-  const formula = `{Código de médico}="${escaparFormula(codigo)}"`;
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLAS_PERMITIDAS.medicos}?filterByFormula=${encodeURIComponent(formula)}&maxRecords=1&fields%5B%5D=${encodeURIComponent('Código de médico')}&fields%5B%5D=${encodeURIComponent('Tipo de acceso')}`;
-  // `errorInfra`: Airtable no respondió (429 por límite de velocidad, 5xx,
-  // red). Sigue fallando cerrado (permitido=false), pero NO es una decisión
-  // de acceso — quien llama responde 502 y no deja un "Denegado" falso en
-  // ACCESOS_EXPEDIENTE. Antes un 429 bajo carga se mostraba como "Tu tipo de
-  // acceso no permite..." (CLAUDE.md §6: un fallo debe verse como fallo).
-  try {
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-    if (!r.ok) return { permitido: false, recordId: null, errorInfra: true };
-    const d = await r.json();
-    const rec = d.records?.[0];
-    if (!rec) return { permitido: false, recordId: null };
-    return { permitido: rec.fields?.['Tipo de acceso'] === 'Clinico', recordId: rec.id };
-  } catch {
-    return { permitido: false, recordId: null, errorInfra: true };
-  }
-}
-
-const MENSAJE_ACCESO_NO_VERIFICABLE = 'No se pudo verificar tu tipo de acceso en este momento. Intenta de nuevo en unos segundos.';
 
 // Tablas donde, ANTES de que exista sesión, el propio código/token que el
 // cliente ya trae en memoria (de la URL, o recién generado) funciona como
@@ -1023,14 +999,31 @@ module.exports = async (req, res) => {
         delete req.query.pacienteBuscado;
 
         if (req.method === 'GET') {
-          req.query.filterByFormula = esInterconsulta
-            ? `{Código de paciente}="${escaparFormula(buscado)}"`
-            : filtroLista;
-          // Solo la interconsulta puntual (código exacto) cuenta como "abrir
-          // un expediente" para la constancia — el listado propio+demo es
-          // navegación de la cartera ya autorizada, no un acceso puntual.
+          // Búsqueda puntual por código exacto (Portal "Ver", kiosco paso 2).
+          // Antes devolvía el registro de CUALQUIER paciente con solo saber
+          // su código — el código exacto no es una vía de acceso (CLAUDE.md
+          // §4). Ahora pasa por autorizarPaciente(): propio, interconsulta
+          // activa o demo; todo lo demás es el 403 uniforme ("no existe" y
+          // "no es tuyo" se ven igual, para no reabrir la enumeración).
           if (esInterconsulta) {
+            let auth;
+            try {
+              auth = await autorizarPaciente(codigo, buscado);
+            } catch (err) {
+              if (err instanceof ErrorAutorizacion) {
+                await registrarAccesoExpediente({ pacienteCode: buscado, codigoMedico: codigo, accion: 'Lectura de expediente', resultado: 'Rechazado', endpoint: 'airtable:pacientes:GET' });
+                return res.status(err.status).json({ error: err.message });
+              }
+              return res.status(err.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+            }
+            // Atado al registro que se autorizó, no al texto que mandó el cliente.
+            req.query.filterByFormula = `RECORD_ID()="${escaparFormula(auth.recId)}"`;
+            // Solo la búsqueda puntual cuenta como "abrir un expediente" para
+            // la constancia — el listado propio+demo es navegación de la
+            // cartera ya autorizada, no un acceso puntual.
             logAccesoExpediente = { pacienteCode: buscado, codigoMedico: codigo, accion: 'Lectura de expediente', endpoint: 'airtable:pacientes:GET' };
+          } else {
+            req.query.filterByFormula = filtroLista;
           }
         } else if (req.method === 'POST') {
           // Todo paciente que cree el médico queda atribuido a él.
@@ -1056,13 +1049,25 @@ module.exports = async (req, res) => {
               return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
             }
             const f = (await check.json()).fields || {};
-            const codigoPacienteObjetivo = f['Código de paciente'] || buscado || '';
-            const linkMedico = Array.isArray(f['Médico_principal']) ? f['Médico_principal'] : [];
-            const esPropio = linkMedico.includes(recordIdMedico);
-            const esInterconsultaPatch = esInterconsulta && f['Código de paciente'] === buscado;
-            // Los pacientes demo son SOLO LECTURA para el médico (CLAUDE.md §4):
-            // no se incluyen en la condición de escritura — solo propio o interconsulta.
-            if (!esPropio && !esInterconsultaPatch) {
+            const codigoPacienteObjetivo = f['Código de paciente'] || '';
+            // Antes bastaba con que el cliente mandara ?pacienteBuscado= igual
+            // al código del registro ("interconsulta") para modificar a
+            // CUALQUIER paciente. Ahora decide autorizarPaciente() con
+            // escritura: propio, o interconsulta activa con "Permite
+            // escritura". Demo nunca (solo lectura, CLAUDE.md §4). Y el
+            // registro autorizado tiene que ser el mismo que se modifica.
+            let autorizado = false;
+            if (codigoPacienteObjetivo) {
+              try {
+                const auth = await autorizarPaciente(codigo, codigoPacienteObjetivo, { requiereEscritura: true });
+                autorizado = auth.recId === recordId;
+              } catch (err) {
+                if (!(err instanceof ErrorAutorizacion)) {
+                  return res.status(err.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+                }
+              }
+            }
+            if (!autorizado) {
               await registrarAccesoExpediente({ pacienteCode: codigoPacienteObjetivo, codigoMedico: codigo, medicoRecId: recordIdMedico, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'airtable:pacientes:PATCH' });
               return res.status(403).json({ error: 'No puedes modificar un paciente que no es tuyo.' });
             }

@@ -2,6 +2,8 @@
 // 'Notas generales' en vez de reemplazar el campo completo. Antes, cada toma
 // de signos en el kiosco borraba lo que hubiera en esas notas (edad dictada
 // al dar de alta, notas previas, signos anteriores).
+// Desde B1 (2026-10-04) la acción exige sesión médica y pasa por
+// autorizarPaciente(): las pruebas mandan token y mockean esa resolución.
 // Corre con: node --test
 
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret-no-es-real';
@@ -12,8 +14,16 @@ process.env.NODE_ENV = 'development'; // pasa el guard de origen CORS de nova.js
 const test = require('node:test');
 const assert = require('node:assert');
 
+const { generarToken } = require('../lib/auth');
+
 const TBL_PACIENTES = 'tblyUcCfueFLJuvIv';
+const TBL_MEDICOS = 'tbl87DsuBMmb4DjFM';
+const TBL_INTERCONSULTAS = 'tbl9PS3KNBxbRVriV';
+const TBL_ACCESOS = 'tblSpORAqLKxYOI6W';
 const REC_PAC = 'recPAC0000000001';
+const REC_MED = 'recMED0000000001';
+const COD_PAC = 'CC-PAC-200001';
+const COD_MED = 'CCMED-TEST01';
 
 function fakeRes() {
   return {
@@ -29,16 +39,26 @@ function fakeRes() {
 function instalarFetchMock({ notasPrevias, lecturaFalla, capturas }) {
   const original = global.fetch;
   global.fetch = async (url, opts = {}) => {
-    const u = String(url);
+    const u = decodeURIComponent(String(url));
     const metodo = opts.method || 'GET';
+    const ok = (data) => ({ ok: true, status: 200, json: async () => data });
+    if (u.includes(`${TBL_MEDICOS}?filterByFormula=`)) {
+      return ok({ records: [{ id: REC_MED, fields: { 'Código de médico': COD_MED, 'Tipo de acceso': 'Clinico' } }] });
+    }
+    if (u.includes(`${TBL_PACIENTES}?filterByFormula=`)) {
+      if (u.includes(COD_PAC)) return ok({ records: [{ id: REC_PAC, fields: { 'Código de paciente': COD_PAC, 'Médico_principal': [REC_MED] } }] });
+      return ok({ records: [] });
+    }
+    if (u.includes(TBL_INTERCONSULTAS)) return ok({ records: [] });
+    if (u.includes(TBL_ACCESOS)) return ok({ records: [{ id: 'recACC' }] });
     if (u.includes(`${TBL_PACIENTES}/${REC_PAC}`) && metodo === 'GET') {
       if (lecturaFalla) return { ok: false, status: 429, json: async () => ({ error: 'RATE_LIMIT' }) };
       const fields = notasPrevias === undefined ? {} : { 'Notas generales': notasPrevias };
-      return { ok: true, status: 200, json: async () => ({ id: REC_PAC, fields }) };
+      return ok({ id: REC_PAC, fields });
     }
     if (u.includes(`${TBL_PACIENTES}/${REC_PAC}`) && metodo === 'PATCH') {
       capturas.patch = JSON.parse(opts.body);
-      return { ok: true, status: 200, json: async () => ({ id: REC_PAC }) };
+      return ok({ id: REC_PAC });
     }
     throw new Error(`fetch no mockeado en esta prueba: ${metodo} ${u}`);
   };
@@ -59,8 +79,8 @@ function requerirNovaFresco() {
 function reqSignos(extra) {
   return {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: { action: 'kiosco_guardar_signos', pacienteRecordId: REC_PAC, staffCodigo: 'CCMED-TEST01', presion: '120/80', frecuenciaCardiaca: 72, ...extra },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${generarToken({ tipo: 'medico', codigo: COD_MED, horas: 1 })}` },
+    body: { action: 'kiosco_guardar_signos', pacienteCodigo: COD_PAC, presion: '120/80', frecuenciaCardiaca: 72, ...extra },
   };
 }
 
@@ -120,5 +140,17 @@ test('kiosco_guardar_signos: nada capturado → 400', async () => {
     await requerirNovaFresco()(reqSignos({ presion: null, frecuenciaCardiaca: null }), res);
     assert.strictEqual(res.statusCode, 400);
     assert.strictEqual(capturas.patch, undefined);
+  } finally { restaurar(); }
+});
+
+test('kiosco_guardar_signos: el recordId del body se ignora — se modifica el que resolvió autorizarPaciente()', async () => {
+  const capturas = {};
+  const restaurar = instalarFetchMock({ notasPrevias: undefined, capturas });
+  try {
+    const res = fakeRes();
+    // Si el servidor usara este recordId, el fetch caería en "no mockeado".
+    await requerirNovaFresco()(reqSignos({ pacienteRecordId: 'recOTROPACIENTE1' }), res);
+    assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+    assert.ok(capturas.patch);
   } finally { restaurar(); }
 });

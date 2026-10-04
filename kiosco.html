@@ -350,10 +350,11 @@ async function registrarPacienteNuevo() {
   const btn = document.getElementById('btn-registrar-nuevo');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
   try {
+    // El médico lo decide el servidor desde el token, no desde el body.
     const res = await fetch('/api/nova', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'kiosco_crear_paciente', staffCodigo: sesion.staffCodigo, nombreCompleto: nombre }),
+      headers: headersSesion(),
+      body: JSON.stringify({ action: 'kiosco_crear_paciente', nombreCompleto: nombre }),
     });
     const data = await res.json();
     if (!res.ok) { err.textContent = data.error || 'Error registrando al paciente.'; return; }
@@ -422,7 +423,7 @@ async function verificarPaciente() {
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
   try {
     // Con sesión médica el servidor IGNORA filterByFormula en 'pacientes'
-    // (lo reemplaza por la cartera propia); el código exacto viaja en
+    // y decide el acceso con autorizarPaciente(); el código exacto viaja en
     // ?pacienteBuscado= — mismo parámetro que usa el Portal Médico.
     const res = await fetch(`/api/airtable?tabla=pacientes&pacienteBuscado=${encodeURIComponent(codigo)}`, { headers: headersSesion() });
     const data = await res.json().catch(() => ({}));
@@ -452,11 +453,10 @@ async function guardarVitales() {
   try {
     const res = await fetch('/api/nova', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headersSesion(),
       body: JSON.stringify({
         action: 'kiosco_guardar_signos',
-        pacienteRecordId: sesion.pacienteRecordId,
-        staffCodigo: sesion.staffCodigo,
+        pacienteCodigo: sesion.pacienteCodigo,
         peso: parseFloat(document.getElementById('v-peso').value) || null,
         talla: parseFloat(document.getElementById('v-talla').value) || null,
         presion: document.getElementById('v-presion').value || null,
@@ -555,12 +555,10 @@ async function guardarHistoriaClinica() {
   try {
     const res = await fetch('/api/nova', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headersSesion(),
       body: JSON.stringify({
         action: 'kiosco_guardar_historia',
-        pacienteRecordId: sesion.pacienteRecordId,
         pacienteCodigo: sesion.pacienteCodigo,
-        staffCodigo: sesion.staffCodigo,
         respuestas: historiaRespuestas,
       }),
     });
