@@ -735,32 +735,33 @@ En este modo:
   }
 
   if (contexto === 'paciente') {
-    const { nombre, id, memoria, vip, respuestaMedicoPendiente } = datos;
+    const { nombre, id, memoria, respuestaMedicoPendiente } = datos;
 
-    const capacidades = vip ? `
-En este modo (paciente VIP — DEZAWA PROTOCOL™):
-- Trato exclusivo, completamente personalizado — el más alto estándar de comunicación de todo el ecosistema
-- Actúas como su agente médico personal: coordinas citas (video llamada o consulta con su médico vía WhatsApp), creas recordatorios de tomas de medicamentos y de análisis, y das consejos de salud como si estuviera en consulta — sin sustituir jamás el criterio final del médico tratante
-- Tiene consultas prioritarias y puede invitar a un amigo al programa
-- Nunca menciones precios. Nunca compares con otros tratamientos.` : `
-En este modo (paciente estándar):
+    // Un solo modo para todos los pacientes: VIP se fusionó con el paciente
+    // normal (2026-10-04). NO se adoptó lo que hacía el modo VIP de "dar
+    // consejos de salud como si estuviera en consulta": el criterio clínico es
+    // del médico (CLAUDE.md §7). Recordatorios e invitar amigos se retiraron:
+    // nada enviaba los recordatorios (promesa falsa) y la invitación guardaba
+    // nombre y teléfono de un tercero sin su consentimiento.
+    const capacidades = `
+En este modo:
 - Usa lenguaje claro y accesible, sin tecnicismos innecesarios
-- Tu función es asistir con gestión de citas médicas e interconsultas — NO das consejos clínicos personalizados ni recordatorios de medicamentos (eso es exclusivo del nivel VIP); si insiste, explícale con calidez que ese acompañamiento es parte del programa VIP
+- Tu función es asistir con gestión de citas médicas e interconsultas — NO das consejos clínicos personalizados
+- Si pide recordatorios de medicamentos o análisis, explícale con calidez que esa función aún no está disponible en la app y que siga las indicaciones de su médico
+- Si quiere invitar a alguien, dile que puede compartir la invitación desde su app; tú no guardas datos de otras personas
 - Si necesita orientación clínica, dirígelo a su médico CODE CELLS™
 - Puedes explicar qué son los protocolos, cómo funcionan y qué esperar del proceso`;
 
     return `${CAPA_A}
 
-MODO: PACIENTE${vip ? ' — DEZAWA PROTOCOL™ (VIP)' : ''}
+MODO: PACIENTE
 ${nombre ? `Estás acompañando a ${nombre} (${id}).` : 'Estás en conversación con un paciente.'}
 ${capacidades}
 ${memoria ? `\nMEMORIA DE ESTE PACIENTE (lo que ya sabes de conversaciones anteriores — úsalo con naturalidad, no lo repitas textualmente):\n${memoria}\n` : ''}
 ${respuestaMedicoPendiente ? `\nRESPUESTA DE SU MÉDICO PENDIENTE DE ENTREGAR (su médico ya revisó algo que preguntó/reportó antes y respondió esto — entrégaselo con calidez y naturalidad AL INICIO de tu respuesta en este turno, antes de continuar con lo que el paciente diga ahora):\n${respuestaMedicoPendiente}\n` : ''}
 
 HERRAMIENTA "respuesta_nova_paciente": SIEMPRE respondes usando esta herramienta. El campo "reply" es lo único que el paciente ve — ahí va tu respuesta completa, natural, con el carácter de NOVA. Los demás campos son acciones internas que tú decides activar según lo que dijo el paciente en ESTE mensaje:
-- crear_solicitud_cita: actívalo cuando el paciente pida agendar, coordinar una cita o video llamada, o hablar con su médico.${vip ? `
-- crear_recordatorio: actívalo cuando el paciente acepte que le recuerdes tomar un medicamento o hacerse un análisis.
-- invitar_amigo: actívalo cuando el paciente quiera invitar a alguien al programa y te dé nombre/teléfono.` : ''}
+- crear_solicitud_cita: actívalo cuando el paciente pida agendar, coordinar una cita o video llamada, o hablar con su médico.
 - actualizar_memoria: úsalo cada pocos intercambios (no en cada mensaje) cuando aprendas algo nuevo y clínicamente útil de este paciente — redáctalo en tercera persona, 1-3 frases. Déjalo vacío si no hay nada nuevo que valga la pena guardar.
 - requiere_valoracion_medica: actívalo cuando lo que pregunte o reporte el paciente necesite el criterio de su médico y no algo que tú debas resolver sola (nunca sustituyes al médico). Esto alerta directamente a su médico. En tu "reply" dile con calidez que ya se le avisó a su médico y que le dará seguimiento.`;
   }
@@ -3381,7 +3382,6 @@ module.exports = async function handler(req, res) {
     let herramientaSeriesLab = null; // backfill de series históricas de laboratorio/imagen
     let pacRecordId = null;
     let pacMedicoLink = null;
-    let esVipReal = false;
     let medicoRecordId = null; // se llena en modo médico, usado luego para log de transcripción/actividad
 
     // HOTFIX gate-sesion-nova: antes esMedico solo exigía que medicoCode
@@ -3556,15 +3556,14 @@ module.exports = async function handler(req, res) {
 
         pacRecordId  = pacRecord.id;
         pacMedicoLink= pacRecord.fields['Médico_principal'] || null;
-        esVipReal    = pacRecord.fields['Es VIP (DEZAWA)'] === true;
         const memoria = pacRecord.fields['Memoria NOVA (paciente)'] || '';
         const respuestaMedicoPendiente = pacRecord.fields['Respuesta médico pendiente'] || '';
         const nombreReal = pacRecord.fields['Nombre completo'] || (typeof pacienteNombre === 'string' ? pacienteNombre.slice(0,100) : '');
 
         systemPrompt = buildSystemPrompt('paciente', {
-          nombre: nombreReal, id: pacienteCode, memoria, vip: esVipReal, respuestaMedicoPendiente,
+          nombre: nombreReal, id: pacienteCode, memoria, respuestaMedicoPendiente,
         });
-        herramientaPaciente = buildHerramientaPaciente(esVipReal);
+        herramientaPaciente = buildHerramientaPaciente();
 
         // Se entrega en ESTE turno (va en el system prompt) y se limpia de
         // inmediato para no repetirla en la siguiente conversación.
@@ -3777,7 +3776,7 @@ module.exports = async function handler(req, res) {
       // solo se registran en el log del servidor.
       try {
         await ejecutarAccionesPaciente({
-          accion, pacRecordId, pacMedicoLink, esVipReal, pacienteCode,
+          accion, pacRecordId, pacMedicoLink, pacienteCode,
           ultimoMensajePaciente: messages[messages.length - 1]?.content || '',
         });
       } catch (err) {
@@ -4429,6 +4428,8 @@ function buildHerramientaFichaConsulta() {
 module.exports.buildHerramientaFichaConsulta = buildHerramientaFichaConsulta;
 module.exports.compararNombres = compararNombres;
 module.exports.isAllowedOrigin = isAllowedOrigin;
+module.exports.buildSystemPrompt = buildSystemPrompt;
+module.exports.buildHerramientaPaciente = buildHerramientaPaciente;
 
 // ─── HERRAMIENTA: ALTA DE PACIENTE NUEVO POR DICTADO ────────────────
 // Opcional (tool_choice auto) — distinta de rellenar_ficha_consulta: esa es
@@ -4581,7 +4582,7 @@ function buildHerramientaAltaPaciente() {
 }
 
 // ─── DEFINICIÓN DE LA HERRAMIENTA DE NOVA EN MODO PACIENTE ─────────
-function buildHerramientaPaciente(esVipReal) {
+function buildHerramientaPaciente() {
   const properties = {
     reply: {
       type: 'string',
@@ -4613,28 +4614,9 @@ function buildHerramientaPaciente(esVipReal) {
     },
   };
 
-  if (esVipReal) {
-    Object.assign(properties, {
-      crear_recordatorio: {
-        type: 'boolean',
-        description: 'true si el paciente aceptó que le recuerdes tomar un medicamento o hacerse un análisis.',
-      },
-      recordatorio_descripcion: { type: 'string', description: "Ej. 'Metformina 850mg'" },
-      recordatorio_tipo: { type: 'string', enum: ['Medicamento', 'Análisis', 'Cita', 'Otro'] },
-      recordatorio_frecuencia: { type: 'string', enum: ['Diario', 'Semanal', 'Cada X días', 'Una vez'] },
-      recordatorio_hora: { type: 'string', description: 'Formato HH:MM' },
-      invitar_amigo: {
-        type: 'boolean',
-        description: 'true si el paciente quiere invitar a alguien al programa y te dio nombre y/o teléfono.',
-      },
-      referido_nombre: { type: 'string' },
-      referido_telefono: { type: 'string' },
-    });
-  }
-
   return {
     name: 'respuesta_nova_paciente',
-    description: 'Responde al paciente y, si aplica, activa las acciones internas correspondientes (agendar cita, recordatorio, referido, actualizar memoria).',
+    description: 'Responde al paciente y, si aplica, activa las acciones internas correspondientes (agendar cita, avisar al médico, actualizar memoria).',
     input_schema: { type: 'object', properties, required: ['reply'] },
   };
 }
@@ -4704,7 +4686,7 @@ async function enviarAlertaMedico({ medicoAsignadoId, mensaje, pacienteRecordId,
 }
 
 // ─── EJECUCIÓN DE ACCIONES (Airtable) ──────────────────────────────
-async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, esVipReal, pacienteCode, ultimoMensajePaciente }) {
+async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pacienteCode, ultimoMensajePaciente }) {
   // CONGELAMIENTO 2026-08-24 (instrucción legal): efectos secundarios
   // silenciosos de cada turno de chat paciente/VIP — SOLICITUDES_CITA,
   // RECORDATORIOS, REFERIDOS_VIP (nombre+teléfono de un tercero), Memoria
@@ -4739,7 +4721,7 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, es
                 'Tipo': accion.solicitud_tipo || 'Consulta presencial',
                 'Motivo': accion.solicitud_motivo || '(sin motivo especificado)',
                 'Estado': 'Pendiente',
-                'Prioridad': esVipReal ? 'Alta' : 'Normal',
+                'Prioridad': 'Normal',
                 'Canal preferido': accion.solicitud_tipo === 'Video llamada' ? 'Video llamada' : 'WhatsApp',
               },
             }],
@@ -4756,7 +4738,7 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, es
             `Nueva solicitud de consulta CODE CELLS™\n\n` +
             `Paciente: ${nombrePaciente || pacienteCode}${ciudadPaciente ? ` (${ciudadPaciente})` : ''}\n` +
             `Motivo: ${accion.solicitud_motivo || '(sin motivo especificado)'}\n` +
-            `Prioridad: ${esVipReal ? 'Alta' : 'Normal'}\n\n` +
+            `Prioridad: ${'Normal'}\n\n` +
             `Responde este mensaje (Reply) en Telegram para confirmarle la cita directo al paciente — NOVA le entrega tu respuesta en su próxima conversación. También puedes revisar el Portal Médico.`,
           pacienteRecordId: pacRecordId,
           preguntaPaciente: ultimoMensajePaciente || accion.solicitud_motivo || 'Solicitud de cita',
@@ -4789,48 +4771,6 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, es
         console.error('[nova] error en flujo requiere_valoracion_medica:', err.message);
       }
     })());
-  }
-
-  if (esVipReal && accion.crear_recordatorio) {
-    tareas.push(fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_RECORDATORIOS}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        typecast: true,
-        records: [{
-          fields: {
-            'Descripción': accion.recordatorio_descripcion || 'Recordatorio',
-            'Paciente': [pacRecordId],
-            'Tipo': accion.recordatorio_tipo || 'Otro',
-            'Frecuencia': accion.recordatorio_frecuencia || 'Una vez',
-            'Hora': accion.recordatorio_hora || '',
-            'Activo': true,
-            'Canal': 'WhatsApp',
-          },
-        }],
-      }),
-    }).then(r => { if (!r.ok) r.text().then(t => console.error('[nova] error creando RECORDATORIOS:', t)); }));
-  }
-
-  if (esVipReal && accion.invitar_amigo && (accion.referido_nombre || accion.referido_telefono)) {
-    const codigoReferido = `${pacienteCode}-REF-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    tareas.push(fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_REFERIDOS_VIP}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        typecast: true,
-        records: [{
-          fields: {
-            'Nombre referido': accion.referido_nombre || '(sin nombre)',
-            'Paciente referidor': [pacRecordId],
-            'Teléfono referido': accion.referido_telefono || '',
-            'Estado': 'Invitado',
-            'Fecha': new Date().toISOString(),
-            'Código de referido': codigoReferido,
-          },
-        }],
-      }),
-    }).then(r => { if (!r.ok) r.text().then(t => console.error('[nova] error creando REFERIDOS_VIP:', t)); }));
   }
 
   if (typeof accion.actualizar_memoria === 'string' && accion.actualizar_memoria.trim()) {
@@ -4881,7 +4821,7 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, es
           headers,
           body: JSON.stringify({
             typecast: true,
-            records: [{ fields: { 'Fecha': fechaHoy, 'Paciente': [pacRecordId], 'Modo': esVipReal ? 'VIP' : 'Paciente', 'Transcripción': linea } }],
+            records: [{ fields: { 'Fecha': fechaHoy, 'Paciente': [pacRecordId], 'Modo': 'Paciente', 'Transcripción': linea } }],
           }),
         });
       }

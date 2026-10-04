@@ -260,6 +260,15 @@
       <div id="llave-error" style="display:none;margin-top:12px;font-size:13px;color:#E2574B;"></div>
     </div>
 
+    <!-- Invitar a alguien: se comparte desde el WhatsApp del propio paciente.
+         No se guarda ningún dato de la otra persona (antes NOVA guardaba
+         nombre y teléfono de terceros sin su consentimiento). -->
+    <div class="seccion-label">Invita a alguien</div>
+    <div class="chat-caja" style="padding:20px;">
+      <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">Si conoces a alguien a quien le pueda servir CODE CELLS™, compártele la invitación desde tu WhatsApp. No guardamos ningún dato de esa persona.</div>
+      <button type="button" class="filtro-labs-btn activo" onclick="compartirInvitacion()">Compartir por WhatsApp</button>
+    </div>
+
   </div>
   <!-- ═══ Pestaña LABS ═══ -->
   <div class="tab-pane" data-tab="labs">
@@ -1200,6 +1209,12 @@ function cargarComparativoLabs() {
       renderComparativoLabs();
     })
     .catch(function(){ /* silencioso — no bloquea el resto del portal */ });
+}
+
+// ─── INVITAR A ALGUIEN (sin guardar datos de terceros) ───────────
+function compartirInvitacion() {
+  var mensaje = 'Te comparto CODE CELLS™: una red de médicos donde tu expediente es tuyo y te acompaña. Puedes hacer su evaluación aquí: https://www.codecells.mx';
+  window.open('https://wa.me/?text=' + encodeURIComponent(mensaje), '_blank');
 }
 
 // ─── COMPARTIR EXPEDIENTE CON UN MÉDICO (llave temporal) ─────────
