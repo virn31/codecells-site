@@ -71,3 +71,28 @@ test('evaluarTendencia: solo dispara si el cambio supera la magnitud y va en la 
   assert.strictEqual(motor.evaluarTendencia(90, 60, reglas), null);
   assert.strictEqual(motor.evaluarTendencia(40, null, reglas), null);
 });
+
+// SPEC-ESTETICA-GRAFICAS-VISME.md §8: contraste mínimo 3:1 para elementos
+// gráficos sobre el fondo de la tarjeta (#FFFFFF). Dos tonos de la paleta
+// original del spec no pasaban (#FF6B35, #06B6D4) y se oscurecieron; esta
+// prueba evita que alguien los regrese sin darse cuenta.
+function luminancia(hex) {
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(x => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+const contraste = (a, b) => {
+  const [l1, l2] = [luminancia(a), luminancia(b)].sort((x, y) => y - x);
+  return (l1 + 0.05) / (l2 + 0.05);
+};
+
+test('paleta: cada color de serie tiene contraste ≥ 3:1 sobre la tarjeta blanca (WCAG AA gráficos)', () => {
+  assert.ok(motor.COLOR_SERIE.length >= 6, 'el spec define 6 colores de serie');
+  motor.COLOR_SERIE.forEach((c, i) => {
+    assert.ok(contraste(c, '#FFFFFF') >= 3, `serie ${i + 1} (${c}) tiene ${contraste(c, '#FFFFFF').toFixed(2)}:1`);
+  });
+});
+
+test('zonas: conservan sus 4 categorías clínicas (verde/amarillo/naranja/rojo)', () => {
+  assert.deepStrictEqual(Object.keys(motor.COLOR_ZONA).sort(), ['amarillo', 'naranja', 'rojo', 'verde']);
+});
