@@ -46,6 +46,8 @@ function instalarFetchMock() {
       }
       return ok({ records: [] });
     }
+    // Sin credencial: el paciente real aún no activa su cuenta.
+    if (u.includes('CREDENCIALES_PACIENTE')) return ok({ records: [] });
     throw new Error(`fetch no mockeado en esta prueba: ${u}`);
   };
   return () => { global.fetch = original; };
@@ -93,7 +95,10 @@ test('auth-login: código demo → TTL de 30 minutos, no 24 horas', async () => 
   } finally { restaurar(); }
 });
 
-test('auth-login: paciente REAL (sin `Es demo`) → sigue emitiendo tipo:"paciente" con 24h, sin regresión', async () => {
+// Desde SPEC-PACIENTE-UNICO (2026-10-04) el código de un paciente REAL ya no
+// da sesión por sí solo: hace falta su PIN. La emisión con PIN (tipo
+// 'paciente', 24 h) se cubre en test/identidad-paciente.test.js.
+test('auth-login: paciente REAL sin cuenta activada → 401 "sin_activar", sin token (el código solo ya no basta)', async () => {
   const restaurar = instalarFetchMock();
   try {
     const handler = requerirAuthLoginFresco();
@@ -101,12 +106,8 @@ test('auth-login: paciente REAL (sin `Es demo`) → sigue emitiendo tipo:"pacien
     const res = fakeRes();
     await handler(req, res);
 
-    assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
-    assert.strictEqual(res.body.tipo, 'paciente');
-    assert.strictEqual(res.body.horasValidez, 24);
-
-    const payload = verificarToken(res.body.token);
-    assert.strictEqual(payload.tipo, 'paciente');
-    assert.strictEqual(payload.exp - payload.iat, 24 * 60 * 60 * 1000);
+    assert.strictEqual(res.statusCode, 401, JSON.stringify(res.body));
+    assert.strictEqual(res.body.motivo, 'sin_activar');
+    assert.strictEqual(res.body.token, undefined);
   } finally { restaurar(); }
 });

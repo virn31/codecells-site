@@ -3291,6 +3291,7 @@
             <button id="btn-interconsulta" class="exp-action-btn" title="Solicitar interconsulta a especialista de la red"><span class="eabtn-icon icon-balance">⇄</span> Interconsulta</button>
             <button id="btn-exportar-pdf" class="exp-action-btn" title="Exportar expediente completo en PDF"><span class="eabtn-icon icon-gold">↓</span> PDF</button>
             <button id="btn-receta" class="exp-action-btn" title="Generar receta médica"><span class="eabtn-icon icon-regen">✦</span> Receta</button>
+            <button id="btn-acceso-app" class="exp-action-btn" title="Enviar al paciente su enlace de acceso a la app (activación o PIN olvidado)"><span class="eabtn-icon icon-gold">⚿</span> Acceso app</button>
           </div>
         </div>
 
@@ -4201,20 +4202,23 @@
 <div class="modal-overlay" id="modal-link-paciente">
   <div class="modal-box">
     <div class="modal-header">
-      <h3>Paciente registrado ✓</h3>
+      <h3 id="link-pac-titulo">Paciente registrado ✓</h3>
       <button class="modal-close" id="modal-link-close">✕</button>
     </div>
     <div class="modal-body">
       <p style="font-size:13px;color:var(--text-secondary,#9a9590);margin:0 0 14px;">
-        Envía este link a <b id="link-pac-nombre"></b> — no lleva tu código de médico, así que el paciente entra directo a su propia información. También puedes abrirlo en la tablet del consultorio.
+        Envía este enlace a <b id="link-pac-nombre"></b>. Al abrirlo crea su PIN de 6 dígitos y queda dentro de su app. Sirve <b>una sola vez</b> y vence en 72 horas; si generas otro, este deja de servir.
       </p>
+      <p id="link-pac-aviso" style="display:none;font-size:12px;color:var(--gold,#c9a96e);margin:0 0 12px;"></p>
       <div style="display:flex;gap:8px;align-items:center;background:var(--black-3,#1a1a1a);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;">
         <input type="text" id="link-pac-url" readonly style="flex:1;background:transparent;border:none;color:var(--gold,#c9a96e);font-family:var(--font-mono,monospace);font-size:12px;outline:none;">
         <button class="btn-secondary" id="btn-copiar-link" style="white-space:nowrap;">Copiar</button>
       </div>
       <div id="link-pac-copiado" style="font-size:11px;color:#5fae6e;min-height:16px;margin-top:6px;"></div>
+      <div id="link-pac-vence" style="font-size:11px;color:var(--text-secondary,#9a9590);"></div>
     </div>
     <div class="modal-footer">
+      <button class="btn-save" id="btn-whatsapp-acceso" style="background:#25D366;">Enviar por WhatsApp</button>
       <button class="btn-save" id="btn-ir-expediente">Ir al expediente del paciente</button>
     </div>
   </div>
@@ -8086,13 +8090,73 @@ document.getElementById('btn-whatsapp-auto').addEventListener('click', () => {
 // ─── MODAL: LINK PARA EL PACIENTE ────────────────────────────────
 let recordIdPacienteLink = null;
 
-function mostrarLinkPaciente(codigo, nombre, recordId) {
+let telefonoPacienteLink = '';
+
+// Enlace de ACTIVACIÓN de un solo uso (SPEC-PACIENTE-UNICO §3.2). Antes este
+// modal daba mi-nivel.html?codigo=…, y el código solo bastaba para entrar.
+// El servidor genera la liga (medico_emitir_activacion) y solo guarda su
+// huella; aquí se muestra una vez para copiarla o mandarla por WhatsApp.
+async function mostrarLinkPaciente(codigo, nombre, recordId, { telefono = '', desdeAlta = true } = {}) {
   recordIdPacienteLink = recordId;
+  telefonoPacienteLink = telefono || '';
+  document.getElementById('link-pac-titulo').textContent = desdeAlta ? 'Paciente registrado ✓' : 'Acceso a la app';
   document.getElementById('link-pac-nombre').textContent = nombre;
-  document.getElementById('link-pac-url').value = `https://codecells.mx/mi-nivel.html?codigo=${codigo}`;
+  document.getElementById('link-pac-url').value = 'Generando enlace…';
   document.getElementById('link-pac-copiado').textContent = '';
+  document.getElementById('link-pac-vence').textContent = '';
+  const aviso = document.getElementById('link-pac-aviso');
+  aviso.style.display = 'none';
+  document.getElementById('btn-ir-expediente').style.display = desdeAlta ? '' : 'none';
+  document.getElementById('btn-whatsapp-acceso').disabled = true;
+  document.getElementById('btn-copiar-link').disabled = true;
   document.getElementById('modal-link-paciente').classList.add('active');
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_emitir_activacion', pacienteCode: codigo }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) {
+      document.getElementById('link-pac-url').value = '';
+      aviso.textContent = data.error || `No se pudo generar el enlace (error ${res.status}).`;
+      aviso.style.color = '#e24b4a';
+      aviso.style.display = 'block';
+      return;
+    }
+    document.getElementById('link-pac-url').value = data.url;
+    document.getElementById('link-pac-vence').textContent = 'Vence: ' + new Date(data.vence).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+    if (data.yaActivada) {
+      aviso.textContent = 'Este paciente ya activó su app. Este enlace le permite crear un PIN nuevo (si lo olvidó o quedó bloqueado).';
+      aviso.style.color = '';
+      aviso.style.display = 'block';
+    }
+    document.getElementById('btn-whatsapp-acceso').disabled = false;
+    document.getElementById('btn-copiar-link').disabled = false;
+  } catch (e) {
+    document.getElementById('link-pac-url').value = '';
+    aviso.textContent = 'Error de conexión — no se generó el enlace.';
+    aviso.style.color = '#e24b4a';
+    aviso.style.display = 'block';
+  }
 }
+
+document.getElementById('btn-whatsapp-acceso').addEventListener('click', () => {
+  const url = document.getElementById('link-pac-url').value;
+  if (!/^https?:\/\//.test(url)) return;
+  const nombre = document.getElementById('link-pac-nombre').textContent;
+  const mensaje = `Hola ${nombre}, este es tu acceso a tu app de CODE CELLS™. Ábrelo en tu teléfono y crea tu PIN (sirve una sola vez):\n${url}`;
+  // México: 10 dígitos → se antepone 52. Sin teléfono, WhatsApp pide elegir contacto.
+  let tel = String(telefonoPacienteLink).replace(/\D/g, '');
+  if (tel.length === 10) tel = '52' + tel;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`, '_blank');
+});
+
+document.getElementById('btn-acceso-app').addEventListener('click', () => {
+  if (!pacienteActual) return;
+  const f = pacienteActual.fields || {};
+  mostrarLinkPaciente(f['Código de paciente'], f['Nombre completo'] || 'el paciente', pacienteActual.id, { telefono: f['Teléfono WhatsApp'] || '', desdeAlta: false });
+});
 
 function cerrarModalLinkPaciente() {
   document.getElementById('modal-link-paciente').classList.remove('active');
@@ -8184,7 +8248,7 @@ document.getElementById('btn-guardar-paciente').addEventListener('click', async 
 
     if (data.id) {
       cerrarModalNuevoPaciente();
-      mostrarLinkPaciente(codigo, nombre, data.id);
+      mostrarLinkPaciente(codigo, nombre, data.id, { telefono: fields['Teléfono WhatsApp'] || '' });
       // Agregar a la lista local
       todosPacientes.unshift({ id: data.id, fields });
       renderPacientes(todosPacientes);

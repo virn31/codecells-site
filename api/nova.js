@@ -54,6 +54,7 @@ const {
   TABLA_LLAVES, TABLA_VINCULACIONES, HORAS_VIGENCIA_LLAVE, MAX_LLAVES_VIGENTES,
   generarLlave, normalizarLlave, hashLlave, urlTabla,
 } = require('../lib/vinculacion');
+const credPaciente = require('../lib/credencialesPaciente');
 
 // Puerta común de las acciones kiosco_* — las mismas reglas que
 // /api/airtable aplica a ANTECEDENTES_OBSTETRICOS desde el mismo kiosco.
@@ -2444,6 +2445,57 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error(`[nova] ${ENDPOINT} error:`, err.message);
       return res.status(500).json({ error: 'Error interno vinculando al paciente.' });
+    }
+  }
+
+  // ─── ENLACE DE ACTIVACIÓN DEL PACIENTE (SPEC-PACIENTE-UNICO §3.2) ───
+  // Lo emite un médico con escritura al paciente (portal o kiosco). La liga
+  // se muestra una vez (QR en el kiosco / WhatsApp desde el portal); en
+  // CREDENCIALES_PACIENTE solo queda su HMAC. Emitir una nueva invalida la
+  // anterior. Si la cuenta ya estaba activada, usar la liga crea un PIN
+  // nuevo: es la recuperación por PIN olvidado o bloqueo.
+  if (action === 'medico_emitir_activacion') {
+    if (CONGELADO) return respuestaCongelada(res);
+    const ENDPOINT = 'medico_emitir_activacion';
+    try {
+      const { pacienteCode } = req.body;
+      const puerta = await puertaKiosco(sesion, pacienteCode || '', ENDPOINT);
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      const { auth, medicoRecId } = puerta;
+
+      let credencial;
+      try {
+        credencial = await credPaciente.leerPorCodigo(auth.codigo);
+      } catch (err) {
+        console.error(`[nova] ${ENDPOINT} leer credencial:`, err.message);
+        return res.status(502).json({ error: 'No se pudo preparar el enlace. Intenta de nuevo.' });
+      }
+      const yaActivada = !!(credencial && credencial.fields['Cuenta activada'] === true);
+      // El kiosco pregunta primero: si la app ya está activa no se genera
+      // una liga nueva que nadie pidió (resetearía el PIN si alguien la usa).
+      if (yaActivada && req.body.soloSiNoActivada === true) {
+        return res.status(200).json({ ok: true, yaActivada: true, url: null });
+      }
+
+      const liga = credPaciente.generarLiga();
+      const vence = new Date(Date.now() + credPaciente.HORAS_LIGA * 60 * 60 * 1000).toISOString();
+      const camposLiga = { 'Liga (hash)': credPaciente.hashLiga(liga), 'Liga vence': vence, 'Liga emitida por': [medicoRecId] };
+      try {
+        if (credencial) await credPaciente.actualizar(credencial.id, camposLiga);
+        else await credPaciente.crear({ ...camposLiga, 'Código de paciente ref': auth.codigo, 'Paciente': [auth.recId] });
+      } catch (err) {
+        console.error(`[nova] ${ENDPOINT} guardar liga:`, err.message);
+        return res.status(502).json({ error: 'No se pudo guardar el enlace — no se generó ninguno. Intenta de nuevo.' });
+      }
+
+      // La liga apunta al mismo sitio desde el que se pidió (producción,
+      // Preview o local); si el origen no es uno conocido, a producción.
+      const base = (isAllowedOrigin(origin) || (isDev && origin)) ? origin : 'https://www.codecells.mx';
+      await registrarAccesoExpediente({ pacienteCode: auth.codigo, codigoMedico: sesion.codigo, medicoRecId, accion: 'Emisión de enlace de activación', resultado: 'Exitoso', endpoint: ENDPOINT });
+      return res.status(200).json({ ok: true, url: `${base}/mi-nivel.html?activar=${liga}`, vence, horasVigencia: credPaciente.HORAS_LIGA, yaActivada });
+    } catch (err) {
+      console.error(`[nova] ${ENDPOINT} error:`, err.message);
+      return res.status(500).json({ error: 'Error interno generando el enlace.' });
     }
   }
 

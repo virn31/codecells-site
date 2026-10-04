@@ -103,6 +103,20 @@
   .lab-punto-alto { background: rgba(226,87,75,0.15); color: #E2574B; }
   .lab-punto-bajo { background: rgba(0,212,255,0.12); color: var(--cyan); }
   .lab-punto-fecha { display: block; font-size: 9px; color: var(--text-3); margin-top: 2px; }
+
+  /* PIN (activación y entrada) — mismo diseño que tenía el portal VIP */
+  .pin-titulo { font-family: var(--font-serif); font-size: 24px; text-align: center; margin: 10px 0 6px; }
+  .pin-sub { font-size: 13px; color: var(--text-2); text-align: center; line-height: 1.5; max-width: 320px; margin: 0 auto; }
+  .pin-dots { display: flex; gap: 14px; justify-content: center; margin: 26px 0; }
+  .pin-dots span { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border); transition: background .15s ease; }
+  .pin-dots span.lleno { background: var(--gold); border-color: var(--gold); }
+  .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 280px; margin: 0 auto; }
+  .pin-key { background: var(--black-2); border: 1px solid var(--border-dim); color: var(--text-1); border-radius: 14px; padding: 18px 0; font-size: 22px; font-family: var(--font-serif); cursor: pointer; }
+  .pin-key:active { background: var(--gold-pale); border-color: var(--gold); }
+  .pin-key.vacia { background: transparent; border: none; pointer-events: none; }
+  .pin-key:disabled { opacity: 0.35; }
+  .pin-msg { min-height: 20px; text-align: center; font-size: 13px; margin-top: 16px; color: #E2574B; }
+  .pin-msg.ok { color: var(--text-2); }
 </style>
   <script src="/lib/i18n.js"></script>
 </head>
@@ -131,10 +145,15 @@
     </div>
   </div>
 
-  <!-- Pantalla: lista de pacientes (modo médico maestro) -->
-  <div class="pantalla" id="p-lista-medico">
-    <div class="seccion-label">Pacientes registrados</div>
-    <div id="lista-medico-pacientes"></div>
+  <!-- Pantalla: PIN — activar cuenta (crear + confirmar) o entrar.
+       El "modo médico" (?codigo=CCMED-) que vivía aquí se retiró: su
+       candado estaba solo en el navegador (SPEC-PACIENTE-UNICO §3.5). -->
+  <div class="pantalla" id="p-pin">
+    <div class="pin-titulo" id="pin-titulo">Escribe tu PIN</div>
+    <div class="pin-sub" id="pin-sub"></div>
+    <div class="pin-dots" id="pin-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="pin-keypad" id="pin-keypad"></div>
+    <div class="pin-msg" id="pin-msg"></div>
   </div>
 
   <!-- Pantalla: principal -->
@@ -449,23 +468,159 @@ window.fetch = function(url, opts) {
       for (var k in (opts.headers || {})) headers[k] = opts.headers[k];
       headers['Authorization'] = 'Bearer ' + token;
       opts = Object.assign({}, opts, { headers: headers });
+      // Sesión vencida (24 h) → se pide el PIN otra vez, sin recargar ni
+      // mostrar el expediente como si estuviera vacío.
+      return _fetchOriginal(url, opts).then(function(r) {
+        if (r.status === 401) {
+          try { sessionStorage.removeItem(TOKEN_KEY); } catch(e) {}
+          mostrarPin('login', 'Tu sesión venció. Escribe tu PIN para continuar.');
+        }
+        return r;
+      });
     }
   }
   return _fetchOriginal(url, opts);
 };
 
-function obtenerToken(tipo, codigo) {
+// POST a /api/auth-login → { status, data }. Nunca lanza: un fallo de red
+// llega como status 0 para que la pantalla lo diga como fallo de conexión.
+function authLogin(cuerpo) {
   return _fetchOriginal('/api/auth-login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tipo: tipo, codigo: codigo })
-  }).then(function(r){ return r.json(); }).then(function(data){
-    if (data && data.ok && data.token) {
-      sessionStorage.setItem(TOKEN_KEY, data.token);
-      return true;
+    body: JSON.stringify(cuerpo)
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){ return { status: r.status, data: d }; });
+  }).catch(function(){ return { status: 0, data: {} }; });
+}
+
+function guardarSesion(data, codigo) {
+  sessionStorage.setItem(TOKEN_KEY, data.token);
+  if (codigo) { try { localStorage.setItem(STORAGE_KEY_CODIGO, codigo); } catch(e) {} }
+}
+
+// ─── PIN: activar (crear + confirmar) o entrar ───────────────────
+// El PIN solo viaja al servidor (auth-login), que lo verifica contra
+// CREDENCIALES_PACIENTE y lleva la cuenta de intentos. Aquí no se guarda.
+var pinModo = 'login';      // 'login' | 'crear' | 'confirmar'
+var pinActual = '';
+var pinPrimero = '';
+var ligaActivacion = null;
+var pinOcupado = false;
+
+function mostrarPin(modo, mensaje, esInfo) {
+  pinModo = modo; pinActual = ''; pinOcupado = false;
+  var titulos = { login: 'Escribe tu PIN', crear: 'Crea tu PIN', confirmar: 'Confírmalo' };
+  document.getElementById('pin-titulo').textContent = titulos[modo];
+  var sub = document.getElementById('pin-sub');
+  if (modo === 'login') sub.textContent = pacienteCodigo ? 'Código ' + pacienteCodigo : '';
+  if (modo === 'crear') sub.textContent = '6 dígitos que solo tú sepas. Lo usarás cada vez que abras tu app. Evita números seguidos o repetidos.';
+  if (modo === 'confirmar') sub.textContent = 'Escribe el mismo PIN otra vez.';
+  var msg = document.getElementById('pin-msg');
+  msg.textContent = mensaje || '';
+  msg.className = 'pin-msg' + (esInfo ? ' ok' : '');
+  pintarPin();
+  irA('p-pin');
+}
+
+function pintarPin() {
+  var dots = document.querySelectorAll('#pin-dots span');
+  for (var i = 0; i < dots.length; i++) dots[i].className = i < pinActual.length ? 'lleno' : '';
+}
+
+function armarTeclado() {
+  var t = document.getElementById('pin-keypad');
+  ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(function(k) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pin-key' + (k === '' ? ' vacia' : '');
+    b.textContent = k;
+    b.onclick = function() { teclaPin(k); };
+    t.appendChild(b);
+  });
+}
+
+function teclaPin(k) {
+  if (pinOcupado) return;
+  if (k === '⌫') { pinActual = pinActual.slice(0, -1); pintarPin(); return; }
+  if (!/^\d$/.test(k) || pinActual.length >= 6) return;
+  pinActual += k; pintarPin();
+  if (pinActual.length === 6) setTimeout(pinCompleto, 120);
+}
+
+function pinCompleto() {
+  var pin = pinActual;
+  if (pinModo === 'crear') { pinPrimero = pin; mostrarPin('confirmar'); return; }
+  if (pinModo === 'confirmar') {
+    if (pin !== pinPrimero) { mostrarPin('crear', 'Los PIN no coinciden. Empecemos de nuevo.'); return; }
+    activarCuenta(pin); return;
+  }
+  entrarConPin(pin);
+}
+
+function entrarConPin(pin) {
+  pinOcupado = true;
+  document.getElementById('pin-msg').className = 'pin-msg ok';
+  document.getElementById('pin-msg').textContent = 'Verificando…';
+  authLogin({ tipo: 'paciente', codigo: pacienteCodigo, pin: pin }).then(function(r) {
+    if (r.status === 200 && r.data.token) { guardarSesion(r.data, pacienteCodigo); irA('p-cargando'); cargarPaciente(); return; }
+    manejarRechazoLogin(r);
+  });
+}
+
+function manejarRechazoLogin(r) {
+  var d = r.data || {};
+  if (r.status === 0) return mostrarPin('login', 'Sin conexión. Revisa tu internet e intenta de nuevo.');
+  if (d.motivo === 'pin_incorrecto') {
+    var extra = d.intentosAntesDeBloqueo ? ' Te quedan ' + d.intentosAntesDeBloqueo + ' intento(s) antes de un bloqueo temporal.' : '';
+    return mostrarPin('login', 'PIN incorrecto.' + extra);
+  }
+  if (d.motivo === 'pin_requerido') return mostrarPin('login');
+  if (d.motivo === 'bloqueado' || d.motivo === 'bloqueado_definitivo') return mostrarPin('login', d.error);
+  if (d.motivo === 'sin_activar') return mostrarError(d.error);
+  if (r.status === 503) return mostrarPin('login', d.error || 'No pudimos verificar tu PIN en este momento.');
+  return mostrarError(d.error || 'No pudimos verificar tu código — confírmalo con tu médico.');
+}
+
+function mostrarError(texto) {
+  document.getElementById('error-texto').textContent = texto;
+  irA('p-error');
+}
+
+// Liga de activación: ?activar=… La liga es el secreto, así que se quita
+// de la barra de direcciones en cuanto se lee (no queda en el historial).
+function iniciarActivacion(liga) {
+  ligaActivacion = liga;
+  try { history.replaceState(null, '', window.location.pathname); } catch(e) {}
+  irA('p-cargando');
+  authLogin({ modo: 'consultar_activacion', liga: liga }).then(function(r) {
+    if (r.status !== 200) {
+      return mostrarError((r.data && r.data.error) || 'No pudimos revisar tu enlace. Intenta de nuevo.');
     }
-    return false;
-  }).catch(function(){ return false; });
+    pacienteCodigo = r.data.codigo;
+    mostrarPin('crear');
+    document.getElementById('pin-titulo').textContent = (r.data.nombre ? 'Hola, ' + r.data.nombre + '. ' : '') + 'Crea tu PIN';
+  });
+}
+
+function activarCuenta(pin) {
+  pinOcupado = true;
+  document.getElementById('pin-msg').className = 'pin-msg ok';
+  document.getElementById('pin-msg').textContent = 'Activando tu cuenta…';
+  authLogin({ modo: 'activar', liga: ligaActivacion, pin: pin }).then(function(r) {
+    if (r.status === 200 && r.data.token) {
+      ligaActivacion = null;
+      guardarSesion(r.data, pacienteCodigo);
+      irA('p-cargando');
+      cargarPaciente();
+      return;
+    }
+    var d = r.data || {};
+    if (d.motivo === 'pin_trivial' || d.motivo === 'pin_formato') return mostrarPin('crear', d.error);
+    if (r.status === 0) return mostrarPin('crear', 'Sin conexión. Tu enlace sigue sirviendo: intenta de nuevo.');
+    if (r.status === 503) return mostrarPin('crear', d.error);
+    mostrarError(d.error || 'No se pudo activar tu cuenta.');
+  });
 }
 
 /* ─── Service worker + instalación como app ─── */
@@ -544,90 +699,35 @@ function irA(id) {
 }
 
 function init() {
+  armarTeclado();
   var params = new URLSearchParams(window.location.search);
+
+  // 1) Liga de activación de un solo uso (la da el médico o el kiosco).
+  var liga = params.get('activar');
+  if (liga) { iniciarActivacion(liga); return; }
+
+  // 2) El código es solo un identificador: llega por la URL o se recuerda
+  //    en este teléfono. Nunca da sesión por sí solo — falta el PIN.
   pacienteCodigo = params.get('codigo');
-
-  if (pacienteCodigo && /^CCMED-/i.test(pacienteCodigo)) {
-    irA('p-cargando');
-    obtenerToken('medico', pacienteCodigo).then(function(ok){
-      if (!ok) {
-        document.getElementById('error-texto').textContent = 'Código no reconocido para modo médico.';
-        irA('p-error');
-        return;
-      }
-      cargarListaMedico(pacienteCodigo);
-    });
-    return;
-  }
-
   if (pacienteCodigo && /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCodigo)) {
-    // Llegó por liga con código válido — se guarda para futuras aperturas
-    // desde el ícono instalado (que abren /mi-nivel.html sin parámetros).
     try { localStorage.setItem(STORAGE_KEY_CODIGO, pacienteCodigo); } catch(e) {}
   } else {
-    // Sin código en la URL (típico al abrir desde el ícono instalado) —
-    // usar el que se guardó la primera vez que entró por su liga real.
     try { pacienteCodigo = localStorage.getItem(STORAGE_KEY_CODIGO); } catch(e) { pacienteCodigo = null; }
   }
-
   if (!pacienteCodigo || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCodigo)) {
-    document.getElementById('error-texto').textContent = 'Enlace incompleto o inválido — verifica el código con tu médico.';
-    irA('p-error');
+    mostrarError('Para entrar necesitas el enlace de activación que te da tu médico.');
     return;
   }
-  irA('p-cargando');
-  obtenerToken('paciente', pacienteCodigo).then(function(ok){
-    if (!ok) {
-      document.getElementById('error-texto').textContent = 'No encontramos tu registro — verifica el código con tu médico.';
-      irA('p-error');
-      return;
-    }
-    cargarPaciente();
-  });
-}
 
-function cargarListaMedico(codigoMedico) {
+  // 3) ¿Sesión vigente en esta pestaña? Si no, se pregunta al servidor sin
+  //    PIN: los demo entran directo (solo lectura); un paciente real
+  //    recibe "pin_requerido" y se muestra el teclado.
+  if (sessionStorage.getItem(TOKEN_KEY)) { irA('p-cargando'); cargarPaciente(); return; }
   irA('p-cargando');
-  fetch('/api/airtable?tabla=medicos&filterByFormula=' + encodeURIComponent('{Código de médico}="' + codigoMedico.replace(/"/g,'') + '"'))
-    .then(function(r){ return r.json(); })
-    .then(function(medData){
-      var medico = medData.records && medData.records[0];
-      if (!medico || medico.fields['Ver todos los pacientes'] !== true) {
-        document.getElementById('error-texto').textContent = 'Código no reconocido para modo médico.';
-        irA('p-error');
-        return;
-      }
-      return fetch('/api/airtable?tabla=pacientes&sort[0][field]=Nombre%20completo&sort[0][direction]=asc&maxRecords=200')
-        .then(function(r){ return r.json(); })
-        .then(function(data){ renderListaMedico(data.records || []); });
-    })
-    .catch(function(){
-      document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';
-      irA('p-error');
-    });
-}
-
-function renderListaMedico(pacientes) {
-  var lista = document.getElementById('lista-medico-pacientes');
-  lista.innerHTML = '';
-  if (!pacientes.length) {
-    lista.innerHTML = '<p style="color:var(--text-3);font-size:13px;">Aún no hay pacientes registrados.</p>';
-  }
-  pacientes.forEach(function(p) {
-    var f = p.fields;
-    var fila = document.createElement('div');
-    fila.className = 'card-paciente';
-    fila.style.cursor = 'pointer';
-    fila.style.marginBottom = '10px';
-    fila.innerHTML =
-      '<div class="paciente-nombre" style="font-size:17px;">' + (f['Nombre completo'] || 'Sin nombre') + '</div>' +
-      '<div class="paciente-codigo">' + (f['Código de paciente'] || '') + (f['Protocolo actual'] ? ' · ' + f['Protocolo actual'] : '') + '</div>';
-    fila.addEventListener('click', function(){
-      window.location.href = 'mi-nivel.html?codigo=' + (f['Código de paciente'] || '');
-    });
-    lista.appendChild(fila);
+  authLogin({ tipo: 'paciente', codigo: pacienteCodigo }).then(function(r) {
+    if (r.status === 200 && r.data.token) { guardarSesion(r.data, pacienteCodigo); cargarPaciente(); return; }
+    manejarRechazoLogin(r);
   });
-  irA('p-lista-medico');
 }
 
 function cargarPaciente() {

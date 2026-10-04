@@ -147,6 +147,8 @@
   .toast-kiosco.success { border-color: rgba(95,174,110,0.5); color: #5FAE6E; }
 </style>
   <script src="/lib/i18n.js"></script>
+  <!-- QR generado en la tablet (no en un servicio de terceros): la liga de activación es un secreto. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -305,9 +307,14 @@
     <div class="logo-glyph">✓</div>
     <div class="logo-name">Gracias</div>
   </div>
-  <p style="font-size:16px;color:var(--text-2);max-width:380px;margin-bottom:28px;">Tu información quedó guardada de forma segura. Escanea el código para acceder a tu app personal, donde puedes ver tu progreso y hablar con NOVA cuando quieras. Cuando termines, entrega el tablet al personal.</p>
-  <div id="qr-vinculacion" style="background:#fff;padding:16px;border-radius:16px;"></div>
+  <p style="font-size:16px;color:var(--text-2);max-width:380px;margin-bottom:28px;" id="fin-texto">Tu información quedó guardada de forma segura.</p>
+  <!-- QR con la liga de ACTIVACIÓN (un solo uso, 72 h). Se genera aquí en
+       la tablet: antes se pedía a api.qrserver.com, y eso le habría
+       entregado la liga a un tercero. -->
+  <div id="qr-vinculacion" style="background:#fff;padding:16px;border-radius:16px;display:none;"></div>
   <div class="paciente-codigo" style="margin-top:16px;font-size:14px;" id="fin-codigo-texto">—</div>
+  <div class="campo-error" id="fin-error"></div>
+  <button class="btn-secundario" id="btn-nuevo-acceso" style="margin-top:16px;display:none;" onclick="generarAccesoKiosco(false)">Olvidé mi PIN — generar nuevo acceso</button>
   <button class="btn-grande" style="margin-top:32px;" onclick="reiniciarKiosco()">Cerrar sesión</button>
 </div>
 
@@ -848,17 +855,56 @@ function abrirTest() {
 
 // ─── FIN DE SESIÓN ────────────────────────────────────────────────
 function finalizarSesion() {
-  const urlApp = `https://codecells.mx/mi-nivel.html?codigo=${encodeURIComponent(sesion.pacienteCodigo)}`;
-  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(urlApp)}`;
-  document.getElementById('qr-vinculacion').innerHTML = `<img src="${qrImgUrl}" width="280" height="280" alt="Código QR de acceso a tu app">`;
   document.getElementById('fin-codigo-texto').textContent = `Tu código: ${sesion.pacienteCodigo}`;
+  document.getElementById('qr-vinculacion').style.display = 'none';
+  document.getElementById('qr-vinculacion').innerHTML = '';
+  document.getElementById('btn-nuevo-acceso').style.display = 'none';
+  document.getElementById('fin-error').textContent = '';
+  document.getElementById('fin-texto').textContent = 'Tu información quedó guardada de forma segura. Preparando el acceso a tu app…';
   irA('p-fin');
+  generarAccesoKiosco(true);
+}
+
+// Liga de activación para la app del paciente (SPEC-PACIENTE-UNICO §3.2).
+// soloSiNoActivada=true: si ya activó su app, no se genera una liga nueva
+// salvo que la pida ("Olvidé mi PIN"). El código solo ya no da acceso.
+async function generarAccesoKiosco(soloSiNoActivada) {
+  const err = document.getElementById('fin-error');
+  const texto = document.getElementById('fin-texto');
+  const qr = document.getElementById('qr-vinculacion');
+  err.textContent = '';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: headersSesion(),
+      body: JSON.stringify({ action: 'medico_emitir_activacion', pacienteCode: sesion.pacienteCodigo, soloSiNoActivada }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { texto.textContent = 'Tu información quedó guardada de forma segura.'; err.textContent = data.error || `No se pudo generar el acceso a la app (error ${res.status}).`; return; }
+    if (data.yaActivada && !data.url) {
+      texto.textContent = 'Tu información quedó guardada de forma segura. Tu app ya está activa: ábrela en tu teléfono con tu PIN. Cuando termines, entrega el tablet al personal.';
+      document.getElementById('btn-nuevo-acceso').style.display = '';
+      return;
+    }
+    if (typeof QRCode === 'undefined') { err.textContent = 'No se pudo dibujar el código QR (sin conexión al generador). Pide al personal que te envíe el acceso por WhatsApp.'; return; }
+    qr.innerHTML = '';
+    new QRCode(qr, { text: data.url, width: 280, height: 280, correctLevel: QRCode.CorrectLevel.M });
+    qr.style.display = '';
+    document.getElementById('btn-nuevo-acceso').style.display = 'none';
+    texto.textContent = 'Escanea este código con tu teléfono para activar tu app: crearás un PIN de 6 dígitos. Sirve una sola vez y vence en 72 horas. Cuando termines, entrega el tablet al personal.';
+  } catch (e) {
+    texto.textContent = 'Tu información quedó guardada de forma segura.';
+    err.textContent = 'Error de conexión — no se generó el acceso a la app.';
+  }
 }
 
 function reiniciarKiosco() {
   sesion = { staffCodigo: null, token: null, pacienteCodigo: null, pacienteRecordId: null, pacienteNombre: null };
   historiaIdx = 0; historiaRespuestas = {};
   filasGO = [];
+  // La liga de activación es de este paciente: no se queda en la tablet.
+  document.getElementById('qr-vinculacion').innerHTML = '';
+  document.getElementById('qr-vinculacion').style.display = 'none';
   document.getElementById('input-staff-codigo').value = '';
   document.getElementById('input-paciente-codigo').value = '';
   document.getElementById('input-paciente-llave').value = '';
