@@ -52,11 +52,13 @@ const TBL_GRAFICAS_PLANTILLAS = 'tbl1cpvSQkzo5r9UA'; // PLANTILLAS_ESPECIALIDAD
 const TBL_GRAFICAS_LABVALORES = 'tbl6y1ZfsmPPhrlFk'; // LAB_VALORES
 
 // El catálogo NO guarda el nombre de la columna de origen en cada tabla, así
-// que el mapeo código → campo de CONSULTAS es explícito aquí. En esta pasada
-// solo `peso` (prueba de aceptación §5). Un código con Fuente=CONSULTAS que no
-// esté en este mapa se reporta en `excluidos`, nunca se adivina.
+// que el mapeo código → campo de CONSULTAS es explícito aquí. Un código con
+// Fuente=CONSULTAS que no esté en este mapa (y no tenga una `Formula` de
+// split válida — ver `splitPorCodigo` en graficas_series) se reporta en
+// `excluidos`, nunca se adivina.
 const CAMPO_CONSULTAS_POR_CODIGO = {
   peso: 'Peso en consulta (kg)',
+  talla: 'Talla en consulta (cm)',
 };
 
 // Campo que, en cada tabla, identifica a qué paciente/vip pertenece un
@@ -272,6 +274,23 @@ function parsearZonasGrafica(raw, codigo) {
     return Array.isArray(z) ? z : [];
   } catch (e) {
     console.error(`[graficas] Zonas JSON inválido en "${codigo}": ${e.message}`);
+    return [];
+  }
+}
+
+// Mismo contrato que parsearZonasGrafica pero para reglas de CAMBIO entre
+// mediciones ([{tipo,magnitudMinima,ventana,color}]) — un campo del
+// catálogo aparte, no una variante de Zonas. Un JSON inválido en un
+// registro no tumba el catálogo completo: ese parámetro sale con
+// tendencia: [], igual de "sin regla configurada" que si el campo
+// estuviera vacío.
+function parsearTendenciaGrafica(raw, codigo) {
+  if (!raw) return [];
+  try {
+    const t = JSON.parse(raw);
+    return Array.isArray(t) ? t : [];
+  } catch (e) {
+    console.error(`[graficas] Tendencia JSON inválida en "${codigo}": ${e.message}`);
     return [];
   }
 }
@@ -568,6 +587,7 @@ module.exports = async (req, res) => {
             tipoGrafica: c['Tipo de grafica'] || null,
             grupo: c['Grupo de grafica'] || null,
             zonas: parsearZonasGrafica(c['Zonas'], c['Codigo']),
+            tendencia: parsearTendenciaGrafica(c['Tendencia'], c['Codigo']),
             origen: c['Origen'] || null,
             formula: c['Formula'] || null,
             decimales: typeof c['Decimales'] === 'number' ? c['Decimales'] : null,
@@ -729,6 +749,7 @@ module.exports = async (req, res) => {
           origen: c['Origen'] || null,
           fuente: c['Fuente actual'] || null,
           unidad: c['Unidad'] || null,
+          formula: c['Formula'] || null,
         };
         codigoPorRecId[rec.id] = c['Codigo'];
       });
@@ -737,6 +758,12 @@ module.exports = async (req, res) => {
       const excluidos = [];
       const pedidosConsultas = [];
       const pedidosLabs = [];
+      // Derivado + Fuente actual=CONSULTAS con una `Formula` válida: split
+      // genérico de un campo de texto empaquetado (ej. "130/85"). No es
+      // específico de TA — cualquier código futuro con esta forma funciona
+      // igual, solo cambia su `Formula` en el catálogo. Sin `Formula`
+      // parseable, se mantiene la exclusión de siempre (fails closed).
+      const splitPorCodigo = {};
 
       // Clasificar cada código pedido según Origen/Fuente.
       for (const codigo of codigos) {
@@ -748,10 +775,23 @@ module.exports = async (req, res) => {
         // Toda serie pedida existe en la respuesta, aunque quede vacía.
         series[codigo] = { puntos: [], unidad: cfg.unidad };
 
-        // REGLA §2.5 + nota de datos: Derivado sin campo directo NO se parsea
-        // aquí (ta_sistolica/ta_diastolica viven en texto "145/92"). Serie
-        // vacía y se reporta — el split es tarea aparte.
         if (cfg.origen === 'Derivado') {
+          let spec = null;
+          if (cfg.fuente === 'CONSULTAS' && cfg.formula) {
+            try {
+              const s = JSON.parse(cfg.formula);
+              if (s && typeof s.campoFuente === 'string' && typeof s.separador === 'string' && Number.isInteger(s.indice)) {
+                spec = s;
+              }
+            } catch (e) { /* Formula inválida → cae a requiere_split abajo */ }
+          }
+          if (spec) {
+            splitPorCodigo[codigo] = spec;
+            pedidosConsultas.push(codigo);
+            continue;
+          }
+          // REGLA §2.5 + nota de datos: Derivado sin `Formula` parseable NO se
+          // adivina. Serie vacía y se reporta.
           excluidos.push({ codigo, motivo: 'requiere_split' });
           continue;
         }
@@ -783,14 +823,29 @@ module.exports = async (req, res) => {
         });
         for (const codigo of pedidosConsultas) {
           const campo = CAMPO_CONSULTAS_POR_CODIGO[codigo];
-          if (!campo) {
+          const split = splitPorCodigo[codigo];
+          if (!campo && !split) {
             excluidos.push({ codigo, motivo: 'campo_consulta_no_mapeado' });
             continue;
           }
           const puntos = [];
           for (const reg of consultasRegs) {
-            const v = reg.fields[campo];
-            if (typeof v !== 'number') continue; // descartar puntos sin valor
+            let v;
+            if (campo) {
+              v = reg.fields[campo];
+              if (typeof v !== 'number') continue; // descartar puntos sin valor
+            } else {
+              // Split genérico: toma `campoFuente`, parte por `separador`,
+              // usa el trozo en `indice`. Texto ausente o con menos partes
+              // de las esperadas → punto descartado, no se adivina.
+              const crudo = reg.fields[split.campoFuente];
+              if (typeof crudo !== 'string' || !crudo.trim()) continue;
+              const partes = crudo.split(split.separador);
+              if (partes.length <= split.indice) continue;
+              const n = parseFloat(partes[split.indice].trim());
+              if (!Number.isFinite(n)) continue;
+              v = n;
+            }
             const numSesion = reg.fields['Número de sesión'];
             puntos.push({
               fecha: reg.fields['Fecha de consulta'] || null,
