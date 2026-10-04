@@ -3234,6 +3234,12 @@
               Ver
             </button>
           </div>
+          <!-- Llave temporal que el paciente genera en su app ("Compartir con
+               un médico"). Solo hace falta la primera vez: después el
+               paciente queda vinculado a este médico de forma permanente. -->
+          <input type="text" id="input-pac-llave" placeholder="Llave del paciente (1ª vez)"
+            style="width:100%;margin-top:6px;background:var(--black-3);border:0.5px solid var(--border-dim);border-radius:var(--radius);color:var(--text-1);font-family:var(--font-mono);font-size:11px;padding:7px 10px;outline:none;box-sizing:border-box;"
+            autocomplete="off" spellcheck="false" maxlength="12">
           <div id="pac-codigo-error" style="font-family:var(--font-mono);font-size:10px;color:#e24b4a;margin-top:4px;min-height:14px;"></div>
         </div>
       </div>
@@ -3888,12 +3894,12 @@
             </div>
 
             <div class="form-group">
-              <label>Razonamiento clínico (no visible al paciente)</label>
+              <label>Razonamiento clínico (privado: solo tú lo ves)</label>
               <textarea id="f-razonamiento-clinico" placeholder="Impresión preliminar, diagnósticos diferenciales descartados, por qué eligió este tratamiento…" rows="2"></textarea>
             </div>
 
             <div class="form-group">
-              <label>Adherencia — observaciones (se incluye en el resumen del paciente)</label>
+              <label>Adherencia — observaciones (privado: solo tú lo ves)</label>
               <textarea id="f-adherencia-obs" placeholder="Ejercicio, dieta, apego al tratamiento…" rows="2"></textarea>
             </div>
 
@@ -4896,9 +4902,9 @@ async function cargarPacientes() {
 }
 
 // ─── BUSCAR PACIENTE COMPARTIDO ────────────────────────────────────
-document.getElementById('input-pac-codigo').addEventListener('keydown', e => {
+['input-pac-codigo', 'input-pac-llave'].forEach(id => document.getElementById(id).addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-buscar-pac').click();
-});
+}));
 
 document.getElementById('input-pac-codigo').addEventListener('input', function() {
   let v = this.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
@@ -4917,14 +4923,41 @@ document.getElementById('btn-buscar-pac').addEventListener('click', async () => 
     return;
   }
 
+  const llaveEl = document.getElementById('input-pac-llave');
+  const llave = llaveEl.value.trim();
+
   btn.textContent = '…';
   btn.disabled = true;
   errEl.textContent = '';
 
   try {
-    // Interconsulta: el código exacto viaja como ?pacienteBuscado= (el backend
-    // lo valida y arma el filtro). El filterByFormula del cliente se ignora.
-    const data = await airtableFetch(TBL_PACIENTES, `?pacienteBuscado=${encodeURIComponent(codigo)}&maxRecords=1`);
+    // Primera vez con este paciente: canjear la llave que él generó en su
+    // app. El servidor la verifica, la gasta y crea el vínculo permanente.
+    // Sin vínculo, el código solo no abre nada (los códigos son secuenciales).
+    if (llave) {
+      const vRes = await fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'medico_vincular_paciente', pacienteCode: codigo, llave }),
+      });
+      const vData = await vRes.json().catch(() => ({}));
+      if (!vRes.ok) { errEl.textContent = vData.error || `No se pudo vincular (error ${vRes.status}).`; return; }
+      llaveEl.value = '';
+    }
+
+    // El código exacto viaja como ?pacienteBuscado=; el servidor decide si
+    // hay acceso (propio, vinculado, interconsulta o demo).
+    let data;
+    try {
+      data = await airtableFetch(TBL_PACIENTES, `?pacienteBuscado=${encodeURIComponent(codigo)}&maxRecords=1`);
+    } catch (e) {
+      if (e && e.status === 403 && !llave) {
+        errEl.textContent = 'Este paciente aún no te ha entregado su expediente. Pídele su llave (la genera en su app: "Compartir con un médico") y escríbela abajo.';
+        llaveEl.focus();
+        return;
+      }
+      throw e;
+    }
 
     if (!data.records || data.records.length === 0) {
       errEl.textContent = 'Paciente no encontrado.';

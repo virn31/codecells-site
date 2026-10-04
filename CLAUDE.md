@@ -57,12 +57,33 @@ no pacientes ni protocolos.
 
 ## 4. Autorización — la regla más importante del sistema
 
-Un token de médico (`CCMED-`) puede ver **exactamente cuatro** conjuntos de pacientes:
+Un token de médico (`CCMED-`) puede ver **exactamente cinco** conjuntos de pacientes:
 
 1. Los que él generó (registró directamente).
 2. Los que NOVA le asignó vía solicitud desde el directorio público.
-3. Los que vio en interconsulta (atención conjunta registrada).
-4. Los pacientes demo (`Es demo` = true), en **solo lectura**.
+3. Los que **el paciente le entregó** con una llave temporal (`VINCULACIONES`,
+   vía `vinculado` — ver `lib/vinculacion.js`).
+4. Los que vio en interconsulta (atención conjunta registrada).
+5. Los pacientes demo (`Es demo` = true), en **solo lectura**.
+
+### El paciente es dueño del expediente, no del criterio médico
+
+(Decidido por Víctor, 2026-10-04.)
+
+- El paciente decide a qué médico de la red entrega su expediente. La entrega
+  se prueba con una **llave** que genera desde su app (8 caracteres, 24 h, un
+  solo uso; en Airtable solo queda su HMAC). **El código `CC-PAC-` solo nunca
+  abre un expediente**: los códigos son secuenciales, aceptarlo permitiría
+  recorrerlos todos.
+- Todo médico autorizado ve el expediente completo — diagnóstico, CIE-10,
+  plan terapéutico, medicamentos, padecimiento, exploración, estudios — de
+  todos los médicos. **Las notas privadas solo las ve su autor**:
+  `Razonamiento clínico`, `Notas internas`, `Pronóstico`,
+  `Adherencia — observaciones` (`lib/privacidadConsultas.js`, filtrado en
+  servidor). El paciente tampoco las ve.
+- Una consulta solo la modifica quien la firmó; la autoría
+  (`Código de médico ref`, `Médico`) la fija el servidor desde el token. El
+  paciente lee sus consultas pero no las crea ni las modifica.
 
 **Nada más.** Sin excepciones por nivel de certificación, por antigüedad ni por ser
 fundador. Los cofundadores están sujetos a la misma regla que cualquier afiliado.

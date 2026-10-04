@@ -62,6 +62,8 @@ function instalarFetchMock(capturas, { medicos429 = false } = {}) {
     const ok = (data) => ({ ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) });
 
     if (u.includes(TBL_ACCESOS)) { capturas.bitacora.push(JSON.parse(opts.body || '{}')); return ok({ records: [{ id: 'recACC' }] }); }
+    // VINCULACIONES (vía 'vinculado'): sin vínculos salvo que la prueba diga otra cosa.
+    if (u.includes('VINCULACIONES')) return ok({ records: [] });
     if (u.includes(TBL_INTERCONSULTAS)) return ok({ records: [] });
     if (u.includes(`${TBL_MEDICOS}?`)) {
       if (medicos429) return { ok: false, status: 429, json: async () => ({}) };

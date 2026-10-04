@@ -178,6 +178,9 @@
   <div class="logo-block"><div class="logo-glyph">PASO 2 DE 2</div></div>
   <p style="font-size:17px;color:var(--text-2);max-width:400px;margin-bottom:24px;">¿El paciente ya tiene código, o es su primera vez?</p>
   <input class="kiosco-input" id="input-paciente-codigo" placeholder="CC-PAC-XXXXXX (si ya tiene)" autocomplete="off">
+  <!-- Solo si es su primera vez con este médico: la llave que el paciente
+       genera en su app ("Compartir con un médico"). -->
+  <input class="kiosco-input" id="input-paciente-llave" placeholder="Llave (1ª vez con este médico)" autocomplete="off" maxlength="12" style="margin-top:12px;font-size:20px;">
   <div class="campo-error" id="error-paciente"></div>
   <div class="wizard-nav">
     <button class="btn-secundario" onclick="irA('p-staff')">Atrás</button>
@@ -403,6 +406,7 @@ async function verificarStaff() {
     sesion.staffCodigo = codigo;
     sesion.token = data.token;
     document.getElementById('input-paciente-codigo').value = '';
+    document.getElementById('input-paciente-llave').value = '';
     document.getElementById('error-paciente').textContent = '';
     irA('p-paciente');
   } catch (e) {
@@ -421,12 +425,28 @@ async function verificarPaciente() {
 
   const btn = document.getElementById('btn-verificar-paciente');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
+  const llave = document.getElementById('input-paciente-llave').value.trim();
   try {
+    // Primera vez con este médico: canjear la llave del paciente (crea el
+    // vínculo permanente). Sin vínculo el código solo no abre nada.
+    if (llave) {
+      const vRes = await fetch('/api/nova', {
+        method: 'POST',
+        headers: headersSesion(),
+        body: JSON.stringify({ action: 'medico_vincular_paciente', pacienteCode: codigo, llave }),
+      });
+      const vData = await vRes.json().catch(() => ({}));
+      if (!vRes.ok) { err.textContent = vData.error || `No se pudo vincular (error ${vRes.status}).`; return; }
+    }
     // Con sesión médica el servidor IGNORA filterByFormula en 'pacientes'
     // y decide el acceso con autorizarPaciente(); el código exacto viaja en
     // ?pacienteBuscado= — mismo parámetro que usa el Portal Médico.
     const res = await fetch(`/api/airtable?tabla=pacientes&pacienteBuscado=${encodeURIComponent(codigo)}`, { headers: headersSesion() });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 403 && !llave) {
+      err.textContent = 'Es la primera vez de este paciente con el médico: pídele la llave que genera en su app ("Compartir con un médico").';
+      return;
+    }
     if (!res.ok) { err.textContent = data.error || `No se pudo consultar al paciente (error ${res.status}).`; return; }
     const rec = (data.records || []).find(r => r.fields && r.fields['Código de paciente'] === codigo);
     if (!rec) { err.textContent = 'Paciente no encontrado. Verifica el código.'; return; }
@@ -841,6 +861,7 @@ function reiniciarKiosco() {
   filasGO = [];
   document.getElementById('input-staff-codigo').value = '';
   document.getElementById('input-paciente-codigo').value = '';
+  document.getElementById('input-paciente-llave').value = '';
   document.getElementById('input-nuevo-nombre').value = '';
   irA('p-inactivo');
 }

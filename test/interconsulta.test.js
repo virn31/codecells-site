@@ -88,6 +88,8 @@ function instalarFetchMock(interconsultaResp, extra) {
       if (u.includes(encodeURIComponent(COD_CONS))) return ok(registroMedico(COD_CONS, REC_CONS));
       return ok({ records: [] });
     }
+    // VINCULACIONES (vía 'vinculado'): sin vínculos salvo que la prueba diga otra cosa.
+    if (u.includes('VINCULACIONES')) return ok({ records: [] });
     if (u.includes(TBL_INTERCONSULTAS)) {
       if (interconsultaResp && interconsultaResp.fallo) {
         return { ok: false, status: interconsultaResp.status || 500, json: async () => ({}), text: async () => 'error simulado de Airtable' };

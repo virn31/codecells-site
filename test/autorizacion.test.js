@@ -90,6 +90,8 @@ function instalarFetchMock() {
     // que es justo lo que Airtable real devuelve para ese filtro (Estado=
     // "Activa" ya va en la fórmula). El comportamiento de interconsulta en
     // sí se prueba en test/interconsulta.test.js, no aquí.
+    // VINCULACIONES (vía 'vinculado'): sin vínculos salvo que la prueba diga otra cosa.
+    if (u.includes('VINCULACIONES')) return ok({ records: [] });
     if (u.includes(TBL_INTERCONSULTAS)) return ok({ records: [] });
     throw new Error(`fetch no mockeado en esta prueba: ${u}`);
   };

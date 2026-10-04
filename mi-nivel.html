@@ -154,6 +154,29 @@
       <div class="patologias-chips" id="patologias-chips"></div>
     </div>
 
+    <!-- Tu expediente es tuyo: aquí generas una llave para entregárselo a
+         otro médico de la red (cardiólogo, neumólogo, internista…). Con tu
+         código y esta llave, ese médico verá tu expediente — diagnósticos,
+         tratamientos, estudios — pero no las notas privadas de tus otros
+         médicos. Ver api/nova.js acción paciente_generar_llave. -->
+    <div class="seccion-label">Compartir con un médico</div>
+    <div class="chat-caja" style="padding:20px;" id="compartir-caja">
+      <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">
+        Si vas a consulta con otro médico de la red, genera una llave y dásela junto con tu código.
+        Sirve una sola vez y vence en 24 horas. Ese médico verá tus diagnósticos, tratamientos y estudios,
+        pero no las notas privadas de tus otros médicos.
+      </div>
+      <button type="button" class="filtro-labs-btn activo" id="btn-generar-llave" onclick="generarLlaveCompartir()">Generar llave</button>
+      <div id="llave-resultado" style="display:none;margin-top:16px;">
+        <div style="font-size:12px;color:var(--text-3);">Tu código</div>
+        <div id="llave-codigo" style="font-family:monospace;font-size:16px;letter-spacing:0.06em;">—</div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:10px;">Llave (dásela solo al médico)</div>
+        <div id="llave-valor" style="font-family:monospace;font-size:26px;letter-spacing:0.12em;">—</div>
+        <div id="llave-vence" style="font-size:12px;color:var(--text-3);margin-top:6px;"></div>
+      </div>
+      <div id="llave-error" style="display:none;margin-top:12px;font-size:13px;color:#E2574B;"></div>
+    </div>
+
     <div class="seccion-label">Tus laboratorios</div>
     <div class="chat-caja" style="padding:20px;" id="labs-caja">
       <div id="labs-vacio" style="font-size:13px;color:var(--text-3);font-style:italic;">Aún no tienes estudios con datos extraídos.</div>
@@ -761,6 +784,36 @@ function cargarComparativoLabs() {
       renderComparativoLabs();
     })
     .catch(function(){ /* silencioso — no bloquea el resto del portal */ });
+}
+
+// ─── COMPARTIR EXPEDIENTE CON UN MÉDICO (llave temporal) ─────────
+// La llave se muestra UNA vez: en el servidor solo queda su huella.
+function generarLlaveCompartir() {
+  var btn = document.getElementById('btn-generar-llave');
+  var errEl = document.getElementById('llave-error');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  fetch('/api/nova', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'paciente_generar_llave' })
+  }).then(function(r) {
+    return r.json().catch(function(){ return {}; }).then(function(d) { return { ok: r.ok, status: r.status, d: d }; });
+  }).then(function(x) {
+    if (!x.ok || !x.d.llave) {
+      errEl.textContent = (x.d && x.d.error) || ('No se pudo generar la llave (error ' + x.status + ').');
+      errEl.style.display = 'block';
+      return;
+    }
+    document.getElementById('llave-codigo').textContent = pacienteCodigo;
+    document.getElementById('llave-valor').textContent = x.d.llave;
+    var vence = new Date(x.d.vence);
+    document.getElementById('llave-vence').textContent = 'Vence: ' + vence.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) + ' · un solo uso';
+    document.getElementById('llave-resultado').style.display = 'block';
+  }).catch(function() {
+    errEl.textContent = 'Error de conexión. Intenta de nuevo.';
+    errEl.style.display = 'block';
+  }).then(function() { btn.disabled = false; });
 }
 
 function cambiarFiltroLabs(filtro) {

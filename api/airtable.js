@@ -21,6 +21,8 @@ const { sendTelegramMessage } = require('../lib/telegram');
 // ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
+const { esAutor, filtrarConsultasParaLector } = require('../lib/privacidadConsultas');
+const { TABLA_VINCULACIONES, urlTabla } = require('../lib/vinculacion');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
@@ -129,6 +131,25 @@ async function obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN) {
 // entran por la misma puerta (mismo token de sesión) pero nunca deben tocar
 // expediente de paciente — esa distinción antes no existía, era un solo tipo
 // de sesión "medico" para clínicos, QA y accesos técnicos por igual.
+// Códigos CC-PAC- que entregaron su expediente a este médico con llave.
+// Paginado completo (Airtable devuelve 100 por página): una página perdida
+// sería un paciente que desaparece de la cartera sin aviso. Un fallo de
+// lectura se relanza — quien llama decide responder 502.
+async function codigosVinculadosDeMedico(codigoMedico, AIRTABLE_TOKEN) {
+  const formula = `{Médico}="${escaparFormula(codigoMedico)}"`;
+  const codigos = new Set();
+  let offset;
+  do {
+    const url = `${urlTabla(BASE_ID, TABLA_VINCULACIONES)}?filterByFormula=${encodeURIComponent(formula)}&fields%5B%5D=Paciente${offset ? `&offset=${offset}` : ''}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+    if (!r.ok) throw new Error(`VINCULACIONES respondió ${r.status}`);
+    const d = await r.json();
+    (d.records || []).forEach(rec => { if (rec.fields && rec.fields.Paciente) codigos.add(rec.fields.Paciente); });
+    offset = d.offset;
+  } while (offset);
+  return [...codigos];
+}
+
 // verificarAccesoClinicoMedico() vive en lib/autorizacion.js (la comparte
 // api/nova.js para las acciones kiosco_*).
 const NUCLEO_CLINICO_TABLAS = new Set(['pacientes', 'historia', 'consultas', 'labs', 'pacientes_vip', 'antecedentes_obstetricos']);
@@ -894,6 +915,12 @@ module.exports = async (req, res) => {
   // reenvío sin filtro — falla cerrado, no abierto.
   let medicoFiltroAplicado = false;
 
+  // Lectura de CONSULTAS: a quién se le entrega la respuesta. undefined = no
+  // es lectura de consultas (no se filtra); null = paciente/demo (nunca
+  // autor); {codigoMedico, medicoRecId} = médico. Las notas privadas del
+  // autor se quitan antes de responder (lib/privacidadConsultas.js).
+  let lectorConsultas;
+
   // ── Autorización por rol (solo aplica cuando hay sesión real) ──
   if (sesion) {
     const { tipo, codigo } = sesion;
@@ -1023,7 +1050,20 @@ module.exports = async (req, res) => {
             // cartera ya autorizada, no un acceso puntual.
             logAccesoExpediente = { pacienteCode: buscado, codigoMedico: codigo, accion: 'Lectura de expediente', endpoint: 'airtable:pacientes:GET' };
           } else {
-            req.query.filterByFormula = filtroLista;
+            // La cartera incluye a los pacientes que le entregaron su
+            // expediente con llave (VINCULACIONES). Si no se puede leer esa
+            // tabla, falla la lista entera: una cartera a la que le faltan
+            // pacientes en silencio se lee como completa (CLAUDE.md §6).
+            let codigosVinculados;
+            try {
+              codigosVinculados = await codigosVinculadosDeMedico(codigo, AIRTABLE_TOKEN);
+            } catch (err) {
+              return res.status(502).json({ error: 'No se pudo leer la lista de pacientes vinculados. Intenta de nuevo.' });
+            }
+            const filtroVinculados = codigosVinculados.map(c => `{Código de paciente}="${escaparFormula(c)}"`);
+            req.query.filterByFormula = filtroVinculados.length
+              ? `OR(${filtroPropios}, {Es demo}=1, ${filtroVinculados.join(', ')})`
+              : filtroLista;
           }
         } else if (req.method === 'POST') {
           // Todo paciente que cree el médico queda atribuido a él.
@@ -1111,6 +1151,7 @@ module.exports = async (req, res) => {
         }
 
         if (req.method === 'GET') {
+          if (tabla === 'consultas') lectorConsultas = { codigoMedico: codigo, medicoRecId: auth.medicoRecId };
           req.query.filterByFormula = soloMias
             ? `AND({${campoDuenio}}="${escaparFormula(auth.codigo)}", {Código de médico ref}="${escaparFormula(codigo)}")`
             : `{${campoDuenio}}="${escaparFormula(auth.codigo)}"`;
@@ -1134,6 +1175,17 @@ module.exports = async (req, res) => {
           // nunca manda 'Paciente') quedaba con el código correcto en texto
           // pero sin Link al expediente.
           req.body.fields = { ...fields, [campoDuenio]: auth.codigo, 'Paciente': [auth.recId] };
+          // CONSULTAS: la autoría decide quién ve las notas privadas
+          // (lib/privacidadConsultas.js) y quién puede modificarla — así
+          // que la fija el servidor desde el token. Antes el portal mandaba
+          // 'Código de médico ref' desde el cliente (con '—' si no lo tenía).
+          if (tabla === 'consultas') {
+            if (!auth.medicoRecId) {
+              return res.status(502).json({ error: 'No se pudo resolver al médico que firma — no se creó la consulta.' });
+            }
+            req.body.fields['Código de médico ref'] = codigo;
+            req.body.fields['Médico'] = [auth.medicoRecId];
+          }
           // ANTECEDENTES_OBSTETRICOS lleva autoría explícita ('Registrado
           // por', link a MÉDICOS). Se fuerza desde el médico que autorizó
           // (token → autorizarPaciente), nunca del body: si el cliente
@@ -1157,6 +1209,11 @@ module.exports = async (req, res) => {
             const checkData = await check.json();
             if (!check.ok || checkData.fields?.[campoDuenio] !== auth.codigo) {
               return res.status(403).json({ error: 'No puedes modificar un registro que no es de este paciente.' });
+            }
+            // Una consulta la modifica solo quien la firmó: un colega
+            // vinculado ve el diagnóstico y el manejo, no los reescribe.
+            if (tabla === 'consultas' && !esAutor(checkData.fields || {}, codigo, auth.medicoRecId)) {
+              return res.status(403).json({ error: 'Solo el médico que firmó la consulta puede modificarla.' });
             }
           } catch (err) {
             return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
@@ -1186,6 +1243,18 @@ module.exports = async (req, res) => {
       // indicaciones/contraindicaciones del catálogo clínico.
       if (tabla === 'protocolos' && req.method !== 'GET') {
         return res.status(403).json({ error: 'No permitido: el catálogo de protocolos es de solo lectura.' });
+      }
+
+      // CONSULTAS es registro del MÉDICO (lleva su firma y cédula): el
+      // paciente la lee — sin las notas privadas del autor — pero no la crea
+      // ni la modifica. Antes un token de paciente podía reescribir el
+      // diagnóstico que firmó su médico. Ninguna pantalla del paciente
+      // escribe ahí (verificado 2026-10-04: solo portal-medico.html).
+      if (tabla === 'consultas') {
+        if (req.method !== 'GET') {
+          return res.status(403).json({ error: 'Las consultas solo las registra el médico.' });
+        }
+        lectorConsultas = null;
       }
 
       const campoDuenio = CAMPO_DUENIO[tabla];
@@ -1250,6 +1319,7 @@ module.exports = async (req, res) => {
         return res.status(403).json({ error: 'Las sesiones demo son de solo lectura.' });
       }
 
+      if (tabla === 'consultas') lectorConsultas = null;
       const campoDuenio = CAMPO_DUENIO[tabla];
       if (campoDuenio) {
         req.query.filterByFormula = `{${campoDuenio}}="${escaparFormula(codigo)}"`;
@@ -1291,6 +1361,9 @@ module.exports = async (req, res) => {
       const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}${qs ? '?' + qs : ''}`;
       const airtableRes = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       const data = await airtableRes.json();
+      if (lectorConsultas !== undefined && airtableRes.ok && Array.isArray(data.records)) {
+        data.records = filtrarConsultasParaLector(data.records, lectorConsultas);
+      }
       if (logAccesoExpediente) {
         const encontrado = airtableRes.ok && Array.isArray(data.records) && data.records.length > 0;
         await registrarAccesoExpediente({ ...logAccesoExpediente, resultado: encontrado ? 'Exitoso' : 'Paciente no encontrado' });

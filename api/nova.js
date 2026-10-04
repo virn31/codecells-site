@@ -50,6 +50,10 @@ const { notaEdadSinFecha } = require('../lib/datosPacienteNuevo');
 // válido leía los labs de ese paciente sin sesión de ningún tipo.
 const { autorizarPaciente, ErrorAutorizacion, MENSAJE_NO_DISPONIBLE, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
 const { CONGELADO, MENSAJE_CONGELAMIENTO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const {
+  TABLA_LLAVES, TABLA_VINCULACIONES, HORAS_VIGENCIA_LLAVE, MAX_LLAVES_VIGENTES,
+  generarLlave, normalizarLlave, hashLlave, urlTabla,
+} = require('../lib/vinculacion');
 
 // Puerta común de las acciones kiosco_* — las mismas reglas que
 // /api/airtable aplica a ANTECEDENTES_OBSTETRICOS desde el mismo kiosco.
@@ -2271,6 +2275,167 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] kiosco_guardar_historia error:', err.message);
       return res.status(500).json({ error: 'Error interno guardando historia clínica.' });
+    }
+  }
+
+  // ─── ENTREGA DEL EXPEDIENTE A OTRO MÉDICO (llave del paciente) ────
+  // Ver lib/vinculacion.js para el porqué de la llave (el código CC-PAC-
+  // solo no prueba nada: es secuencial). Congeladas en producción: dar a un
+  // médico nuevo acceso al expediente es transferencia de datos personales
+  // y debe estar cubierta por el aviso de privacidad antes de abrirse.
+  if (action === 'paciente_generar_llave') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      // Solo el paciente mismo. Una sesión 'demo' no es 'paciente' (ver
+      // api/auth-login.js), así que los demo nunca generan llaves.
+      if (!sesion || sesion.tipo !== 'paciente') {
+        return res.status(401).json({ error: 'Inicia sesión en tu app para compartir tu expediente.' });
+      }
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const TBL_PAC = 'tblyUcCfueFLJuvIv';
+      const codigoPac = sesion.codigo;
+      const esc = (v) => String(v).replace(/"/g, '\\"');
+
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${esc(codigoPac)}"`)}&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer tu expediente. Intenta de nuevo.' });
+      const pacRec = ((await pacRes.json()).records || [])[0];
+      if (!pacRec) return res.status(404).json({ error: 'No encontramos tu expediente.' });
+      if (pacRec.fields['Es demo'] === true) return res.status(403).json({ error: 'Los expedientes demo no se comparten.' });
+
+      // Tope de llaves vigentes sin usar: una llave es una puerta abierta
+      // 24 h; no hay razón para tener muchas a la vez.
+      const formulaVig = `AND({Código de paciente ref}="${esc(codigoPac)}", NOT({Usada}), IS_AFTER({Vence}, NOW()))`;
+      const vigRes = await fetch(`${urlTabla(BASE_ID, TABLA_LLAVES)}?filterByFormula=${encodeURIComponent(formulaVig)}&maxRecords=${MAX_LLAVES_VIGENTES}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (!vigRes.ok) return res.status(502).json({ error: 'No se pudo generar la llave. Intenta de nuevo.' });
+      if (((await vigRes.json()).records || []).length >= MAX_LLAVES_VIGENTES) {
+        return res.status(429).json({ error: `Ya tienes ${MAX_LLAVES_VIGENTES} llaves sin usar. Usa una de ellas o espera a que venzan (24 h).` });
+      }
+
+      const llave = generarLlave();
+      const ahora = new Date();
+      const vence = new Date(ahora.getTime() + HORAS_VIGENCIA_LLAVE * 60 * 60 * 1000);
+      const crearRes = await fetch(urlTabla(BASE_ID, TABLA_LLAVES), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: [{ fields: {
+          'Llave (hash)': hashLlave(normalizarLlave(llave)),
+          'Código de paciente ref': codigoPac,
+          'Paciente': [pacRec.id],
+          'Creada': ahora.toISOString(),
+          'Vence': vence.toISOString(),
+        } }] }),
+      });
+      if (!crearRes.ok) {
+        console.error('[nova] paciente_generar_llave error Airtable:', crearRes.status, await crearRes.text().catch(() => ''));
+        return res.status(502).json({ error: 'No se pudo generar la llave. Intenta de nuevo.' });
+      }
+      // La llave en claro sale UNA vez, aquí. En Airtable solo queda el HMAC.
+      return res.status(200).json({ ok: true, llave, vence: vence.toISOString(), horasVigencia: HORAS_VIGENCIA_LLAVE });
+    } catch (err) {
+      console.error('[nova] paciente_generar_llave error:', err.message);
+      return res.status(500).json({ error: 'Error interno generando la llave.' });
+    }
+  }
+
+  if (action === 'medico_vincular_paciente') {
+    if (CONGELADO) return respuestaCongelada(res);
+    const ENDPOINT = 'medico_vincular_paciente';
+    try {
+      if (!sesion || sesion.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión médica no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const esc = (v) => String(v).replace(/"/g, '\\"');
+      const { pacienteCode, llave } = req.body;
+
+      const acceso = await verificarAccesoClinicoMedico(sesion.codigo, AIRTABLE_TOKEN);
+      if (acceso.errorInfra) return res.status(502).json({ error: MENSAJE_ACCESO_NO_VERIFICABLE });
+      if (!acceso.permitido) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, medicoRecId: acceso.recordId, accion: 'Vinculación por llave', resultado: 'Denegado', endpoint: ENDPOINT });
+        return res.status(403).json({ error: 'Tu tipo de acceso no permite abrir expedientes clínicos.' });
+      }
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
+        return res.status(400).json({ error: 'Código de paciente inválido. Formato: CC-PAC-XXXXXX' });
+      }
+      const llaveNorm = normalizarLlave(llave);
+      if (!llaveNorm) return res.status(400).json({ error: 'La llave tiene 8 caracteres, por ejemplo K7P4-QX9M.' });
+
+      // Si ya tiene acceso (principal, vinculado o interconsulta) no se
+      // gasta la llave del paciente.
+      try {
+        const ya = await autorizarPaciente(sesion.codigo, pacienteCode);
+        if (ya.via === 'demo') return res.status(400).json({ error: 'Los pacientes demo no se vinculan: ya son de solo lectura para todos.' });
+        return res.status(200).json({ ok: true, yaTeniaAcceso: true, via: ya.via });
+      } catch (err) {
+        if (!(err instanceof ErrorAutorizacion)) {
+          console.error(`[nova] ${ENDPOINT} autorizarPaciente:`, err.message);
+          return res.status(err.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+        }
+      }
+
+      // Mismo mensaje para "no existe", "no es de este paciente", "vencida"
+      // y "ya usada": distinguirlos le diría a quien adivina qué acertó.
+      const MSG_LLAVE = 'Llave inválida, vencida o ya usada. Pide al paciente que genere una nueva en su app.';
+      const rechazar = async () => {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, medicoRecId: acceso.recordId, accion: 'Vinculación por llave', resultado: 'Rechazado', endpoint: ENDPOINT });
+        return res.status(403).json({ error: MSG_LLAVE });
+      };
+      const formulaLlave = `AND({Llave (hash)}="${hashLlave(llaveNorm)}", {Código de paciente ref}="${esc(pacienteCode)}", NOT({Usada}))`;
+      const llaveRes = await fetch(`${urlTabla(BASE_ID, TABLA_LLAVES)}?filterByFormula=${encodeURIComponent(formulaLlave)}&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (!llaveRes.ok) return res.status(502).json({ error: 'No se pudo verificar la llave. Intenta de nuevo.' });
+      const llaveRec = ((await llaveRes.json()).records || [])[0];
+      if (!llaveRec) return rechazar();
+      const venceMs = new Date(llaveRec.fields['Vence'] || 0).getTime();
+      if (!Number.isFinite(venceMs) || venceMs <= Date.now()) return rechazar();
+      const pacRecId = Array.isArray(llaveRec.fields['Paciente']) ? llaveRec.fields['Paciente'][0] : null;
+      if (!pacRecId) return res.status(502).json({ error: 'La llave no está ligada a un expediente — no se vinculó.' });
+
+      // Se consume ANTES de crear el vínculo: si lo segundo falla, la
+      // llave quedó gastada y el paciente genera otra (molesto pero
+      // seguro). Al revés, una llave podría servir a dos médicos.
+      const ahoraISO = new Date().toISOString();
+      const usarRes = await fetch(`${urlTabla(BASE_ID, TABLA_LLAVES)}/${llaveRec.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: { 'Usada': true, 'Usada por': sesion.codigo, 'Fecha de uso': ahoraISO } }),
+      });
+      if (!usarRes.ok) return res.status(502).json({ error: 'No se pudo usar la llave — no se vinculó. Intenta de nuevo.' });
+
+      // Especialidad: copia del momento. Si no se puede leer, queda VACÍA
+      // (no se inventa); el vínculo no depende de ella.
+      let especialidad = '';
+      const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tbl87DsuBMmb4DjFM/${acceso.recordId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (medRes.ok) {
+        const esp = ((await medRes.json()).fields || {})['Especialidad'];
+        especialidad = Array.isArray(esp) ? esp.join(', ') : (esp || '');
+      }
+
+      const vincRes = await fetch(urlTabla(BASE_ID, TABLA_VINCULACIONES), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: [{ fields: {
+          'ID Vinculación': `${pacienteCode} → ${sesion.codigo}`,
+          'Paciente': pacienteCode,
+          'Médico': sesion.codigo,
+          'Paciente (link)': [pacRecId],
+          'Médico (link)': [acceso.recordId],
+          'Especialidad': especialidad,
+          'Fecha de vinculación': ahoraISO,
+          'Origen': 'Llave del paciente',
+          'Llave': [llaveRec.id],
+        } }] }),
+      });
+      if (!vincRes.ok) {
+        console.error(`[nova] ${ENDPOINT} error creando vínculo:`, vincRes.status, await vincRes.text().catch(() => ''));
+        return res.status(502).json({ error: 'La llave se usó pero el vínculo NO se guardó. Pide al paciente una llave nueva.' });
+      }
+      await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, medicoRecId: acceso.recordId, accion: 'Vinculación por llave', resultado: 'Exitoso', endpoint: ENDPOINT });
+      return res.status(200).json({ ok: true, vinculado: true, especialidad });
+    } catch (err) {
+      console.error(`[nova] ${ENDPOINT} error:`, err.message);
+      return res.status(500).json({ error: 'Error interno vinculando al paciente.' });
     }
   }
 

@@ -49,6 +49,8 @@ function instalarFetchMock({ notasPrevias, lecturaFalla, capturas }) {
       if (u.includes(COD_PAC)) return ok({ records: [{ id: REC_PAC, fields: { 'Código de paciente': COD_PAC, 'Médico_principal': [REC_MED] } }] });
       return ok({ records: [] });
     }
+    // VINCULACIONES (vía 'vinculado'): sin vínculos salvo que la prueba diga otra cosa.
+    if (u.includes('VINCULACIONES')) return ok({ records: [] });
     if (u.includes(TBL_INTERCONSULTAS)) return ok({ records: [] });
     if (u.includes(TBL_ACCESOS)) return ok({ records: [{ id: 'recACC' }] });
     if (u.includes(`${TBL_PACIENTES}/${REC_PAC}`) && metodo === 'GET') {

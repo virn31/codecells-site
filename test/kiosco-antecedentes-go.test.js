@@ -67,6 +67,8 @@ function instalarFetchMock(capturas) {
       if (u.includes(PAC_DEMO)) return ok({ records: [{ id: 'recPACDEMO', fields: { 'Código de paciente': PAC_DEMO, 'Es demo': true, 'Médico_principal': ['recMEDPROP'] } }] });
       return ok({ records: [] });
     }
+    // VINCULACIONES (vía 'vinculado'): sin vínculos salvo que la prueba diga otra cosa.
+    if (u.includes('VINCULACIONES')) return ok({ records: [] });
     if (u.includes(TBL_INTERCONSULTAS)) return ok({ records: [] });
     if (u.includes(TBL_ACCESOS)) return ok({ records: [{ id: 'recACC' }] });
     if (metodo === 'POST' && u.includes(TBL_ANTECEDENTES)) {
