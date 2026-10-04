@@ -47,7 +47,6 @@
   .card-paciente-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .paciente-nombre { font-family: var(--font-serif); font-size: 26px; font-weight: 400; margin: 0 0 4px; }
   .paciente-codigo { font-family: var(--font-mono); font-size: 11px; color: var(--gold-dim); letter-spacing: 0.08em; }
-  .badge-vip { background: var(--gold); color: var(--black); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 20px; white-space: nowrap; }
 
   .protocolo-box { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-dim); }
   .protocolo-label { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
@@ -117,7 +116,48 @@
   .pin-key:disabled { opacity: 0.35; }
   .pin-msg { min-height: 20px; text-align: center; font-size: 13px; margin-top: 16px; color: #E2574B; }
   .pin-msg.ok { color: var(--text-2); }
+
+  /* Navegación inferior (mobile-first) */
+  .tab-pane { display: none; }
+  .tab-pane.activa { display: block; }
+  body.con-nav .wrap { padding-bottom: 92px; }
+  .nav-inferior { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: space-around;
+    background: rgba(10,10,10,0.94); border-top: 1px solid var(--border); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); backdrop-filter: blur(8px); }
+  .nav-btn { flex: 1; max-width: 120px; background: none; border: none; color: var(--text-3); font-size: 11px; font-family: var(--font-sans);
+    display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; cursor: pointer; border-radius: 10px; }
+  .nav-btn span { font-size: 20px; line-height: 1; }
+  .nav-btn.activo { color: var(--gold); background: var(--gold-pale2); }
+  .nav-inferior-int { display: flex; justify-content: space-around; width: 100%; max-width: 520px; margin: 0 auto; }
+  /* El selector de idioma (lib/i18n.js, fijo abajo a la izquierda) sube
+     por encima de la barra para no tapar "Inicio". */
+  body.con-nav #i18n-switch { bottom: 84px !important; }
+
+  /* Biological Map */
+  .bio-anillo-wrap { display: flex; justify-content: center; margin: 4px 0 10px; }
+  .bio-resumen { text-align: center; font-size: 13px; color: var(--text-2); line-height: 1.5; margin-bottom: 14px; }
+  .bio-resumen b { color: var(--text-1); font-weight: 500; }
+  .bio-lista { display: flex; flex-direction: column; gap: 8px; }
+  .bio-fila { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .bio-punto { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .bio-nombre { flex: 1; color: var(--text-1); }
+  .bio-valor { font-family: var(--font-mono); color: var(--text-1); }
+  .bio-etiqueta { font-size: 11px; color: var(--text-3); min-width: 112px; text-align: right; }
+  .bio-delta { font-family: var(--font-mono); font-size: 11px; min-width: 40px; text-align: right; }
+  .bio-delta.sube { color: #5FAE6E; } .bio-delta.baja { color: #E2A64B; }
+  .protocolo-dias { font-size: 12px; color: var(--text-2); margin-top: 10px; }
+  .protocolo-barra { height: 6px; background: var(--black-3); border-radius: 6px; overflow: hidden; margin-top: 6px; }
+  .protocolo-barra div { height: 100%; background: var(--gold); border-radius: 6px; }
+
+  /* Test (una pregunta a la vez) */
+  .test-progreso { font-family: var(--font-mono); font-size: 11px; color: var(--gold); letter-spacing: 0.12em; text-align: center; margin-top: 10px; }
+  .test-sistema { text-align: center; font-size: 13px; color: var(--text-2); margin-top: 8px; }
+  .test-pregunta { font-family: var(--font-serif); font-size: 22px; text-align: center; line-height: 1.35; margin: 18px auto 22px; max-width: 420px; }
+  .test-opciones { display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 0 auto; }
+  .test-opcion { background: var(--black-2); border: 1px solid var(--border-dim); color: var(--text-1); border-radius: 14px; padding: 14px; font-size: 15px; cursor: pointer; font-family: var(--font-sans); }
+  .test-opcion.sel { border-color: var(--gold); color: var(--gold); background: var(--gold-pale2); }
+  .test-nav { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
 </style>
+  <script src="/lib/cuestionarioBiologico.js"></script>
   <script src="/lib/i18n.js"></script>
 </head>
 <body>
@@ -158,19 +198,43 @@
 
   <!-- Pantalla: principal -->
   <div class="pantalla" id="p-principal">
+  <!-- ═══ Pestaña INICIO ═══ (navegación inferior: docs/VISION-APP-MEDICA.md, MVP-1) -->
+  <div class="tab-pane activa" data-tab="inicio">
     <div class="card-paciente">
       <div class="card-paciente-top">
         <div>
           <div class="paciente-nombre" id="paciente-nombre">—</div>
           <div class="paciente-codigo" id="paciente-codigo">—</div>
         </div>
-        <div class="badge-vip" id="badge-vip" style="display:none;">DEZAWA VIP</div>
       </div>
       <div class="protocolo-box">
         <div class="protocolo-label">Tu protocolo actual</div>
         <div id="protocolo-contenido"></div>
+        <div id="protocolo-progreso" style="display:none;"></div>
       </div>
       <div class="patologias-chips" id="patologias-chips"></div>
+    </div>
+
+    <!-- Biological Map™: un aro por sistema (función 0–10, más = mejor),
+         estado general al centro. Si no hay evaluación se dice tal cual —
+         nunca puntajes de ejemplo. Escala: lib/cuestionarioBiologico.js -->
+    <div class="seccion-label">Tu Biological Map™</div>
+    <div class="chat-caja" style="padding:20px;" id="bio-caja">
+      <div id="bio-cargando" style="font-size:13px;color:var(--text-3);">Cargando tu evaluación…</div>
+      <div id="bio-error" style="display:none;font-size:13px;color:#E2574B;"></div>
+      <div id="bio-vacio" style="display:none;">
+        <div style="font-size:14px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">Aún no tienes tu evaluación. Son 10 preguntas rápidas sobre cómo te has sentido; tu médico verá tu evolución con el tiempo.</div>
+      </div>
+      <div id="bio-contenido" style="display:none;">
+        <div class="bio-anillo-wrap">
+          <svg id="bio-anillo" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Estado general del Biological Map"></svg>
+        </div>
+        <div class="bio-resumen" id="bio-resumen"></div>
+        <div class="bio-lista" id="bio-lista"></div>
+      </div>
+      <button type="button" class="filtro-labs-btn activo" id="btn-reevaluarme" style="display:none;margin-top:16px;" onclick="abrirTestBio()">Hacer mi evaluación</button>
+      <div id="bio-proxima" style="display:none;font-size:12px;color:var(--text-3);margin-top:12px;"></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:14px;line-height:1.4;">Es un cuestionario de orientación, no un diagnóstico. Si algo te preocupa, coméntalo con tu médico.</div>
     </div>
 
     <!-- Tu expediente es tuyo: aquí generas una llave para entregárselo a
@@ -196,6 +260,9 @@
       <div id="llave-error" style="display:none;margin-top:12px;font-size:13px;color:#E2574B;"></div>
     </div>
 
+  </div>
+  <!-- ═══ Pestaña LABS ═══ -->
+  <div class="tab-pane" data-tab="labs">
     <div class="seccion-label">Tus laboratorios</div>
     <div class="chat-caja" style="padding:20px;" id="labs-caja">
       <div id="labs-vacio" style="font-size:13px;color:var(--text-3);font-style:italic;">Aún no tienes estudios con datos extraídos.</div>
@@ -209,6 +276,9 @@
       </div>
     </div>
 
+  </div>
+  <!-- ═══ Pestaña CITAS ═══ -->
+  <div class="tab-pane" data-tab="citas">
     <!-- NUEVA: PANEL MIS CITAS AGENDADAS -->
     <div class="panel-mis-citas">
       <div class="panel-mis-citas-header">
@@ -426,6 +496,9 @@
       }
     </style>
 
+  </div>
+  <!-- ═══ Pestaña NOVA ═══ -->
+  <div class="tab-pane" data-tab="nova">
     <div class="seccion-label">Habla con NOVA</div>
     <div class="chat-caja">
       <div class="chat-mensajes" id="chat-mensajes"></div>
@@ -436,12 +509,34 @@
     </div>
     <div class="sugerencias" id="sugerencias-chips"></div>
   </div>
+  </div>
+
+  <!-- Pantalla: Biological Map™ (una pregunta a la vez). El servidor
+       califica; aquí solo se recogen respuestas. -->
+  <div class="pantalla" id="p-test">
+    <div class="test-progreso" id="test-progreso">—</div>
+    <div class="test-sistema" id="test-sistema"></div>
+    <div class="test-pregunta" id="test-pregunta">—</div>
+    <div class="test-opciones" id="test-opciones"></div>
+    <div class="pin-msg" id="test-msg"></div>
+    <div class="test-nav">
+      <button type="button" class="btn-reintentar" id="btn-test-atras" onclick="testAtras()">Atrás</button>
+      <button type="button" class="btn-reintentar" onclick="cerrarTestBio()">Salir sin guardar</button>
+    </div>
+  </div>
 </div>
+
+<!-- Navegación inferior (solo en la pantalla principal) -->
+<nav class="nav-inferior" id="nav-inferior" style="display:none;"><div class="nav-inferior-int">
+  <button type="button" class="nav-btn activo" data-tab="inicio" onclick="irATab('inicio')"><span>🏠</span>Inicio</button>
+  <button type="button" class="nav-btn" data-tab="labs" onclick="irATab('labs')"><span>🩸</span>Labs</button>
+  <button type="button" class="nav-btn" data-tab="citas" onclick="irATab('citas')"><span>📅</span>Citas</button>
+  <button type="button" class="nav-btn" data-tab="nova" onclick="irATab('nova')"><span>💬</span>NOVA</button>
+</div></nav>
 
 <script>
 var pacienteCodigo = null;
 var pacienteRecord = null;
-var esVip = false;
 var STORAGE_KEY_CODIGO = 'ccpac_codigo';
 
 // ─── AUTENTICACIÓN REAL (jul 2026) ───────────────────────────────
@@ -707,6 +802,212 @@ function toggleMusica() {
 function irA(id) {
   document.querySelectorAll('.pantalla').forEach(function(p){ p.classList.remove('activa'); });
   document.getElementById(id).classList.add('activa');
+  // La navegación inferior solo existe en la pantalla principal.
+  var conNav = id === 'p-principal';
+  document.getElementById('nav-inferior').style.display = conNav ? 'flex' : 'none';
+  document.body.classList.toggle('con-nav', conNav);
+}
+
+function irATab(tab) {
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('activa', p.getAttribute('data-tab') === tab); });
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('activo', b.getAttribute('data-tab') === tab); });
+  window.scrollTo(0, 0);
+}
+
+// ─── PROTOCOLO: día X de 90 ──────────────────────────────────────
+// Solo si el médico registró 'Fecha inicio protocolo'. Sin fecha no hay
+// contador: nunca se inventa una (CLAUDE.md §7).
+var DIAS_PROTOCOLO = 90;
+function renderProgresoProtocolo(f) {
+  var cont = document.getElementById('protocolo-progreso');
+  var inicio = f['Fecha inicio protocolo'];
+  if (!f['Protocolo actual'] || !inicio) { cont.style.display = 'none'; return; }
+  var dias = Math.floor((Date.now() - new Date(inicio + 'T00:00:00').getTime()) / 864e5) + 1;
+  if (!(dias >= 1)) { cont.style.display = 'none'; return; }
+  var pct = Math.min(100, Math.round((dias / DIAS_PROTOCOLO) * 100));
+  cont.innerHTML = '<div class="protocolo-dias">' + (dias <= DIAS_PROTOCOLO ? 'Día ' + dias + ' de ' + DIAS_PROTOCOLO : 'Completaste los ' + DIAS_PROTOCOLO + ' días (día ' + dias + ')') + '</div>' +
+    '<div class="protocolo-barra"><div style="width:' + pct + '%"></div></div>';
+  cont.style.display = 'block';
+}
+
+// ─── BIOLOGICAL MAP ──────────────────────────────────────────────
+var CB = window.CUESTIONARIO_BIOLOGICO;
+var bioEvaluaciones = [];
+
+function fechaCorta(iso) {
+  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function cargarBio() {
+  var vis = function(id, v) { document.getElementById(id).style.display = v ? '' : 'none'; };
+  vis('bio-cargando', true); vis('bio-error', false); vis('bio-vacio', false); vis('bio-contenido', false); vis('btn-reevaluarme', false); vis('bio-proxima', false);
+  fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'evaluaciones_listar' }) })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(x) {
+      vis('bio-cargando', false);
+      if (!x.ok) {
+        var e = document.getElementById('bio-error');
+        e.textContent = (x.d && x.d.error) || 'No pudimos cargar tu evaluación.';
+        vis('bio-error', true);
+        return;
+      }
+      bioEvaluaciones = x.d.evaluaciones || [];
+      renderBio(x.d.proximaPermitida);
+    })
+    .catch(function() {
+      vis('bio-cargando', false);
+      document.getElementById('bio-error').textContent = 'Sin conexión — no pudimos cargar tu evaluación.';
+      vis('bio-error', true);
+    });
+}
+
+function renderBio(proximaPermitida) {
+  var btn = document.getElementById('btn-reevaluarme');
+  var prox = document.getElementById('bio-proxima');
+  var esDemo = false;
+  try { esDemo = JSON.parse(atob(sessionStorage.getItem(TOKEN_KEY).split('.')[0].replace(/-/g,'+').replace(/_/g,'/'))).tipo === 'demo'; } catch(e) {}
+
+  if (!bioEvaluaciones.length) {
+    document.getElementById('bio-vacio').style.display = '';
+  } else {
+    var ultima = bioEvaluaciones[bioEvaluaciones.length - 1];
+    // Solo se compara contra la anterior si es de la MISMA versión del
+    // cuestionario: dos versiones distintas no se restan a ciegas.
+    var anteriores = bioEvaluaciones.slice(0, -1).filter(function(e){ return e.version === ultima.version; });
+    var anterior = anteriores.length ? anteriores[anteriores.length - 1] : null;
+    dibujarAnillo(ultima);
+    var res = 'Estado general: <b>' + (CB.etiqueta(ultima.estadoGeneral) || '') + '</b><br>Evaluación del ' + fechaCorta(ultima.fecha) +
+      (ultima.origen === 'Kiosco de consultorio' ? ' · en consultorio' : '');
+    if (anterior && typeof anterior.estadoGeneral === 'number') {
+      var d = Math.round((ultima.estadoGeneral - anterior.estadoGeneral) * 10) / 10;
+      res += '<br>' + (d > 0 ? 'Subió ' + d.toFixed(1) : d < 0 ? 'Bajó ' + Math.abs(d).toFixed(1) : 'Igual') + ' desde tu evaluación del ' + fechaCorta(anterior.fecha);
+    }
+    document.getElementById('bio-resumen').innerHTML = res;
+    var lista = document.getElementById('bio-lista');
+    lista.innerHTML = '';
+    CB.DATOS.systems.forEach(function(s) {
+      var v = ultima.sistemas[s.id];
+      var fila = document.createElement('div');
+      fila.className = 'bio-fila';
+      var delta = '';
+      if (anterior && typeof anterior.sistemas[s.id] === 'number' && typeof v === 'number') {
+        var dd = Math.round((v - anterior.sistemas[s.id]) * 10) / 10;
+        if (dd !== 0) delta = '<span class="bio-delta ' + (dd > 0 ? 'sube' : 'baja') + '">' + (dd > 0 ? '↑' : '↓') + Math.abs(dd).toFixed(1) + '</span>';
+      }
+      fila.innerHTML = '<span class="bio-punto" style="background:' + s.color + '"></span>' +
+        '<span class="bio-nombre">' + s.icon + ' ' + s.corto + '</span>' +
+        '<span class="bio-valor">' + (typeof v === 'number' ? v.toFixed(1) : '—') + '</span>' +
+        '<span class="bio-etiqueta">' + (CB.etiqueta(v) || '') + '</span>' + (delta || '<span class="bio-delta"></span>');
+      lista.appendChild(fila);
+    });
+    document.getElementById('bio-contenido').style.display = '';
+  }
+
+  if (esDemo) return; // demo: solo lectura
+  if (proximaPermitida) {
+    prox.textContent = 'Podrás reevaluarte a partir del ' + fechaCorta(proximaPermitida) + ' (cada 14 días, para que tu evolución tenga sentido).';
+    prox.style.display = '';
+  } else {
+    btn.textContent = bioEvaluaciones.length ? 'Reevaluarme' : 'Hacer mi evaluación';
+    btn.style.display = '';
+  }
+}
+
+// Cinco aros concéntricos, uno por sistema, en su color; el largo del aro
+// es su función (0–10). Al centro, el estado general.
+function dibujarAnillo(ev) {
+  var svg = document.getElementById('bio-anillo');
+  var NS = 'http://www.w3.org/2000/svg';
+  svg.innerHTML = '';
+  var radios = [90, 77, 64, 51, 38];
+  CB.DATOS.systems.forEach(function(s, i) {
+    var r = radios[i], circ = 2 * Math.PI * r;
+    var v = ev.sistemas[s.id];
+    var fondo = document.createElementNS(NS, 'circle');
+    fondo.setAttribute('cx', 100); fondo.setAttribute('cy', 100); fondo.setAttribute('r', r);
+    fondo.setAttribute('fill', 'none'); fondo.setAttribute('stroke', 'rgba(255,255,255,0.07)'); fondo.setAttribute('stroke-width', 9);
+    svg.appendChild(fondo);
+    if (typeof v === 'number' && v > 0) {
+      var arco = document.createElementNS(NS, 'circle');
+      arco.setAttribute('cx', 100); arco.setAttribute('cy', 100); arco.setAttribute('r', r);
+      arco.setAttribute('fill', 'none'); arco.setAttribute('stroke', s.color); arco.setAttribute('stroke-width', 9);
+      arco.setAttribute('stroke-linecap', 'round');
+      arco.setAttribute('stroke-dasharray', (circ * v / 10) + ' ' + circ);
+      arco.setAttribute('transform', 'rotate(-90 100 100)');
+      var t = document.createElementNS(NS, 'title'); t.textContent = s.corto + ': ' + v.toFixed(1) + ' de 10';
+      arco.appendChild(t);
+      svg.appendChild(arco);
+    }
+  });
+  var num = document.createElementNS(NS, 'text');
+  num.setAttribute('x', 100); num.setAttribute('y', 104); num.setAttribute('text-anchor', 'middle');
+  num.setAttribute('fill', '#f0ede8'); num.setAttribute('font-size', 26); num.setAttribute('font-family', 'Cormorant Garamond, Georgia, serif');
+  num.textContent = typeof ev.estadoGeneral === 'number' ? ev.estadoGeneral.toFixed(1) : '—';
+  svg.appendChild(num);
+  var sub = document.createElementNS(NS, 'text');
+  sub.setAttribute('x', 100); sub.setAttribute('y', 118); sub.setAttribute('text-anchor', 'middle');
+  sub.setAttribute('fill', '#9a9590'); sub.setAttribute('font-size', 9);
+  sub.textContent = 'de 10';
+  svg.appendChild(sub);
+}
+
+// ─── TEST (Reevaluarme) ──────────────────────────────────────────
+var testPreguntas = [];
+var testIdx = 0;
+var testRespuestas = {};
+var testEnviando = false;
+
+function abrirTestBio() {
+  testPreguntas = [];
+  CB.DATOS.systems.forEach(function(s) { s.questions.forEach(function(q) { testPreguntas.push({ sys: s, q: q }); }); });
+  testIdx = 0; testRespuestas = {}; testEnviando = false;
+  document.getElementById('test-msg').textContent = '';
+  irA('p-test');
+  pintarPregunta();
+}
+
+function pintarPregunta() {
+  var p = testPreguntas[testIdx];
+  document.getElementById('test-progreso').textContent = 'PREGUNTA ' + (testIdx + 1) + ' DE ' + testPreguntas.length;
+  document.getElementById('test-sistema').textContent = p.sys.icon + ' ' + p.sys.corto;
+  document.getElementById('test-pregunta').textContent = p.q.text;
+  var cont = document.getElementById('test-opciones');
+  cont.innerHTML = '';
+  var clave = p.sys.id + '_' + p.q.id;
+  p.q.options.forEach(function(o) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'test-opcion' + (testRespuestas[clave] === o.value ? ' sel' : '');
+    b.textContent = o.text;
+    b.onclick = function() { elegirOpcion(clave, o.value); };
+    cont.appendChild(b);
+  });
+  document.getElementById('btn-test-atras').style.visibility = testIdx === 0 ? 'hidden' : 'visible';
+}
+
+function elegirOpcion(clave, valor) {
+  if (testEnviando) return;
+  testRespuestas[clave] = valor;
+  if (testIdx < testPreguntas.length - 1) { testIdx++; pintarPregunta(); return; }
+  enviarTestBio();
+}
+
+function testAtras() { if (testIdx > 0 && !testEnviando) { testIdx--; pintarPregunta(); } }
+function cerrarTestBio() { if (!testEnviando) { irA('p-principal'); irATab('inicio'); } }
+
+function enviarTestBio() {
+  testEnviando = true;
+  var msg = document.getElementById('test-msg');
+  msg.className = 'pin-msg ok'; msg.textContent = 'Guardando tu evaluación…';
+  fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'paciente_guardar_evaluacion', respuestas: testRespuestas }) })
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(x) {
+      testEnviando = false;
+      if (!x.ok) { msg.className = 'pin-msg'; msg.textContent = (x.d && x.d.error) || 'No se pudo guardar tu evaluación.'; return; }
+      irA('p-principal'); irATab('inicio');
+      cargarBio();
+    })
+    .catch(function() { testEnviando = false; msg.className = 'pin-msg'; msg.textContent = 'Sin conexión — tu evaluación no se guardó. Intenta de nuevo.'; });
 }
 
 function init() {
@@ -757,16 +1058,15 @@ function cargarPaciente() {
       }
       pacienteRecord = data.records[0];
       var f = pacienteRecord.fields;
-      esVip = f['Es VIP (DEZAWA)'] === true;
 
       document.getElementById('paciente-nombre').textContent = f['Nombre completo'] || 'Paciente';
       document.getElementById('paciente-codigo').textContent = pacienteCodigo;
-      document.getElementById('badge-vip').style.display = esVip ? 'inline-block' : 'none';
 
       var protocolo = f['Protocolo actual'];
       document.getElementById('protocolo-contenido').innerHTML = protocolo
         ? '<div class="protocolo-valor">' + protocolo + '</div>'
         : '<div class="protocolo-vacio">Tu médico aún no ha asignado tu protocolo — pregúntale en tu próxima consulta.</div>';
+      renderProgresoProtocolo(f);
 
       var patologias = f['Patologías activas'] || [];
       var cont = document.getElementById('patologias-chips');
@@ -781,8 +1081,10 @@ function cargarPaciente() {
       renderSugerencias();
       mensajeBienvenida();
       irA('p-principal');
+      irATab('inicio');
       renderInstallBanner();
       cargarComparativoLabs();
+      cargarBio();
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';
@@ -791,9 +1093,7 @@ function cargarPaciente() {
 }
 
 function renderSugerencias() {
-  var opciones = esVip
-    ? ['¿Cómo voy con mi protocolo?', 'Invitar a un amigo', 'Agendar mi próxima cita']
-    : ['¿Cómo voy con mi protocolo?', 'Tengo una duda sobre mi tratamiento', 'Agendar mi próxima cita'];
+  var opciones = ['¿Cómo voy con mi protocolo?', 'Tengo una duda sobre mi tratamiento', 'Agendar mi próxima cita'];
   var cont = document.getElementById('sugerencias-chips');
   cont.innerHTML = '';
   opciones.forEach(function(op){
