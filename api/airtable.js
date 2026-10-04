@@ -37,6 +37,7 @@ const TABLAS_PERMITIDAS = {
   solicitudes_medico: 'tblDpqi2XJqoR4QiE',
   directorio_medico: 'tblkUNPwu1sQgZBPJ',
   solicitudes_paciente: 'tblUsc72JO2BaqT6d',
+  antecedentes_obstetricos: 'tblkoqYv4ASLFkzsp',
 };
 
 // Motor de gráficas: tablas de configuración (fuera de TABLAS_PERMITIDAS a
@@ -67,6 +68,7 @@ const CAMPO_DUENIO = {
   consultas: 'Código de paciente ref',
   labs: 'Código de paciente ref',
   pacientes_vip: 'Código DZW',
+  antecedentes_obstetricos: 'Código de paciente ref',
 };
 
 // Tablas de referencia, sin datos personales — lectura pública permitida
@@ -78,7 +80,7 @@ const TABLAS_LECTURA_PUBLICA = new Set(['protocolos']);
 // antes de llegar al reenvío genérico. 'pacientes' se scopea aparte
 // (es una LISTA de pacientes, no el expediente de uno) pero también se
 // marca como cubierta — ver medicoFiltroAplicado más abajo.
-const TABLAS_EXPEDIENTE_MEDICO = new Set(['historia', 'consultas', 'labs']);
+const TABLAS_EXPEDIENTE_MEDICO = new Set(['historia', 'consultas', 'labs', 'antecedentes_obstetricos']);
 
 // Campos que el DIRECTORIO expone al público. TODO campo no listado aquí
 // (Médico linkado, Fecha de alta, Última actualización) queda BLOQUEADO
@@ -125,7 +127,7 @@ async function obtenerRecordIdMedico(codigo, AIRTABLE_TOKEN) {
 // entran por la misma puerta (mismo token de sesión) pero nunca deben tocar
 // expediente de paciente — esa distinción antes no existía, era un solo tipo
 // de sesión "medico" para clínicos, QA y accesos técnicos por igual.
-const NUCLEO_CLINICO_TABLAS = new Set(['pacientes', 'historia', 'consultas', 'labs', 'pacientes_vip']);
+const NUCLEO_CLINICO_TABLAS = new Set(['pacientes', 'historia', 'consultas', 'labs', 'pacientes_vip', 'antecedentes_obstetricos']);
 
 // Resuelve `Tipo de acceso` desde el registro MÉDICOS a partir del código del
 // TOKEN (nunca de un parámetro del cliente — regla dura del SPEC). Sin
@@ -1063,6 +1065,19 @@ module.exports = async (req, res) => {
           // nunca manda 'Paciente') quedaba con el código correcto en texto
           // pero sin Link al expediente.
           req.body.fields = { ...fields, [campoDuenio]: auth.codigo, 'Paciente': [auth.recId] };
+          // ANTECEDENTES_OBSTETRICOS lleva autoría explícita ('Registrado
+          // por', link a MÉDICOS). Se fuerza desde el médico que autorizó
+          // (token → autorizarPaciente), nunca del body: si el cliente
+          // pudiera mandarlo, cualquiera firmaría a nombre de otro médico.
+          // Sin medicoRecId no hay a quién atribuir — falla ruidosa, no un
+          // antecedente sin autor (kiosco: alta delegada, CLAUDE.md §7).
+          if (tabla === 'antecedentes_obstetricos') {
+            if (!auth.medicoRecId) {
+              return res.status(502).json({ error: 'No se pudo resolver al médico que registra — no se creó el antecedente.' });
+            }
+            req.body.fields['Registrado por'] = [auth.medicoRecId];
+            req.body.fields['Fecha de registro'] = new Date().toISOString();
+          }
         } else if (req.method === 'PATCH') {
           const { recordId } = req.query;
           if (!recordId) return res.status(400).json({ error: 'Falta recordId.' });
