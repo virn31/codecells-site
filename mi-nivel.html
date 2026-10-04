@@ -108,7 +108,7 @@
   .pin-titulo { font-family: var(--font-serif); font-size: 24px; text-align: center; margin: 10px 0 6px; }
   .pin-sub { font-size: 13px; color: var(--text-2); text-align: center; line-height: 1.5; max-width: 320px; margin: 0 auto; }
   .pin-dots { display: flex; gap: 14px; justify-content: center; margin: 26px 0; }
-  .pin-dots span { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border); transition: background .15s ease; }
+  .pin-dots span { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--gold-dim); transition: background .15s ease; }
   .pin-dots span.lleno { background: var(--gold); border-color: var(--gold); }
   .pin-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 280px; margin: 0 auto; }
   .pin-key { background: var(--black-2); border: 1px solid var(--border-dim); color: var(--text-1); border-radius: 14px; padding: 18px 0; font-size: 22px; font-family: var(--font-serif); cursor: pointer; }
@@ -494,6 +494,17 @@ function authLogin(cuerpo) {
   }).catch(function(){ return { status: 0, data: {} }; });
 }
 
+// Código dentro del token guardado (solo para comparar; la firma la verifica
+// el servidor). null si no hay token o no se puede leer.
+function codigoDeSesion() {
+  try {
+    var t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) return null;
+    var p = t.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(p)).codigo || null;
+  } catch(e) { return null; }
+}
+
 function guardarSesion(data, codigo) {
   sessionStorage.setItem(TOKEN_KEY, data.token);
   if (codigo) { try { localStorage.setItem(STORAGE_KEY_CODIGO, codigo); } catch(e) {} }
@@ -722,6 +733,11 @@ function init() {
   // 3) ¿Sesión vigente en esta pestaña? Si no, se pregunta al servidor sin
   //    PIN: los demo entran directo (solo lectura); un paciente real
   //    recibe "pin_requerido" y se muestra el teclado.
+  // La sesión guardada tiene que ser de ESTE código: si se abre el enlace de
+  // otro paciente en el mismo teléfono, se descarta y se pide su PIN.
+  if (sessionStorage.getItem(TOKEN_KEY) && codigoDeSesion() !== pacienteCodigo) {
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch(e) {}
+  }
   if (sessionStorage.getItem(TOKEN_KEY)) { irA('p-cargando'); cargarPaciente(); return; }
   irA('p-cargando');
   authLogin({ tipo: 'paciente', codigo: pacienteCodigo }).then(function(r) {
