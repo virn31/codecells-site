@@ -256,7 +256,14 @@
 
 <script>
 // ─── ESTADO DE LA SESIÓN (vive solo en memoria — nunca en localStorage) ──
-let sesion = { staffCodigo: null, pacienteCodigo: null, pacienteRecordId: null, pacienteNombre: null };
+// `token`: sesión firmada del médico (api/auth-login.js), emitida al
+// verificar al personal. Sin él /api/airtable responde 401 a todo lo que
+// no es público — por eso el kiosco no podía pasar del paso 1.
+let sesion = { staffCodigo: null, token: null, pacienteCodigo: null, pacienteRecordId: null, pacienteNombre: null };
+
+function headersSesion() {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion.token}` };
+}
 
 function iniciarKiosco() {
   const musica = document.getElementById('musica-fondo');
@@ -323,10 +330,21 @@ async function verificarStaff() {
   const btn = document.getElementById('btn-verificar-staff');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
   try {
-    const res = await fetch(`/api/airtable?tabla=medicos&filterByFormula=${encodeURIComponent(`{Código de médico}="${codigo}"`)}`);
-    const data = await res.json();
-    if (!data.records || data.records.length === 0) { err.textContent = 'Código no encontrado.'; return; }
+    // Misma puerta que el Portal Médico (api/auth-login.js): verifica el
+    // código exacto y que la cuenta esté activa, y emite el token con el que
+    // el servidor decide todo lo demás. Antes era un GET sin sesión a
+    // tabla=medicos, que el proxy rechaza con 401 — y ese 401 se mostraba
+    // como "Código no encontrado" (CLAUDE.md §6: un fallo debe verse como fallo).
+    const res = await fetch('/api/auth-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'medico', codigo }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.token) { err.textContent = data.error || `No se pudo verificar el código (error ${res.status}).`; return; }
+    if (data.tipo !== 'medico') { err.textContent = 'Ese código no corresponde a personal médico.'; return; }
     sesion.staffCodigo = codigo;
+    sesion.token = data.token;
     document.getElementById('input-paciente-codigo').value = '';
     document.getElementById('error-paciente').textContent = '';
     irA('p-paciente');
@@ -347,10 +365,14 @@ async function verificarPaciente() {
   const btn = document.getElementById('btn-verificar-paciente');
   btn.disabled = true; btn.innerHTML = '<span class="loader"></span>';
   try {
-    const res = await fetch(`/api/airtable?tabla=pacientes&filterByFormula=${encodeURIComponent(`{Código de paciente}="${codigo}"`)}`);
-    const data = await res.json();
-    if (!data.records || data.records.length === 0) { err.textContent = 'Paciente no encontrado. Verifica el código.'; return; }
-    const rec = data.records[0];
+    // Con sesión médica el servidor IGNORA filterByFormula en 'pacientes'
+    // (lo reemplaza por la cartera propia); el código exacto viaja en
+    // ?pacienteBuscado= — mismo parámetro que usa el Portal Médico.
+    const res = await fetch(`/api/airtable?tabla=pacientes&pacienteBuscado=${encodeURIComponent(codigo)}`, { headers: headersSesion() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { err.textContent = data.error || `No se pudo consultar al paciente (error ${res.status}).`; return; }
+    const rec = (data.records || []).find(r => r.fields && r.fields['Código de paciente'] === codigo);
+    if (!rec) { err.textContent = 'Paciente no encontrado. Verifica el código.'; return; }
     sesion.pacienteCodigo = codigo;
     sesion.pacienteRecordId = rec.id;
     sesion.pacienteNombre = rec.fields['Nombre completo'] || 'Paciente';
@@ -516,7 +538,7 @@ function finalizarSesion() {
 }
 
 function reiniciarKiosco() {
-  sesion = { staffCodigo: null, pacienteCodigo: null, pacienteRecordId: null, pacienteNombre: null };
+  sesion = { staffCodigo: null, token: null, pacienteCodigo: null, pacienteRecordId: null, pacienteNombre: null };
   historiaIdx = 0; historiaRespuestas = {};
   document.getElementById('input-staff-codigo').value = '';
   document.getElementById('input-paciente-codigo').value = '';
