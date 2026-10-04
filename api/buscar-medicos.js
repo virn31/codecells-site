@@ -15,7 +15,7 @@ const client = new Anthropic({
 
 // Proxy a Airtable para obtener médicos
 async function obtenerMedicosDeAirtable() {
-  const baseId = "app6jyD9pDlTLpknA";
+  const baseId = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
   const tableId = "tbl87DsuBMmb4DjFM";
   const token = process.env.AIRTABLE_TOKEN;
 

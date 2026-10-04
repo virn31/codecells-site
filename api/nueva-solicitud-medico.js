@@ -11,7 +11,7 @@
 const { sendTelegramMessage } = require('../lib/telegram');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
-const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
+const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';
 const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;

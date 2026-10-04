@@ -9,11 +9,7 @@
 //   handler (req, res) con req.query, req.body (JSON) y res.status/json.
 // - Carga .env.local (ignorado por git). Debe traer:
 //     AIRTABLE_BASE_ID=appCQ0RdhqFMGxWL5   (base de prueba)
-//     NODE_ENV=development + PERMITIR_REGISTRO_LOCAL=true  (descongela en local)
-// - OJO: estos endpoints tienen la base de PRODUCCIÓN fija y escribirían en
-//   producción aunque corran aquí: agenda, agenda-sync-cron, buscar-medicos,
-//   capacitacion-progreso, google-oauth-callback, guardar-preconsulta,
-//   nueva-solicitud-medico, telegram-bot, vip-activar.
+//   (con la base de prueba nunca hay congelamiento — ver lib/congelamientoDatosPersonales.js)
 // - En esta PC la PRIMERA llamada de cada proceso a Airtable tarda ~10 s y a
 //   veces falla ("fetch failed"); reintentar. Usar 127.0.0.1, no localhost
 //   (localhost intenta IPv6 y se cuelga).
