@@ -1432,9 +1432,10 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+      const TBL_CATALOGO_PARAMETROS = 'tblA51aUeYypWQMQV';
       const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
 
       // auth.recId ya es el recordId del paciente resuelto por autorizarPaciente()
@@ -1473,9 +1474,35 @@ module.exports = async function handler(req, res) {
       }
 
       if (filas.length) {
+        // Resolver `codigo` → recordId de CATALOGO_PARAMETROS por MATCH EXACTO
+        // de `Codigo` — nunca por coincidencia de texto contra el analito
+        // (CLAUDE.md §6: no adivinar por texto lo que puede resolverse por
+        // identificador). `codigo` lo manda el frontend cuando el valor viene
+        // de un formulario ligado a un parámetro conocido (ej. biometría/
+        // Doppler de control prenatal); si no lo manda, el valor se guarda
+        // igual pero queda sin `Parametro` — como hoy — y por tanto fuera del
+        // motor de gráficas hasta que alguien lo enlace a mano.
+        const codigosPedidos = [...new Set(filas.map(v => v.codigo).filter(Boolean))];
+        const recIdPorCodigo = {};
+        if (codigosPedidos.length) {
+          const formula = `OR(${codigosPedidos.map(c => `{Codigo}="${String(c).replace(/"/g, '\\"')}"`).join(',')})`;
+          const catUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_CATALOGO_PARAMETROS}?filterByFormula=${encodeURIComponent(formula)}&pageSize=100`;
+          try {
+            const catRes = await fetch(catUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+            const catData = await catRes.json();
+            (catData.records || []).forEach(rec => {
+              const cod = rec.fields && rec.fields['Codigo'];
+              if (cod) recIdPorCodigo[cod] = rec.id;
+            });
+          } catch (e) {
+            console.error('[nova] error resolviendo codigo→Parametro en labs rápidos:', e.message);
+          }
+        }
+
         const registrosValores = filas.map(v => {
           const banderaCap = banderasValidas.includes(v.bandera) ? v.bandera : 'Indeterminado';
           const numMatch = String(v.valor || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+          const parametroId = v.codigo ? recIdPorCodigo[v.codigo] : null;
           return {
             fields: {
               'Analito': v.analito,
@@ -1492,6 +1519,10 @@ module.exports = async function handler(req, res) {
               'Estudio (NOVA LABS)': [crearData.id],
               'Registrado por': [auth.medicoRecId],
               'Fecha de registro': ahoraISO,
+              // Enlace al catálogo + Confianza SOLO si el código se resolvió
+              // de verdad — sin esto el motor de gráficas nunca grafica este
+              // punto (graficas_series exige `Parametro`, ver api/airtable.js).
+              ...(parametroId ? { 'Parametro': [parametroId], 'Confianza': 'Alta' } : {}),
             },
           };
         });
@@ -1595,8 +1626,12 @@ module.exports = async function handler(req, res) {
         })
       });
       const extractData = await extractRes.json();
+      // El bloque de texto no siempre es content[0] — con thinking activado,
+      // Claude manda un bloque {type:"thinking"} primero. Buscar por type,
+      // nunca asumir posición (mismo bug que medico_extraer_labs_texto).
+      const textBlockEstudio = (extractData.content || []).find(b => b && b.type === 'text');
       let extraido;
-      try { extraido = JSON.parse((extractData.content?.[0]?.text || '').trim()); } catch { extraido = { tipo_estudio: 'Otro estudio', fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
+      try { extraido = JSON.parse((textBlockEstudio?.text || '').trim()); } catch { extraido = { tipo_estudio: 'Otro estudio', fecha_estudio: null, panel_sugerido: 'Personalizado', analitos: [] }; }
       const analitos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
       const panel = panelesValidos.includes(extraido.panel_sugerido) ? extraido.panel_sugerido : 'Personalizado';
       const tipoEstudio = tiposEstudioValidos.includes(extraido.tipo_estudio) ? extraido.tipo_estudio : (analitos.length ? 'Laboratorio' : 'Otro estudio');
@@ -1686,6 +1721,286 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] medico_subir_estudio error:', err.message);
       return res.status(500).json({ error: 'Error interno al procesar el estudio.' });
+    }
+  }
+
+  // ─── MÉDICO: EXTRAER LABS DE TEXTO PEGADO (paso 1 de 2 — NUNCA escribe) ──
+  // Mismo mecanismo de extracción que medico_subir_estudio (un solo mensaje
+  // a Claude, JSON puro) pero el origen es texto pegado, no un archivo — y
+  // además de extraer, RESUELVE cada analito contra CATALOGO_PARAMETROS
+  // (el "normalizador"). No toca Airtable en escritura: regresa la tabla de
+  // confirmación para que el médico la revise. La confirmación real pasa
+  // por medico_confirmar_labs_texto, abajo — esa es la que escribe.
+  if (action === 'medico_extraer_labs_texto') {
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      const { pacienteCode, texto } = req.body;
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
+        return res.status(403).json({ error: 'Código de paciente inválido.' });
+      }
+      if (!texto || !texto.trim()) return res.status(400).json({ error: 'Falta el texto a extraer.' });
+
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      // Autorización de solo-lectura aquí (no se escribe nada en este paso),
+      // pero igual se exige: extraer y mostrarle a un médico sin acceso al
+      // paciente ya sería una fuga del expediente.
+      try {
+        await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: false });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const TBL_CATALOGO_PARAMETROS = 'tblA51aUeYypWQMQV';
+
+      // Catálogo completo (Codigo/Nombre/Alias/Unidad) — es el "normalizador":
+      // se le da a Claude como única fuente de verdad para resolver contra,
+      // nunca se le pide que invente un código que no esté en esta lista.
+      let catalogoTexto = '(catálogo no disponible)';
+      const catalogoPorCodigo = {};
+      try {
+        let offset, registros = [];
+        do {
+          const p = new URLSearchParams();
+          p.set('pageSize', '100');
+          p.set('filterByFormula', '{Activo}=1');
+          if (offset) p.set('offset', offset);
+          const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_CATALOGO_PARAMETROS}?${p.toString()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          const d = await r.json();
+          registros.push(...(d.records || []));
+          offset = d.offset;
+        } while (offset);
+        registros.forEach(rec => {
+          const f = rec.fields || {};
+          if (!f['Codigo']) return;
+          catalogoPorCodigo[f['Codigo']] = { recId: rec.id, nombre: f['Nombre'] || f['Codigo'], unidad: f['Unidad'] || '' };
+        });
+        catalogoTexto = registros
+          .filter(rec => rec.fields && rec.fields['Codigo'])
+          .map(rec => {
+            const f = rec.fields;
+            return `${f['Codigo']} | ${f['Nombre'] || ''} | alias: ${f['Alias'] || '(ninguno)'} | unidad: ${f['Unidad'] || ''}`;
+          }).join('\n');
+      } catch (e) {
+        console.error('[nova] medico_extraer_labs_texto error leyendo catálogo:', e.message);
+      }
+
+      const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-5',
+          max_tokens: 2500,
+          messages: [{
+            role: 'user',
+            content: [{
+              type: 'text', text:
+                `Un médico pegó el siguiente texto de un resultado de laboratorio. Extrae cada analito en JSON puro, sin texto adicional ni backticks.\n\n` +
+                `TEXTO PEGADO:\n"""\n${texto}\n"""\n\n` +
+                `CATÁLOGO DE PARÁMETROS CONOCIDOS (código | nombre | alias | unidad) — es la ÚNICA fuente válida de códigos, nunca inventes uno que no esté aquí:\n${catalogoTexto}\n\n` +
+                `Formato exacto de salida:\n` +
+                `{"fecha_estudio":"YYYY-MM-DD o null si no aparece","analitos":[{"nombre_crudo":"EXACTAMENTE como aparece escrito en el texto, sin corregir ni traducir","valor":"","unidad":"","rango_texto":"como aparece impreso, ej. 70-100","bandera":"normal|alto|bajo|indeterminado","critico":true o false,"codigo_resuelto":"el código del catálogo que mejor coincide con nombre_crudo, o null si ninguno coincide razonablemente","confianza":"Alta|Media|Baja — Alta solo si el nombre o uno de sus alias coincide de forma inequívoca; Media si es una coincidencia razonable pero no exacta (ej. abreviatura plausible); Baja o null de codigo_resuelto si no hay nada parecido en el catálogo"}]}\n` +
+                `"nombre_crudo" es evidencia médico-legal — transcríbelo literal, nunca lo normalices ni lo corrijas ahí. La normalización va SOLO en "codigo_resuelto".`
+            }]
+          }]
+        })
+      });
+      const extractData = await extractRes.json();
+      const textBlock = (extractData.content || []).find(b => b && b.type === 'text');
+      let extraido;
+      try { extraido = JSON.parse((textBlock?.text || '').trim()); } catch (eParse) { console.error('[nova] medico_extraer_labs_texto JSON.parse falló:', eParse.message); extraido = { fecha_estudio: null, analitos: [] }; }
+      const analitosCrudos = Array.isArray(extraido.analitos) ? extraido.analitos : [];
+      const fechaExtraidaValida = typeof extraido.fecha_estudio === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(extraido.fecha_estudio.trim());
+
+      // Separar aquí (no solo en el frontend) para que la regla "Alta/Media
+      // pasan, el resto requiere revisión" sea la misma sin importar quién
+      // consuma este endpoint.
+      const confianzasValidas = ['Alta', 'Media', 'Baja'];
+      const propuestas = [], requiereRevision = [];
+      analitosCrudos.forEach(a => {
+        const confianza = confianzasValidas.includes(a.confianza) ? a.confianza : 'Baja';
+        const codigoResuelto = (a.codigo_resuelto && catalogoPorCodigo[a.codigo_resuelto]) ? a.codigo_resuelto : null;
+        const fila = {
+          nombreCrudo: a.nombre_crudo || '',
+          valor: a.valor != null ? String(a.valor) : '',
+          unidad: a.unidad || '',
+          rangoTexto: a.rango_texto || '',
+          bandera: a.bandera || 'indeterminado',
+          critico: !!a.critico,
+          codigoPropuesto: (confianza === 'Alta' || confianza === 'Media') ? codigoResuelto : null,
+          nombreParametroPropuesto: codigoResuelto ? catalogoPorCodigo[codigoResuelto].nombre : null,
+          confianza,
+        };
+        if (fila.codigoPropuesto) propuestas.push(fila);
+        else requiereRevision.push(fila);
+      });
+
+      return res.status(200).json({
+        ok: true,
+        fechaEstudio: fechaExtraidaValida ? extraido.fecha_estudio.trim() : null,
+        propuestas,
+        requiereRevision,
+      });
+    } catch (err) {
+      console.error('[nova] medico_extraer_labs_texto error:', err.message);
+      return res.status(500).json({ error: 'Error interno al extraer el texto.' });
+    }
+  }
+
+  // ─── MÉDICO: CONFIRMAR LABS DE TEXTO (paso 2 de 2 — la única que escribe) ──
+  // Nada llega aquí sin que un médico lo haya revisado fila por fila en el
+  // paso anterior — esa confirmación es la autoría del dato (regla 1). Cada
+  // fila donde `codigoFinal` difiere de `codigoPropuesto` es una corrección
+  // del médico: se agrega `nombreCrudo` como alias nuevo del parámetro final
+  // (regla 3), sin duplicar si ya estaba.
+  if (action === 'medico_confirmar_labs_texto') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      const { pacienteCode, fechaEstudio, panel, filas } = req.body;
+      if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_confirmar_labs_texto' });
+        return res.status(403).json({ error: 'Código de paciente inválido.' });
+      }
+      const filasValidas = Array.isArray(filas) ? filas.filter(f => f && f.nombreCrudo && f.codigoFinal) : [];
+      if (!filasValidas.length) return res.status(400).json({ error: 'No hay filas confirmadas con parámetro asignado.' });
+
+      const sesionMed = verificarToken(tokenDesdeRequest(req));
+      if (!sesionMed || sesionMed.tipo !== 'medico') {
+        return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
+      }
+      let auth;
+      try {
+        auth = await autorizarPaciente(sesionMed.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          return res.status(errAuth.status).json({ error: errAuth.message });
+        }
+        console.error('[nova] medico_confirmar_labs_texto autorizarPaciente:', errAuth.message);
+        return res.status(errAuth.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const TBL_LABS = 'tblhKp4uE1NdXXqLh';
+      const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
+      const TBL_CATALOGO_PARAMETROS = 'tblA51aUeYypWQMQV';
+      const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
+      const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
+
+      // Resolver codigoFinal → recordId del catálogo, por identificador
+      // exacto (ya no se adivina nada — el médico ya lo confirmó).
+      const codigosFinales = [...new Set(filasValidas.map(f => f.codigoFinal))];
+      const catalogoPorCodigo = {};
+      try {
+        const formula = `OR(${codigosFinales.map(c => `{Codigo}="${String(c).replace(/"/g, '\\"')}"`).join(',')})`;
+        const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_CATALOGO_PARAMETROS}?filterByFormula=${encodeURIComponent(formula)}&pageSize=100`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        const d = await r.json();
+        (d.records || []).forEach(rec => {
+          const cod = rec.fields && rec.fields['Codigo'];
+          if (cod) catalogoPorCodigo[cod] = { recId: rec.id, alias: (rec.fields['Alias'] || '') };
+        });
+      } catch (e) {
+        console.error('[nova] medico_confirmar_labs_texto error leyendo catálogo:', e.message);
+      }
+
+      const ahoraISO = new Date().toISOString();
+      const hoy = ahoraISO.slice(0, 10);
+      const fechaFinal = (typeof fechaEstudio === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaEstudio)) ? fechaEstudio : null;
+
+      // Cabecera NOVA LABS — "Resultados (texto)" con lo que el médico
+      // confirmó, tal cual se transcribió (no normalizado).
+      const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          typecast: true,
+          fields: {
+            'Código de paciente ref': auth.codigo,
+            ...(fechaFinal ? { 'Fecha de resultados': fechaFinal } : {}),
+            'Panel solicitado': panel || 'Personalizado',
+            'Tipo de estudio': 'Laboratorio',
+            'Resultados (texto)': filasValidas.map(f => `${f.nombreCrudo}: ${f.valor} ${f.unidad || ''}`).join('\n'),
+            'Paciente': [auth.recId],
+            'Registrado por': [auth.medicoRecId],
+            'Fecha de registro': ahoraISO,
+          },
+        }),
+      });
+      const crearData = await crearRes.json();
+      if (!crearData.id) {
+        console.error('[nova] error creando NOVA LABS (texto pegado):', JSON.stringify(crearData));
+        return res.status(502).json({ error: 'No se pudo guardar el estudio.' });
+      }
+
+      // LAB_VALORES — Analito SIEMPRE el texto crudo tal como se transcribió
+      // (regla 4), Parametro enlazado al código ya confirmado por el médico,
+      // Confianza=Alta porque un médico lo verificó en este paso.
+      const registrosValores = filasValidas
+        .filter(f => catalogoPorCodigo[f.codigoFinal])
+        .map(f => {
+          const banderaCap = capitalizar(f.bandera);
+          const numMatch = String(f.valor || '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+          return {
+            fields: {
+              'Analito': f.nombreCrudo,
+              'Valor': String(f.valor || ''),
+              ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+              'Unidad': f.unidad || '',
+              'Rango de referencia': f.rangoTexto || '',
+              'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
+              'Es crítico': !!f.critico,
+              'Relevante a patología': true,
+              ...(fechaFinal ? { 'Fecha del estudio': fechaFinal } : { 'Fecha del estudio': hoy }),
+              'Código de paciente ref': auth.codigo,
+              'Paciente': [auth.recId],
+              'Estudio (NOVA LABS)': [crearData.id],
+              'Parametro': [catalogoPorCodigo[f.codigoFinal].recId],
+              'Confianza': 'Alta',
+              'Registrado por': [auth.medicoRecId],
+              'Fecha de registro': ahoraISO,
+            },
+          };
+        });
+      if (registrosValores.length) {
+        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ typecast: true, records: registrosValores }),
+        }).catch(e => console.error('[nova] error creando LAB_VALORES (texto pegado):', e.message));
+      }
+
+      // Alias nuevo SOLO donde el médico corrigió lo que NOVA propuso (o
+      // asignó un código a algo que había quedado en "requiere revisión").
+      // No se agregan aliases para lo que el médico simplemente aceptó tal
+      // cual — eso no es una corrección, el catálogo ya lo reconocía.
+      const correcciones = filasValidas.filter(f => f.codigoFinal && f.codigoFinal !== f.codigoPropuesto && catalogoPorCodigo[f.codigoFinal]);
+      for (const f of correcciones) {
+        const entrada = catalogoPorCodigo[f.codigoFinal];
+        const aliasActual = entrada.alias || '';
+        const yaEstaba = aliasActual.split('\n').map(s => s.trim().toLowerCase()).includes(f.nombreCrudo.trim().toLowerCase());
+        if (yaEstaba) continue;
+        const aliasNuevo = (aliasActual ? aliasActual + '\n' : '') + f.nombreCrudo.trim();
+        await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_CATALOGO_PARAMETROS}/${entrada.recId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: { 'Alias': aliasNuevo } }),
+        }).catch(e => console.error('[nova] error agregando alias:', e.message));
+        entrada.alias = aliasNuevo; // evita duplicar si el mismo código se corrige dos veces en esta misma tanda
+      }
+
+      await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Exitoso', endpoint: 'medico_confirmar_labs_texto' });
+      return res.status(200).json({ ok: true, novaLabsId: crearData.id, analitosGuardados: registrosValores.length, aliasesAgregados: correcciones.length });
+    } catch (err) {
+      console.error('[nova] medico_confirmar_labs_texto error:', err.message);
+      return res.status(500).json({ error: 'Error interno al guardar.' });
     }
   }
 
