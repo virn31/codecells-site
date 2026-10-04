@@ -7,16 +7,16 @@
 
 **Última actualización:** 2026-10-04
 **Rama de trabajo:** `feat/paciente-unico` (sale de `chore/ambiente-preview`, que sale de `feat/kiosco-antecedentes-go`). **Sin push** los commits de `feat/paciente-unico`.
-**Pruebas:** `node --test test/*.test.js` → **158/158 en verde** (ya no hay fallas por congelamiento).
+**Pruebas:** `node --test test/*.test.js` → **171/171 en verde**.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Push de `feat/paciente-unico`** (lo corre Víctor con `!`) y probar en su Preview con el Dr. Galván. OJO: ahí los pacientes ya NO entran con su código; primero "Acceso app" en el portal genera su enlace.
-2. **Fase 2 de SPEC-PACIENTE-UNICO:** app única — `EVALUACIONES_BIOLOGICAS`, anillo + 5 sistemas, plan 90 días (`Fecha inicio protocolo`), referidos únicos, NOVA sin "exclusivo VIP".
-3. **Fase 3:** retiro de VIP (portal-vip, dezawavip, vip-activar, DZW, tipo 'vip', pre-auth de pacientes_vip) + redirecciones.
-4. Pendiente de Víctor: **capas A/B/C** de las consultas (§5) — hoy el colega ve Padecimiento/Exploración.
+1. **Push de `feat/paciente-unico`** (lo corre Víctor con `!`) y probar MVP-1 en su Preview (celular real) con el Dr. Galván.
+2. **MVP-2** (docs/VISION-APP-MEDICA.md): medicamentos estructurados que prescribe el médico en el portal → el paciente los ve y marca "tomado" → adherencia real → avisos dentro de la app (y entonces sí, recordatorios).
+3. **Fase 3 de SPEC-PACIENTE-UNICO:** retiro de VIP (portal-vip, dezawavip, vip-activar, DZW, tipo 'vip', pre-auth de pacientes_vip, tabla REFERIDOS_VIP sin uso) + redirecciones.
+4. Pendiente de Víctor: **capas A/B/C** de las consultas (§5).
 
 ## 2. Ambientes (desde 2026-10-04)
 
@@ -42,11 +42,18 @@
 | SPEC paciente único (decisiones D1–D6 aceptadas como recomendadas) | `eb7ccf0` | paciente-unico |
 | Fase 1 identidad: PIN en servidor, liga de activación (portal "Acceso app", kiosco QR local), bloqueo 5/10, fin del login solo-código, fin del modo médico de mi-nivel | `c0bc957`, `de1c263` | paciente-unico |
 
-Verificado en vivo y en navegador (Chrome, local + prueba): activación, PIN, bloqueo, portal "Acceso app". **Kiosco: QR no probado en navegador.**
+| Visión de la app médica (Víctor) con nota de alcance por etapas | `c65a819` | paciente-unico |
+| MVP-1: cuestionario compartido + EVALUACIONES_BIOLOGICAS calificadas en servidor (escala función 0–10) | `dd9469c` | paciente-unico |
+| MVP-1: app con pestañas, anillo, "Reevaluarme" (14 días), "Día X de 90" | `b843993` | paciente-unico |
+| MVP-1: Biological Map en el kiosco (✓ solo si se guardó) | `960cf91` | paciente-unico |
+| MVP-1: portal — pestaña Biological Map + fecha de inicio del protocolo + fix guardado sin verificar | `dbd286d` | paciente-unico |
+| MVP-1: NOVA un solo modo (sin consejos clínicos, sin recordatorios falsos, sin datos de terceros) + compartir invitación | `7a84a45` | paciente-unico |
+
+Verificado en Chrome (local + base de prueba): identidad completa, app (evaluación de Mariana 6.8), kiosco (PBA 4.8 y 7.5), portal (gráfica + tabla). **Sin probar en celular real.** Sin probar en navegador: formulario de fecha de inicio del protocolo.
 
 ## 4. Antes de fusionar a `main` (crear en producción "CODE CELLS CRM")
 
-Tablas: `ANTECEDENTES_OBSTETRICOS`, `LLAVES_ACCESO`, `VINCULACIONES`, `CREDENCIALES_PACIENTE` (las nuevas se usan por NOMBRE). Campos: `Registrado por` en HISTORIA CLÍNICA; en CONSULTAS Edema, Proteinuria, Movimientos fetales, Placenta — localización/grado, Interpretación Doppler. Y: al fusionar, los pacientes de producción ya no entran con su código (necesitan enlace) — aceptable porque no hay nada lanzado.
+Tablas: `ANTECEDENTES_OBSTETRICOS`, `LLAVES_ACCESO`, `VINCULACIONES`, `CREDENCIALES_PACIENTE`, `EVALUACIONES_BIOLOGICAS` (las nuevas se usan por NOMBRE). Campos: `Registrado por` en HISTORIA CLÍNICA; `Fecha inicio protocolo` en PACIENTES; en CONSULTAS Edema, Proteinuria, Movimientos fetales, Placenta — localización/grado, Interpretación Doppler. Y: al fusionar, los pacientes de producción ya no entran con su código (necesitan enlace) — aceptable porque no hay nada lanzado.
 
 ## 5. Decisiones abiertas para Víctor
 
@@ -56,7 +63,7 @@ Tablas: `ANTECEDENTES_OBSTETRICOS`, `LLAVES_ACCESO`, `VINCULACIONES`, `CREDENCIA
 4. Datos reales de pacientes de la auditoría en producción: qué hacer antes del lanzamiento (con el abogado).
 5. Entrevistas: `SPEC-PLANTILLAS-LISTA-ENTREVISTAS.md`.
 
-**Ya decidido — no volver a discutir:** VIP se fusiona en el paciente normal (red para todos); el código CC-PAC- es identificador, no credencial; el paciente es dueño del expediente, no del criterio médico; los colegas no ven las notas privadas del autor; producción congelada hasta el interruptor; G/P/C/A se calcula; estética Visme se queda; plantillas por `MÉDICOS.Plantillas activas`.
+**Ya decidido — no volver a discutir:** construir la app por etapas MVP-1/2/3 con la paleta actual; escala del Biological Map = función 0–10 (más = mejor); NOVA no da consejos clínicos personalizados a nadie; VIP se fusiona en el paciente normal (red para todos); el código CC-PAC- es identificador, no credencial; el paciente es dueño del expediente, no del criterio médico; los colegas no ven las notas privadas del autor; producción congelada hasta el interruptor; G/P/C/A se calcula; estética Visme se queda; plantillas por `MÉDICOS.Plantillas activas`.
 
 ## 6. Pendientes (no bloquean)
 
