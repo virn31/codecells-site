@@ -48,7 +48,92 @@
     --font-serif: 'Cormorant Garamond', Georgia, serif;
     --font-sans: 'DM Sans', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+
+    /* ─── CONTROL PRENATAL: mismos roles semánticos que control-prenatal.html
+       (bg/surface/surface-2/ink/muted/line/accent/ok/warn/crit), mapeados a
+       la paleta YA existente del portal — nunca colores nuevos sueltos.
+       Si otro panel longitudinal se agrega después (metabólico, posop),
+       reusa estos mismos tokens --pn-*, no inventa los suyos. */
+    --pn-surface: var(--black-2);
+    --pn-surface-2: var(--black-3);
+    --pn-line: var(--border-dim);
+    --pn-accent: var(--gold);
+    --pn-accent-soft: var(--gold-pale);
+    --pn-ok: #6FBF8B;
+    --pn-ok-bg: rgba(111,191,139,0.12);
+    --pn-warn: var(--energy);
+    --pn-warn-bg: rgba(232,163,61,0.14);
+    --pn-naranja: #E0823D;
+    --pn-naranja-bg: rgba(224,130,61,0.14);
+    --pn-crit: var(--repair);
+    --pn-crit-bg: rgba(212,101,74,0.14);
   }
+
+  /* ─── PANEL LONGITUDINAL (Control prenatal y futuros) ───────────────
+     Misma composición que la maqueta de referencia (control-prenatal.html):
+     mismos bloques, mismo orden, mismas proporciones — solo los tokens de
+     color cambian a los del portal (--pn-*, arriba). Nombres de clase
+     calcados a propósito de la maqueta (.pn-verdict, .pn-light, .pn-rk…)
+     para que quien compare ambos archivos reconozca la misma pieza. */
+  .pn-eyebrow { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); font-weight:600; }
+  .pn-header { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--pn-line); padding-bottom:16px; margin-bottom:18px; }
+  .pn-eg-big { font-family:var(--font-mono); font-size:30px; font-weight:500; line-height:1.1; color:var(--pn-accent); }
+  .pn-eg-sub { font-size:12px; color:var(--text-3); text-align:right; }
+
+  .pn-status { display:grid; grid-template-columns:minmax(190px,1fr) 3fr; gap:14px; margin-bottom:10px; }
+  @media (max-width:860px) { .pn-status { grid-template-columns:1fr; } }
+  .pn-verdict { background:var(--pn-surface); border:1px solid var(--pn-line); border-radius:6px; padding:14px 16px; display:flex; flex-direction:column; justify-content:center; border-left:4px solid var(--text-3); }
+  .pn-verdict .word { font-family:var(--font-serif); font-size:22px; font-weight:600; line-height:1.15; }
+  .pn-why { font-size:12.5px; color:var(--text-3); margin:8px 0 18px; }
+
+  .pn-lights { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:8px; }
+  .pn-light { background:var(--pn-surface); border:1px solid var(--pn-line); border-radius:6px; padding:9px 11px; display:flex; gap:9px; align-items:flex-start; min-width:0; }
+  .pn-dot { width:9px; height:9px; border-radius:50%; flex:none; margin-top:5px; }
+  .pn-light .lbl { font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); font-weight:600; }
+  .pn-light .val { font-family:var(--font-mono); font-size:13px; margin-top:1px; }
+
+  .pn-card { background:var(--pn-surface); border:1px solid var(--pn-line); border-radius:6px; padding:16px 18px; min-width:0; margin-bottom:14px; }
+  .pn-card > h2, .pn-section-h2 { font-size:14px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); font-weight:600; margin-bottom:12px; }
+
+  .pn-dat { display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:10px; }
+  .pn-dat .cell { background:var(--pn-surface-2); border-radius:5px; padding:9px 11px; }
+  .pn-dat .cell.key { background:var(--pn-accent-soft); outline:1px solid rgba(217,164,65,0.35); }
+  .pn-dat .k { font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); font-weight:600; }
+  .pn-dat .v { font-family:var(--font-mono); font-size:16px; margin-top:2px; color:var(--text-1); }
+
+  .pn-riesgos { display:grid; grid-template-columns:repeat(auto-fit,minmax(248px,1fr)); gap:12px; margin-bottom:14px; }
+  .pn-rk { border:1px solid var(--pn-line); border-radius:6px; padding:12px 13px; background:var(--pn-surface-2); border-left:4px solid var(--text-3); min-width:0; }
+  .pn-rk-hd { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:2px; }
+  .pn-rk-nm { font-family:var(--font-serif); font-size:16px; font-weight:600; color:var(--text-1); }
+  .pn-rk-st { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; font-weight:700; white-space:nowrap; }
+  .pn-rk-um { font-size:11.5px; color:var(--text-3); margin-bottom:9px; }
+  .pn-rk-m { padding:3.5px 0; border-bottom:1px dotted var(--pn-line); }
+  .pn-rk-m:last-of-type { border-bottom:0; }
+  .pn-rk-m-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:13px; }
+  .pn-rk-m .n { color:var(--text-3); min-width:0; }
+  .pn-rk-m .q { font-family:var(--font-mono); white-space:nowrap; color:var(--text-1); }
+  .pn-rk-trend { font-size:10px; margin-top:1px; }
+  .pn-flag { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .pn-arw { font-family:var(--font-mono); font-size:11.5px; margin-left:6px; }
+  .pn-rk-empty { font-size:12px; color:var(--text-3); }
+
+  .pn-grid-2 { display:grid; grid-template-columns:1.35fr 1fr; gap:14px; margin-bottom:14px; }
+  @media (max-width:860px) { .pn-grid-2 { grid-template-columns:1fr; } }
+
+  .pn-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px; }
+  .pn-chart-note { font-size:11px; color:var(--text-3); margin-top:6px; }
+
+  .pn-tabla { width:100%; border-collapse:collapse; font-size:13px; }
+  .pn-tabla th { text-align:left; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); font-weight:600; padding:5px 8px 5px 0; border-bottom:1px solid var(--pn-line); }
+  .pn-tabla td { padding:6px 8px 6px 0; border-bottom:1px solid var(--pn-line); font-family:var(--font-mono); color:var(--text-1); }
+  .pn-tabla td:first-child { font-family:var(--font-sans); }
+  .pn-na { color:var(--text-3); font-style:italic; font-size:12.5px; }
+  .pn-foot-note { font-size:11.5px; color:var(--text-3); margin-top:6px; }
+
+  .pn-details > summary.pn-section-h2 { cursor:pointer; display:inline-flex; list-style:none; }
+  .pn-details > summary.pn-section-h2::-webkit-details-marker { display:none; }
+  .pn-details > summary.pn-section-h2::before { content:'▸ '; }
+  .pn-details[open] > summary.pn-section-h2::before { content:'▾ '; }
 
   /* ─── PANTALLA SELECTOR DE RUTA ─── */
   #screen-selector {
@@ -244,6 +329,18 @@
     --border-dim: rgba(28,25,21,0.10);
     --gold-pale: rgba(184,146,74,0.12);
     --gold-pale2: rgba(184,146,74,0.06);
+
+    /* Mismos tonos, ajustados de saturación para legibilidad sobre fondo
+       claro — no es un tema distinto, es la misma identidad con el ok/warn/
+       crit que ya trae el tema oscuro reequilibrados para contraste. */
+    --pn-ok: #2E7D4F;
+    --pn-ok-bg: rgba(46,125,79,0.10);
+    --pn-warn: #A8701E;
+    --pn-warn-bg: rgba(168,112,30,0.10);
+    --pn-naranja: #B5571E;
+    --pn-naranja-bg: rgba(181,87,30,0.10);
+    --pn-crit: #A43A28;
+    --pn-crit-bg: rgba(164,58,40,0.10);
   }
   body.light #screen-login {
     background-color: #1a1a1a;
@@ -1492,6 +1589,15 @@
     margin-top: 8px;
     flex-wrap: wrap;
   }
+
+  /* Contexto de relación — nombres de hijos compartidos por la paciente.
+     Va antes de lo clínico, por eso se renderiza arriba de exp-tags. */
+  .exp-hijos {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 4px;
+  }
+  .exp-hijos b { color: var(--text-2); font-weight: 600; }
 
   .pactions {
     display: flex;
@@ -2931,6 +3037,10 @@
         var lang = (window.getLanguage && window.getLanguage()) || 'es';
         return lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-BR' : 'es-MX';
       }
+      // Expuesta a window: formatDate(), iniciarApp() y otros puntos del
+      // <script> principal la llaman como si fuera global — sin esto,
+      // truenan con ReferenceError y cortan la función a la mitad.
+      window.i18nDateLocale = i18nDateLocale;
       function fechaFormateada(){
         const f = new Date().toLocaleDateString(i18nDateLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         return f.charAt(0).toUpperCase() + f.slice(1);
@@ -3168,6 +3278,7 @@
           <div class="exp-info">
             <div class="exp-nombre" id="exp-nombre">—</div>
             <div class="exp-id" id="exp-id">—</div>
+            <div class="exp-hijos" id="exp-hijos" style="display:none;"></div>
             <div class="exp-tags" id="exp-tags"></div>
           </div>
           <div class="pactions" style="align-self:flex-start;margin-top:4px;">
@@ -3191,6 +3302,7 @@
           <button class="tab-btn" data-tab="consultas">Consultas</button>
           <button class="tab-btn" data-tab="labs">NOVA LABS</button>
           <button class="tab-btn" data-tab="nutricion">Nutrición</button>
+          <button class="tab-btn" data-tab="prenatal" id="tab-btn-prenatal" style="display:none;">Control prenatal</button>
         </div>
 
         <div class="exp-body">
@@ -3445,8 +3557,8 @@
             <!-- Evolución y seguimiento — datos reales de CONSULTAS (campo
                  "Peso en consulta (kg)" por sesión). Ver cargarNutricion()
                  en el script principal. El campo "Ejercicio" no tiene columna
-                 propia en Airtable todavía — se infiere de "Notas internas"
-                 como mejor esfuerzo hasta que exista un campo dedicado. -->
+                 propia — se lee de "Adherencia — observaciones" (con
+                 fallback a "Notas internas" para registros históricos). -->
             <div class="nutri-evolucion">
               <div class="section-label">Evolución del paciente</div>
 
@@ -3559,6 +3671,123 @@
 
         </div>
 
+        <!-- Control prenatal — primera configuración del panel genérico de
+             seguimiento longitudinal (CLAUDE.md-style: nada de "semanas de
+             gestación" ni nombres de condiciones obstétricas en el MOTOR —
+             eso vive aquí, en la configuración de esta pestaña, no en
+             renderGrafica()/evaluarZona(), que siguen siendo agnósticas). -->
+        <div class="tab-pane" id="tab-prenatal">
+
+          <div id="pn-sin-datacion" class="pn-card" style="display:none;">
+            <div>No disponible — faltan los datos de datación (FUM/LCC/transferencia) en la ficha del paciente.</div>
+          </div>
+          <div id="pn-datacion-wrap">
+
+            <!-- Encabezado: EG a la derecha, igual que la maqueta -->
+            <header class="pn-header">
+              <div><span class="pn-eyebrow">Edad gestacional establecida</span>
+                <div id="pn-eg-actual" class="pn-eg-big">—</div>
+              </div>
+              <div id="pn-fpp" class="pn-eg-sub"></div>
+            </header>
+
+            <!-- Veredicto + semáforo de 6 luces -->
+            <section class="pn-status">
+              <div id="pn-veredicto-box" class="pn-verdict">
+                <div class="pn-eyebrow">Evolución obstétrica</div>
+                <div id="pn-veredicto-palabra" class="word">—</div>
+              </div>
+              <div class="pn-lights" id="pn-semaforo"></div>
+            </section>
+            <div id="pn-veredicto-why" class="pn-why"></div>
+
+            <details class="pn-details" id="pn-datacion-detalle">
+              <summary class="pn-section-h2">Datación</summary>
+              <div class="pn-dat" id="pn-datacion-grid" style="margin-top:10px;margin-bottom:14px;"></div>
+            </details>
+          </div>
+
+          <!-- Antecedentes gineco-obstétricos: fórmula calculada, cronología
+               de eventos previos y vigencia de estudios de vigilancia. -->
+          <section class="pn-card" id="pn-go-wrap">
+            <h2 id="pn-go-titulo">Antecedentes gineco-obstétricos</h2>
+            <div id="pn-go-formula" style="font-family:var(--font-mono);font-size:15px;color:var(--pn-accent);margin-bottom:8px;"></div>
+            <div id="pn-go-intervalo" class="pn-foot-note" style="margin-bottom:10px;"></div>
+            <div class="pn-grid-2">
+              <div>
+                <div class="pn-eyebrow" style="margin-bottom:6px;">Eventos obstétricos</div>
+                <div id="pn-go-eventos"></div>
+              </div>
+              <div>
+                <div class="pn-eyebrow" style="margin-bottom:6px;">Estudios ginecológicos</div>
+                <div id="pn-go-estudios"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Tarjetas de riesgo -->
+          <section class="pn-card">
+            <h2>Vigilancia de riesgo · condiciones de alta frecuencia en el embarazo</h2>
+            <div class="pn-riesgos" id="pn-riesgos" style="margin-bottom:0;"></div>
+          </section>
+
+          <!-- Gráfica -->
+          <section class="pn-card">
+            <h2>Gráfica longitudinal</h2>
+            <div class="pn-tabs" id="pn-vistas-tabs"></div>
+            <div class="nutri-card nutri-chart-wrap" style="margin-bottom:0;">
+              <svg id="pn-chart" viewBox="0 0 560 200" preserveAspectRatio="none" role="img" aria-label="Gráfica de control prenatal"></svg>
+            </div>
+            <div id="pn-chart-nota" class="pn-chart-note"></div>
+          </section>
+
+          <!-- Todo lo que es consulta de detalle, no lectura de un vistazo,
+               va colapsado. -->
+          <details class="pn-details" id="pn-detalle">
+            <summary class="pn-section-h2">Ver detalle completo (tablas y captura)</summary>
+
+            <section class="pn-card" style="margin-top:10px;">
+              <h2>Control materno por consulta</h2>
+              <div style="overflow-x:auto;">
+                <table class="pn-tabla" id="pn-tabla-materno">
+                  <thead><tr>
+                    <th>Fecha</th><th>Peso</th><th>TA</th><th>Edema</th><th>Proteinuria</th><th>Mov. fetales</th><th>Placenta</th>
+                  </tr></thead>
+                  <tbody><tr><td colspan="7" class="pn-na">Cargando…</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="pn-card">
+              <h2>Biometría, Doppler y laboratorio — último valor capturado</h2>
+              <div style="overflow-x:auto;">
+                <table class="pn-tabla" id="pn-tabla-valores">
+                  <thead><tr><th>Parámetro</th><th>Último valor</th><th>Fecha</th></tr></thead>
+                  <tbody><tr><td colspan="3" class="pn-na">Cargando…</td></tr></tbody>
+                </table>
+              </div>
+              <div id="pn-tabla-valores-pie" class="pn-foot-note"></div>
+              <div id="pn-doppler-texto" class="pn-dat" style="margin-top:10px;"></div>
+            </section>
+
+            <section class="pn-card" style="margin-bottom:0;">
+              <h2>Registrar estudio</h2>
+              <button class="btn-secondary" id="pn-btn-abrir-form-usg" type="button">+ Registrar biometría / Doppler / percentiles (USG)</button>
+              <div id="pn-form-usg-wrap" style="display:none;margin-top:10px;">
+                <div class="pn-foot-note" style="margin-bottom:8px;">
+                  Los valores vienen impresos en el informe del estudio — se transcriben, no se calculan. Deja en blanco lo que no venga en el reporte.
+                </div>
+                <div class="pn-dat" id="pn-form-usg"></div>
+                <button class="btn-save" id="pn-btn-guardar-usg" style="margin-top:10px;">
+                  <span id="pn-btn-usg-label">Guardar estudio</span>
+                  <span class="loader" id="pn-btn-usg-loader" style="display:none;"></span>
+                </button>
+              </div>
+            </section>
+          </details>
+
+        </div>
+
         <!-- Formulario de consulta -->
         <div class="consulta-section" style="display:none;">
           <div class="consulta-header">
@@ -3659,8 +3888,13 @@
             </div>
 
             <div class="form-group">
-              <label>Notas internas (no visibles al paciente)</label>
-              <textarea id="f-notas" placeholder="Observaciones del médico…" rows="2"></textarea>
+              <label>Razonamiento clínico (no visible al paciente)</label>
+              <textarea id="f-razonamiento-clinico" placeholder="Impresión preliminar, diagnósticos diferenciales descartados, por qué eligió este tratamiento…" rows="2"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Adherencia — observaciones (se incluye en el resumen del paciente)</label>
+              <textarea id="f-adherencia-obs" placeholder="Ejercicio, dieta, apego al tratamiento…" rows="2"></textarea>
             </div>
 
             <details style="margin-top:0.5rem;">
@@ -3782,6 +4016,24 @@
                 <input type="file" id="f-lab-archivo" accept="application/pdf,image/*" style="display:none;">
                 <button type="button" id="btn-subir-lab-archivo" style="background:none;border:1px solid var(--border);color:var(--text-2);border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;">Elegir archivo…</button>
                 <div id="lab-archivo-estado" style="font-size:11.5px;margin-top:6px;min-height:16px;"></div>
+              </div>
+
+              <div class="form-group">
+                <label>📋 Pegar resultado de laboratorio (texto)</label>
+                <textarea id="f-lab-texto-pegado" placeholder="Pega aquí el texto crudo del resultado, tal como lo copiaste del PDF o del correo del laboratorio…" rows="4"></textarea>
+                <button type="button" id="btn-extraer-lab-texto" style="margin-top:6px;background:none;border:1px solid var(--border);color:var(--text-2);border-radius:6px;padding:6px 12px;font-size:11.5px;cursor:pointer;">Extraer y revisar</button>
+                <div id="lab-texto-estado" style="font-size:11.5px;margin-top:6px;min-height:16px;"></div>
+                <!-- Tabla de confirmación — nada se guarda hasta "Confirmar y guardar".
+                     Esa confirmación es la autoría del dato (NOM-004). -->
+                <div id="lab-texto-confirmacion" style="display:none;margin-top:10px;">
+                  <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">Revisa cada fila. El código de parámetro es editable — si lo cambias, se guarda como alias nuevo para la próxima vez.</div>
+                  <div id="lab-texto-tabla-propuestas"></div>
+                  <div id="lab-texto-tabla-revision"></div>
+                  <button type="button" id="btn-confirmar-lab-texto" class="btn-save" style="margin-top:10px;">
+                    <span id="btn-confirmar-lab-texto-label">Confirmar y guardar</span>
+                    <span class="loader" id="btn-confirmar-lab-texto-loader" style="display:none;"></span>
+                  </button>
+                </div>
               </div>
 
               <div class="form-group">
@@ -4162,6 +4414,7 @@ const TBL_CONSULTAS   = 'consultas';
 const TBL_MEDICOS     = 'medicos';
 const TBL_PROTOCOLOS  = 'protocolos';
 const TBL_LABS        = 'labs';
+const TBL_ANTECEDENTES_GO = 'antecedentes_obstetricos';
 
 // ─── ESTADO ──────────────────────────────────────────────────────
 let medicoActual = null;
@@ -4783,6 +5036,10 @@ async function seleccionarPaciente(pacienteId) {
   cargarConsultas(pacId);
   cargarLabs(pacId);
   revisarCompletitudExpediente(pacId);
+  actualizarVisibilidadPrenatal();
+
+  document.getElementById('exp-hijos').style.display = 'none';
+  cargarAntecedentesGO(pacId).then(renderExpHijos);
 }
 
 // NOVA revisa automáticamente, cada vez que se abre un expediente, si le
@@ -4829,13 +5086,14 @@ function activarTab(tab) {
   const seccionConsulta = document.querySelector('.consulta-section');
   if (seccionConsulta) seccionConsulta.style.display = (tab === 'consultas') ? '' : 'none';
   if (tab === 'nutricion') cargarNutricion();
+  if (tab === 'prenatal') cargarControlPrenatal();
 }
 
 // ─── NUTRICIÓN: evolución y seguimiento (conectado a CONSULTAS) ────
 // Lee las consultas del paciente actual, usa "Peso en consulta (kg)" para
-// la gráfica y "Adherencia (1-10)" para la barra de nutrición. No hay
-// campo dedicado de adherencia de ejercicio en Airtable todavía — se
-// infiere de "Notas internas" (patrón "Xd/semana") como mejor esfuerzo.
+// la gráfica y "Adherencia (1-10)" para la barra de nutrición. El % de
+// ejercicio se lee de "Adherencia — observaciones" (patrón "Xd/semana"),
+// con fallback a "Notas internas" solo para registros anteriores al split.
 
 // ─── MOTOR DE GRÁFICAS: interruptor de aterrizaje ─────────────────
 // La curva de peso se pinta con el motor (renderGrafica). Si en pantalla
@@ -4855,13 +5113,20 @@ const USAR_MOTOR_GRAFICAS = true;
 // lee— hay que migrar los datos a graficas_series. No asumir que este
 // acoplamiento a CONSULTAS fue la arquitectura pensada.
 let _catalogoGraficas = null;
+let _catalogoGraficasEnVuelo = null; // promesa compartida — evita que N llamadas concurrentes (Control Prenatal pide ~30 códigos a la vez) disparen N fetches duplicados del mismo catálogo completo.
 async function getConfigGrafica(codigo) {
   if (!_catalogoGraficas) {
-    const data = await airtableFetch(TBL_CONSULTAS, '?accion=graficas_catalogo');
-    _catalogoGraficas = {};
-    (data.parametros || []).forEach(p => { _catalogoGraficas[p.codigo] = p; });
+    if (!_catalogoGraficasEnVuelo) {
+      _catalogoGraficasEnVuelo = airtableFetch(TBL_CONSULTAS, '?accion=graficas_catalogo')
+        .then(data => {
+          _catalogoGraficas = {};
+          (data.parametros || []).forEach(p => { _catalogoGraficas[p.codigo] = p; });
+        })
+        .finally(() => { _catalogoGraficasEnVuelo = null; });
+    }
+    await _catalogoGraficasEnVuelo;
   }
-  return _catalogoGraficas[codigo] || null;
+  return (_catalogoGraficas && _catalogoGraficas[codigo]) || null;
 }
 
 async function cargarNutricion() {
@@ -4950,7 +5215,8 @@ async function cargarNutricion() {
 
     let pctEjercicio = null;
     for (const r of [...registros].reverse()) {
-      const m = (r.fields['Notas internas'] || '').match(/(\d)\s*d\/semana/i);
+      const texto = r.fields['Adherencia — observaciones'] || r.fields['Notas internas'] || '';
+      const m = texto.match(/(\d)\s*d\/semana/i);
       if (m) { pctEjercicio = Math.round(Number(m[1]) / 7 * 100); break; }
     }
     renderAdherencia('adherencia-ejercicio', pctEjercicio);
@@ -4965,6 +5231,773 @@ async function cargarNutricion() {
   } catch (err) {
     if (lista) lista.innerHTML = '<li class="objetivo-item">No se pudo cargar la evolución nutricional. Verifica tu conexión.</li>';
   }
+}
+
+// ─── CONTROL PRENATAL ───────────────────────────────────────────────
+// Primera configuración del panel genérico de seguimiento longitudinal.
+// Todo lo específico de obstetricia (qué códigos, cómo se agrupan en
+// vistas, cómo se calcula la EG, el umbral de "Embarazo" en Patologías
+// activas) vive AQUÍ — renderGrafica()/evaluarZona()/getConfigGrafica()
+// siguen siendo 100% agnósticas, reutilizadas tal cual del motor que ya
+// usa Nutrición. Un panel futuro (ej. seguimiento post-quirúrgico) sería
+// otro bloque como este, no un cambio al motor.
+
+let _plantillasGraficas = null;
+async function getPlantillaPorNombre(nombre) {
+  if (!_plantillasGraficas) {
+    const data = await airtableFetch(TBL_CONSULTAS, '?accion=graficas_plantillas');
+    _plantillasGraficas = data.plantillas || [];
+  }
+  return _plantillasGraficas.find(p => p.nombre === nombre) || null;
+}
+
+// Visibilidad de la pestaña: el médico tiene activa una plantilla con ese
+// nombre (enlazada en MÉDICOS.'Plantillas activas') Y el paciente tiene
+// 'Embarazo' en Patologías activas. Se llama desde seleccionarPaciente().
+async function actualizarVisibilidadPrenatal() {
+  const btn = document.getElementById('tab-btn-prenatal');
+  if (!btn) return;
+  btn.style.display = 'none';
+  if (!pacienteActual || !medicoActual) return;
+
+  const patologias = pacienteActual.fields['Patologías activas'] || [];
+  if (!patologias.includes('Embarazo')) return;
+
+  const idsPlantillasMedico = medicoActual['Plantillas activas'] || [];
+  if (!idsPlantillasMedico.length) return;
+
+  try {
+    const plantilla = await getPlantillaPorNombre('Control prenatal');
+    if (plantilla && idsPlantillasMedico.includes(plantilla.id)) {
+      btn.style.display = '';
+    }
+  } catch (e) {
+    console.warn('[control-prenatal] no se pudo verificar la plantilla del médico:', e);
+  }
+}
+
+// EG actual = EG establecida (fija) + días transcurridos desde la fecha en
+// que se estableció. NUNCA se deriva de una biometría — regla explícita.
+// `hastaFecha` opcional: para calcular la EG de un punto histórico (ej. una
+// consulta pasada) en vez de "hoy".
+function calcularEG(pacFields, hastaFecha) {
+  const establecida = pacFields['EG establecida (semanas)'];
+  const fechaRef = pacFields['Fecha de EG establecida'];
+  if (typeof establecida !== 'number' || !fechaRef) return null;
+  // `hastaFecha` puede venir de LAB_VALORES (date puro, "2026-09-05") o de
+  // CONSULTAS (dateTime completo, "2026-09-05T10:00:00.000Z") — se toman
+  // solo los primeros 10 caracteres para que ambas formas den la misma
+  // fecha civil, en vez de concatenar una hora sobre una que ya la trae.
+  const msRef = new Date(fechaRef.slice(0, 10) + 'T00:00:00').getTime();
+  const msHasta = hastaFecha ? new Date(hastaFecha.slice(0, 10) + 'T00:00:00').getTime() : Date.now();
+  if (isNaN(msRef) || isNaN(msHasta)) return null;
+  const diasTranscurridos = Math.floor((msHasta - msRef) / 86400000);
+  const diasTotales = Math.round(establecida * 7) + diasTranscurridos;
+  if (diasTotales < 0) return null;
+  const semanas = Math.floor(diasTotales / 7);
+  const dias = diasTotales % 7;
+  return { semanas, dias, texto: `${semanas}+${dias}` };
+}
+
+// Semáforo (6 luces) — un vistazo al estado general. Cada luz lee el ÚLTIMO
+// valor de un código contra su zona; sin zona configurada, la luz se muestra
+// sin color (informativa, nunca se inventa un corte). `categorico` es para
+// la única luz que no viene de un número (grado de placenta, de CONSULTAS).
+const PN_LUCES = [
+  { id: 'crecimiento', nombre: 'Crecimiento fetal', codigo: 'percentil_peso_fetal' },
+  { id: 'liquido', nombre: 'Líquido amniótico', codigo: 'indice_liquido_amniotico' },
+  { id: 'fcf', nombre: 'FCF', codigo: 'fcf' },
+  { id: 'presion', nombre: 'Presión materna', codigos: ['ta_sistolica', 'ta_diastolica'] },
+  { id: 'doppler', nombre: 'Doppler (RCP)', codigo: 'percentil_rcp' },
+  { id: 'placenta', nombre: 'Placenta', categorico: true },
+];
+
+// Tarjetas de riesgo — condiciones de alta frecuencia en el embarazo.
+// `codigos`: parámetros numéricos del catálogo que alimentan la tarjeta;
+// el estado es el peor RANGO DE ZONA entre todos ellos (ver compararZonas).
+// `extra` (opcional): criterio categórico adicional que puede subir la
+// severidad (ej. proteinuria para preeclampsia) — nunca baja lo que ya
+// reportan los números.
+const PN_RIESGOS = [
+  { id: 'anemia', nombre: 'Anemia', codigos: ['hemoglobina', 'hematocrito'] },
+  { id: 'trombocitopenia', nombre: 'Trombocitopenia', codigos: ['plaquetas'] },
+  { id: 'diabetes_gestacional', nombre: 'Diabetes gestacional', codigos: ['glucosa', 'hba1c'] },
+  {
+    id: 'preeclampsia', nombre: 'Preeclampsia',
+    codigos: ['ta_sistolica', 'ta_diastolica', 'plaquetas', 'ast', 'alt'],
+    extra: () => {
+      const prot = _pnUltimaConsulta && _pnUltimaConsulta['Proteinuria'];
+      if (!prot) return null;
+      if (prot === 'Negativa') return { nombre: 'Proteinuria', valor: prot, rank: 0 };
+      const rank = (prot === '2+' || prot === '3+') ? RANGO_ZONA.rojo : RANGO_ZONA.amarillo;
+      return { nombre: 'Proteinuria', valor: prot, rank };
+    },
+    umbralExtra: 'Proteinuria positiva (cualquier grado ≥ Trazas) suma a la severidad.',
+  },
+  { id: 'colestasis', nombre: 'Colestasis intrahepática', codigos: ['acidos_biliares', 'alt'] },
+];
+// Se leen de las custom properties --pn-* en vez de hex fijos, para que los
+// colores pintados por JS (puntos, bordes) sigan el tema claro/oscuro del
+// portal igual que el resto de la UI, que se pinta por CSS.
+let _colorRiesgoCache = null;
+const COLOR_RIESGO = new Proxy({}, {
+  get(_, clave) {
+    if (!_colorRiesgoCache) {
+      const cs = getComputedStyle(document.documentElement);
+      _colorRiesgoCache = {
+        verde: cs.getPropertyValue('--pn-ok').trim(),
+        amarillo: cs.getPropertyValue('--pn-warn').trim(),
+        naranja: cs.getPropertyValue('--pn-naranja').trim(),
+        rojo: cs.getPropertyValue('--pn-crit').trim(),
+      };
+    }
+    return _colorRiesgoCache[clave];
+  },
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const obs = new MutationObserver(() => { _colorRiesgoCache = null; });
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+});
+const ETIQUETA_ESTADO = { ok: 'Sin datos de alerta', warn: 'Vigilancia', crit: 'Alerta', sin_datos: 'No disponible' };
+
+// ─── Antecedentes gineco-obstétricos — configuración, no motor ──────────
+// "Terminó en nacimiento" se DEDUCE del tipo de evento, nunca de un
+// checkbox aparte (un booleano independiente se desincroniza del tipo y
+// nadie sabe cuál manda). Esta lista es la única fuente de verdad: también
+// decide si el formulario de captura muestra los campos Nombre/Sexo del
+// producto (ver nota NOM-004 / tercero menor de edad junto al formulario).
+const GO_TIPOS_PARTO   = new Set(['Parto eutócico', 'Parto instrumentado', 'Cesárea']);
+const GO_TIPOS_CESAREA = new Set(['Cesárea']); // subconjunto de GO_TIPOS_PARTO, para la C de la fórmula
+// Pérdidas gestacionales — cuentan como gesta (G) pero no como parto (P).
+// Óbito cuenta aquí (no en GO_TIPOS_PARTO): el producto no termina en
+// nacimiento con vida, que es el criterio que fija Nombre/Sexo del producto.
+const GO_TIPOS_ABORTO  = new Set(['Aborto espontáneo', 'Aborto provocado', 'Embarazo ectópico', 'Embarazo molar', 'Óbito']);
+const GO_CLASIFICACION = { tiposParto: GO_TIPOS_PARTO, tiposCesarea: GO_TIPOS_CESAREA, tiposAborto: GO_TIPOS_ABORTO };
+
+// Intervalo intergenésico corto — señal clínica, no bloqueo.
+const GO_INTERVALO_CORTO_MESES = 18;
+
+// Periodicidad recomendada por tipo de estudio ginecológico, en meses.
+// Solo lleva entrada el estudio que SÍ tiene una periodicidad definida —
+// uno sin entrada aquí se muestra con su antigüedad, pero nunca como
+// "vencido": no se inventa un umbral que nadie configuró. `edadMinima`
+// (opcional) es la edad a partir de la cual la periodicidad aplica.
+const GO_PERIODICIDAD_ESTUDIOS = {
+  'Papanicolaou':  { mesesVigencia: 36 },
+  'Prueba de VPH': { mesesVigencia: 60 },
+  'Mastografía':   { mesesVigencia: 12, edadMinima: 40 },
+};
+
+// Vistas de la gráfica maestra: qué códigos se agrupan juntos. Agrupar solo
+// cuando comparten unidad — mezclar mm con índices en un mismo eje Y sería
+// ilegible, así que cada grupo es internamente homogéneo.
+const PN_VISTAS = [
+  { id: 'pfe', nombre: 'Peso fetal estimado', codigos: ['peso_fetal_estimado'] },
+  { id: 'biometria', nombre: 'Biometría (mm)', codigos: ['dbp_fetal', 'hc_fetal', 'ca_fetal', 'longitud_femoral', 'crl_fetal'] },
+  { id: 'percentiles', nombre: 'Percentiles', codigos: ['percentil_peso_fetal', 'percentil_cc_fetal', 'percentil_ca_fetal', 'percentil_lf_fetal', 'percentil_rcp'] },
+  { id: 'doppler', nombre: 'Doppler', codigos: ['umbilical_ip', 'umbilical_sd', 'acm_ip', 'rcp'] },
+  { id: 'ta', nombre: 'Presión arterial', codigos: ['ta_sistolica', 'ta_diastolica'] },
+  { id: 'peso_materno', nombre: 'Peso materno', codigos: ['peso'] },
+];
+
+// Campos del formulario rápido de USG — todos capturados tal como vienen
+// impresos en el reporte, nunca calculados aquí (punto 3 de la instrucción:
+// no se embebe ninguna tabla de referencia tipo Hadlock en el portal).
+const PN_CAMPOS_USG = [
+  { codigo: 'dbp_fetal', nombre: 'DBP', unidad: 'mm' },
+  { codigo: 'hc_fetal', nombre: 'Circunf. cefálica', unidad: 'mm' },
+  { codigo: 'ca_fetal', nombre: 'Circunf. abdominal', unidad: 'mm' },
+  { codigo: 'longitud_femoral', nombre: 'Longitud femoral', unidad: 'mm' },
+  { codigo: 'crl_fetal', nombre: 'LCC / CRL', unidad: 'mm' },
+  { codigo: 'peso_fetal_estimado', nombre: 'Peso fetal estimado', unidad: 'g' },
+  { codigo: 'percentil_peso_fetal', nombre: 'Percentil — peso fetal', unidad: 'p' },
+  { codigo: 'percentil_cc_fetal', nombre: 'Percentil — circunf. cefálica', unidad: 'p' },
+  { codigo: 'percentil_ca_fetal', nombre: 'Percentil — circunf. abdominal', unidad: 'p' },
+  { codigo: 'percentil_lf_fetal', nombre: 'Percentil — longitud femoral', unidad: 'p' },
+  { codigo: 'indice_liquido_amniotico', nombre: 'ILA', unidad: 'cm' },
+  { codigo: 'fondo_uterino', nombre: 'Altura de fondo uterino', unidad: 'cm' },
+  { codigo: 'fcf', nombre: 'FCF', unidad: 'lpm' },
+  { codigo: 'ip_uterino_medio', nombre: 'IP uterinas medio', unidad: 'índice' },
+  { codigo: 'umbilical_ip', nombre: 'Doppler A. umbilical IP', unidad: 'índice' },
+  { codigo: 'umbilical_sd', nombre: 'Doppler A. umbilical S/D', unidad: 'índice' },
+  { codigo: 'acm_ip', nombre: 'Doppler ACM IP', unidad: 'índice' },
+  { codigo: 'rcp', nombre: 'Relación cerebro-placentaria', unidad: 'índice' },
+  { codigo: 'percentil_rcp', nombre: 'Percentil — RCP', unidad: 'p' },
+  { codigo: 'translucencia_nucal', nombre: 'Translucencia nucal', unidad: 'mm' },
+];
+
+let _pnPlantilla = null;
+let _pnSeries = null;
+let _pnCatalogoPorCodigo = {};
+let _pnVistaActual = 'pfe';
+let _pnConsultas = [];
+let _pnUltimaConsulta = null;
+let _pnAntecedentesGO = null; // eventos del paciente abierto, para el bloque del panel y el encabezado
+
+// Lee ANTECEDENTES_OBSTETRICOS del paciente — la usan tanto el encabezado del
+// expediente (línea "Hijos: ...") como el bloque del panel prenatal, cada uno
+// con su propia llamada (mismo patrón que cargarConsultas/_pnConsultas).
+// `null` = error de lectura; `[]` = cargado, sin antecedentes — nunca se
+// confunden (CLAUDE.md §6).
+async function cargarAntecedentesGO(pacId) {
+  try {
+    const data = await airtableFetch(TBL_ANTECEDENTES_GO, `?sort[0][field]=Fecha%20del%20evento&sort[0][direction]=asc&maxRecords=100&pacienteBuscado=${encodeURIComponent(pacId)}`);
+    return data.records || [];
+  } catch (e) {
+    console.error('[antecedentes-go] error cargando:', e);
+    return null;
+  }
+}
+
+function formatMesAnio(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.slice(0, 10) + 'T00:00:00');
+  return d.toLocaleDateString(i18nDateLocale(), { month: 'short', year: 'numeric' });
+}
+
+// Encabezado del expediente: "Hijos: Sofía (ago 2023)" — contexto de
+// relación, antes de lo clínico. Nombre del producto es dato de un tercero
+// menor de edad, nunca obligatorio — si la paciente no lo compartió, el
+// evento simplemente no aporta nombre a esta línea.
+function renderExpHijos(eventos) {
+  const el = document.getElementById('exp-hijos');
+  if (!el) return;
+  if (!eventos) { el.style.display = 'none'; return; } // error de lectura: no se inventa, no se muestra
+  const hijos = eventos
+    .filter(r => GO_TIPOS_PARTO.has(r.fields['Tipo de evento']) && r.fields['Nombre del producto'])
+    .map(r => ({ nombre: r.fields['Nombre del producto'], fecha: r.fields['Fecha del evento'] }));
+  if (!hijos.length) { el.style.display = 'none'; return; }
+  el.innerHTML = 'Hijos: ' + hijos.map(h => `<b>${h.nombre}</b>${h.fecha ? ' (' + formatMesAnio(h.fecha) + ')' : ''}`).join(', ');
+  el.style.display = '';
+}
+
+async function cargarControlPrenatal() {
+  if (!pacienteActual) return;
+  const f = pacienteActual.fields;
+  const pacId = f['Código de paciente'] || pacienteActual.id;
+
+  // ── Datación ──
+  const tieneDatacion = typeof f['EG establecida (semanas)'] === 'number' && !!f['Fecha de EG establecida'];
+  document.getElementById('pn-sin-datacion').style.display = tieneDatacion ? 'none' : 'block';
+  document.getElementById('pn-datacion-wrap').style.display = tieneDatacion ? '' : 'none';
+
+  if (tieneDatacion) {
+    const eg = calcularEG(f);
+    document.getElementById('pn-eg-actual').textContent = eg ? `${eg.texto} semanas` : 'No disponible';
+    document.getElementById('pn-fpp').textContent = f['FPP corregida'] ? `FPP ${formatDate(f['FPP corregida'])}` : '';
+
+    const celdasDatacion = [
+      ['FUM', f['FUM'] ? formatDate(f['FUM']) : null],
+      ['Método de datación', f['Método de datación'] || null],
+      ['EG establecida', typeof f['EG establecida (semanas)'] === 'number' ? f['EG establecida (semanas)'] + ' semanas' : null],
+      ['Fecha de EG establecida', f['Fecha de EG establecida'] ? formatDate(f['Fecha de EG establecida']) : null],
+      ['Tipo de concepción', f['Tipo de concepción'] || null],
+      ['Fecha de transferencia embrionaria', f['Fecha de transferencia embrionaria'] ? formatDate(f['Fecha de transferencia embrionaria']) : null],
+    ].filter(([, v]) => v);
+    document.getElementById('pn-datacion-grid').innerHTML = celdasDatacion.map(([k, v]) =>
+      `<div class="cell"><div class="k">${k}</div><div class="v">${v}</div></div>`
+    ).join('');
+  } else {
+    document.getElementById('pn-veredicto-palabra').textContent = '—';
+    document.getElementById('pn-semaforo').innerHTML = '';
+    document.getElementById('pn-riesgos').innerHTML = '';
+    document.getElementById('pn-go-formula').textContent = '';
+    document.getElementById('pn-go-intervalo').textContent = '';
+    document.getElementById('pn-go-eventos').innerHTML = '';
+    document.getElementById('pn-go-estudios').innerHTML = '';
+    return;
+  }
+
+  // ── Antecedentes gineco-obstétricos (fórmula, cronología, vigencia) ──
+  _pnAntecedentesGO = await cargarAntecedentesGO(pacId);
+  const alertaGO = renderPnAntecedentesGO();
+
+  // ── Plantilla (lista de códigos de este panel) + catálogo (zonas/unidad) ──
+  let codigos = [];
+  try {
+    _pnPlantilla = await getPlantillaPorNombre('Control prenatal');
+    codigos = (_pnPlantilla && _pnPlantilla.codigos) || [];
+  } catch (e) {
+    console.warn('[control-prenatal] no se pudo leer la plantilla:', e);
+  }
+  if (!codigos.length) {
+    document.getElementById('pn-riesgos').innerHTML = '<div class="pn-na">No disponible — la plantilla "Control prenatal" no tiene parámetros configurados.</div>';
+    return;
+  }
+
+  _pnCatalogoPorCodigo = {};
+  await Promise.all(codigos.map(async c => {
+    try { _pnCatalogoPorCodigo[c] = await getConfigGrafica(c); }
+    catch (e) { _pnCatalogoPorCodigo[c] = null; }
+  }));
+
+  // ── Series (graficas_series) ──
+  try {
+    const data = await airtableFetch(TBL_CONSULTAS, `?accion=graficas_series&codigoPaciente=${encodeURIComponent(pacId)}&codigos=${encodeURIComponent(codigos.join(','))}`);
+    _pnSeries = data.series || {};
+  } catch (e) {
+    console.error('[control-prenatal] error cargando series:', e);
+    _pnSeries = {};
+  }
+
+  // Cada punto necesita su propia EG (para la etiqueta) — calculada igual
+  // que la EG actual, nunca desde la biometría del propio punto.
+  Object.values(_pnSeries).forEach(serie => {
+    (serie.puntos || []).forEach(p => {
+      if (p.fecha) {
+        const egPunto = calcularEG(f, p.fecha);
+        if (egPunto) p.etiqueta = egPunto.texto;
+      }
+    });
+  });
+
+  // ── Consultas (una sola lectura, reusada por materno/placenta/proteinuria) ──
+  try {
+    const data = await airtableFetch(TBL_CONSULTAS, `?filterByFormula=${encodeURIComponent(`{Código de paciente ref}="${pacId}"`)}&sort[0][field]=Fecha%20de%20consulta&sort[0][direction]=asc&maxRecords=100&pacienteBuscado=${encodeURIComponent(pacId)}`);
+    _pnConsultas = data.records || [];
+  } catch (e) {
+    console.error('[control-prenatal] error cargando consultas:', e);
+    _pnConsultas = [];
+  }
+  _pnUltimaConsulta = _pnConsultas.length ? _pnConsultas[_pnConsultas.length - 1].fields : null;
+
+  const riesgosEvaluados = PN_RIESGOS.map(evaluarRiesgo);
+  renderPnVeredictoYSemaforo(riesgosEvaluados, alertaGO);
+  renderPnRiesgos(riesgosEvaluados);
+  renderPnVistasTabs();
+  renderPnChart();
+  renderPnTablaValores(codigos);
+  renderPnTablaMaterno();
+  renderPnFormUsgToggle(pacId);
+}
+
+// Evalúa una tarjeta de PN_RIESGOS contra las series ya cargadas. Genérico
+// en el mecanismo (compara zonas, nunca "sube/baja es malo" a mano); lo
+// obstétrico es solo la LISTA de códigos que trae cada tarjeta, arriba.
+function evaluarRiesgo(riesgo) {
+  const sev = evaluarSeveridadCodigos(riesgo.codigos);
+  let peorRank = sev.peorRank;
+  const metricas = sev.detalles.map(d => ({
+    nombre: d.nombre,
+    valor: d.valorTexto,
+    color: d.color,
+    direccion: d.direccion,
+    delta: d.delta,
+    disparadoPorTendencia: d.disparadoPorTendencia,
+    infoTendencia: d.infoTendencia,
+  }));
+  let tieneDatos = sev.tieneDatos;
+
+  let extra = null;
+  if (riesgo.extra) {
+    extra = riesgo.extra();
+    if (extra) {
+      tieneDatos = true;
+      if (extra.rank > peorRank) peorRank = extra.rank;
+    }
+  }
+
+  const estado = !tieneDatos ? 'sin_datos' : (peorRank >= RANGO_ZONA.rojo ? 'crit' : peorRank >= RANGO_ZONA.amarillo ? 'warn' : 'ok');
+  const umbralPartes = riesgo.codigos
+    .map(c => {
+      const cfg = _pnCatalogoPorCodigo[c];
+      if (!cfg) return null;
+      const partes = [];
+      const descZonas = describirZonas(cfg.zonas, cfg.unidad);
+      if (descZonas) partes.push(descZonas);
+      // La regla de tendencia se cita aparte — es un criterio distinto
+      // (cambio, no rango), no tendría sentido mezclarla con la cita de
+      // zonas como si fuera lo mismo.
+      (cfg.tendencia || []).forEach(t => {
+        partes.push(`${t.tipo === 'caida' ? 'caída' : 'ascenso'} ≥ ${t.magnitudMinima} pts entre mediciones consecutivas → ${t.color}`);
+      });
+      return partes.length ? `${cfg.nombre}: ${partes.join(' · ')}` : null;
+    })
+    .filter(Boolean);
+  if (riesgo.umbralExtra) umbralPartes.push(riesgo.umbralExtra);
+
+  return {
+    ...riesgo, estado, metricas, extra,
+    umbral: umbralPartes.join(' · ') || 'Sin umbral configurado todavía.',
+  };
+}
+
+// Bloque "Antecedentes gineco-obstétricos": fórmula G/P/C/A calculada (nunca
+// capturada a mano), cronología de eventos obstétricos previos, intervalo
+// intergenésico, y estudios ginecológicos con su vigencia. Devuelve el
+// resumen que necesita el semáforo (alertaGO) para no esconder un estudio
+// vencido o con seguimiento pendiente en una lista aparte.
+function renderPnAntecedentesGO() {
+  const formulaEl   = document.getElementById('pn-go-formula');
+  const intervaloEl = document.getElementById('pn-go-intervalo');
+  const eventosEl   = document.getElementById('pn-go-eventos');
+  const estudiosEl  = document.getElementById('pn-go-estudios');
+
+  if (_pnAntecedentesGO === null) {
+    formulaEl.textContent = '';
+    intervaloEl.textContent = '';
+    eventosEl.innerHTML = '<div class="pn-na">No se pudo leer — verifica tu conexión.</div>';
+    estudiosEl.innerHTML = '<div class="pn-na">No se pudo leer — verifica tu conexión.</div>';
+    return { hayAlertaGO: false, detalleGO: [], hayEstudios: false };
+  }
+
+  const f = pacienteActual.fields;
+  const eventosObst = _pnAntecedentesGO.filter(r => r.fields['Categoría'] === 'Evento obstétrico');
+  const estudiosGin = _pnAntecedentesGO.filter(r => r.fields['Categoría'] === 'Estudio ginecológico');
+
+  // ── Fórmula obstétrica — siempre calculada de los eventos, nunca a mano ──
+  const tipos = eventosObst.map(r => r.fields['Tipo de evento']).filter(Boolean);
+  const formula = calcularFormulaEventos(tipos, true, GO_CLASIFICACION); // hay embarazo actual: este bloque solo se pinta con datación vigente
+  formulaEl.textContent = eventosObst.length
+    ? `G${formula.G} P${formula.P} C${formula.C} A${formula.A}`
+    : `Sin antecedentes obstétricos previos · G${formula.G}`;
+
+  // ── Intervalo intergenésico: último evento gestacional → FUM actual ──
+  const ultimaGesta = eventosObst
+    .filter(r => GO_TIPOS_PARTO.has(r.fields['Tipo de evento']) || GO_TIPOS_ABORTO.has(r.fields['Tipo de evento']))
+    .sort((a, b) => String(a.fields['Fecha del evento'] || '').localeCompare(String(b.fields['Fecha del evento'] || '')))
+    .pop();
+  intervaloEl.textContent = '';
+  if (ultimaGesta && f['FUM']) {
+    const meses = calcularIntervaloMeses(ultimaGesta.fields['Fecha del evento'], f['FUM']);
+    if (meses != null) {
+      const corto = meses < GO_INTERVALO_CORTO_MESES;
+      intervaloEl.innerHTML = `Intervalo intergenésico: ${meses} meses` +
+        (corto ? ` <span style="color:${COLOR_RIESGO.amarillo};">· menor a ${GO_INTERVALO_CORTO_MESES} meses</span>` : '');
+    }
+  }
+
+  // ── Cronología de eventos obstétricos — entran a la línea de tiempo,
+  //    antes de la FUM actual, en el orden en que ocurrieron. ──
+  eventosEl.innerHTML = !eventosObst.length ? '' : `<table class="pn-tabla"><thead><tr>
+      <th>Tipo</th><th>Fecha</th><th>Semanas</th><th>Indicación</th>
+    </tr></thead><tbody>${eventosObst.map(r => {
+      const rf = r.fields;
+      return `<tr>
+        <td>${rf['Tipo de evento'] || '—'}</td>
+        <td>${rf['Fecha del evento'] ? formatDate(rf['Fecha del evento']) : '—'}</td>
+        <td>${typeof rf['Semanas de gestación'] === 'number' ? rf['Semanas de gestación'] : '—'}</td>
+        <td>${rf['Indicación'] || '—'}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+
+  // ── Estudios ginecológicos: antigüedad + vigencia contra configuración ──
+  let hayAlertaGO = false;
+  const detalleGO = [];
+  if (!estudiosGin.length) {
+    estudiosEl.innerHTML = '<div class="pn-na">Sin estudios ginecológicos registrados.</div>';
+  } else {
+    const edad = formatEdad(f['Edad']);
+    estudiosEl.innerHTML = estudiosGin.map(r => {
+      const rf = r.fields;
+      const tipo = rf['Tipo de evento'];
+      const periodo = GO_PERIODICIDAD_ESTUDIOS[tipo];
+      // Periodicidad con edad mínima (ej. mastografía ≥40) que aún no aplica
+      // a esta paciente: se muestra antigüedad, pero no se evalúa vigencia.
+      const aplicaPeriodo = !periodo || periodo.edadMinima == null || (typeof edad === 'number' && edad >= periodo.edadMinima);
+      const vig = evaluarVigenciaEstudio(rf['Fecha del evento'], aplicaPeriodo && periodo ? periodo.mesesVigencia : null);
+      const vencido = !!(vig && vig.vencido === true);
+      const requiereSeguimiento = !!rf['Requiere seguimiento'];
+      if (vencido || requiereSeguimiento) {
+        hayAlertaGO = true;
+        detalleGO.push(`${tipo}${vencido ? ' vencido' : ''}${requiereSeguimiento ? ' · seguimiento' : ''}`);
+      }
+      const estadoTxt = vencido ? 'Vencido' : (vig && vig.vencido === false ? 'Vigente' : '');
+      const estadoColor = vencido ? COLOR_RIESGO.rojo : (estadoTxt === 'Vigente' ? COLOR_RIESGO.verde : 'var(--text-3)');
+      const bordeColor = (vencido || requiereSeguimiento) ? COLOR_RIESGO.rojo : 'var(--pn-line)';
+      return `<div class="pn-rk" style="border-left-color:${bordeColor};margin-bottom:8px;">
+        <div class="pn-rk-hd">
+          <span class="pn-rk-nm" style="font-size:14px;">${tipo}</span>
+          ${estadoTxt ? `<span class="pn-rk-st" style="color:${estadoColor};">${estadoTxt}</span>` : ''}
+        </div>
+        <div class="pn-rk-um">${rf['Fecha del evento'] ? formatDate(rf['Fecha del evento']) : '—'}${vig ? ' · ' + vig.mesesTranscurridos + ' meses' : ''}</div>
+        ${rf['Resultado'] ? `<div class="pn-rk-m"><div class="pn-rk-m-row"><span class="n">Resultado</span><span class="q">${rf['Resultado']}</span></div></div>` : ''}
+        ${rf['Clasificación'] ? `<div class="pn-rk-m"><div class="pn-rk-m-row"><span class="n">Clasificación</span><span class="q">${rf['Clasificación']}</span></div></div>` : ''}
+        ${requiereSeguimiento ? `<div class="pn-rk-trend" style="color:${COLOR_RIESGO.rojo};">Requiere seguimiento</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  return { hayAlertaGO, detalleGO, hayEstudios: estudiosGin.length > 0 };
+}
+
+function renderPnVeredictoYSemaforo(riesgosEvaluados, alertaGO) {
+  const luces = PN_LUCES.map(l => {
+    if (l.categorico) {
+      // Única luz sin zona numérica: grado de placenta. Se muestra el
+      // valor tal cual, sin inventar un semáforo clínico para un dato que
+      // ningún umbral del catálogo respalda.
+      const grado = _pnUltimaConsulta && _pnUltimaConsulta['Placenta — grado'];
+      const loc = _pnUltimaConsulta && _pnUltimaConsulta['Placenta — localización'];
+      const val = grado || loc ? `${loc || '—'}${grado ? ' · Grado ' + grado : ''}` : 'No disponible';
+      return { ...l, val, color: null };
+    }
+    const codigos = l.codigos || [l.codigo];
+    const sev = evaluarSeveridadCodigos(codigos);
+    const texto = sev.detalles.map(d => d.valorTexto);
+    return { ...l, val: sev.tieneDatos ? texto.join(' / ') : 'No disponible', color: sev.tieneDatos ? sev.peorColor : null };
+  });
+
+  // Luz adicional, fuera de PN_LUCES: estudios ginecológicos vencidos o con
+  // "Requiere seguimiento" marcado. No sale de evaluarSeveridadCodigos (no es
+  // un parámetro con zonas) sino del motor de vigencia de antecedentes — "no
+  // escondido en una lista", tiene que aparecer aquí igual que las demás.
+  if (alertaGO) {
+    luces.push({
+      id: 'estudios_gin', nombre: 'Estudios ginecológicos',
+      val: alertaGO.hayAlertaGO ? alertaGO.detalleGO.join(', ') : (alertaGO.hayEstudios ? 'Vigentes' : 'No disponible'),
+      color: alertaGO.hayAlertaGO ? 'rojo' : (alertaGO.hayEstudios ? 'verde' : null),
+    });
+  }
+
+  document.getElementById('pn-semaforo').innerHTML = luces.map(l => `
+    <div class="pn-light">
+      <span class="pn-dot" style="background:${l.color ? COLOR_RIESGO[l.color] : 'var(--pn-line)'};"></span>
+      <div style="min-width:0;">
+        <div class="lbl">${l.nombre}</div>
+        <div class="val">${l.val}</div>
+      </div>
+    </div>`).join('');
+
+  // Veredicto global: el peor entre todas las luces (con zona) y las
+  // tarjetas de riesgo. "Requiere valoración" si algo está en rojo/crit,
+  // "Vigilancia" si algo está en amarillo/warn, "Normal" si todo lo medido
+  // está en verde.
+  const alertasLuces = luces.filter(l => l.color === 'rojo' || l.color === 'amarillo' || l.color === 'naranja');
+  const riesgosAlerta = riesgosEvaluados.filter(r => r.estado === 'warn' || r.estado === 'crit');
+  const hayCritico = luces.some(l => l.color === 'rojo') || riesgosEvaluados.some(r => r.estado === 'crit');
+  const hayAlerta = alertasLuces.length || riesgosAlerta.length;
+
+  const palabra = document.getElementById('pn-veredicto-palabra');
+  const box = document.getElementById('pn-veredicto-box');
+  const why = document.getElementById('pn-veredicto-why');
+  if (hayCritico) {
+    palabra.textContent = 'Requiere valoración'; palabra.style.color = COLOR_RIESGO.rojo;
+    box.style.borderLeftColor = COLOR_RIESGO.rojo;
+  } else if (hayAlerta) {
+    palabra.textContent = 'Vigilancia'; palabra.style.color = COLOR_RIESGO.amarillo;
+    box.style.borderLeftColor = COLOR_RIESGO.amarillo;
+  } else {
+    palabra.textContent = 'Normal'; palabra.style.color = COLOR_RIESGO.verde;
+    box.style.borderLeftColor = COLOR_RIESGO.verde;
+  }
+  const motivos = [...alertasLuces.map(l => l.nombre), ...riesgosAlerta.map(r => `${r.nombre} (${ETIQUETA_ESTADO[r.estado].toLowerCase()})`)];
+  why.textContent = motivos.length ? 'Generado por: ' + motivos.join(', ') + '.' : 'Ningún parámetro con zona configurada superó su umbral.';
+}
+
+function renderPnRiesgos(riesgosEvaluados) {
+  document.getElementById('pn-riesgos').innerHTML = riesgosEvaluados.map(r => {
+    const color = r.estado === 'crit' ? COLOR_RIESGO.rojo : r.estado === 'warn' ? COLOR_RIESGO.amarillo : r.estado === 'ok' ? COLOR_RIESGO.verde : 'var(--pn-line)';
+    const filasMetricas = r.metricas.map(m => {
+      const flechaTxt = m.direccion == null ? '' : (m.direccion === 'up' ? '↑' : m.direccion === 'down' ? '↓' : '→') + (m.delta ? ' ' + (m.delta > 0 ? '+' : '') + m.delta : '');
+      // Color de la flecha: si el color final del renglón ya es de alerta
+      // (zona o tendencia, da igual cuál), la flecha se pinta igual — no
+      // hay un "empeora/mejora" separado del color que ya se calculó una
+      // sola vez en evaluarSeveridadCodigos().
+      const flechaColor = (m.color && m.color !== 'verde') ? COLOR_RIESGO[m.color] : 'var(--text-3)';
+      const notaTendencia = m.disparadoPorTendencia
+        ? `<div class="pn-rk-trend" style="color:${COLOR_RIESGO[m.color]};">cambio de trayectoria: ${m.infoTendencia.tipo === 'caida' ? 'caída' : 'ascenso'} de ${m.infoTendencia.magnitud} pts</div>`
+        : '';
+      return `<div class="pn-rk-m">
+        <div class="pn-rk-m-row">
+          <span class="n">${m.color ? `<span class="pn-flag" style="background:${COLOR_RIESGO[m.color]};"></span>` : ''}${m.nombre}</span>
+          <span class="q">${m.valor}<span class="pn-arw" style="color:${flechaColor};">${flechaTxt}</span></span>
+        </div>
+        ${notaTendencia}
+      </div>`;
+    }).join('');
+    const filaExtra = r.extra ? `<div class="pn-rk-m">
+      <div class="pn-rk-m-row"><span class="n">${r.extra.nombre}</span><span class="q">${r.extra.valor}</span></div>
+    </div>` : '';
+    return `<div class="pn-rk" style="border-left-color:${color};">
+      <div class="pn-rk-hd">
+        <span class="pn-rk-nm">${r.nombre}</span>
+        <span class="pn-rk-st" style="color:${color};">${ETIQUETA_ESTADO[r.estado]}</span>
+      </div>
+      <div class="pn-rk-um">${r.umbral}</div>
+      ${filasMetricas}${filaExtra}
+      ${!r.metricas.length && !r.extra ? '<div class="pn-rk-empty">No disponible — sin datos capturados.</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderPnVistasTabs() {
+  const cont = document.getElementById('pn-vistas-tabs');
+  const vistasConDatos = PN_VISTAS.filter(v => v.codigos.some(c => _pnSeries[c] && _pnSeries[c].puntos && _pnSeries[c].puntos.length));
+  if (!vistasConDatos.find(v => v.id === _pnVistaActual)) {
+    _pnVistaActual = vistasConDatos.length ? vistasConDatos[0].id : null;
+  }
+  cont.innerHTML = vistasConDatos.map(v =>
+    `<button type="button" class="tab-btn${v.id === _pnVistaActual ? ' active' : ''}" data-vista="${v.id}">${v.nombre}</button>`
+  ).join('');
+  cont.querySelectorAll('[data-vista]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _pnVistaActual = btn.dataset.vista;
+      cont.querySelectorAll('[data-vista]').forEach(b => b.classList.toggle('active', b === btn));
+      renderPnChart();
+    });
+  });
+}
+
+function renderPnChart() {
+  const svg = document.getElementById('pn-chart');
+  const nota = document.getElementById('pn-chart-nota');
+  const vista = PN_VISTAS.find(v => v.id === _pnVistaActual);
+  if (!vista) {
+    svg.innerHTML = '';
+    nota.textContent = 'No disponible — sin datos capturados todavía para este paciente.';
+    return;
+  }
+  const series = vista.codigos
+    .filter(c => _pnSeries[c] && _pnSeries[c].puntos && _pnSeries[c].puntos.length)
+    .map(c => {
+      const cfg = _pnCatalogoPorCodigo[c] || {};
+      return {
+        codigo: c,
+        nombre: cfg.nombre || c,
+        unidad: cfg.unidad || _pnSeries[c].unidad || '',
+        decimales: typeof cfg.decimales === 'number' ? cfg.decimales : 1,
+        puntos: _pnSeries[c].puntos,
+      };
+    });
+  const cfgPrincipal = _pnCatalogoPorCodigo[vista.codigos[0]] || {};
+  renderGrafica({
+    svg,
+    tipo: series.length > 1 ? 'multi_linea' : 'linea_zonas',
+    escalaX: 'fecha',
+    zonas: series.length === 1 ? (cfgPrincipal.zonas || []) : [],
+    series,
+  });
+  nota.textContent = series.length
+    ? 'Eje horizontal: fecha real de cada consulta/estudio. Etiquetas: edad gestacional en ese momento.'
+    : 'No disponible — sin datos capturados todavía para este paciente.';
+}
+
+// Solo lista parámetros CON dato — "no listes lo que no existe". Los que no
+// tienen registro se agrupan en una sola línea al pie, no ocupan renglón.
+function renderPnTablaValores(codigos) {
+  const tbody = document.querySelector('#pn-tabla-valores tbody');
+  const pie = document.getElementById('pn-tabla-valores-pie');
+  const conDato = [], sinDato = [];
+
+  codigos.forEach(c => {
+    const cfg = _pnCatalogoPorCodigo[c];
+    const puntos = (_pnSeries[c] && _pnSeries[c].puntos) || [];
+    const nombre = (cfg && cfg.nombre) || c;
+    if (!puntos.length) { sinDato.push(nombre); return; }
+    conDato.push({ nombre, cfg, ultimo: puntos[puntos.length - 1] });
+  });
+
+  tbody.innerHTML = conDato.length
+    ? conDato.map(({ nombre, cfg, ultimo }) => {
+        const dec = cfg && typeof cfg.decimales === 'number' ? cfg.decimales : 1;
+        return `<tr>
+          <td>${nombre}</td>
+          <td>${ultimo.valor.toFixed(dec)} ${(cfg && cfg.unidad) || ''}</td>
+          <td>${ultimo.fecha ? formatDate(ultimo.fecha) : '—'}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="3" class="pn-na">No disponible — sin valores capturados.</td></tr>';
+
+  pie.textContent = sinDato.length ? `Sin registro: ${sinDato.join(', ')}.` : '';
+}
+
+// Síncrona — reusa `_pnConsultas`, ya cargada una sola vez en cargarControlPrenatal().
+function renderPnTablaMaterno() {
+  const tbody = document.querySelector('#pn-tabla-materno tbody');
+  const doppler = document.getElementById('pn-doppler-texto');
+  if (!_pnConsultas.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="pn-na">No disponible — sin consultas registradas.</td></tr>';
+    doppler.innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = _pnConsultas.map(r => {
+    const rf = r.fields;
+    return `<tr>
+      <td>${formatDate(rf['Fecha de consulta'])}</td>
+      <td>${typeof rf['Peso en consulta (kg)'] === 'number' ? rf['Peso en consulta (kg)'] + ' kg' : '—'}</td>
+      <td>${rf['Presión arterial en consulta'] || '—'}</td>
+      <td>${rf['Edema'] || '—'}</td>
+      <td>${rf['Proteinuria'] || '—'}</td>
+      <td>${rf['Movimientos fetales'] || '—'}</td>
+      <td>${rf['Placenta — localización'] || '—'}${rf['Placenta — grado'] ? ' · Grado ' + rf['Placenta — grado'] : ''}</td>
+    </tr>`;
+  }).join('');
+
+  const conDoppler = [..._pnConsultas].reverse().find(r => r.fields['Interpretación Doppler']);
+  doppler.innerHTML = conDoppler
+    ? `<div class="cell key"><div class="k">Interpretación Doppler — ${formatDate(conDoppler.fields['Fecha de consulta'])}</div><div class="v" style="font-size:13px;">${conDoppler.fields['Interpretación Doppler']}</div></div>`
+    : `<div class="pn-na">No disponible — sin interpretación Doppler capturada.</div>`;
+}
+
+// El formulario va colapsado tras un botón — no debe competir por pantalla
+// con el expediente. Se arma una sola vez por paciente; abrir/cerrar es
+// solo un toggle de display.
+function renderPnFormUsgToggle(pacId) {
+  const abrirBtn = document.getElementById('pn-btn-abrir-form-usg');
+  const wrap = document.getElementById('pn-form-usg-wrap');
+  wrap.style.display = 'none';
+  abrirBtn.textContent = '+ Registrar biometría / Doppler / percentiles (USG)';
+  const nuevoAbrirBtn = abrirBtn.cloneNode(true);
+  abrirBtn.parentNode.replaceChild(nuevoAbrirBtn, abrirBtn);
+  nuevoAbrirBtn.addEventListener('click', () => {
+    const abierto = wrap.style.display !== 'none';
+    wrap.style.display = abierto ? 'none' : '';
+    nuevoAbrirBtn.textContent = abierto ? '+ Registrar biometría / Doppler / percentiles (USG)' : '− Cerrar formulario';
+    if (!abierto) renderPnFormUsg(pacId);
+  });
+}
+
+function renderPnFormUsg(pacId) {
+  const cont = document.getElementById('pn-form-usg');
+  cont.innerHTML = PN_CAMPOS_USG.map(c =>
+    `<div class="cell">
+      <div class="k">${c.nombre} (${c.unidad})</div>
+      <input type="text" class="pn-usg-input" data-codigo="${c.codigo}" data-nombre="${c.nombre}" data-unidad="${c.unidad}" placeholder="—" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--pn-line);color:var(--text-1);font-family:var(--font-mono);font-size:13px;padding:2px 0;margin-top:2px;">
+    </div>`
+  ).join('');
+
+  const btn = document.getElementById('pn-btn-guardar-usg');
+  const nuevoBtn = btn.cloneNode(true); // limpia listeners de una carga previa
+  btn.parentNode.replaceChild(nuevoBtn, btn);
+  nuevoBtn.addEventListener('click', async () => {
+    const valoresRapidos = Array.from(cont.querySelectorAll('.pn-usg-input'))
+      .map(inp => ({
+        analito: inp.dataset.nombre,
+        codigo: inp.dataset.codigo,
+        valor: inp.value.trim(),
+        unidad: inp.dataset.unidad,
+        bandera: 'Indeterminado',
+      }))
+      .filter(v => v.valor);
+    if (!valoresRapidos.length) { showToast('Captura al menos un valor.', 'error'); return; }
+
+    const label = document.getElementById('pn-btn-usg-label');
+    const loader = document.getElementById('pn-btn-usg-loader');
+    nuevoBtn.disabled = true; label.style.display = 'none'; loader.style.display = 'inline';
+    try {
+      const res = await fetch('/api/nova', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'medico_guardar_labs_rapidos',
+          pacienteCode: pacId,
+          panel: 'Personalizado',
+          tipoEstudio: 'USG',
+          valoresRapidos,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al guardar.');
+      showToast('Estudio guardado ✓', 'success');
+      cont.querySelectorAll('.pn-usg-input').forEach(inp => inp.value = '');
+      cargarControlPrenatal();
+    } catch (err) {
+      showToast(err.message || 'No se pudo guardar el estudio.', 'error');
+    } finally {
+      nuevoBtn.disabled = false; label.style.display = ''; loader.style.display = 'none';
+    }
+  });
 }
 
 function renderAdherencia(prefijo, pct) {
@@ -5059,6 +6092,45 @@ function renderGraficaPeso(pesos, metaKg) {
 // MOTOR-GRAFICAS → movido a lib/motor-graficas.js (se carga con
 // <script src="/lib/motor-graficas.js"> antes de este script). renderGrafica,
 // evaluarZona y el resto del motor siguen siendo globales con el mismo nombre.
+
+// Punto único donde zona + tendencia se combinan en una severidad — lo usan
+// tanto el semáforo como las tarjetas de riesgo, para no tener dos copias
+// de "¿cuál es peor, la zona o la tendencia?". Devuelve el peor color entre
+// todos los `codigos` dados y el detalle por código (valor, zona, tendencia).
+function evaluarSeveridadCodigos(codigos) {
+  let peorRank = -1, peorColor = null, tieneDatos = false;
+  const detalles = [];
+  codigos.forEach(c => {
+    const cfg = _pnCatalogoPorCodigo[c];
+    const puntos = (_pnSeries[c] && _pnSeries[c].puntos) || [];
+    if (!puntos.length) return;
+    tieneDatos = true;
+    const actual = puntos[puntos.length - 1];
+    const previo = puntos.length > 1 ? puntos[puntos.length - 2].valor : null;
+    const zonas = (cfg && cfg.zonas) || [];
+    const reglasTendencia = (cfg && cfg.tendencia) || [];
+    const cmpZona = compararZonas(actual.valor, previo, zonas);
+    const infoTendencia = evaluarTendencia(actual.valor, previo, reglasTendencia);
+    const rankZona = cmpZona.zona ? RANGO_ZONA[cmpZona.zona.color] : -1;
+    const rankTendencia = infoTendencia ? RANGO_ZONA[infoTendencia.color] : -1;
+    const rank = Math.max(rankZona, rankTendencia);
+    const colorFinal = rankTendencia > rankZona ? infoTendencia.color : (cmpZona.zona ? cmpZona.zona.color : (infoTendencia ? infoTendencia.color : null));
+    if (rank > peorRank) { peorRank = rank; peorColor = colorFinal; }
+    const dec = cfg && typeof cfg.decimales === 'number' ? cfg.decimales : 1;
+    detalles.push({
+      codigo: c,
+      nombre: (cfg && cfg.nombre) || c,
+      unidad: (cfg && cfg.unidad) || '',
+      valorTexto: actual.valor.toFixed(dec) + ((cfg && cfg.unidad) ? ' ' + (cfg && cfg.unidad) : ''),
+      color: colorFinal,
+      direccion: cmpZona.direccion,
+      delta: cmpZona.delta,
+      disparadoPorTendencia: rankTendencia > rankZona && !!infoTendencia,
+      infoTendencia,
+    });
+  });
+  return { peorRank, peorColor, tieneDatos, detalles };
+}
 
 // ─── DATOS GENERALES ──────────────────────────────────────────────
 function cargarDatosGenerales(record) {
@@ -5842,7 +6914,8 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     'Diagnóstico (CIE-10)': document.getElementById('f-diagnostico').value || null,
     'Estado del protocolo': document.getElementById('f-estado').value,
     'Plan terapéutico': document.getElementById('f-plan').value || null,
-    'Notas internas': document.getElementById('f-notas').value || null,
+    'Razonamiento clínico': document.getElementById('f-razonamiento-clinico').value || null,
+    'Adherencia — observaciones': document.getElementById('f-adherencia-obs').value || null,
     'Próxima cita': document.getElementById('f-proxima-cita').value || null,
   };
   if (vitalesExtra.length > 0) fields['Signos vitales'] = vitalesExtra.join(' · ');
@@ -6035,7 +7108,8 @@ document.getElementById('btn-limpiar').addEventListener('click', limpiarFormular
 
 function limpiarFormulario() {
   ['f-protocolo','f-sesion','f-peso','f-talla','f-presion','f-temp',
-   'f-motivo','f-exploracion','f-diagnostico','f-plan','f-notas',
+   'f-motivo','f-exploracion','f-diagnostico','f-plan',
+   'f-razonamiento-clinico','f-adherencia-obs',
    'f-fc','f-fr','f-sato2','f-cintura','f-estado-civil','f-ocupacion',
    'f-grupo-sanguineo','f-escolaridad',
    'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos',
@@ -6159,6 +7233,134 @@ document.getElementById('f-lab-archivo').addEventListener('change', (e) => {
       });
   };
   reader.readAsDataURL(file);
+});
+
+// ─── PEGAR RESULTADO DE LABORATORIO (TEXTO) ────────────────────────
+// Dos pasos, dos endpoints — igual que la regla lo pide: extraer() NUNCA
+// escribe, solo arma la tabla de confirmación; confirmar() es lo único que
+// toca Airtable, y solo con lo que el médico dejó en pantalla al momento
+// de hacer click. `_labTextoPropuestas` guarda tanto lo que NOVA propuso
+// como lo que el médico vaya editando, para poder distinguir corrección de
+// aceptación cuando se confirma (eso decide si se agrega un alias nuevo).
+let _labTextoPropuestas = [];
+
+document.getElementById('btn-extraer-lab-texto').addEventListener('click', async () => {
+  const texto = document.getElementById('f-lab-texto-pegado').value.trim();
+  const estadoEl = document.getElementById('lab-texto-estado');
+  const confirmacionEl = document.getElementById('lab-texto-confirmacion');
+  if (!texto) { showToast('Pega el texto del resultado primero.', 'error'); return; }
+  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
+
+  const pacId = pacienteActual.fields['Código de paciente'] || pacienteActual.id;
+  const btn = document.getElementById('btn-extraer-lab-texto');
+  btn.disabled = true;
+  estadoEl.style.color = 'var(--text-2)';
+  estadoEl.textContent = 'Extrayendo y resolviendo contra el catálogo…';
+  confirmacionEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_extraer_labs_texto', pacienteCode: pacId, texto }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo extraer el texto.');
+
+    _labTextoFecha = data.fechaEstudio;
+    _labTextoPropuestas = [
+      ...data.propuestas.map(p => ({ ...p, codigoFinal: p.codigoPropuesto, incluir: true, revision: false })),
+      ...data.requiereRevision.map(p => ({ ...p, codigoFinal: '', incluir: false, revision: true })),
+    ];
+
+    if (!_labTextoPropuestas.length) {
+      estadoEl.style.color = '#E8A33D';
+      estadoEl.textContent = 'NOVA no encontró ningún analito en ese texto.';
+    } else {
+      estadoEl.style.color = 'var(--text-2)';
+      estadoEl.textContent = `${data.propuestas.length} con parámetro resuelto · ${data.requiereRevision.length} requieren revisión.${data.fechaEstudio ? '' : ' NOVA no pudo leer la fecha — se usará hoy.'}`;
+      renderPnLabTextoTabla();
+      confirmacionEl.style.display = '';
+    }
+  } catch (err) {
+    estadoEl.style.color = '#E2574B';
+    estadoEl.textContent = err.message || 'Error de conexión.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+let _labTextoFecha = null;
+
+function renderPnLabTextoTabla() {
+  const filaHtml = (f, idx) => `
+    <div class="data-cell" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:8px;align-items:center;margin-bottom:6px;">
+      <input type="checkbox" class="lt-incluir" data-idx="${idx}" ${f.incluir ? 'checked' : ''}>
+      <div>
+        <div style="font-size:12.5px;">${f.nombreCrudo}</div>
+        <div style="font-size:10.5px;color:var(--text-3);">${f.valor} ${f.unidad || ''}${f.rangoTexto ? ' · ref ' + f.rangoTexto : ''}</div>
+      </div>
+      <input type="text" class="lt-codigo" data-idx="${idx}" value="${f.codigoFinal || ''}" placeholder="código de parámetro" style="width:170px;background:transparent;border:1px solid var(--border-dim);border-radius:4px;color:var(--text-1);font-family:var(--font-mono);font-size:11.5px;padding:4px 6px;">
+      <span class="tag ${f.confianza === 'Alta' ? 'tag-cyan' : f.confianza === 'Media' ? 'tag-gold' : 'tag-gray'}" style="white-space:nowrap;">${f.revision ? 'requiere revisión' : f.confianza.toLowerCase()}</span>
+      <span style="font-size:10.5px;color:var(--text-3);">${f.nombreParametroPropuesto || ''}</span>
+    </div>`;
+  const propuestas = _labTextoPropuestas.map((f, i) => [f, i]).filter(([f]) => !f.revision);
+  const revision = _labTextoPropuestas.map((f, i) => [f, i]).filter(([f]) => f.revision);
+  document.getElementById('lab-texto-tabla-propuestas').innerHTML = propuestas.map(([f, i]) => filaHtml(f, i)).join('');
+  document.getElementById('lab-texto-tabla-revision').innerHTML = revision.length
+    ? `<div style="font-size:11px;color:var(--text-3);margin:8px 0 4px;">Requieren revisión — asígnales un código para incluirlas:</div>` + revision.map(([f, i]) => filaHtml(f, i)).join('')
+    : '';
+
+  document.querySelectorAll('.lt-incluir').forEach(el => el.addEventListener('change', e => {
+    _labTextoPropuestas[+e.target.dataset.idx].incluir = e.target.checked;
+  }));
+  document.querySelectorAll('.lt-codigo').forEach(el => el.addEventListener('input', e => {
+    const idx = +e.target.dataset.idx;
+    _labTextoPropuestas[idx].codigoFinal = e.target.value.trim();
+    // Si el médico le puso código a una fila de "requiere revisión", ya
+    // puede incluirse; si la deja vacía, no se manda (regla 2).
+    if (_labTextoPropuestas[idx].revision) _labTextoPropuestas[idx].incluir = !!_labTextoPropuestas[idx].codigoFinal;
+  }));
+}
+
+document.getElementById('btn-confirmar-lab-texto').addEventListener('click', async () => {
+  if (!pacienteActual) return;
+  const pacId = pacienteActual.fields['Código de paciente'] || pacienteActual.id;
+  const filas = _labTextoPropuestas.filter(f => f.incluir && f.codigoFinal);
+  if (!filas.length) { showToast('No hay filas marcadas con código asignado.', 'error'); return; }
+
+  const label = document.getElementById('btn-confirmar-lab-texto-label');
+  const loader = document.getElementById('btn-confirmar-lab-texto-loader');
+  const btn = document.getElementById('btn-confirmar-lab-texto');
+  btn.disabled = true; label.style.display = 'none'; loader.style.display = 'inline';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'medico_confirmar_labs_texto',
+        pacienteCode: pacId,
+        fechaEstudio: _labTextoFecha,
+        panel: document.getElementById('f-panel-lab').value || 'Personalizado',
+        filas: filas.map(f => ({
+          nombreCrudo: f.nombreCrudo, valor: f.valor, unidad: f.unidad, rangoTexto: f.rangoTexto,
+          bandera: f.bandera, critico: f.critico, codigoPropuesto: f.codigoPropuesto || null, codigoFinal: f.codigoFinal,
+        })),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar.');
+    showToast(`Guardado: ${data.analitosGuardados} analitos${data.aliasesAgregados ? `, ${data.aliasesAgregados} alias nuevos` : ''} ✓`, 'success');
+    document.getElementById('f-lab-texto-pegado').value = '';
+    document.getElementById('lab-texto-confirmacion').style.display = 'none';
+    document.getElementById('lab-texto-estado').textContent = '';
+    _labTextoPropuestas = [];
+    cargarLabs(pacId);
+  } catch (err) {
+    showToast(err.message || 'No se pudo guardar.', 'error');
+  } finally {
+    btn.disabled = false; label.style.display = ''; loader.style.display = 'none';
+  }
 });
 
 // ─── TEMPORIZADOR DE SESIÓN ───────────────────────────────────────
@@ -6469,7 +7671,10 @@ function aplicarFichaNova(ficha) {
     exploracion_fisica: 'f-exploracion',
     diagnostico: 'f-diagnostico',
     plan_terapeutico: 'f-plan',
-    notas_internas: 'f-notas',
+    // notas_internas es el catch-all genérico de NOVA ("cualquier dato sin
+    // campo propio") — por default va al NO portable, para que una mala
+    // clasificación automática nunca filtre algo íntimo al resumen del paciente.
+    notas_internas: 'f-razonamiento-clinico',
     frecuencia_cardiaca: 'f-fc',
     frecuencia_respiratoria: 'f-fr',
     saturacion_oxigeno: 'f-sato2',
@@ -7064,6 +8269,22 @@ document.getElementById('btn-enviar-interconsulta').addEventListener('click', as
         'Tipo de consulta': 'INTERCONSULTA',
         'Motivo de consulta': motivo,
         'Estado del protocolo': 'Pendiente',
+        // TODO: esta es la ÚLTIMA escritura viva a "Notas internas" en todo el
+        // repo (CONSULTAS, split de Razonamiento clínico/Adherencia — ver
+        // commit del split). No es razonamiento clínico ni adherencia — es un
+        // evento operativo de ruteo. Debe moverse a la tabla INTERCONSULTAS
+        // (tbl9PS3KNBxbRVriV, campo "Motivo", multilineText), que ya existe
+        // en Airtable con su propio esquema (Paciente/Médico solicitante/
+        // Médico consultado/Estado/Motivo/Fechas — todos singleLineText salvo
+        // Estado). Eso requiere: (1) agregar 'interconsultas' a
+        // TABLAS_PERMITIDAS en api/airtable.js, (2) decidir cómo esa tabla
+        // pasa por autorizarPaciente()/medicoFiltroAplicado (CLAUDE.md §4 —
+        // ninguna tabla nueva debe saltarse ese guard), (3) reescribir este
+        // bloque con los nombres reales de campo — el objeto `fields` de
+        // arriba (Médico_solicitante/Código_solicitante/Especialista_ID) es
+        // un borrador muerto de antes de que la tabla existiera y no coincide
+        // con el esquema real. No se hizo en este cambio por exceder su
+        // alcance (separar Notas internas en Razonamiento clínico/Adherencia).
         'Notas internas': `Interconsulta solicitada a especialista ID: ${especialistaSeleccionado}`,
       }, typecast: true })
     });

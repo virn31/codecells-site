@@ -1,0 +1,671 @@
+<title>Control Prenatal Longitudinal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: rail de semáforo arriba, gráfica maestra ancha, small-multiples sincronizados por EG,
+   timeline de eventos al pie, ficha de consulta en panel lateral. */
+:root{
+  --bg:#f5f7f8; --surface:#ffffff; --surface-2:#eef2f4;
+  --ink:#121a1f; --muted:#5d6a73; --line:#dde4e8;
+  --accent:#0d5c68; --accent-soft:#d5e9ec;
+  --ok:#15724c; --warn:#8c5a10; --crit:#9c2b2f;
+  --ok-bg:#dff0e6; --warn-bg:#faeccf; --crit-bg:#f8dedd;
+  --band:#cfe2e6; --band-2:#e6eef0;
+  --display:'Archivo',system-ui,sans-serif;
+  --body:'Source Sans 3',system-ui,sans-serif;
+  --data:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1316; --surface:#151c21; --surface-2:#1c252b;
+  --ink:#e4ebef; --muted:#93a2ac; --line:#263138;
+  --accent:#4ec0cd; --accent-soft:#143840;
+  --ok:#6cc79a; --warn:#e0b060; --crit:#f08b8b;
+  --ok-bg:#14301f; --warn-bg:#352709; --crit-bg:#3a1a1a;
+  --band:#1d3b42; --band-2:#162A30;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e1316; --surface:#151c21; --surface-2:#1c252b;
+  --ink:#e4ebef; --muted:#93a2ac; --line:#263138;
+  --accent:#4ec0cd; --accent-soft:#143840;
+  --ok:#6cc79a; --warn:#e0b060; --crit:#f08b8b;
+  --ok-bg:#14301f; --warn-bg:#352709; --crit-bg:#3a1a1a;
+  --band:#1d3b42; --band-2:#162A30;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-block:20px 56px;padding-left:18px;padding-right:18px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.num{font-family:var(--data);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* header */
+header.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+.pt-name{font-size:23px;font-weight:700}
+.pt-meta{color:var(--muted);font-size:13.5px;margin-top:3px}
+.demo-tag{display:inline-block;font-size:10.5px;letter-spacing:.09em;font-weight:600;text-transform:uppercase;color:var(--warn);background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);padding:3px 8px;border-radius:3px}
+.eg-now{text-align:right}
+.eg-now .big{font-family:var(--data);font-size:30px;font-weight:500;line-height:1.1}
+.eg-now .sub{font-size:12px;color:var(--muted)}
+
+/* semáforo */
+.status{display:grid;grid-template-columns:minmax(190px,1fr) 3fr;gap:14px;margin-bottom:22px}
+.verdict{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;border-left:4px solid var(--warn)}
+.verdict .word{font-family:var(--display);font-size:21px;font-weight:700;color:var(--warn);line-height:1.15}
+.verdict .why{font-size:12.5px;color:var(--muted);margin-top:5px}
+.lights{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px}
+.light{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:9px 11px;display:flex;gap:9px;align-items:flex-start;min-width:0}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.crit{background:var(--crit)}
+.light .lbl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.light .val{font-family:var(--data);font-size:13px;margin-top:1px}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px;min-width:0}
+.card h2{font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:12px}
+.grid-2{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:860px){.grid-2{grid-template-columns:1fr}.status{grid-template-columns:1fr}}
+
+/* datación */
+.dat{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+.dat .cell{background:var(--surface-2);border-radius:5px;padding:9px 11px}
+.dat .cell.key{background:var(--accent-soft);outline:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.dat .k{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.dat .v{font-family:var(--data);font-size:17px;margin-top:2px}
+.dat .v small{font-size:11px;color:var(--muted);font-family:var(--body)}
+.note{font-size:12.5px;color:var(--muted);margin-top:11px;border-top:1px solid var(--line);padding-top:9px}
+
+/* tamiz */
+.scan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px 16px}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:3px 0;border-bottom:1px dotted var(--line)}
+.kv span:first-child{color:var(--muted)}
+.kv span:last-child{font-family:var(--data);text-align:right}
+.risk{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.risk div{background:var(--ok-bg);border-radius:5px;padding:7px 11px;flex:1;min-width:92px}
+.risk .k{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.risk .v{font-family:var(--data);font-size:15px;color:var(--ok)}
+
+/* charts */
+.chartbox{position:relative}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.tab{font:inherit;font-size:12.5px;padding:5px 11px;border-radius:4px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.small-mult{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.mini{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:11px 13px}
+.mini .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.mini .ttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mini .last{font-family:var(--data);font-size:15px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:11px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+
+/* riesgos */
+.riesgos{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:12px}
+.rk{border:1px solid var(--line);border-radius:6px;padding:12px 13px;background:var(--surface-2);border-left:4px solid var(--ok);min-width:0}
+.rk.warn{border-left-color:var(--warn)} .rk.crit{border-left-color:var(--crit)} .rk.act{border-left-color:var(--accent)}
+.rk-hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px}
+.rk-nm{font-family:var(--display);font-size:14.5px;font-weight:700}
+.rk-st{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;white-space:nowrap}
+.rk.ok .rk-st{color:var(--ok)} .rk.warn .rk-st{color:var(--warn)} .rk.crit .rk-st{color:var(--crit)} .rk.act .rk-st{color:var(--accent)}
+.rk-um{font-size:11.5px;color:var(--muted);margin-bottom:9px}
+.rk-m{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;padding:3.5px 0;border-bottom:1px dotted var(--line)}
+.rk-m:last-of-type{border-bottom:0}
+.rk-m .n{color:var(--muted);min-width:0}
+.rk-m .q{font-family:var(--data);font-variant-numeric:tabular-nums;white-space:nowrap}
+.flag{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.flag.warn{background:var(--warn)} .flag.crit{background:var(--crit)} .flag.ok{background:transparent}
+.arw{font-family:var(--data);font-size:11.5px;margin-left:6px}
+.arw.bad{color:var(--warn)} .arw.good{color:var(--ok)} .arw.flat{color:var(--muted)}
+.rk-say{font-size:12px;color:var(--muted);margin-top:8px;border-top:1px solid var(--line);padding-top:7px}
+.rk.warn .rk-say,.rk.crit .rk-say,.rk.act .rk-say{color:var(--ink)}
+
+.tl{display:flex;gap:0;overflow-x:auto;padding-bottom:6px}
+.tl-item{flex:1;min-width:116px;border-top:2px solid var(--line);padding-top:11px;position:relative;padding-right:10px}
+.tl-item.done{border-top-color:var(--accent)}
+.tl-item::before{content:"";position:absolute;top:-6px;left:0;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--line)}
+.tl-item.done::before{background:var(--accent);border-color:var(--accent)}
+.tl-item .wk{font-family:var(--data);font-size:12px;color:var(--muted)}
+.tl-item .nm{font-size:12.5px;font-weight:600;margin-top:1px}
+.tl-item button{font:inherit;font-size:11.5px;color:var(--accent);background:none;border:0;padding:3px 0 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.tl-item button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ficha */
+.ficha-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px}
+.ficha-rows .c{background:var(--surface-2);border-radius:5px;padding:8px 10px}
+.ficha-rows .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ficha-rows .v{font-family:var(--data);font-size:15px;margin-top:1px}
+.delta{font-family:var(--data);font-size:12px}
+.delta.up{color:var(--ok)} .delta.down{color:var(--warn)} .delta.flat{color:var(--muted)}
+.cmp{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.cmp-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0}
+.cmp-row span:first-child{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+td{padding:6px 8px 6px 0;border-bottom:1px solid var(--line);font-family:var(--data)}
+td:first-child{font-family:var(--body)}
+.scroll-x{overflow-x:auto}
+.tag{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:.04em}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.na{color:var(--muted);font-style:italic;font-size:12.5px}
+footer{margin-top:26px;border-top:1px solid var(--line);padding-top:14px;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <span class="demo-tag">Datos demostrativos — no clínicos</span>
+    <div class="pt-name">Mariana Estrada Belén</div>
+    <div class="pt-meta">CC-PAC-200001 · 29 años · G2 P1 · Dr. Víctor I. Rodríguez Nava — CCMED-VIRN01</div>
+  </div>
+  <div class="eg-now">
+    <div class="eyebrow">Edad gestacional establecida</div>
+    <div class="big" id="eg-big">31<span style="font-size:19px">+3</span></div>
+    <div class="sub">FPP 30 nov 2026 · datación por FUM</div>
+  </div>
+</header>
+
+<section class="status">
+  <div class="verdict" id="verdict">
+    <div class="eyebrow">Evolución obstétrica</div>
+    <div class="word" id="verdict-word">Vigilancia</div>
+    <div class="why" id="verdict-why"></div>
+  </div>
+  <div class="lights" id="lights"></div>
+</section>
+
+<section class="card" style="margin-bottom:14px">
+  <h2>Vigilancia de riesgo · condiciones de alta frecuencia en el embarazo</h2>
+  <div class="riesgos" id="riesgos"></div>
+  <div class="note">Cada tarjeta compara el último valor contra el anterior y contra el umbral citado. Una flecha marcada señala un cambio que cruza o se aproxima a ese umbral; no constituye diagnóstico.</div>
+</section>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Datación del embarazo</h2>
+    <div class="dat">
+      <div class="cell"><div class="k">FUM</div><div class="v">24·02·26</div></div>
+      <div class="cell"><div class="k">EG por FUM</div><div class="v">12+1 <small>al 1.er USG</small></div></div>
+      <div class="cell"><div class="k">LCC / CRL</div><div class="v">58 <small>mm</small></div></div>
+      <div class="cell"><div class="k">EG por LCC</div><div class="v">12+2</div></div>
+      <div class="cell"><div class="k">Diferencia</div><div class="v">+1 <small>día</small></div></div>
+      <div class="cell key"><div class="k">Método adoptado</div><div class="v" style="font-size:14px">FUM</div></div>
+      <div class="cell key"><div class="k">EG establecida hoy</div><div class="v">31+3</div></div>
+      <div class="cell"><div class="k">FPP corregida</div><div class="v">30·11·26</div></div>
+    </div>
+    <div class="note">Concepción espontánea; sin transferencia embrionaria. La diferencia entre FUM y LCC es de 1 día, dentro del margen de ±7 días, por lo que se conserva la datación por FUM. La EG establecida queda fija: las biometrías posteriores se comparan contra ella y no la modifican.</div>
+  </section>
+
+  <section class="card">
+    <h2>Tamizaje del primer trimestre · 12+2</h2>
+    <div class="scan-grid">
+      <div>
+        <div class="kv"><span>LCC</span><span>58 mm</span></div>
+        <div class="kv"><span>FCF</span><span>158 lpm</span></div>
+        <div class="kv"><span>Translucencia nucal</span><span>1.4 mm</span></div>
+        <div class="kv"><span>Hueso nasal</span><span>Presente</span></div>
+        <div class="kv"><span>Ductus venoso</span><span>Onda a positiva</span></div>
+        <div class="kv"><span>Reg. tricuspídea</span><span>Ausente</span></div>
+        <div class="kv"><span>Anatomía temprana</span><span>Sin hallazgos</span></div>
+      </div>
+      <div>
+        <div class="kv"><span>Edad materna</span><span>29 a</span></div>
+        <div class="kv"><span>Peso / talla</span><span>61 kg · 162 cm</span></div>
+        <div class="kv"><span>Tabaquismo</span><span>No</span></div>
+        <div class="kv"><span>Diabetes previa</span><span>No</span></div>
+        <div class="kv"><span>PAPP-A</span><span>1.12 MoM</span></div>
+        <div class="kv"><span>β-hCG libre</span><span>0.88 MoM</span></div>
+        <div class="kv"><span>IP uterinas medio</span><span>1.05 · p40</span></div>
+      </div>
+    </div>
+    <div class="risk">
+      <div><div class="k">Riesgo T21</div><div class="v">1:1450</div></div>
+      <div><div class="k">Riesgo T18</div><div class="v">1:9800</div></div>
+      <div><div class="k">Riesgo T13</div><div class="v">1:12000</div></div>
+    </div>
+    <div class="note">Antecedente familiar de diabetes gestacional materna: se adelantó la CTOG 75 g a las 26 semanas sin esperar tamiz de 50 g.</div>
+  </section>
+</div>
+
+<section class="card" style="margin-bottom:14px">
+  <h2>Gráfica maestra · eje de edad gestacional</h2>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="chartbox"><svg id="master" viewBox="0 0 980 360" role="img" aria-label="Trayectoria longitudinal por edad gestacional"></svg></div>
+  <div class="legend" id="legend"></div>
+  <div class="note">Selecciona un punto de la curva para abrir la ficha de esa consulta. Cada variable conserva sus unidades propias y comparte únicamente el eje de edad gestacional.</div>
+</section>
+
+<section style="margin-bottom:14px">
+  <div class="small-mult" id="minis"></div>
+</section>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Ficha de consulta</h2>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px">
+      <div><span class="eyebrow">Consulta</span><div id="ficha-eg" style="font-family:var(--data);font-size:21px"></div></div>
+      <div id="ficha-fecha" style="font-size:12.5px;color:var(--muted)"></div>
+    </div>
+    <div class="ficha-rows" id="ficha"></div>
+    <div class="cmp" id="cmp"></div>
+  </section>
+
+  <section class="card">
+    <h2>Crecimiento fetal · biometría y percentiles</h2>
+    <div class="scroll-x">
+      <table id="biom-tbl">
+        <thead><tr><th>Parámetro</th><th>20+1</th><th>27+1</th><th>31+3</th><th>Trayectoria</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="note" id="growth-note"></div>
+  </section>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Doppler</h2>
+    <div class="scroll-x">
+      <table id="dop-tbl">
+        <thead><tr><th>Territorio</th><th>Índice</th><th>12+2</th><th>27+1</th><th>31+3</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="note" id="dop-note"></div>
+  </section>
+
+  <section class="card">
+    <h2>Placenta y líquido amniótico</h2>
+    <div class="kv"><span>Localización</span><span>Corporal anterior</span></div>
+    <div class="kv"><span>Relación con OCI</span><span>Libre · &gt; 50 mm</span></div>
+    <div class="kv"><span>Grado / maduración</span><span>Grannum II</span></div>
+    <div class="kv"><span>Cordón</span><span>3 vasos · inserción central</span></div>
+    <div class="kv"><span>Hallazgos</span><span>Sin hematomas ni lagunas</span></div>
+    <div class="kv"><span>ILA actual</span><span>12 cm · normal</span></div>
+    <div class="kv"><span>Bolsillo vertical máx.</span><span>4.6 cm</span></div>
+    <div class="note">ILA 14 → 16 → 12 cm entre las 20 y las 31+3 semanas. Dentro de rango (8–24 cm) en los tres cortes; el descenso del último control acompaña la caída de percentil de peso y entra en la vigilancia conjunta.</div>
+  </section>
+</div>
+
+<section class="card" style="margin-bottom:14px">
+  <h2>Control materno</h2>
+  <div class="scroll-x">
+    <table id="mat-tbl">
+      <thead><tr><th>Consulta</th><th>EG</th><th>Peso</th><th>Ganancia</th><th>IMC</th><th>TA</th><th>FC</th><th>AFU</th><th>Edema</th><th>Proteinuria</th><th>Mov. fetales</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="note">Síntomas referidos: estreñimiento desde el segundo trimestre, sin sangrado, sin pérdida de líquido y sin actividad uterina en ninguna de las cuatro consultas. IMC pregestacional 23.2 kg/m²; meta de ganancia 11.5–16 kg.</div>
+</section>
+
+<section class="card">
+  <h2>Línea de tiempo</h2>
+  <div class="tl" id="timeline"></div>
+</section>
+
+<footer>
+  Datos demostrativos generados para evaluación de interfaz. No corresponden a una paciente real y no deben usarse con fines clínicos.
+  Los percentiles de peso fetal se interpolan de una tabla de referencia Hadlock cargada en la página; los semáforos se derivan únicamente de los umbrales programados que se citan junto a cada indicador.
+</footer>
+
+</div>
+
+<script>
+/* ---------- datos demostrativos ---------- */
+const EG_HOY = 31 + 3/7;
+const controles = [
+  { id:'c1', eg:12+1/7, fecha:'20 may 2026', tipo:'USG 1.er trimestre + tamiz',
+    pesoM:61, ta:'110/70', fc:78, temp:36.5, sato2:98, afu:null, fcf:158,
+    crl:58, dbp:null, cc:null, ca:null, lf:null, pfe:null, pPfe:null, pCc:null, pCa:null, pLf:null,
+    ila:null, placenta:'No valorable aún', doppler:'IP uterinas medio 1.05 (p40)',
+    edema:'No', proteinuria:'Negativa', movFetales:'No aplica' },
+  { id:'c2', eg:20+1/7, fecha:'15 jul 2026', tipo:'USG estructural',
+    pesoM:64, ta:'108/68', fc:80, temp:36.6, sato2:98, afu:19, fcf:144,
+    crl:null, dbp:47, cc:175, ca:152, lf:33, pfe:340, pPfe:52, pCc:50, pCa:48, pLf:50,
+    ila:14, placenta:'Anterior · Grannum I', doppler:'IP uterinas medio 0.92 (p35)',
+    edema:'No', proteinuria:'Negativa', movFetales:'Presentes' },
+  { id:'c3', eg:27+1/7, fecha:'2 sep 2026', tipo:'Control + resultado de CTOG',
+    pesoM:66.5, ta:'115/72', fc:84, temp:36.5, sato2:97, afu:26, fcf:140,
+    crl:null, dbp:70, cc:255, ca:225, lf:51, pfe:1010, pPfe:50, pCc:48, pCa:45, pLf:52,
+    ila:16, placenta:'Anterior · Grannum I–II', doppler:'A. umbilical IP 1.05 (p45)',
+    edema:'Maleolar leve', proteinuria:'Negativa', movFetales:'Presentes' },
+  { id:'c4', eg:31+3/7, fecha:'1 oct 2026', tipo:'USG de crecimiento',
+    pesoM:68, ta:'112/70', fc:82, temp:36.4, sato2:98, afu:30, fcf:142,
+    crl:null, dbp:81, cc:288, ca:272, lf:60, pfe:1480, pPfe:22, pCc:40, pCa:28, pLf:45,
+    ila:12, placenta:'Anterior · Grannum II', doppler:'A. umbilical IP 1.12 (p70) · RCP 1.47 (p12)',
+    edema:'Maleolar leve', proteinuria:'Negativa', movFetales:'Presentes' }
+];
+const PESO_PRE = 61, TALLA = 1.62;
+
+/* Hadlock — peso fetal estimado (g) por semana: [p10, p50, p90] */
+const HAD = {14:[70,93,116],16:[121,146,171],18:[217,253,289],20:[275,331,410],22:[399,452,540],
+ 24:[530,640,750],26:[711,855,999],28:[925,1120,1315],30:[1180,1430,1680],32:[1480,1800,2120],
+ 34:[1820,2200,2580],36:[2180,2620,3060],38:[2520,3000,3480],40:[2810,3300,3790]};
+function hadlock(wk){
+  const ks=Object.keys(HAD).map(Number).sort((a,b)=>a-b);
+  if(wk<=ks[0])return HAD[ks[0]]; if(wk>=ks[ks.length-1])return HAD[ks[ks.length-1]];
+  let lo=ks[0]; for(const k of ks){ if(k<=wk) lo=k; }
+  const hi=ks[ks.indexOf(lo)+1], t=(wk-lo)/(hi-lo);
+  return HAD[lo].map((v,i)=>v+(HAD[hi][i]-v)*t);
+}
+const fmtEG = eg => { const w=Math.floor(eg+1e-9), d=Math.round((eg-w)*7); return `${w}+${d}`; };
+
+/* ---------- semáforo (umbrales explícitos) ---------- */
+const ultimo = controles[3], previo = controles[2];
+const caidaPct = previo.pPfe - ultimo.pPfe;
+const indicadores = [
+  { lbl:'Crecimiento fetal', val:`PFE p${ultimo.pPfe}`,
+    estado: caidaPct>=20 ? 'warn' : 'ok',
+    motivo:`descenso de ${caidaPct} puntos de percentil de peso fetal entre 27+1 y 31+3 (umbral programado: ≥20 puntos)` },
+  { lbl:'Líquido amniótico', val:`ILA ${ultimo.ila} cm`, estado: (ultimo.ila>=8&&ultimo.ila<=24)?'ok':'warn', motivo:'ILA fuera de 8–24 cm' },
+  { lbl:'FCF', val:`${ultimo.fcf} lpm`, estado:(ultimo.fcf>=110&&ultimo.fcf<=160)?'ok':'warn', motivo:'FCF fuera de 110–160 lpm' },
+  { lbl:'Presión materna', val:ultimo.ta+' mmHg', estado:'ok', motivo:'TA ≥140/90 mmHg' },
+  { lbl:'Doppler', val:'RCP p12', estado:'warn', motivo:'relación cerebro-placentaria en p12 (umbral programado: <p5 crítico, <p20 vigilancia)' },
+  { lbl:'Placenta', val:'Anterior · GII', estado:'ok', motivo:'inserción baja, previa o hallazgo relevante' }
+];
+const lights=document.getElementById('lights');
+indicadores.forEach(i=>{
+  const el=document.createElement('div'); el.className='light';
+  el.innerHTML=`<span class="dot ${i.estado}"></span><div style="min-width:0"><div class="lbl">${i.lbl}</div><div class="val">${i.val}</div></div>`;
+  lights.appendChild(el);
+});
+const alertas = indicadores.filter(i=>i.estado!=='ok');
+const vw=document.getElementById('verdict-word'), vy=document.getElementById('verdict-why'), vb=document.getElementById('verdict');
+if(indicadores.some(i=>i.estado==='crit')){ vw.textContent='Requiere valoración'; vw.style.color='var(--crit)'; vb.style.borderLeftColor='var(--crit)'; }
+else if(alertas.length){ vw.textContent='Vigilancia'; }
+else { vw.textContent='Normal'; vw.style.color='var(--ok)'; vb.style.borderLeftColor='var(--ok)'; }
+vy.innerHTML = alertas.length
+  ? 'Generado por: ' + alertas.map(a=>`<b>${a.lbl}</b> — ${a.motivo}`).join('; ') + '.'
+  : 'Ningún parámetro programado superó su umbral.';
+
+/* ---------- gráfica maestra ---------- */
+const X0=58, X1=950, Y0=28, Y1=300, WK0=12, WK1=41;
+const sx = wk => X0 + (wk-WK0)/(WK1-WK0)*(X1-X0);
+const vistas = {
+  pfe:{ nombre:'Peso fetal estimado', unidad:'g', banda:true, dom:[0,2600],
+        pts:controles.filter(c=>c.pfe).map(c=>({x:c.eg,y:c.pfe,c})) },
+  biometria:{ nombre:'Biometría fetal', unidad:'mm', multi:true, dom:[0,310],
+        series:[ {k:'cc',n:'Circunf. cefálica'}, {k:'ca',n:'Circunf. abdominal'}, {k:'dbp',n:'Diámetro biparietal'}, {k:'lf',n:'Longitud femoral'} ] },
+  percentiles:{ nombre:'Percentiles', unidad:'p', multi:true, dom:[0,100], refs:[10,90],
+        series:[ {k:'pPfe',n:'Peso fetal'}, {k:'pCc',n:'Circunf. cefálica'}, {k:'pCa',n:'Circunf. abdominal'}, {k:'pLf',n:'Longitud femoral'} ] },
+  materno:{ nombre:'Peso materno y altura uterina', multi:true, dom:[0,75],
+        series:[ {k:'pesoM',n:'Peso materno (kg)'}, {k:'afu',n:'Altura uterina (cm)'} ] }
+};
+const COLORS=['var(--accent)','#c2673a','#5d7f3c','#7a5ea8'];
+let vistaActual='pfe', sel='c4';
+
+const tabs=document.getElementById('tabs');
+Object.entries(vistas).forEach(([k,v])=>{
+  const b=document.createElement('button'); b.className='tab'; b.type='button'; b.role='tab';
+  b.textContent=v.nombre; b.setAttribute('aria-selected', k===vistaActual);
+  b.onclick=()=>{ vistaActual=k; [...tabs.children].forEach(c=>c.setAttribute('aria-selected','false')); b.setAttribute('aria-selected','true'); dibujar(); };
+  tabs.appendChild(b);
+});
+
+function dibujar(){
+  const v=vistas[vistaActual], svg=document.getElementById('master');
+  const [d0,d1]=v.dom, sy = val => Y1 - (val-d0)/(d1-d0)*(Y1-Y0);
+  let s='';
+  // rejilla vertical por semanas
+  for(let wk=12; wk<=40; wk+=2){
+    s+=`<line x1="${sx(wk)}" y1="${Y0}" x2="${sx(wk)}" y2="${Y1}" stroke="var(--line)" stroke-width="1"/>`;
+    s+=`<text x="${sx(wk)}" y="${Y1+17}" fill="var(--muted)" font-size="11" font-family="IBM Plex Mono,monospace" text-anchor="middle">${wk}</text>`;
+  }
+  // rejilla horizontal
+  for(let i=0;i<=4;i++){ const val=d0+(d1-d0)*i/4, y=sy(val);
+    s+=`<line x1="${X0}" y1="${y}" x2="${X1}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    s+=`<text x="${X0-9}" y="${y+4}" fill="var(--muted)" font-size="11" font-family="IBM Plex Mono,monospace" text-anchor="end">${Math.round(val)}</text>`;
+  }
+  // banda de normalidad p10–p90
+  if(v.banda){
+    let up='',dn='';
+    for(let wk=14;wk<=41;wk+=0.5){ const h=hadlock(wk); up+=`${sx(wk)},${sy(h[2])} `; }
+    for(let wk=41;wk>=14;wk-=0.5){ const h=hadlock(wk); dn+=`${sx(wk)},${sy(h[0])} `; }
+    s+=`<polygon points="${up}${dn}" fill="var(--band)" opacity="0.5"/>`;
+    let med=''; for(let wk=14;wk<=41;wk+=0.5){ const h=hadlock(wk); med+=`${sx(wk)},${sy(h[1])} `; }
+    s+=`<polyline points="${med}" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="5 4" opacity="0.75"/>`;
+  }
+  if(v.refs) v.refs.forEach(r=>{ s+=`<line x1="${X0}" y1="${sy(r)}" x2="${X1}" y2="${sy(r)}" stroke="var(--warn)" stroke-width="1" stroke-dasharray="4 4" opacity="0.7"/>`; });
+
+  // marcadores de evento
+  const marcas=[{wk:12+2/7,t:'Tamiz 1.er T / LCC'},{wk:20+1/7,t:'Estructural'},{wk:40,t:'Término'}];
+  marcas.forEach(m=>{
+    s+=`<line x1="${sx(m.wk)}" y1="${Y0-10}" x2="${sx(m.wk)}" y2="${Y1}" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.85"/>`;
+    s+=`<text x="${sx(m.wk)+5}" y="${Y0-14}" fill="var(--accent)" font-size="10.5" font-family="Archivo,sans-serif" font-weight="600">${m.t}</text>`;
+  });
+  // hoy
+  s+=`<line x1="${sx(EG_HOY)}" y1="${Y0}" x2="${sx(EG_HOY)}" y2="${Y1}" stroke="var(--ink)" stroke-width="1" opacity="0.35"/>`;
+
+  // series
+  const dibujarSerie=(pts,color,idx)=>{
+    if(pts.length>1) s+=`<polyline points="${pts.map(p=>`${sx(p.x)},${sy(p.y)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>`;
+    pts.forEach(p=>{
+      const act = p.c && p.c.id===sel;
+      s+=`<circle class="pt" data-id="${p.c?p.c.id:''}" cx="${sx(p.x)}" cy="${sy(p.y)}" r="${act?6.5:4.5}" fill="${act?color:'var(--surface)'}" stroke="${color}" stroke-width="2.2" style="cursor:pointer"/>`;
+      if(idx===0||v.banda) s+=`<text x="${sx(p.x)}" y="${sy(p.y)-12}" fill="var(--ink)" font-size="11" font-family="IBM Plex Mono,monospace" text-anchor="middle">${p.y}</text>`;
+    });
+  };
+  const leyenda=[];
+  if(v.banda){ dibujarSerie(v.pts,COLORS[0],0); leyenda.push(['var(--band)','Banda p10–p90 (Hadlock)'],['var(--muted)','Mediana p50'],[COLORS[0],'Peso fetal estimado (g)']); }
+  else v.series.forEach((se,i)=>{
+    const pts=controles.filter(c=>c[se.k]!=null).map(c=>({x:c.eg,y:c[se.k],c}));
+    dibujarSerie(pts,COLORS[i%4],i); leyenda.push([COLORS[i%4],se.n]);
+  });
+  if(v.refs) leyenda.push(['var(--warn)','Percentiles 10 y 90']);
+
+  s+=`<text x="${X0}" y="${Y1+36}" fill="var(--muted)" font-size="11" font-family="Archivo,sans-serif">Semanas de gestación</text>`;
+  if(v.unidad) s+=`<text x="${X0-9}" y="${Y0-12}" fill="var(--muted)" font-size="11" font-family="Archivo,sans-serif" text-anchor="end">${v.unidad}</text>`;
+  svg.innerHTML=s;
+  svg.querySelectorAll('.pt').forEach(c=>c.addEventListener('click',()=>{ if(c.dataset.id){ sel=c.dataset.id; dibujar(); ficha(); }}));
+  document.getElementById('legend').innerHTML=leyenda.map(([c,t])=>`<span><i style="background:${c}"></i>${t}</span>`).join('');
+}
+
+/* ---------- small multiples ---------- */
+const miniDefs=[
+  {k:'ila',n:'Líquido amniótico',u:'cm',rango:[8,24]},
+  {k:'fcf',n:'FCF',u:'lpm',rango:[110,160]},
+  {k:'pesoM',n:'Peso materno',u:'kg'},
+  {k:'afu',n:'Altura uterina',u:'cm'},
+  {k:'taSis',n:'TA sistólica',u:'mmHg',rango:[90,140]},
+  {k:'pPfe',n:'Percentil de peso fetal',u:'p',rango:[10,90]}
+];
+controles.forEach(c=>{ c.taSis=+c.ta.split('/')[0]; });
+const minis=document.getElementById('minis');
+miniDefs.forEach(d=>{
+  const pts=controles.filter(c=>c[d.k]!=null).map(c=>({x:c.eg,y:c[d.k]}));
+  const ys=pts.map(p=>p.y), lo=Math.min(...ys,d.rango?d.rango[0]:Infinity), hi=Math.max(...ys,d.rango?d.rango[1]:-Infinity);
+  const pad=(hi-lo)*0.15||1, D0=lo-pad, D1=hi+pad;
+  const w=300,h=86,mx=8,my=10;
+  const px=wk=>mx+(wk-WK0)/(WK1-WK0)*(w-mx*2), py=val=>h-my-(val-D0)/(D1-D0)*(h-my*2);
+  let g='';
+  if(d.rango) g+=`<rect x="${mx}" y="${py(d.rango[1])}" width="${w-mx*2}" height="${Math.max(0,py(d.rango[0])-py(d.rango[1]))}" fill="var(--band-2)"/>`;
+  g+=`<polyline points="${pts.map(p=>`${px(p.x)},${py(p.y)}`).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{ const last=i===pts.length-1;
+    g+=`<circle cx="${px(p.x)}" cy="${py(p.y)}" r="${last?4.2:3}" fill="${last?'var(--accent)':'var(--surface)'}" stroke="var(--accent)" stroke-width="2"/>`; });
+  const el=document.createElement('div'); el.className='mini';
+  el.innerHTML=`<div class="hd"><span class="ttl">${d.n}</span><span class="last">${pts[pts.length-1].y}<span style="font-size:11px;color:var(--muted)"> ${d.u}</span></span></div>
+    <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${d.n} por edad gestacional">${g}</svg>`;
+  minis.appendChild(el);
+});
+
+/* ---------- ficha de consulta ---------- */
+function ficha(){
+  const c=controles.find(x=>x.id===sel), i=controles.indexOf(c), p=i>0?controles[i-1]:null;
+  document.getElementById('ficha-eg').textContent=fmtEG(c.eg)+' semanas';
+  document.getElementById('ficha-fecha').textContent=c.fecha+' · '+c.tipo;
+  const campos=[
+    ['Peso materno',c.pesoM+' kg'],['TA',c.ta+' mmHg'],['FC',c.fc+' lpm'],
+    ['AFU',c.afu?c.afu+' cm':'—'],['FCF',c.fcf+' lpm'],
+    ['PFE',c.pfe?c.pfe+' g':'—'],['Percentil PFE',c.pPfe?'p'+c.pPfe:'—'],
+    ['DBP',c.dbp?c.dbp+' mm':'—'],['CC',c.cc?c.cc+' mm':'—'],['CA',c.ca?c.ca+' mm':'—'],['LF',c.lf?c.lf+' mm':'—'],
+    ['ILA',c.ila?c.ila+' cm':'—']
+  ];
+  document.getElementById('ficha').innerHTML=campos.map(([k,v])=>`<div class="c"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  const cmp=document.getElementById('cmp');
+  if(!p){ cmp.innerHTML='<div class="na">Primera consulta registrada — sin comparación previa.</div>'; return; }
+  const filas=[];
+  const d=(k,lbl,u,inv)=>{ if(c[k]==null||p[k]==null)return; const dd=+(c[k]-p[k]).toFixed(1);
+    const cls = dd===0?'flat':((inv? dd<0 : dd>0)?'up':'down');
+    filas.push(`<div class="cmp-row"><span>${lbl}</span><span><span class="num">${p[k]} → ${c[k]} ${u}</span> <span class="delta ${cls}">${dd>0?'+':''}${dd}</span></span></div>`); };
+  d('pfe','Peso fetal estimado','g'); d('pPfe','Percentil de peso','p');
+  d('ila','Líquido amniótico','cm'); d('fcf','FCF','lpm');
+  d('pesoM','Peso materno','kg'); d('afu','Altura uterina','cm');
+  filas.push(`<div class="cmp-row"><span>Placenta</span><span class="num" style="font-family:var(--body)">${c.placenta}</span></div>`);
+  filas.push(`<div class="cmp-row"><span>Doppler</span><span class="num" style="font-family:var(--body);text-align:right">${c.doppler}</span></div>`);
+  cmp.innerHTML=`<div class="eyebrow" style="margin-bottom:6px">Comparación con ${fmtEG(p.eg)} semanas</div>`+filas.join('');
+}
+
+/* ---------- tablas ---------- */
+const biomRows=[['DBP','dbp','mm',null],['Circunferencia cefálica','cc','mm','pCc'],['Circunferencia abdominal','ca','mm','pCa'],['Longitud femoral','lf','mm','pLf'],['Peso fetal estimado','pfe','g','pPfe']];
+document.querySelector('#biom-tbl tbody').innerHTML=biomRows.map(([n,k,u,pk])=>{
+  const v=[1,2,3].map(i=>controles[i][k]!=null?controles[i][k]+(pk&&controles[i][pk]?` <span style="color:var(--muted)">p${controles[i][pk]}</span>`:''):'—');
+  let tray='<span class="tag ok">Estable</span>';
+  if(pk && controles[2][pk] && controles[3][pk]){ const dd=controles[2][pk]-controles[3][pk];
+    if(dd>=20) tray=`<span class="tag warn">−${dd} p</span>`; else if(dd>=10) tray=`<span class="tag warn">−${dd} p</span>`; }
+  return `<tr><td>${n} <span style="color:var(--muted);font-size:11px">${u}</span></td><td>${v[0]}</td><td>${v[1]}</td><td>${v[2]}</td><td>${tray}</td></tr>`;
+}).join('');
+const egBiom=[['EG por biometría','20+2','27+0','30+4'],['Diferencia vs. EG establecida','+1 d','−1 d','−6 d']];
+document.querySelector('#biom-tbl tbody').insertAdjacentHTML('beforeend',
+  egBiom.map(r=>`<tr><td style="color:var(--muted)">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td></td></tr>`).join(''));
+document.getElementById('growth-note').innerHTML=
+ 'Velocidad de crecimiento entre 27+1 y 31+3: <span class="num">109 g/semana</span> (referencia aproximada para ese intervalo: 180–200 g/semana). La caída de 50 a 22 en el percentil de peso y de 45 a 28 en el de circunferencia abdominal constituye un cambio de trayectoria; no se etiqueta como restricción del crecimiento, que requiere criterios de consenso y valoración del especialista.';
+
+const dop=[['Arterias uterinas','IP medio','1.05 · p40','0.88 · p30','0.84 · p28'],
+ ['Arteria umbilical','IP','—','1.05 · p45','1.12 · p70'],
+ ['Arteria umbilical','S/D','—','2.9','3.2'],
+ ['ACM','IP','—','1.92','1.65'],
+ ['Relación cerebro-placentaria','ACM/AU','—','1.83 · p55','1.47 · p12'],
+ ['Ductus venoso','Onda a','Positiva','Positiva','Positiva']];
+document.querySelector('#dop-tbl tbody').innerHTML=dop.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join('');
+document.getElementById('dop-note').innerHTML='Interpretación del último estudio: flujo diastólico presente y anterógrado en todos los territorios, ductus venoso con onda a positiva. La relación cerebro-placentaria descendió a p12 — por debajo del umbral de vigilancia programado (p20) y por encima del crítico (p5).';
+
+document.querySelector('#mat-tbl tbody').innerHTML=controles.map((c,i)=>{
+  const gan=(c.pesoM-PESO_PRE).toFixed(1), imc=(c.pesoM/(TALLA*TALLA)).toFixed(1);
+  return `<tr><td>${i+1}</td><td>${fmtEG(c.eg)}</td><td>${c.pesoM} kg</td><td>+${gan} kg</td><td>${imc}</td><td>${c.ta}</td><td>${c.fc}</td><td>${c.afu?c.afu+' cm':'—'}</td><td>${c.edema}</td><td>${c.proteinuria}</td><td>${c.movFetales}</td></tr>`;
+}).join('');
+
+/* ---------- vigilancia de riesgo ---------- */
+/* serie de laboratorio por edad gestacional (datos demostrativos) */
+const labs = [
+  { eg:12+2/7, fecha:'22 may', hb:12.6, hto:37.0, plq:245, gluc:84, hba1c:5.3, ast:20, alt:18, ab:3.1, acUrico:3.6, prot:'Negativa', tas:110, tad:70, prurito:false },
+  { eg:27+1/7, fecha:'28 ago', hb:11.2, hto:33.5, plq:198, gluc:96, hba1c:5.5, ast:22, alt:21, ab:4.8, acUrico:4.2, prot:'Negativa', tas:115, tad:72, prurito:false },
+  { eg:31+3/7, fecha:'30 sep', hb:10.8, hto:32.4, plq:142, gluc:92, hba1c:5.5, ast:24, alt:22, ab:6.2, acUrico:4.8, prot:'Negativa', tas:112, tad:70, prurito:false }
+];
+const L = labs[labs.length-1], Lp = labs[labs.length-2];
+
+/* evalúa un valor contra umbral; dir -1 = alerta cuando baja, +1 = alerta cuando sube */
+function metrica(nombre, key, unidad, umbral, dir, cercania){
+  const v = L[key], p = Lp[key], d = +(v-p).toFixed(1);
+  const cruza = dir<0 ? v < umbral : v > umbral;
+  const cerca = !cruza && (dir<0 ? v < umbral*(1+cercania) : v > umbral*(1-cercania));
+  const empeora = dir<0 ? d<0 : d>0;
+  const flag = cruza ? 'warn' : (cerca && empeora ? 'warn' : 'ok');
+  const arw = d===0 ? ['flat','→ 0'] : [ (empeora?'bad':'good'), (d>0?'↑ +':'↓ ')+d ];
+  return { nombre, v, unidad, flag, arw, cruza, cerca:cerca&&empeora,
+    html:`<div class="rk-m"><span class="n"><span class="flag ${flag}"></span>${nombre}</span><span class="q">${v} ${unidad}<span class="arw ${arw[0]}">${arw[1]}</span></span></div>` };
+}
+
+const riesgos = [];
+
+/* 1 · Anemia */
+{
+  const hb = metrica('Hemoglobina','hb','g/dL',11,-1,0.08);
+  const hto = metrica('Hematocrito','hto','%',33,-1,0.06);
+  const estado = hb.cruza ? (L.hb<9 ? 'crit':'warn') : (hb.cerca?'warn':'ok');
+  riesgos.push({ nm:'Anemia', estado,
+    etiqueta: estado==='ok'?'Sin datos de alerta':(L.hb<9?'Moderada':'Leve · confirmada'),
+    umbral:'Umbral programado: Hb &lt; 11 g/dL en 1.er y 3.er trimestre · &lt; 9 g/dL moderada',
+    ms:[hb,hto],
+    say:'Descenso sostenido desde las 12 semanas con hemodilución fisiológica esperada, pero el último valor cruza el umbral del tercer trimestre. Conviene perfil de hierro antes de ajustar la suplementación.' });
+}
+
+/* 2 · Trombocitopenia */
+{
+  const plq = metrica('Plaquetas','plq','×10³/µL',150,-1,0.12);
+  const caida = Lp.plq - L.plq;
+  const estado = L.plq<100 ? 'crit' : (plq.cruza||caida>=50 ? 'warn':'ok');
+  riesgos.push({ nm:'Trombocitopenia', estado,
+    etiqueta: estado==='crit'?'Significativa':(estado==='warn'?'Leve · vigilar':'Sin datos de alerta'),
+    umbral:'Umbral programado: plaquetas &lt; 150 ×10³/µL · caída ≥ 50 ×10³/µL entre controles',
+    ms:[plq],
+    say:`Caída de ${caida} ×10³/µL en poco más de 4 semanas. Aislada suele ser gestacional, pero coincide con la vigilancia de preeclampsia: repetir biometría hemática y revisar junto con TA y transaminasas.` });
+}
+
+/* 3 · Diabetes gestacional */
+{
+  const g = metrica('Glucosa en ayuno','gluc','mg/dL',95,1,0.05);
+  const a = metrica('HbA1c','hba1c','%',6.0,1,0.05);
+  riesgos.push({ nm:'Diabetes gestacional', estado:'act', etiqueta:'Diagnosticada · en control',
+    umbral:'CTOG 75 g a las 26 semanas: basal 96 · 1 h 192 · 2 h 161 mg/dL (umbrales 92 / 180 / 153)',
+    ms:[g,a],
+    say:'Tres valores alterados en la curva. Control glucémico en meta solo con plan nutricional; no ha requerido insulina. La vigilancia de crecimiento fetal depende de este diagnóstico.' });
+}
+
+/* 4 · Preeclampsia */
+{
+  const tas = metrica('TA sistólica','tas','mmHg',140,1,0.08);
+  const ac = metrica('Ácido úrico','acUrico','mg/dL',5.5,1,0.1);
+  const plqBaja = L.plq < 150;
+  const estado = (L.tas>=140||L.tad>=90) ? 'crit' : (plqBaja ? 'warn':'ok');
+  riesgos.push({ nm:'Preeclampsia', estado,
+    etiqueta: estado==='crit'?'Criterios presentes':(estado==='warn'?'Vigilancia activa':'Sin datos de alerta'),
+    umbral:'Umbrales programados: TA ≥ 140/90 mmHg · proteinuria positiva · plaquetas &lt; 150 ×10³/µL · AST o ALT &gt; 70 U/L',
+    ms:[tas,ac,{html:`<div class="rk-m"><span class="n"><span class="flag ok"></span>Proteinuria</span><span class="q">${L.prot}</span></div>`},
+        {html:`<div class="rk-m"><span class="n"><span class="flag ok"></span>AST / ALT</span><span class="q">${L.ast} / ${L.alt} U/L</span></div>`}],
+    say:'Presión y proteinuria normales, transaminasas sin alteración y Doppler de arterias uterinas de bajo riesgo desde el primer trimestre. La vigilancia se mantiene abierta únicamente por el descenso de plaquetas.' });
+}
+
+/* 5 · Colestasis intrahepática */
+{
+  const ab = metrica('Ácidos biliares','ab','µmol/L',10,1,0.25);
+  const alt = metrica('ALT','alt','U/L',40,1,0.2);
+  const estado = L.ab>=40 ? 'crit' : (ab.cruza ? 'warn' : (ab.cerca?'warn':'ok'));
+  riesgos.push({ nm:'Colestasis intrahepática', estado,
+    etiqueta: estado==='ok'?'Sin datos de alerta':(L.ab>=40?'Grave':'Compatible · confirmar'),
+    umbral:'Umbrales programados: ácidos biliares ≥ 10 µmol/L · ≥ 40 µmol/L grave · prurito palmoplantar',
+    ms:[ab,alt,{html:`<div class="rk-m"><span class="n"><span class="flag ok"></span>Prurito palmoplantar</span><span class="q">${L.prurito?'Presente':'Ausente'}</span></div>`}],
+    say:'Ácidos biliares en ascenso lento pero dentro de rango y sin prurito referido. Se repite si aparece prurito nocturno, que suele preceder a la elevación.' });
+}
+
+document.getElementById('riesgos').innerHTML = riesgos.map(r=>`
+  <div class="rk ${r.estado}">
+    <div class="rk-hd"><span class="rk-nm">${r.nm}</span><span class="rk-st">${r.etiqueta}</span></div>
+    <div class="rk-um">${r.umbral}</div>
+    ${r.ms.map(m=>m.html).join('')}
+    <div class="rk-say">${r.say}</div>
+  </div>`).join('');
+
+/* los riesgos con alerta se suman al veredicto global */
+const riesgoAlerta = riesgos.filter(r=>r.estado==='warn'||r.estado==='crit');
+if(riesgoAlerta.length){
+  vy.innerHTML += ' <b>Vigilancia de riesgo:</b> ' + riesgoAlerta.map(r=>`${r.nm} (${r.etiqueta.toLowerCase()})`).join(', ') + '.';
+  if(riesgos.some(r=>r.estado==='crit')){ vw.textContent='Requiere valoración'; vw.style.color='var(--crit)'; vb.style.borderLeftColor='var(--crit)'; }
+}
+
+/* ---------- timeline ---------- */
+const eventos=[
+  {wk:'FUM',nm:'24 feb 2026',done:true,id:null},
+  {wk:'12+2',nm:'Datación por LCC',done:true,id:'c1'},
+  {wk:'12+2',nm:'Tamiz 1.er trimestre',done:true,id:'c1'},
+  {wk:'20+1',nm:'USG estructural',done:true,id:'c2'},
+  {wk:'26+0',nm:'CTOG 75 g',done:true,id:'c3'},
+  {wk:'27+1',nm:'Control de crecimiento',done:true,id:'c3'},
+  {wk:'31+3',nm:'Crecimiento + Doppler',done:true,id:'c4'},
+  {wk:'34+0',nm:'Control programado',done:false,id:null},
+  {wk:'37+0',nm:'Valoración de término',done:false,id:null},
+  {wk:'40+0',nm:'Término',done:false,id:null}
+];
+document.getElementById('timeline').innerHTML=eventos.map(e=>
+  `<div class="tl-item${e.done?' done':''}"><div class="wk">${e.wk}</div><div class="nm">${e.nm}</div>${e.id?`<button type="button" data-go="${e.id}">Ver ficha</button>`:'<span class="na">Pendiente</span>'}</div>`).join('');
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{
+  sel=b.dataset.go; dibujar(); ficha();
+  document.getElementById('ficha-eg').scrollIntoView({behavior:'smooth',block:'center'});
+}));
+
+dibujar(); ficha();
+</script>
