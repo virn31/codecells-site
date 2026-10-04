@@ -147,6 +147,7 @@
   .toast-kiosco.success { border-color: rgba(95,174,110,0.5); color: #5FAE6E; }
 </style>
   <script src="/lib/i18n.js"></script>
+  <script src="/lib/cuestionarioBiologico.js"></script>
   <!-- QR generado en la tablet (no en un servicio de terceros): la liga de activación es un secreto. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -227,7 +228,7 @@
     </div>
     <div class="opcion-card" id="card-test" onclick="abrirTest()">
       <div class="opcion-icono">🧬</div>
-      <div class="opcion-texto"><h3>Test biológico</h3><p>Evaluación de los 5 sistemas CODE</p></div>
+      <div class="opcion-texto"><h3>Biological Map™</h3><p>10 preguntas · el paciente responde · queda en su expediente</p></div>
       <div class="opcion-check" id="check-test" style="display:none;">✓</div>
     </div>
   </div>
@@ -260,6 +261,22 @@
   <div class="wizard-nav">
     <button class="btn-secundario" id="btn-hist-atras" onclick="historiaAtras()">Atrás</button>
     <button class="btn-grande" id="btn-hist-siguiente" onclick="historiaSiguiente()">Siguiente</button>
+  </div>
+</div>
+
+<!-- Pantalla 5c: Biological Map™ dentro de la sesión del consultorio.
+     Antes abría el test público en otra pestaña y el resultado se perdía.
+     Ahora se guarda en EVALUACIONES_BIOLOGICAS con el médico como autor;
+     el servidor califica (lib/cuestionarioBiologico.js). -->
+<div class="pantalla" id="p-test-bio">
+  <div class="wizard-progreso" id="bio-progreso">PREGUNTA 1 DE 10</div>
+  <div class="hint" id="bio-sistema" style="margin:0 0 10px;"></div>
+  <div class="wizard-pregunta" id="bio-pregunta">—</div>
+  <div class="wizard-chips" id="bio-opciones"></div>
+  <div class="campo-error" id="bio-error"></div>
+  <div class="wizard-nav">
+    <button class="btn-secundario" id="btn-bio-atras" onclick="bioAtras()">Atrás</button>
+    <button class="btn-secundario" onclick="bioCancelar()">Cancelar</button>
   </div>
 </div>
 
@@ -847,10 +864,74 @@ async function guardarAntecedentesGO() {
 }
 
 // ─── TEST BIOLÓGICO — reutiliza el flujo público existente ────────
+// El paciente responde en la tablet; la palomita ✓ aparece SOLO cuando el
+// servidor confirma que se guardó (antes se marcaba al abrir el test, aunque
+// nadie lo respondiera — CLAUDE.md §6).
+let bioPreguntas = [];
+let bioIdx = 0;
+let bioRespuestas = {};
+let bioEnviando = false;
+
 function abrirTest() {
-  document.getElementById('check-test').style.display = 'block';
-  document.getElementById('card-test').classList.add('done');
-  window.open(`/?openTest=1&src=kiosco&pac=${encodeURIComponent(sesion.pacienteCodigo)}`, '_blank');
+  const CB = window.CUESTIONARIO_BIOLOGICO;
+  bioPreguntas = [];
+  CB.DATOS.systems.forEach(s => s.questions.forEach(q => bioPreguntas.push({ sys: s, q })));
+  bioIdx = 0; bioRespuestas = {}; bioEnviando = false;
+  document.getElementById('bio-error').textContent = '';
+  irA('p-test-bio');
+  pintarPreguntaBio();
+}
+
+function pintarPreguntaBio() {
+  const { sys, q } = bioPreguntas[bioIdx];
+  const clave = `${sys.id}_${q.id}`;
+  document.getElementById('bio-progreso').textContent = `PREGUNTA ${bioIdx + 1} DE ${bioPreguntas.length}`;
+  document.getElementById('bio-sistema').textContent = `${sys.icon} ${sys.corto}`;
+  document.getElementById('bio-pregunta').textContent = q.text;
+  const cont = document.getElementById('bio-opciones');
+  cont.innerHTML = '';
+  q.options.forEach(o => {
+    const chip = document.createElement('div');
+    chip.className = 'wizard-chip' + (bioRespuestas[clave] === o.value ? ' sel' : '');
+    chip.textContent = o.text;
+    chip.onclick = () => elegirBio(clave, o.value);
+    cont.appendChild(chip);
+  });
+  document.getElementById('btn-bio-atras').style.visibility = bioIdx === 0 ? 'hidden' : 'visible';
+}
+
+function elegirBio(clave, valor) {
+  if (bioEnviando) return;
+  bioRespuestas[clave] = valor;
+  if (bioIdx < bioPreguntas.length - 1) { bioIdx++; pintarPreguntaBio(); return; }
+  guardarBio();
+}
+
+function bioAtras() { if (bioIdx > 0 && !bioEnviando) { bioIdx--; pintarPreguntaBio(); } }
+function bioCancelar() { if (!bioEnviando) irA('p-menu'); }
+
+async function guardarBio() {
+  bioEnviando = true;
+  const err = document.getElementById('bio-error');
+  err.textContent = 'Guardando…';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: headersSesion(),
+      body: JSON.stringify({ action: 'medico_guardar_evaluacion', pacienteCode: sesion.pacienteCodigo, respuestas: bioRespuestas }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.evaluacion) { err.textContent = data.error || `No se guardó la evaluación (error ${res.status}).`; return; }
+    err.textContent = '';
+    document.getElementById('check-test').style.display = 'block';
+    document.getElementById('card-test').classList.add('done');
+    toast(`Evaluación guardada ✓ — estado general ${data.evaluacion.estadoGeneral.toFixed(1)} de 10`, 'success');
+    irA('p-menu');
+  } catch (e) {
+    err.textContent = 'Error de conexión — la evaluación no se guardó.';
+  } finally {
+    bioEnviando = false;
+  }
 }
 
 // ─── FIN DE SESIÓN ────────────────────────────────────────────────
