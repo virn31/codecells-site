@@ -47,7 +47,7 @@ const ETIQUETAS_FICHA = {
   exploracion_fisica: 'Exploración física',
   diagnostico: 'Diagnóstico',
   plan_terapeutico: 'Plan terapéutico',
-  notas_internas: 'Notas internas',
+  notas_internas: 'Razonamiento clínico',
   antecedentes_heredofamiliares: 'AHF',
   antecedentes_personales_patologicos: 'APP',
   antecedentes_quirurgicos: 'Quirúrgicos',
@@ -173,7 +173,10 @@ async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
     'Exploración física': ficha.exploracion_fisica || undefined,
     'Diagnóstico (CIE-10)': ficha.diagnostico || undefined,
     'Plan terapéutico': ficha.plan_terapeutico || undefined,
-    'Notas internas': ficha.notas_internas || undefined,
+    // notas_internas es el catch-all genérico de NOVA ("cualquier dato sin
+    // campo propio") — va al NO portable por default, mismo criterio que el
+    // autorelleno del portal (ver portal-medico.html, aplicarFichaNova).
+    'Razonamiento clínico': ficha.notas_internas || undefined,
   };
   if (vitalesExtra.length > 0) consultaFields['Signos vitales'] = vitalesExtra.join(' · ');
   Object.keys(consultaFields).forEach((k) => consultaFields[k] === undefined && delete consultaFields[k]);
