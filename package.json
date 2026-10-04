@@ -1,0 +1,11 @@
+{
+  "name": "codecells-site",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  },
+  "devDependencies": {
+    "vercel": "^62.2.0"
+  }
+}
