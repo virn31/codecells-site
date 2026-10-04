@@ -5178,7 +5178,7 @@ async function cargarBioMapPortal() {
         <td>${e.origen || '—'}</td>
       </tr>`).join('');
     tabla.innerHTML = `<div style="overflow-x:auto;"><table class="biomap-tabla" style="width:100%;border-collapse:collapse;font-size:12px;">
-      <thead><tr><th style="text-align:left;">Fecha</th>${CB.DATOS.systems.map(s => `<th>${s.icon} ${s.corto}</th>`).join('')}<th>General</th><th style="text-align:left;">Origen</th></tr></thead>
+      <thead><tr><th style="text-align:left;">Fecha</th>${CB.DATOS.systems.map(s => `<th>${s.icon} <span>${s.corto}</span></th>`).join('')}<th>General</th><th style="text-align:left;">Origen</th></tr></thead>
       <tbody>${filas}</tbody></table></div>`;
     tabla.querySelectorAll('th, td').forEach(c => { c.style.padding = '7px 8px'; c.style.borderBottom = '0.5px solid rgba(201,169,110,0.15)'; });
   } catch (e) {

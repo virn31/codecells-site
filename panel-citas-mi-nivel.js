@@ -101,7 +101,8 @@ function mostrarCitasPaciente(citas) {
 function formatearFecha(fechaStr) {
   const fecha = new Date(fechaStr + 'T00:00:00');
   const opciones = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-  return fecha.toLocaleDateString('es-MX', opciones).replace(/\./g, '');
+  var loc = ({ es: 'es-MX', en: 'en-US', pt: 'pt-BR' })[(window.getLanguage && window.getLanguage()) || 'es'] || 'es-MX';
+  return fecha.toLocaleDateString(loc, opciones).replace(/\./g, '');
 }
 
 function mostrarIndicaciones(citaId) {

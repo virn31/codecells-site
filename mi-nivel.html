@@ -127,10 +127,8 @@
     display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; cursor: pointer; border-radius: 10px; }
   .nav-btn span { font-size: 20px; line-height: 1; }
   .nav-btn.activo { color: var(--gold); background: var(--gold-pale2); }
+  .encabezado-app { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; padding-right: 52px; }
   .nav-inferior-int { display: flex; justify-content: space-around; width: 100%; max-width: 520px; margin: 0 auto; }
-  /* El selector de idioma (lib/i18n.js, fijo abajo a la izquierda) sube
-     por encima de la barra para no tapar "Inicio". */
-  body.con-nav #i18n-switch { bottom: 84px !important; }
 
   /* Biological Map */
   .bio-anillo-wrap { display: flex; justify-content: center; margin: 4px 0 10px; }
@@ -166,7 +164,12 @@
 <audio id="musica-fondo" src="assets/helix-in-gold.mp3" loop preload="none"></audio>
 
   <div class="wrap">
-  <div class="logo-glyph">CODE CELLS™</div>
+  <div class="encabezado-app">
+    <div class="logo-glyph" style="margin-bottom:0;">CODE CELLS™</div>
+    <!-- Selector de idioma en su lugar fijo (lib/i18n.js lo pone aquí en vez
+         de flotar abajo, donde tapaba botones como "Compartir por WhatsApp"). -->
+    <span id="i18n-slot"></span>
+  </div>
   <div id="install-banner-slot"></div>
 
   <!-- Pantalla: cargando -->
@@ -628,11 +631,13 @@ function mostrarPin(modo, mensaje, esInfo) {
   var titulos = { login: 'Escribe tu PIN', crear: 'Crea tu PIN', confirmar: 'Confírmalo' };
   document.getElementById('pin-titulo').textContent = titulos[modo];
   var sub = document.getElementById('pin-sub');
-  if (modo === 'login') sub.textContent = pacienteCodigo ? 'Código ' + pacienteCodigo : '';
+  if (modo === 'login') sub.innerHTML = pacienteCodigo ? '<span>Código</span> ' + sinTraducir(pacienteCodigo) : '';
   if (modo === 'crear') sub.textContent = '6 dígitos que solo tú sepas. Lo usarás cada vez que abras tu app. Evita números seguidos o repetidos.';
   if (modo === 'confirmar') sub.textContent = 'Escribe el mismo PIN otra vez.';
   var msg = document.getElementById('pin-msg');
-  msg.textContent = mensaje || '';
+  // Varias frases → una por <span>, para que cada una coincida con el diccionario.
+  if (Array.isArray(mensaje)) msg.innerHTML = mensaje.map(function(x){ return '<span>' + esc(x) + '</span>'; }).join(' ');
+  else msg.textContent = mensaje || '';
   msg.className = 'pin-msg' + (esInfo ? ' ok' : '');
   pintarPin();
   irA('p-pin');
@@ -687,8 +692,7 @@ function manejarRechazoLogin(r) {
   var d = r.data || {};
   if (r.status === 0) return mostrarPin('login', 'Sin conexión. Revisa tu internet e intenta de nuevo.');
   if (d.motivo === 'pin_incorrecto') {
-    var extra = d.intentosAntesDeBloqueo ? ' Te quedan ' + d.intentosAntesDeBloqueo + ' intento(s) antes de un bloqueo temporal.' : '';
-    return mostrarPin('login', 'PIN incorrecto.' + extra);
+    return mostrarPin('login', d.intentosAntesDeBloqueo ? ['PIN incorrecto.', 'Te quedan ' + d.intentosAntesDeBloqueo + ' intento(s) antes de un bloqueo temporal.'] : 'PIN incorrecto.');
   }
   if (d.motivo === 'pin_requerido') return mostrarPin('login');
   if (d.motivo === 'bloqueado' || d.motivo === 'bloqueado_definitivo') return mostrarPin('login', d.error);
@@ -714,7 +718,7 @@ function iniciarActivacion(liga) {
     }
     pacienteCodigo = r.data.codigo;
     mostrarPin('crear');
-    document.getElementById('pin-titulo').textContent = (r.data.nombre ? 'Hola, ' + r.data.nombre + '. ' : '') + 'Crea tu PIN';
+    document.getElementById('pin-titulo').innerHTML = (r.data.nombre ? '<span>Hola,</span> ' + sinTraducir(r.data.nombre + '.') + ' ' : '') + '<span>Crea tu PIN</span>';
   });
 }
 
@@ -843,8 +847,16 @@ function renderProgresoProtocolo(f) {
 var CB = window.CUESTIONARIO_BIOLOGICO;
 var bioEvaluaciones = [];
 
+// Idioma elegido en el selector (lib/i18n.js). El texto fijo lo traduce el
+// motor por diccionario; las fechas van aparte, en el formato del idioma.
+function idiomaActual() { return (window.getLanguage && window.getLanguage()) || 'es'; }
+function localeActual() { return { es: 'es-MX', en: 'en-US', pt: 'pt-BR' }[idiomaActual()] || 'es-MX'; }
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+// Fecha y nombres: nunca pasan por el diccionario (data-no-i18n).
+function sinTraducir(t) { return '<span data-no-i18n>' + esc(t) + '</span>'; }
+
 function fechaCorta(iso) {
-  return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(localeActual(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function cargarBio() {
@@ -870,7 +882,16 @@ function cargarBio() {
     });
 }
 
+var bioProximaPermitida = null;
+// Al cambiar de idioma: las fechas se vuelven a formatear (el texto fijo lo
+// cambia el motor solo).
+window.addEventListener('i18n:change', function() {
+  if (document.getElementById('bio-contenido').style.display !== 'none' || document.getElementById('bio-proxima').style.display !== 'none') renderBio(bioProximaPermitida);
+  pintarVenceLlave();
+});
+
 function renderBio(proximaPermitida) {
+  bioProximaPermitida = proximaPermitida;
   var btn = document.getElementById('btn-reevaluarme');
   var prox = document.getElementById('bio-proxima');
   var esDemo = false;
@@ -885,11 +906,11 @@ function renderBio(proximaPermitida) {
     var anteriores = bioEvaluaciones.slice(0, -1).filter(function(e){ return e.version === ultima.version; });
     var anterior = anteriores.length ? anteriores[anteriores.length - 1] : null;
     dibujarAnillo(ultima);
-    var res = 'Estado general: <b>' + (CB.etiqueta(ultima.estadoGeneral) || '') + '</b><br>Evaluación del ' + fechaCorta(ultima.fecha) +
-      (ultima.origen === 'Kiosco de consultorio' ? ' · en consultorio' : '');
+    var res = '<span>Estado general:</span> <b>' + (CB.etiqueta(ultima.estadoGeneral) || '') + '</b><br><span>Evaluación del</span> ' + sinTraducir(fechaCorta(ultima.fecha)) +
+      (ultima.origen === 'Kiosco de consultorio' ? ' · <span>en consultorio</span>' : '');
     if (anterior && typeof anterior.estadoGeneral === 'number') {
       var d = Math.round((ultima.estadoGeneral - anterior.estadoGeneral) * 10) / 10;
-      res += '<br>' + (d > 0 ? 'Subió ' + d.toFixed(1) : d < 0 ? 'Bajó ' + Math.abs(d).toFixed(1) : 'Igual') + ' desde tu evaluación del ' + fechaCorta(anterior.fecha);
+      res += '<br>' + (d > 0 ? '<span>Subió</span> ' + d.toFixed(1) : d < 0 ? '<span>Bajó</span> ' + Math.abs(d).toFixed(1) : '<span>Igual</span>') + ' <span>desde tu evaluación del</span> ' + sinTraducir(fechaCorta(anterior.fecha));
     }
     document.getElementById('bio-resumen').innerHTML = res;
     var lista = document.getElementById('bio-lista');
@@ -904,7 +925,7 @@ function renderBio(proximaPermitida) {
         if (dd !== 0) delta = '<span class="bio-delta ' + (dd > 0 ? 'sube' : 'baja') + '">' + (dd > 0 ? '↑' : '↓') + Math.abs(dd).toFixed(1) + '</span>';
       }
       fila.innerHTML = '<span class="bio-punto" style="background:' + s.color + '"></span>' +
-        '<span class="bio-nombre">' + s.icon + ' ' + s.corto + '</span>' +
+        '<span class="bio-nombre">' + s.icon + ' <span>' + s.corto + '</span></span>' +
         '<span class="bio-valor">' + (typeof v === 'number' ? v.toFixed(1) : '—') + '</span>' +
         '<span class="bio-etiqueta">' + (CB.etiqueta(v) || '') + '</span>' + (delta || '<span class="bio-delta"></span>');
       lista.appendChild(fila);
@@ -914,7 +935,7 @@ function renderBio(proximaPermitida) {
 
   if (esDemo) return; // demo: solo lectura
   if (proximaPermitida) {
-    prox.textContent = 'Podrás reevaluarte a partir del ' + fechaCorta(proximaPermitida) + ' (cada 14 días, para que tu evolución tenga sentido).';
+    prox.innerHTML = '<span>Podrás reevaluarte a partir del</span> ' + sinTraducir(fechaCorta(proximaPermitida)) + ' <span>(cada 14 días, para que tu evolución tenga sentido).</span>';
     prox.style.display = '';
   } else {
     btn.textContent = bioEvaluaciones.length ? 'Reevaluarme' : 'Hacer mi evaluación';
@@ -978,7 +999,7 @@ function abrirTestBio() {
 function pintarPregunta() {
   var p = testPreguntas[testIdx];
   document.getElementById('test-progreso').textContent = 'PREGUNTA ' + (testIdx + 1) + ' DE ' + testPreguntas.length;
-  document.getElementById('test-sistema').textContent = p.sys.icon + ' ' + p.sys.corto;
+  document.getElementById('test-sistema').innerHTML = p.sys.icon + ' <span>' + p.sys.corto + '</span>';
   document.getElementById('test-pregunta').textContent = p.q.text;
   var cont = document.getElementById('test-opciones');
   cont.innerHTML = '';
@@ -1109,7 +1130,8 @@ function renderSugerencias() {
     var chip = document.createElement('div');
     chip.className = 'sugerencia-chip';
     chip.textContent = op;
-    chip.onclick = function(){ document.getElementById('chat-input').value = op; enviarMensaje(); };
+    // Se envía en el idioma elegido: NOVA responde en el idioma en que le escriben.
+    chip.onclick = function(){ document.getElementById('chat-input').value = window.t ? window.t(op) : op; enviarMensaje(); };
     cont.appendChild(chip);
   });
 }
@@ -1126,7 +1148,8 @@ function agregarMensaje(texto, tipo) {
 
 function mensajeBienvenida() {
   var nombre = (pacienteRecord.fields['Nombre completo'] || '').split(' ')[0];
-  agregarMensaje('Hola ' + nombre + ', soy NOVA. ¿En qué te puedo apoyar hoy?', 'nova');
+  var div = agregarMensaje('', 'nova');
+  div.innerHTML = '<span>Hola</span> ' + sinTraducir(nombre) + '<span>, soy NOVA. ¿En qué te puedo apoyar hoy?</span>';
 }
 
 var novaHistorial = [];
@@ -1164,7 +1187,7 @@ function enviarMensaje() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal: controller.signal,
-    body: JSON.stringify({ pacienteCode: pacienteCodigo, messages: novaHistorial, max_tokens: 1024 }),
+    body: JSON.stringify({ pacienteCode: pacienteCodigo, messages: novaHistorial, max_tokens: 1024, idioma: idiomaActual() }),
   })
     .then(function(r){ return r.json(); })
     .then(function(data){
@@ -1214,11 +1237,19 @@ function cargarComparativoLabs() {
 // ─── INVITAR A ALGUIEN (sin guardar datos de terceros) ───────────
 function compartirInvitacion() {
   var mensaje = 'Te comparto CODE CELLS™: una red de médicos donde tu expediente es tuyo y te acompaña. Puedes hacer su evaluación aquí: https://www.codecells.mx';
+  // En el idioma que eligió el paciente (diccionario de lib/i18n.js).
+  if (window.t) mensaje = window.t(mensaje);
   window.open('https://wa.me/?text=' + encodeURIComponent(mensaje), '_blank');
 }
 
 // ─── COMPARTIR EXPEDIENTE CON UN MÉDICO (llave temporal) ─────────
 // La llave se muestra UNA vez: en el servidor solo queda su huella.
+var llaveVenceISO = null;
+function pintarVenceLlave() {
+  if (!llaveVenceISO) return;
+  document.getElementById('llave-vence').innerHTML = '<span>Vence:</span> ' + sinTraducir(new Date(llaveVenceISO).toLocaleString(localeActual(), { dateStyle: 'medium', timeStyle: 'short' })) + ' · <span>un solo uso</span>';
+}
+
 function generarLlaveCompartir() {
   var btn = document.getElementById('btn-generar-llave');
   var errEl = document.getElementById('llave-error');
@@ -1239,7 +1270,8 @@ function generarLlaveCompartir() {
     document.getElementById('llave-codigo').textContent = pacienteCodigo;
     document.getElementById('llave-valor').textContent = x.d.llave;
     var vence = new Date(x.d.vence);
-    document.getElementById('llave-vence').textContent = 'Vence: ' + vence.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) + ' · un solo uso';
+    llaveVenceISO = x.d.vence;
+    pintarVenceLlave();
     document.getElementById('llave-resultado').style.display = 'block';
   }).catch(function() {
     errEl.textContent = 'Error de conexión. Intenta de nuevo.';

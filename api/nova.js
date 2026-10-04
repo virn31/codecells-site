@@ -736,6 +736,9 @@ En este modo:
 
   if (contexto === 'paciente') {
     const { nombre, id, memoria, respuestaMedicoPendiente } = datos;
+    // Idioma que eligió el paciente en su app (selector de lib/i18n.js).
+    const IDIOMAS_PACIENTE = { es: 'español', en: 'inglés', pt: 'portugués' };
+    const idiomaPac = IDIOMAS_PACIENTE[datos.idioma] ? datos.idioma : 'es';
 
     // Un solo modo para todos los pacientes: VIP se fusionó con el paciente
     // normal (2026-10-04). NO se adoptó lo que hacía el modo VIP de "dar
@@ -756,6 +759,7 @@ En este modo:
 
 MODO: PACIENTE
 ${nombre ? `Estás acompañando a ${nombre} (${id}).` : 'Estás en conversación con un paciente.'}
+Conversas en ${IDIOMAS_PACIENTE[idiomaPac]} (código ${idiomaPac}). Si te escriben en otro idioma, cambias a ese idioma sin comentarlo.
 ${capacidades}
 ${memoria ? `\nMEMORIA DE ESTE PACIENTE (lo que ya sabes de conversaciones anteriores — úsalo con naturalidad, no lo repitas textualmente):\n${memoria}\n` : ''}
 ${respuestaMedicoPendiente ? `\nRESPUESTA DE SU MÉDICO PENDIENTE DE ENTREGAR (su médico ya revisó algo que preguntó/reportó antes y respondió esto — entrégaselo con calidez y naturalidad AL INICIO de tu respuesta en este turno, antes de continuar con lo que el paciente diga ahora):\n${respuestaMedicoPendiente}\n` : ''}
@@ -3562,6 +3566,7 @@ module.exports = async function handler(req, res) {
 
         systemPrompt = buildSystemPrompt('paciente', {
           nombre: nombreReal, id: pacienteCode, memoria, respuestaMedicoPendiente,
+          idioma: typeof req.body.idioma === 'string' ? req.body.idioma : 'es',
         });
         herramientaPaciente = buildHerramientaPaciente();
 

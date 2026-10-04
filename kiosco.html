@@ -886,7 +886,7 @@ function pintarPreguntaBio() {
   const { sys, q } = bioPreguntas[bioIdx];
   const clave = `${sys.id}_${q.id}`;
   document.getElementById('bio-progreso').textContent = `PREGUNTA ${bioIdx + 1} DE ${bioPreguntas.length}`;
-  document.getElementById('bio-sistema').textContent = `${sys.icon} ${sys.corto}`;
+  document.getElementById('bio-sistema').innerHTML = `${sys.icon} <span>${sys.corto}</span>`;
   document.getElementById('bio-pregunta').textContent = q.text;
   const cont = document.getElementById('bio-opciones');
   cont.innerHTML = '';
