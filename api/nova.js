@@ -55,6 +55,7 @@ const {
   generarLlave, normalizarLlave, hashLlave, urlTabla,
 } = require('../lib/vinculacion');
 const credPaciente = require('../lib/credencialesPaciente');
+const evalBio = require('../lib/evaluacionesBiologicas');
 
 // Puerta común de las acciones kiosco_* — las mismas reglas que
 // /api/airtable aplica a ANTECEDENTES_OBSTETRICOS desde el mismo kiosco.
@@ -2496,6 +2497,90 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error(`[nova] ${ENDPOINT} error:`, err.message);
       return res.status(500).json({ error: 'Error interno generando el enlace.' });
+    }
+  }
+
+  // ─── BIOLOGICAL MAP: EVALUACIONES (MVP-1, docs/VISION-APP-MEDICA.md) ──
+  // El cliente manda RESPUESTAS; el puntaje se calcula aquí con el
+  // cuestionario compartido. Cuestionario de orientación, no diagnóstico.
+  if (action === 'paciente_guardar_evaluacion') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      // Solo el paciente real. 'demo' es de solo lectura (CLAUDE.md §5).
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(401).json({ error: 'Inicia sesión en tu app para guardar tu evaluación.' });
+      const codigoPac = sesion.codigo;
+      let previas;
+      try { previas = await evalBio.listar(codigoPac); }
+      catch (err) { return res.status(502).json({ error: 'No se pudo revisar tu historial de evaluaciones. Intenta de nuevo.' }); }
+      const proxima = evalBio.proximaPermitida(previas);
+      if (proxima) return res.status(429).json({ error: 'Ya te evaluaste hace poco. Podrás reevaluarte a partir del ' + new Date(proxima).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' }) + '.', proximaPermitida: proxima, motivo: 'muy_pronto' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv?filterByFormula=${encodeURIComponent(`{Código de paciente}="${String(codigoPac).replace(/"/g, '\\"')}"`)}&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (!pacRes.ok) return res.status(502).json({ error: 'No se pudo leer tu expediente. Intenta de nuevo.' });
+      const pacRec = ((await pacRes.json()).records || [])[0];
+      if (!pacRec || pacRec.fields['Es demo'] === true) return res.status(403).json({ error: 'No disponible.' });
+
+      const out = await evalBio.guardar({ codigoPaciente: codigoPac, pacienteRecId: pacRec.id, respuestas: req.body.respuestas, origen: 'App del paciente', medicoRecId: null });
+      if (out.error) return res.status(out.error.status).json({ error: out.error.mensaje });
+      await registrarAccesoExpediente({ pacienteCode: codigoPac, codigoMedico: '(paciente)', accion: 'Evaluación Biological Map', resultado: 'Exitoso', endpoint: 'paciente_guardar_evaluacion' });
+      return res.status(200).json({ ok: true, evaluacion: out.evaluacion });
+    } catch (err) {
+      console.error('[nova] paciente_guardar_evaluacion error:', err.message);
+      return res.status(500).json({ error: 'Error interno guardando la evaluación.' });
+    }
+  }
+
+  // Kiosco de consultorio: la captura la autoriza el médico de la sesión
+  // (alta delegada, CLAUDE.md §7) y él queda como autor. Sin límite de días:
+  // la decide el médico.
+  if (action === 'medico_guardar_evaluacion') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      const puerta = await puertaKiosco(sesion, req.body.pacienteCode || '', 'medico_guardar_evaluacion');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      const out = await evalBio.guardar({ codigoPaciente: puerta.auth.codigo, pacienteRecId: puerta.auth.recId, respuestas: req.body.respuestas, origen: 'Kiosco de consultorio', medicoRecId: puerta.medicoRecId });
+      if (out.error) return res.status(out.error.status).json({ error: out.error.mensaje });
+      await registrarAccesoExpediente({ pacienteCode: puerta.auth.codigo, codigoMedico: sesion.codigo, medicoRecId: puerta.medicoRecId, accion: 'Evaluación Biological Map', resultado: 'Exitoso', endpoint: 'medico_guardar_evaluacion' });
+      return res.status(200).json({ ok: true, evaluacion: out.evaluacion });
+    } catch (err) {
+      console.error('[nova] medico_guardar_evaluacion error:', err.message);
+      return res.status(500).json({ error: 'Error interno guardando la evaluación.' });
+    }
+  }
+
+  // Trayectoria: el paciente (o demo) ve las suyas; el médico, las de un
+  // paciente autorizado (cualquier vía, incluida demo en lectura).
+  if (action === 'evaluaciones_listar') {
+    try {
+      if (!sesion) return res.status(401).json({ error: 'Sesión requerida.' });
+      let codigoPac;
+      if (sesion.tipo === 'paciente' || sesion.tipo === 'demo') {
+        codigoPac = sesion.codigo;
+      } else if (sesion.tipo === 'medico') {
+        const acceso = await verificarAccesoClinicoMedico(sesion.codigo, process.env.AIRTABLE_TOKEN);
+        if (acceso.errorInfra) return res.status(502).json({ error: MENSAJE_ACCESO_NO_VERIFICABLE });
+        if (!acceso.permitido) return res.status(403).json({ error: 'Tu tipo de acceso no permite leer expedientes clínicos.' });
+        try { codigoPac = (await autorizarPaciente(sesion.codigo, String(req.body.pacienteCode || ''))).codigo; }
+        catch (err) {
+          if (err instanceof ErrorAutorizacion) return res.status(err.status).json({ error: err.message });
+          return res.status(err.status || 502).json({ error: 'No se pudo verificar el acceso al paciente.' });
+        }
+      } else {
+        return res.status(403).json({ error: 'No disponible.' });
+      }
+      let evaluaciones;
+      try { evaluaciones = await evalBio.listar(codigoPac); }
+      catch (err) { return res.status(502).json({ error: 'No se pudieron leer las evaluaciones. Intenta de nuevo.' }); }
+      return res.status(200).json({
+        ok: true,
+        evaluaciones,
+        proximaPermitida: sesion.tipo === 'paciente' ? evalBio.proximaPermitida(evaluaciones) : null,
+      });
+    } catch (err) {
+      console.error('[nova] evaluaciones_listar error:', err.message);
+      return res.status(500).json({ error: 'Error interno leyendo las evaluaciones.' });
     }
   }
 

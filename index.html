@@ -1028,70 +1028,12 @@
   })();
 </script>
 
-<script>
+<script src="/lib/cuestionarioBiologico.js"></script>
+  <script>
   // ---------- Evaluación Cronodegenerativa CODE CELLS™ ----------
-  var TEST_DATA = {
-    title: "Evaluación Cronodegenerativa CODE CELLS™",
-    description: "Responde con honestidad. Esto te ayudará a descubrir qué sistema biológico está perdiendo función primero.",
-    systems: [
-      {
-        id: "energy", name: "CODE ENERGY™", icon: "⚡", color: "#E8A33D",
-        explanation: "tu energía celular podría estar perdiendo eficiencia — esto suele traducirse en fatiga, menor rendimiento y recuperación lenta.",
-        action: "profundizar en tu metabolismo energético y función mitocondrial.",
-        questions: [
-          { id:"q1", text:"¿Te sientes cansado o con baja energía la mayor parte del día?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] },
-          { id:"q2", text:"¿Te cuesta recuperarte después de un esfuerzo físico o mental?",
-            options:[{value:0,text:"No"},{value:1,text:"Poco"},{value:2,text:"Moderado"},{value:3,text:"Bastante"},{value:4,text:"Mucho"}] }
-        ]
-      },
-      {
-        id: "repair", name: "CODE REPAIR™", icon: "🔬", color: "#D4654A",
-        explanation: "tu capacidad de reparación tisular podría estar disminuida — esto se refleja en recuperación lenta e inflamación persistente.",
-        action: "evaluar tus marcadores de reparación celular e inflamación.",
-        questions: [
-          { id:"q1", text:"¿Tus heridas o lesiones tardan más en sanar de lo normal?",
-            options:[{value:0,text:"No"},{value:4,text:"Sí"}] },
-          { id:"q2", text:"¿Sientes inflamación o molestias que no terminan de resolverse?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] }
-        ]
-      },
-      {
-        id: "balance", name: "CODE BALANCE™", icon: "⚖️", color: "#4FA8A0",
-        explanation: "tu capacidad de adaptación al estrés podría estar sobrecargada — esto se asocia con ansiedad, insomnio o irritabilidad.",
-        action: "trabajar tu regulación neuroendocrina y resiliencia biológica.",
-        questions: [
-          { id:"q1", text:"¿Te cuesta conciliar o mantener el sueño?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] },
-          { id:"q2", text:"¿Te sientes irritable o ansioso sin una causa clara?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] }
-        ]
-      },
-      {
-        id: "neuro", name: "CODE NEURO™", icon: "🧠", color: "#8B7FD4",
-        explanation: "tu función cognitiva podría estar perdiendo claridad — esto se asocia con niebla mental y menor capacidad de enfoque.",
-        action: "profundizar en tu salud neurológica y plasticidad cerebral.",
-        questions: [
-          { id:"q1", text:"¿Sientes niebla mental o dificultad para concentrarte?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] },
-          { id:"q2", text:"¿Notas que tu memoria reciente falla más de lo que recuerdas?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] }
-        ]
-      },
-      {
-        id: "regen", name: "CODE REGEN™", icon: "🧬", color: "#5FAE6E",
-        explanation: "tu capacidad regenerativa podría estar disminuyendo — esto acelera el envejecimiento percibido y limita tu recuperación global.",
-        action: "evaluar tu potencial de renovación tisular y plasticidad biológica.",
-        questions: [
-          { id:"q1", text:"¿Sientes que tu cuerpo se ve o se siente más envejecido de lo que esperarías para tu edad?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] },
-          { id:"q2", text:"¿Sientes que tu capacidad de recuperación general ha disminuido con el tiempo?",
-            options:[{value:0,text:"Nunca"},{value:1,text:"Rara vez"},{value:2,text:"A veces"},{value:3,text:"Frecuentemente"},{value:4,text:"Siempre"}] }
-        ]
-      }
-    ],
-    thresholds: { high_risk: 70, moderate: 40 }
-  };
+  // El cuestionario vive en /lib/cuestionarioBiologico.js (una sola copia
+  // compartida con el kiosco, la app del paciente y el servidor).
+  var TEST_DATA = window.CUESTIONARIO_BIOLOGICO.DATOS;
 
   (function(){
     var overlay = document.getElementById('testOverlay');
