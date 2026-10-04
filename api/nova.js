@@ -300,7 +300,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 // ─── BASE Y TABLAS (app de pacientes / VIP) ────────────────────────
-const BASE_ID_CLINICA        = 'app6jyD9pDlTLpknA';
+const BASE_ID_CLINICA        = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
 const TBL_PACIENTES          = 'tblyUcCfueFLJuvIv';
 const TBL_MEDICOS_APP        = 'tbl87DsuBMmb4DjFM';
 const TBL_NOVA_CONVERSACIONES= 'tblYMr2lpmLQhw6GS';
@@ -819,7 +819,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TABLES = {
         pacientes : 'tblyUcCfueFLJuvIv',
         historia  : 'tblm2xUADazitHisR',
@@ -888,7 +888,7 @@ module.exports = async function handler(req, res) {
       const { nombre, whatsapp } = req.body;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TABLE_CODIGOS = 'tblypndhtcurFwue6';
 
       // Buscar un código todavía disponible.
@@ -967,7 +967,7 @@ module.exports = async function handler(req, res) {
 
       const cantidad = 10;
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TABLE_CODIGOS = 'tblypndhtcurFwue6';
 
       const gen4 = () => Array.from({length:4}, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random()*36)]).join('');
@@ -1008,7 +1008,7 @@ module.exports = async function handler(req, res) {
       const fundador = FUNDADORES_CODIGO[sesion.codigo].nombre;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TABLE_CODIGOS = 'tblypndhtcurFwue6';
 
       const formula = `FIND("pendiente de avisar a ${fundador}", {Notes})`;
@@ -1080,7 +1080,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
       const formula = `{Código de paciente ref}="${pacienteCode}"`;
@@ -1142,7 +1142,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       // Solo para clasificar el registro de acceso (¿existe el paciente o
       // no?) — esta acción nunca consultaba PACIENTES; no cambia qué se
@@ -1253,7 +1253,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
@@ -1368,7 +1368,7 @@ module.exports = async function handler(req, res) {
       if (!googleCalendarLib) return res.status(200).json({ ok: false, error: 'Integración de Google Calendar no disponible.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_MEDICOS = 'tbl87DsuBMmb4DjFM';
 
       const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MEDICOS}?filterByFormula=${encodeURIComponent(`{Código de médico}="${medicoCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -1551,7 +1551,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
@@ -1736,7 +1736,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const TBL_MED = 'tbl87DsuBMmb4DjFM';
 
@@ -1801,7 +1801,7 @@ module.exports = async function handler(req, res) {
       if (!staffCodigo || !/^CCMED-[A-Z0-9]{4,8}$/.test(staffCodigo)) return res.status(403).json({ error: 'Sesión de personal inválida.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
 
       const fields = { 'Última actividad': new Date().toISOString(), 'Estado del expediente': 'Activo' };
@@ -1859,7 +1859,7 @@ module.exports = async function handler(req, res) {
       if (!respuestas || typeof respuestas !== 'object') return res.status(400).json({ error: 'Faltan las respuestas.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_HIST = 'tblm2xUADazitHisR';
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
 
@@ -1914,7 +1914,7 @@ module.exports = async function handler(req, res) {
       const numDias = Math.min(Math.max(parseInt(dias) || 7, 1), 30);
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -2292,7 +2292,7 @@ module.exports = async function handler(req, res) {
       if (!pacienteRecordId || !pesoNuevo) return res.status(400).json({ error: 'Faltan pacienteRecordId o pesoNuevo.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -2330,7 +2330,7 @@ module.exports = async function handler(req, res) {
       if (!peso || !talla || !edad || !sexo) return res.status(400).json({ error: 'Faltan datos antropométricos (peso, talla, edad, sexo).' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -2444,7 +2444,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -2581,7 +2581,7 @@ module.exports = async function handler(req, res) {
 
       // Leer estado actual del paciente y hacer merge (solo agregar, nunca quitar)
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = 'app6jyD9pDlTLpknA';
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -3187,7 +3187,7 @@ module.exports = async function handler(req, res) {
         try {
           const datos = toolAutorizarDZW.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-          const BASE_ID = 'app6jyD9pDlTLpknA';
+          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
           const TBL_TEMP = 'temp';
 
           const codigoInvitacion = await generarCodigoUnico({
@@ -3240,7 +3240,7 @@ module.exports = async function handler(req, res) {
         try {
           const datos = toolInvitar.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-          const BASE_ID = 'app6jyD9pDlTLpknA';
+          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
           const TBL_SOLICITUDES_MED = 'tblDpqi2XJqoR4QiE';
           const codigoInvitacion = 'REF-' + Math.random().toString(36).slice(2, 8);
 
@@ -3285,7 +3285,7 @@ module.exports = async function handler(req, res) {
         try {
           const datos = toolAlta.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-          const BASE_ID = 'app6jyD9pDlTLpknA';
+          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
           const TBL_PAC = 'tblyUcCfueFLJuvIv';
           const TBL_HIST = 'tblm2xUADazitHisR';
 
@@ -3598,7 +3598,7 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
   }
 
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-  const BASE_ID = 'app6jyD9pDlTLpknA';
+  const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
   const TBL_PAC = 'tblyUcCfueFLJuvIv';
   const TBL_LABS = 'tblhKp4uE1NdXXqLh';
   const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
@@ -3829,7 +3829,7 @@ function buildHerramientaBuscarDirectorio() {
 
 async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamiento }) {
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-  const BASE_ID = 'app6jyD9pDlTLpknA';
+  const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
   const TABLA_DIRECTORIO = 'tblkUNPwu1sQgZBPJ';
   const esc = (v) => String(v || '').replace(/"/g, '\\"');
 

@@ -16,7 +16,7 @@ const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const BASE_ID = 'app6jyD9pDlTLpknA';
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
 const CONSULTAS_TABLE_ID = 'tbl1Xp2IGxdV178Ky';
 const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
 

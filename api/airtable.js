@@ -23,7 +23,7 @@ const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
-const BASE_ID = 'app6jyD9pDlTLpknA';
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
 
 const TABLAS_PERMITIDAS = {
   pacientes: 'tblyUcCfueFLJuvIv',

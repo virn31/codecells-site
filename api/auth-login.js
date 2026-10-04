@@ -7,7 +7,7 @@
 const { generarToken } = require('../lib/auth');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE_ID = 'app6jyD9pDlTLpknA';
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
 
 const TABLAS = {
   medico:   { id: 'tbl87DsuBMmb4DjFM', campo: 'Código de médico' },
