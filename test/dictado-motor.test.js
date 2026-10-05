@@ -213,3 +213,44 @@ test('dictado: se quita solo el encabezado dicho del propio campo ("Diagnóstico
   assert.strictEqual(r.campos.plan_terapeutico, 'hidratación');
   assert.strictEqual(r.campos.motivo_consulta, 'el plan es bajar de peso');
 });
+
+// ── Borrador de receta desde el dictado ───────────────────────────────
+
+const AUTO = 'Le receto amoxicilina 500 miligramos vía oral cada 8 horas por dos semanas y paracetamol 500 miligramos cada 6 horas si hay fiebre. Que tome muchos líquidos y regrese en una semana.';
+const med = (o) => ({ nombre: { valor: o.n, cita: o.n }, ...(o.d ? { dosis: { valor: o.d, cita: o.d } } : {}), ...(o.f ? { frecuencia: { valor: o.f, cita: o.fc } } : {}), ...(o.v ? { via: { valor: o.v, cita: o.vc } } : {}), ...(o.dd ? { duracion_dias: { valor: o.dd, cita: o.ddc } } : {}), ...(o.i ? { indicaciones: { cita: o.i } } : {}) });
+
+test('receta: datos dichos se verifican (frecuencia, vía, semanas → días) y queda completa', () => {
+  const r = procesarDictado(AUTO, [], [], { medicamentos: [med({ n: 'amoxicilina', d: '500 miligramos', f: 'c8h', fc: 'cada 8 horas', v: 'Oral', vc: 'vía oral', dd: 14, ddc: 'por dos semanas' })], receta_indicaciones: ['Que tome muchos líquidos'], proxima_cita: 'regrese en una semana' });
+  const m = r.receta.medicamentos[0];
+  assert.deepStrictEqual([m.nombre, m.dosis, m.via, m.frecuencia, m.duracionDias], ['amoxicilina', '500 miligramos', 'Oral', 'c8h', 14]);
+  assert.strictEqual(r.receta.completa, true);
+  assert.strictEqual(r.receta.indicaciones, 'Que tome muchos líquidos');
+  assert.strictEqual(r.receta.proximaCita, 'regrese en una semana');
+});
+
+test('receta: la vía NO se deduce — si no se dijo, falta y la receta queda incompleta', () => {
+  const r = procesarDictado(AUTO, [], [], { medicamentos: [med({ n: 'paracetamol', d: '500 miligramos', f: 'c6h', fc: 'cada 6 horas', v: 'Oral', vc: 'paracetamol 500 miligramos', i: 'si hay fiebre' })] });
+  const m = r.receta.medicamentos[0];
+  assert.strictEqual(m.via, '');
+  assert.deepStrictEqual(m.faltan, ['vía']);
+  assert.strictEqual(r.receta.completa, false);
+});
+
+test('receta: una frecuencia o duración que no corresponde a la cita se descarta', () => {
+  const r = procesarDictado(AUTO, [], [], { medicamentos: [med({ n: 'amoxicilina', d: '500 miligramos', f: 'c12h', fc: 'cada 8 horas', dd: 7, ddc: 'por dos semanas' })] });
+  const m = r.receta.medicamentos[0];
+  assert.strictEqual(m.frecuencia, '');
+  assert.strictEqual(m.duracionDias, null);
+  assert.ok(m.faltan.includes('frecuencia'));
+});
+
+test('receta: un medicamento que no se dictó se descarta; dosis inventada no pasa', () => {
+  const r = procesarDictado(AUTO, [], [], { medicamentos: [med({ n: 'metoclopramida', d: '10 mg' }), med({ n: 'amoxicilina', d: '875 miligramos' })] });
+  assert.strictEqual(r.receta.medicamentos.length, 1);
+  assert.strictEqual(r.receta.medicamentos[0].dosis, '');
+  assert.match(r.receta.descartados[0].motivo, /no aparece/);
+});
+
+test('receta: sin medicamentos ni indicaciones no hay borrador', () => {
+  assert.strictEqual(procesarDictado(AUTO, [], [], {}).receta, null);
+});

@@ -1522,7 +1522,7 @@ module.exports = async function handler(req, res) {
       if (!tool || data.stop_reason === 'max_tokens') {
         return res.status(502).json({ ok: false, error: 'NOVA no terminó de procesar el dictado. Intenta con un fragmento más corto.' });
       }
-      const resultado = procesarDictado(texto, tool.input.campos, tool.input.sin_ubicar);
+      const resultado = procesarDictado(texto, tool.input.campos, tool.input.sin_ubicar, tool.input);
       return res.status(200).json({ ok: true, origen, metodo, transcripcion: texto, ...resultado });
     } catch (err) {
       console.error('[nova] medico_dictado error:', err.message);
@@ -5531,7 +5531,7 @@ function verificarCampoDictado(campo, valor, cita, transcripcionNorm) {
 // Aplica la verificación a la salida del modelo. Texto repetido en un mismo
 // campo se une con ". "; un número repetido con valores distintos es
 // conflicto y se descarta (el médico lo dicta de nuevo).
-function procesarDictado(transcripcion, propuestos, sinUbicar) {
+function procesarDictado(transcripcion, propuestos, sinUbicar, recetaPropuesta) {
   const tNorm = normalizarDictado(transcripcion);
   const campos = {};
   const detalle = [];
@@ -5555,7 +5555,101 @@ function procesarDictado(transcripcion, propuestos, sinUbicar) {
   const sinUbicarVerificado = (Array.isArray(sinUbicar) ? sinUbicar : [])
     .map(x => String(x || '').trim()).filter(x => x && tNorm.includes(normalizarDictado(x)));
   const faltantes = SIGNOS_BASICOS_DICTADO.filter(c => campos[c] === undefined).map(c => CAMPOS_DICTADO[c].etiqueta);
-  return { campos, detalle, descartados, sinUbicar: sinUbicarVerificado, faltantes };
+  const r = recetaPropuesta || {};
+  const receta = procesarRecetaDictada(tNorm, r.medicamentos, r.receta_indicaciones, r.proxima_cita);
+  if (receta && campos.diagnostico) receta.diagnostico = String(campos.diagnostico).slice(0, 300);
+  return { campos, detalle, descartados, sinUbicar: sinUbicarVerificado, faltantes, receta };
+}
+
+// ── Borrador de receta desde el dictado (p. ej. el médico en su auto tras una
+// llamada: dicta la consulta y lo que receta). Misma regla de cita literal.
+// La receta es acto médico: aquí solo se arma el BORRADOR; se emite con
+// medico_emitir_receta cuando el médico lo revisa (portal) o confirma
+// (Telegram). Nada se deduce: si la vía o la frecuencia no se dijeron, el
+// medicamento queda incompleto y el médico las elige antes de emitir.
+const VIAS_DICTADO = {
+  Oral: ['oral', 'via oral', 'vo', 'por boca', 'tomado', 'tomada'],
+  Sublingual: ['sublingual', 'debajo de la lengua'],
+  'Subcutánea': ['subcutanea', 'subcutaneo', 'sc'],
+  Intramuscular: ['intramuscular', 'im'],
+  Intravenosa: ['intravenosa', 'intravenoso', 'iv', 'endovenosa'],
+  'Tópica': ['topica', 'topico', 'aplicar en la piel'],
+  Inhalada: ['inhalada', 'inhalado', 'inhalador', 'nebulizacion', 'nebulizar'],
+  'Oftálmica': ['oftalmica', 'oftalmico', 'en el ojo', 'en los ojos'],
+  'Ótica': ['otica', 'en el oido', 'en los oidos'],
+  Nasal: ['nasal', 'intranasal'],
+  Rectal: ['rectal', 'supositorio'],
+  Vaginal: ['vaginal', 'ovulo'],
+};
+const FRECUENCIAS_DICTADO = {
+  c4h: { horas: 4 }, c6h: { horas: 6 }, c8h: { horas: 8 }, c12h: { horas: 12 },
+  c24h: { horas: 24, frases: ['una vez al dia', 'una vez diaria', 'cada dia', 'diario', 'diariamente', 'al dia una', 'una al dia', 'una diaria'] },
+  c48h: { horas: 48, frases: ['cada tercer dia', 'cada dos dias', 'dia de por medio', 'un dia si y un dia no'] },
+  semanal: { frases: ['semanal', 'una vez por semana', 'una vez a la semana', 'cada semana', 'cada siete dias', 'cada 7 dias'] },
+  prn: { frases: ['si hay dolor', 'en caso de dolor', 'en caso de', 'si lo necesita', 'por razon necesaria', 'prn', 'si es necesario', 'si tiene fiebre', 'si presenta'] },
+};
+
+function contieneFrase(citaNorm, frase) {
+  return (` ${citaNorm} `).includes(` ${frase} `);
+}
+
+function verificarFrecuencia(clave, cita) {
+  const def = FRECUENCIAS_DICTADO[clave];
+  if (!def || !cita) return false;
+  const c = normalizarDictado(cita);
+  if ((def.frases || []).some(f => contieneFrase(c, f))) return true;
+  if (def.horas && /\bhoras?\b/.test(c) && numerosDeCita(cita).includes(def.horas)) return true;
+  return false;
+}
+
+function verificarVia(via, cita) {
+  const palabras = VIAS_DICTADO[via];
+  if (!palabras || !cita) return false;
+  const c = normalizarDictado(cita);
+  return palabras.some(p => contieneFrase(c, p));
+}
+
+// Duración en días: el número dicho, o semanas × 7 ("dos semanas" → 14).
+function verificarDuracion(dias, cita) {
+  const d = Number(dias);
+  if (!Number.isInteger(d) || d < 1 || d > 365 || !cita) return false;
+  const c = normalizarDictado(cita);
+  const nums = numerosDeCita(cita);
+  if (/\bdias?\b/.test(c) && nums.includes(d)) return true;
+  if (/\bsemanas?\b/.test(c) && (nums.some(n => n * 7 === d) || (d === 7 && contieneFrase(c, 'una semana')))) return true;
+  if (/\bmes(es)?\b/.test(c) && nums.some(n => n * 30 === d)) return true;
+  return false;
+}
+
+// Verifica el borrador de receta propuesto por NOVA contra la transcripción.
+function procesarRecetaDictada(transcripcionNorm, medicamentos, indicacionesCitas, proximaCitaCita) {
+  const enDictado = (cita) => {
+    const n = normalizarDictado(cita);
+    return n.length >= 2 && transcripcionNorm.includes(n);
+  };
+  const meds = [];
+  const descartados = [];
+  for (const m of (Array.isArray(medicamentos) ? medicamentos : []).slice(0, 10)) {
+    if (!m || !m.nombre || !enDictado(m.nombre.cita)) {
+      descartados.push({ medicamento: m && m.nombre && m.nombre.valor, motivo: 'el nombre no aparece en lo que dictaste' });
+      continue;
+    }
+    const med = { nombre: String(m.nombre.cita).trim(), dosis: '', via: '', frecuencia: '', duracionDias: null, indicaciones: '', faltan: [], citas: { nombre: String(m.nombre.cita).trim() } };
+    if (m.dosis && enDictado(m.dosis.cita)) { med.dosis = String(m.dosis.cita).trim().slice(0, 60); med.citas.dosis = med.dosis; }
+    if (m.frecuencia && enDictado(m.frecuencia.cita) && verificarFrecuencia(m.frecuencia.valor, m.frecuencia.cita)) { med.frecuencia = m.frecuencia.valor; med.citas.frecuencia = String(m.frecuencia.cita).trim(); }
+    if (m.via && enDictado(m.via.cita) && verificarVia(m.via.valor, m.via.cita)) { med.via = m.via.valor; med.citas.via = String(m.via.cita).trim(); }
+    if (m.duracion_dias && enDictado(m.duracion_dias.cita) && verificarDuracion(m.duracion_dias.valor, m.duracion_dias.cita)) { med.duracionDias = Number(m.duracion_dias.valor); med.citas.duracion = String(m.duracion_dias.cita).trim(); }
+    if (m.indicaciones && enDictado(m.indicaciones.cita)) { med.indicaciones = String(m.indicaciones.cita).trim().slice(0, 300); med.citas.indicaciones = med.indicaciones; }
+    if (!med.dosis) med.faltan.push('dosis');
+    if (!med.via) med.faltan.push('vía');
+    if (!med.frecuencia) med.faltan.push('frecuencia');
+    meds.push(med);
+  }
+  const indicaciones = (Array.isArray(indicacionesCitas) ? indicacionesCitas : [])
+    .map(x => String(x || '').trim()).filter(x => x && enDictado(x)).join('. ');
+  const proximaCita = proximaCitaCita && enDictado(proximaCitaCita) ? String(proximaCitaCita).trim().slice(0, 120) : '';
+  if (!meds.length && !indicaciones) return null;
+  return { medicamentos: meds, indicaciones, proximaCita, completa: meds.length > 0 && meds.every(x => !x.faltan.length), descartados };
 }
 
 const PROMPT_DICTADO = `Eres el transcriptor clínico de NOVA. Recibes lo que un médico dictó durante o después de una consulta y lo ACOMODAS en los campos de la ficha. Reglas que no se negocian:
@@ -5565,6 +5659,8 @@ const PROMPT_DICTADO = `Eres el transcriptor clínico de NOVA. Recibes lo que un
 - Antecedentes heredofamiliares (padres, hermanos, familia) nunca van en antecedentes personales.
 - Para números (peso, talla, temperatura, frecuencias, saturación, cintura) "valor" es el número tal como se dijo; presión como "sistólica/diastólica".
 - Lo que el médico dijo y no encaja en ningún campo va en "sin_ubicar" (copiado literal). No lo inventes en otro campo.
+- El médico no dicta en orden: puede empezar con el padecimiento, saltar a un antecedente y volver. Tu trabajo es justamente ESTRUCTURAR: cada fragmento a su campo; si un campo recibe varios fragmentos, devuelve una entrada por fragmento.
+- RECETA: si el médico prescribe medicamentos ("le receto", "indico", "que tome", "le dejo"), llénalos en "medicamentos", cada dato con su cita literal: nombre, dosis, frecuencia (solo si la dijo: c4h/c6h/c8h/c12h/c24h/c48h/semanal/prn), vía (solo si la dijo), duración en días (solo si la dijo) e indicaciones. NUNCA completes una dosis, vía, frecuencia o duración que no se dijo: déjala fuera. Indicaciones generales para el paciente van en "receta_indicaciones"; la próxima cita en "proxima_cita". Lo que dijo del plan también va en plan_terapeutico.
 - Usa la herramienta estructurar_dictado. Si no hay nada clínico que acomodar, devuélvela con campos vacíos.`;
 
 function buildHerramientaEstructurarDictado() {
@@ -5587,6 +5683,24 @@ function buildHerramientaEstructurarDictado() {
           },
         },
         sin_ubicar: { type: 'array', items: { type: 'string' }, description: 'Fragmentos literales que no encajan en ningún campo.' },
+        medicamentos: {
+          type: 'array',
+          description: 'Solo si el médico prescribió. Cada dato con su cita literal; omite lo que no dijo.',
+          items: {
+            type: 'object',
+            properties: {
+              nombre: { type: 'object', properties: { valor: { type: 'string' }, cita: { type: 'string' } }, required: ['valor', 'cita'] },
+              dosis: { type: 'object', properties: { valor: { type: 'string' }, cita: { type: 'string' } }, required: ['valor', 'cita'] },
+              frecuencia: { type: 'object', properties: { valor: { type: 'string', enum: Object.keys(FRECUENCIAS_DICTADO) }, cita: { type: 'string' } }, required: ['valor', 'cita'] },
+              via: { type: 'object', properties: { valor: { type: 'string', enum: Object.keys(VIAS_DICTADO) }, cita: { type: 'string' } }, required: ['valor', 'cita'] },
+              duracion_dias: { type: 'object', properties: { valor: { type: 'number' }, cita: { type: 'string' } }, required: ['valor', 'cita'] },
+              indicaciones: { type: 'object', properties: { cita: { type: 'string' } }, required: ['cita'] },
+            },
+            required: ['nombre'],
+          },
+        },
+        receta_indicaciones: { type: 'array', items: { type: 'string' }, description: 'Indicaciones generales para el paciente, copiadas literal.' },
+        proxima_cita: { type: 'string', description: 'Cuándo volver, copiado literal, si lo dijo.' },
       },
       required: ['campos'],
     },
