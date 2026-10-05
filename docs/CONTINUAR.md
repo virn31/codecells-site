@@ -7,20 +7,21 @@
 
 **Última actualización:** 2026-10-05 (sesión de corrección de errores)
 **Rama de trabajo:** `feat/paciente-unico` — 12 commits nuevos hoy (`a72c134` … `ea71139`), **sin push** (lo corre Víctor). Nada fusionado a `main`.
-**Pruebas:** `node --test test/*.test.js` → **305/305 en verde**.
+**Pruebas:** `node --test test/*.test.js` → **319/319 en verde**.
 **Servidor local:** detenido. `node scripts/servidor-local.js` solo si se necesita navegador.
 
 ---
 
-## 1. Siguiente paso (empezar aquí): SPEC-NOVA-DICTACION-BIDIRECCIONAL
+## 1. Siguiente paso (empezar aquí): SPEC de dictado — FASE 2 (voz en el portal)
 
-Víctor ordenó (2026-10-05): **primero eliminar errores conforme aparezcan, después implementar `SPEC-NOVA-DICTACION-BIDIRECCIONAL.md`** (copia en la raíz del repo, sin rastrear, igual a la de Descargas). El directorio médico + agenda automática queda DESPUÉS de la SPEC (ver §2).
+**Decisiones de Víctor (2026-10-05):** 1) voz por el **navegador** (Web Speech API) en el portal; voz en Telegram solo cuando el abogado apruebe un proveedor en servidor; 2) lo dictado llena los **campos de la consulta** (no un texto suelto); 3) Telegram con **dictado libre** (comandos solo como atajo opcional).
+**Cambios a la SPEC (aprobados con el plan):** nada de CIE-10 sugerido ni dosis completadas; sin "confianza" numérica; médico siempre del token/chat; acción en nova.js, no archivo nuevo.
 
-Antes de construir, leer la SPEC completa y presentar a Víctor el plan por fases. Ya está hecho el terreno que la SPEC pisa:
-- Dictado por Telegram con puerta de autorización (`autorizarDictadoTelegram`, Clínico + `autorizarPaciente` con escritura, al dictar y al confirmar).
-- Chat del médico: herramientas solo para `Tipo de acceso=Clinico`; series de labs autorizan al paciente, enlazan al catálogo (exacto) y son idempotentes (fecha+analito+valor); alta por dictado con anti-duplicado (nombre/teléfono/fecha de nacimiento, sin revelar pacientes ajenos).
-- Telegram con negritas reales (HTML escapado, respaldo a texto plano).
-- Tope discreto de NOVA (paciente 20/día, médico 40; con expediente abierto no cuenta) — el dictado con paciente abierto NO se limita.
+**Fase 1 HECHA** (`medico_dictado` en nova.js): texto → campos verificados por cita literal (texto = la cita; números en cifras o palabras deben estar en la cita); descartados con motivo; faltantes; sin ubicar; no guarda nada. Probado en vivo con el modelo real.
+
+**Fase 2 (siguiente):** en "Nueva consulta" del portal, botón 🎙️ (Web Speech, es-MX) → texto visible y editable mientras habla → "Estructurar" → `medico_dictado` → llenar campos reutilizando el llenado de `rellenar_ficha_consulta` con marca visual NOVA + panel "lo que dijiste / dónde quedó / descartado" → el médico guarda con el botón de siempre; la consulta guarda además transcripción y origen (requiere campos nuevos en CONSULTAS: `Transcripción dictada`, `Origen del registro`, `Método` — crear en prueba y anotar en §5). Probar en Chrome real. Navegadores sin Web Speech: aviso + escribir/pegar texto.
+**Fase 3:** Telegram usa `medico_dictado` en vez de interpretar por el chat; "Entendí:" campo por campo antes de "sí".
+**Fase 4:** auditoría (campos de origen), guía para médicos, Preview con Galván.
 
 ## 2. Pendientes (después de la SPEC)
 
