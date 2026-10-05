@@ -21,6 +21,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 // ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
+const { camposParaColega } = require('../lib/camposMedico');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 const directorio = require('../lib/directorio');
 
@@ -870,6 +871,10 @@ module.exports = async (req, res) => {
   // reenvío sin filtro — falla cerrado, no abierto.
   let medicoFiltroAplicado = false;
 
+  // Lectura de MÉDICOS por un médico: solo la lista blanca de colega
+  // (lib/camposMedico.js) — nunca el refresh token de Google ni la passphrase.
+  let filtrarMedicosParaColega = false;
+
   // ── Autorización por rol (solo aplica cuando hay sesión real) ──
   if (sesion) {
     const { tipo, codigo } = sesion;
@@ -895,6 +900,17 @@ module.exports = async (req, res) => {
       // certificación/nivel se hacen por vías controladas propias.
       if (tabla === 'medicos' && req.method !== 'GET') {
         return res.status(403).json({ error: 'No permitido: la tabla de médicos no se modifica por este proxy.' });
+      }
+      // Lectura de colegas (interconsulta). Se descarta TODO parámetro del
+      // cliente salvo la paginación: con su filterByFormula o su sort sobre
+      // un campo secreto (FIND("a",{Google Calendar Refresh Token})) se
+      // podría adivinar el secreto aunque la respuesta no lo traiga.
+      if (tabla === 'medicos') {
+        for (const k of Object.keys(req.query)) {
+          if (!['tabla', 'maxRecords', 'pageSize', 'offset'].includes(k)) delete req.query[k];
+        }
+        req.query.filterByFormula = '{Activo}=1';
+        filtrarMedicosParaColega = true;
       }
       if (tabla === 'solicitudes_medico' && req.method !== 'GET' && req.method !== 'POST') {
         return res.status(403).json({ error: 'No permitido.' });
@@ -1231,6 +1247,9 @@ module.exports = async (req, res) => {
       const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}${qs ? '?' + qs : ''}`;
       const airtableRes = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       const data = await airtableRes.json();
+      if (filtrarMedicosParaColega && airtableRes.ok && Array.isArray(data.records)) {
+        data.records = data.records.map((r) => ({ ...r, fields: camposParaColega(r.fields) }));
+      }
       if (logAccesoExpediente) {
         const encontrado = airtableRes.ok && Array.isArray(data.records) && data.records.length > 0;
         await registrarAccesoExpediente({ ...logAccesoExpediente, resultado: encontrado ? 'Exitoso' : 'Paciente no encontrado' });
