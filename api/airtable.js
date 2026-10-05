@@ -22,6 +22,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
 const { esAutor, filtrarConsultasParaLector } = require('../lib/privacidadConsultas');
+const { camposParaColega } = require('../lib/camposMedico');
 const { TABLA_VINCULACIONES, urlTabla } = require('../lib/vinculacion');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
@@ -921,6 +922,10 @@ module.exports = async (req, res) => {
   // autor se quitan antes de responder (lib/privacidadConsultas.js).
   let lectorConsultas;
 
+  // Lectura de MÉDICOS por un médico: solo la lista blanca de colega
+  // (lib/camposMedico.js) — nunca el refresh token de Google ni la passphrase.
+  let filtrarMedicosParaColega = false;
+
   // ── Autorización por rol (solo aplica cuando hay sesión real) ──
   if (sesion) {
     const { tipo, codigo } = sesion;
@@ -947,6 +952,17 @@ module.exports = async (req, res) => {
       // certificación/nivel se hacen por vías controladas propias.
       if (tabla === 'medicos' && req.method !== 'GET') {
         return res.status(403).json({ error: 'No permitido: la tabla de médicos no se modifica por este proxy.' });
+      }
+      // Lectura de colegas (interconsulta). Se descarta TODO parámetro del
+      // cliente salvo la paginación: con su filterByFormula o su sort sobre
+      // un campo secreto (FIND("a",{Google Calendar Refresh Token})) se
+      // podría adivinar el secreto aunque la respuesta no lo traiga.
+      if (tabla === 'medicos') {
+        for (const k of Object.keys(req.query)) {
+          if (!['tabla', 'maxRecords', 'pageSize', 'offset'].includes(k)) delete req.query[k];
+        }
+        req.query.filterByFormula = '{Activo}=1';
+        filtrarMedicosParaColega = true;
       }
       if (tabla === 'solicitudes_medico' && req.method !== 'GET' && req.method !== 'POST') {
         return res.status(403).json({ error: 'No permitido.' });
@@ -1363,6 +1379,9 @@ module.exports = async (req, res) => {
       const data = await airtableRes.json();
       if (lectorConsultas !== undefined && airtableRes.ok && Array.isArray(data.records)) {
         data.records = filtrarConsultasParaLector(data.records, lectorConsultas);
+      }
+      if (filtrarMedicosParaColega && airtableRes.ok && Array.isArray(data.records)) {
+        data.records = data.records.map((r) => ({ ...r, fields: camposParaColega(r.fields) }));
       }
       if (logAccesoExpediente) {
         const encontrado = airtableRes.ok && Array.isArray(data.records) && data.records.length > 0;

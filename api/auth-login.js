@@ -13,6 +13,7 @@
 const { generarToken } = require('../lib/auth');
 const cred = require('../lib/credencialesPaciente');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
+const { camposParaSuDueno } = require('../lib/camposMedico');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
@@ -229,7 +230,9 @@ module.exports = async (req, res) => {
       tipo: tipoSesion,
       horasValidez: horas,
       recordId: registro.id,
-      fields: registro.fields,
+      // El portal guarda esto en el dispositivo: los secretos de servidor
+      // (refresh token de Google, passphrase) nunca viajan (lib/camposMedico.js).
+      fields: tipo === 'medico' ? camposParaSuDueno(registro.fields) : registro.fields,
     });
   } catch (err) {
     console.error('[auth-login] error interno:', err.message);

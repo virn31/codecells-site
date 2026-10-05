@@ -873,53 +873,11 @@ module.exports = async function handler(req, res) {
   // (HOTFIX gate-sesion-nova) lo revisa explícitamente más abajo.
   const sesion = verificarToken(tokenDesdeRequest(req));
 
-  // ─── AIRTABLE LOOKUP ─────────────────────────────────────────────
-  if (action === 'airtable_lookup') {
-    try {
-      const { tabla, filtro } = req.body;
-      if (typeof tabla !== 'string' || typeof filtro !== 'string') {
-        return res.status(400).json({ error: 'Parámetros inválidos.' });
-      }
-      if (filtro.length > 500 || /[<>]/.test(filtro)) {
-        return res.status(400).json({ error: 'Filtro inválido.' });
-      }
-
-      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
-      const TABLES = {
-        pacientes : 'tblyUcCfueFLJuvIv',
-        historia  : 'tblm2xUADazitHisR',
-        consultas : 'tbl1Xp2IGxdV178Ky',
-        medicos   : 'tbl87DsuBMmb4DjFM',
-        protocolos: 'tblMGnZxnEHHrjZl4',
-        novaLabs  : 'tblhKp4uE1NdXXqLh',
-      };
-
-      if (!TABLES[tabla]) return res.status(400).json({ error: 'Tabla inválida.' });
-
-      const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLES[tabla]}?filterByFormula=${encodeURIComponent(filtro)}`;
-      const atRes = await fetch(url, {
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
-      });
-      const atData = await atRes.json();
-      const record = atData.records?.[0] || null;
-      if (!record) return res.status(200).json({ found: false });
-
-      const CAMPOS_SEGUROS = {
-        pacientes : ['Código de paciente','Nombre completo','Status','Protocolo actual','Fecha de registro','Canal de entrada'],
-        medicos   : ['Código de médico','Nombre completo','Especialidad','Nivel CODE CELLS®','Activo'],
-        consultas : ['Fecha','Protocolo','Motivo','Estado','Plan'],
-      };
-      const campos = CAMPOS_SEGUROS[tabla] || [];
-      const fieldsFiltrados = {};
-      campos.forEach(c => { if (record.fields[c] !== undefined) fieldsFiltrados[c] = record.fields[c]; });
-
-      return res.status(200).json({ found: true, fields: fieldsFiltrados });
-    } catch (err) {
-      console.error('[nova] airtable_lookup error:', err.message);
-      return res.status(500).json({ error: 'Error consultando Airtable.' });
-    }
-  }
+  // (Aquí vivía 'airtable_lookup': sin sesión, aceptaba cualquier
+  // filterByFormula sobre pacientes/médicos y respondía found:true/false —
+  // servía para enumerar pacientes y para adivinar letra por letra el
+  // refresh token de Google de un médico. Ninguna pantalla lo usaba; se
+  // retiró el 2026-10-05. No reintroducir un lookup genérico.)
 
   // ─── REGISTRAR LEAD (tabla LEADS, separada de PACIENTES) ──────────
   if (action === 'registrar_lead') {
@@ -1428,8 +1386,12 @@ module.exports = async function handler(req, res) {
     // status 200/ok:false, mismo estilo que el resto de esta acción (p.ej. 'sin_conectar').
     if (CONGELADO) return res.status(200).json({ ok: false, motivo: 'congelamiento_datos_personales_2026-08-24', error: MENSAJE_CONGELAMIENTO });
     try {
-      const { medicoCode, pacienteNombre, fecha, hora, motivo } = req.body;
-      if (!medicoCode || !/^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode)) return res.status(400).json({ ok: false, error: 'Código de médico inválido.' });
+      // Antes no pedía sesión: con solo el código CCMED- de un médico
+      // cualquiera creaba eventos en su Google Calendar. El calendario es el
+      // del médico del token; el medicoCode del cliente se ignora.
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ ok: false, error: 'Sesión médica requerida.' });
+      const medicoCode = sesion.codigo;
+      const { pacienteNombre, fecha, hora, motivo } = req.body;
       if (!fecha) return res.status(400).json({ ok: false, error: 'Falta la fecha.' });
       if (!googleCalendarLib) return res.status(200).json({ ok: false, error: 'Integración de Google Calendar no disponible.' });
 
