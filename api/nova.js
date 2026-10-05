@@ -1241,22 +1241,36 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ ok: false, error: MENSAJE_LABS_NO_LEIDOS });
       }
 
-      // Clasificación por palabras clave — heurística, no perfecta, pero
-      // agrupa lo más común de un panel CODE CELLS™ en categorías legibles.
-      const CATEGORIAS = [
-        { nombre: 'Biometría Hemática', claves: ['hemoglobina', 'hematocrito', 'leucocito', 'plaqueta', 'eritrocito', 'vcm', 'hcm'] },
-        { nombre: 'Química Sanguínea', claves: ['glucosa', 'urea', 'creatinina', 'ácido úrico', 'acido urico', 'colesterol', 'triglicérido', 'trigliceridos', 'hdl', 'ldl', 'bun'] },
-        { nombre: 'Función Hepática', claves: ['ast', 'alt', 'ggt', 'bilirrubina', 'fosfatasa alcalina', 'albúmina', 'albumina'] },
-        { nombre: 'Función Renal', claves: ['tfg', 'filtrado glomerular', 'microalbuminuria'] },
-        { nombre: 'Perfil Hormonal', claves: ['tsh', 't3', 't4', 'cortisol', 'testosterona', 'estradiol', 'progesterona', 'igf-1', 'igf1', 'prolactina', 'fsh', 'lh', 'dhea'] },
-        { nombre: 'Metabólico', claves: ['hba1c', 'insulina', 'homa-ir', 'homa ir', 'glucemia'] },
-        { nombre: 'Vitaminas', claves: ['vitamina d', 'vitamina b12', 'acido folico', 'ácido fólico', 'vitamina c', 'vitamina b1', 'vitamina b6'] },
-        { nombre: 'Marcadores Inflamatorios', claves: ['pcr', 'proteína c reactiva', 'proteina c reactiva', 'ferritina', 'vsg', 'velocidad de sedimentacion'] },
-      ];
-      const clasificar = nombreAnalito => {
-        const n = (nombreAnalito || '').toLowerCase();
-        const cat = CATEGORIAS.find(c => c.claves.some(k => n.includes(k)));
-        return cat ? cat.nombre : 'Otros Estudios';
+      // La categoría clínica la MANDA el catálogo (CATALOGO_PARAMETROS, campo
+      // panel fldemBWZPe4F6oCo8) vía el link Parametro de cada valor. Antes se
+      // adivinaba con palabras clave por substring: "Altura de fondo uterino"
+      // caía en Función Hepática porque "altura" contiene "alt" (CLAUDE.md §6).
+      // Un analito sin catalogar NO adivina: va a "Otros Estudios". Esto porta
+      // 74a5638 (rama fix/lab-valores-fecha-idempotencia, nunca fusionada) y
+      // cierra su pendiente (el respaldo por keyword).
+      const ETIQUETAS_CATEGORIA = {
+        metabolico: 'Metabólico', perfil_lipidico: 'Perfil lipídico',
+        perfil_hepatico: 'Perfil hepático', funcion_renal: 'Función renal',
+        electrolitos: 'Electrolitos', biometria: 'Biometría hemática',
+        biometria_hematica: 'Biometría hemática', inflamacion: 'Marcadores inflamatorios',
+        perfil_tiroideo: 'Perfil tiroideo', antropometria: 'Antropometría',
+        composicion_corporal: 'Composición corporal', tension_arterial: 'Tensión arterial',
+        seguimiento_glp1: 'Seguimiento GLP-1', control_prenatal: 'Control prenatal',
+      };
+      const SIN_CATEGORIA = 'Otros Estudios';
+      let categoriaPorParametro;
+      try {
+        const catalogo = await leerTodoAirtable('tblA51aUeYypWQMQV', { 'fields[]': 'fldemBWZPe4F6oCo8', returnFieldsByFieldId: 'true' });
+        categoriaPorParametro = new Map(catalogo.map(rec => [rec.id, (rec.fields || {}).fldemBWZPe4F6oCo8 || '']));
+      } catch (errCat) {
+        console.error('[nova] medico_tabla_labs catálogo:', errCat.message);
+        return res.status(502).json({ ok: false, error: MENSAJE_LABS_NO_LEIDOS });
+      }
+      const categoriaDe = linkParametro => {
+        const recId = Array.isArray(linkParametro) && linkParametro.length ? linkParametro[0] : null;
+        const slug = recId ? categoriaPorParametro.get(recId) : '';
+        if (!slug) return null;
+        return ETIQUETAS_CATEGORIA[slug] || String(slug).replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
       };
 
       const fechasSet = new Set();
@@ -1269,11 +1283,16 @@ module.exports = async function handler(req, res) {
         if (!porAnalito[f['Analito']]) {
           porAnalito[f['Analito']] = {
             analito: f['Analito'],
-            categoria: clasificar(f['Analito']),
+            categoria: categoriaDe(f['Parametro']) || SIN_CATEGORIA,
             unidad: f['Unidad'] || '',
             rango_texto: f['Rango de referencia'] || '',
             porFecha: {},
           };
+        }
+        // Un corte posterior enlazado al catálogo corrige un "Otros Estudios" previo.
+        if (porAnalito[f['Analito']].categoria === SIN_CATEGORIA) {
+          const cat = categoriaDe(f['Parametro']);
+          if (cat) porAnalito[f['Analito']].categoria = cat;
         }
         porAnalito[f['Analito']].porFecha[fecha] = {
           valor: f['Valor'] || '', valorNum: f['Valor numérico'], bandera: f['Bandera'] || 'Indeterminado',
@@ -4827,8 +4846,12 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
       }),
     });
     const crearData = await crearRes.json();
-    if (!crearData.id) { console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData)); return null; }
+    if (!crearRes.ok || !crearData.id) {
+      console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData));
+      return { fecha: serie.fecha, estado: 'fallida', escritos: 0, total: analitos.length };
+    }
 
+    let escritos = 0;
     if (analitos.length) {
       const registrosValores = analitos.map(a => {
         const banderaCap = capitalizar(a.bandera);
@@ -4850,23 +4873,57 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
           },
         };
       });
-      await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typecast: true, records: registrosValores }),
-      }).catch(e => console.error('[nova] error creando LAB_VALORES (backfill):', e.message));
+      // Airtable acepta máximo 10 registros por POST: antes se mandaban todos
+      // juntos, una fecha con más de 10 analitos fallaba SIEMPRE y en silencio
+      // (sin revisar la respuesta) y aun así se contaba como guardada — el caso
+      // "5 de 5 fechas guardadas" de CLAUDE.md §6. Ahora se cuentan solo los
+      // valores que Airtable confirmó.
+      for (let i = 0; i < registrosValores.length; i += 10) {
+        const lote = registrosValores.slice(i, i + 10);
+        try {
+          const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ typecast: true, records: lote }),
+          });
+          if (r.ok) escritos += lote.length;
+          else console.error('[nova] LAB_VALORES (backfill) rechazado:', r.status, await r.text());
+        } catch (e) {
+          console.error('[nova] error creando LAB_VALORES (backfill):', e.message);
+        }
+      }
     }
-    return serie.fecha;
+
+    if (escritos === analitos.length) return { fecha: serie.fecha, estado: 'confirmada', escritos, total: analitos.length };
+
+    // Sin ningún valor escrito, la cabecera recién creada queda vacía: se
+    // retira para no dejar un estudio huérfano en NOVA LABS. No es dato
+    // clínico (no tiene valores); si no se puede retirar, se avisa.
+    let cabeceraHuerfana = false;
+    if (escritos === 0) {
+      try {
+        const del = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}/${crearData.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        cabeceraHuerfana = !del.ok;
+      } catch { cabeceraHuerfana = true; }
+    }
+    return { fecha: serie.fecha, estado: escritos === 0 ? 'fallida' : 'parcial', escritos, total: analitos.length, cabeceraHuerfana };
   }));
 
-  const fechasGuardadas = resultadosSeries.filter(Boolean);
-  const guardadas = fechasGuardadas.length;
+  const confirmadas = resultadosSeries.filter(r => r.estado === 'confirmada');
+  const parciales = resultadosSeries.filter(r => r.estado === 'parcial');
+  const fallidas = resultadosSeries.filter(r => r.estado === 'fallida');
+  const totalFechas = resultadosSeries.length;
 
-  const textoFinal = guardadas > 0
-    ? `${mensaje}\n\n✅ Guardado en NOVA LABS: ${guardadas} de ${(series || []).length} fecha(s) (${fechasGuardadas.join(', ')}). Ya puedes verlas en la pestaña NOVA LABS del expediente.`
-    : `${mensaje}\n\n⚠️ No se pudo guardar ninguna fecha — revisa el formato e inténtalo de nuevo.`;
+  // Se dice exactamente lo que Airtable confirmó — nunca "guardado" para una
+  // fecha con valores pendientes.
+  const lineas = [];
+  if (confirmadas.length) lineas.push(`✅ Guardado completo en NOVA LABS: ${confirmadas.length} de ${totalFechas} fecha(s) (${confirmadas.map(r => r.fecha).join(', ')}).`);
+  if (parciales.length) lineas.push(`⚠️ Guardado INCOMPLETO: ${parciales.map(r => `${r.fecha} (${r.escritos} de ${r.total} valores)`).join(', ')}. Revisa esas fechas en NOVA LABS y captura a mano lo que falte.`);
+  if (fallidas.length) lineas.push(`⚠️ NO se guardó: ${fallidas.map(r => r.fecha).join(', ')}. Vuelve a dictar esas fechas.`);
+  if (resultadosSeries.some(r => r.cabeceraHuerfana)) lineas.push('⚠️ Quedó un estudio sin valores en NOVA LABS que no se pudo retirar; revísalo.');
+  if (!lineas.length) lineas.push('⚠️ No había fechas que guardar — revisa el formato e inténtalo de nuevo.');
 
-  return { content: [{ type: 'text', text: textoFinal }], refrescarLabs: guardadas > 0 };
+  return { content: [{ type: 'text', text: `${mensaje}\n\n${lineas.join('\n')}` }], refrescarLabs: confirmadas.length + parciales.length > 0 };
 }
 
 // ─── DEFINICIÓN DE LA HERRAMIENTA DE NOVA EN MODO MÉDICO (ficha) ───

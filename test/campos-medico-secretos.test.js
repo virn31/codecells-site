@@ -277,6 +277,7 @@ for (const accion of ['medico_tabla_labs', 'medico_resumen_labs', 'medico_guarda
 test('nova medico_tabla_labs: un médico Clinico sí pasa la puerta y llega a autorizar al paciente', async () => {
   const { llamadas, restaurar } = instalarFetch((u, opts) => {
     if (u.includes('tbl6y1ZfsmPPhrlFk')) return ok({ records: [] }); // LAB_VALORES vacío
+    if (u.includes('tblA51aUeYypWQMQV')) return ok({ records: [] }); // CATALOGO_PARAMETROS
     return routerMedico('Clinico')(u, opts);
   });
   try {
