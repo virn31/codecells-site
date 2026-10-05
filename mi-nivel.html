@@ -142,6 +142,12 @@
   .bio-etiqueta { font-size: 11px; color: var(--text-3); min-width: 112px; text-align: right; }
   .bio-delta { font-family: var(--font-mono); font-size: 11px; min-width: 40px; text-align: right; }
   .bio-delta.sube { color: #5FAE6E; } .bio-delta.baja { color: #E2A64B; }
+  .equipo-lista { display: flex; flex-direction: column; gap: 10px; }
+  .equipo-fila { display: flex; align-items: center; gap: 12px; }
+  .equipo-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--gold-pale); color: var(--gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 16px; flex-shrink: 0; }
+  .equipo-nombre { font-size: 14px; color: var(--text-1); }
+  .equipo-detalle { font-size: 12px; color: var(--text-3); }
+  .progreso-titulo { font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
   .protocolo-dias { font-size: 12px; color: var(--text-2); margin-top: 10px; }
   .protocolo-barra { height: 6px; background: var(--black-3); border-radius: 6px; overflow: hidden; margin-top: 6px; }
   .protocolo-barra div { height: 100%; background: var(--gold); border-radius: 6px; }
@@ -156,6 +162,7 @@
   .test-nav { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
 </style>
   <script src="/lib/cuestionarioBiologico.js"></script>
+  <script src="/lib/motor-graficas.js"></script>
   <script src="/lib/i18n.js"></script>
 </head>
 <body>
@@ -245,6 +252,14 @@
          código y esta llave, ese médico verá tu expediente — diagnósticos,
          tratamientos, estudios — pero no las notas privadas de tus otros
          médicos. Ver api/nova.js acción paciente_generar_llave. -->
+    <!-- Mi equipo: médico principal y médicos a los que el paciente entregó
+         su expediente (nova paciente_mi_equipo: solo nombre y especialidad). -->
+    <div class="seccion-label">Mi equipo</div>
+    <div class="chat-caja" style="padding:20px;" id="equipo-caja">
+      <div id="equipo-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
+      <div id="equipo-lista" class="equipo-lista"></div>
+    </div>
+
     <div class="seccion-label">Compartir con un médico</div>
     <div class="chat-caja" style="padding:20px;" id="compartir-caja">
       <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">
@@ -273,8 +288,19 @@
     </div>
 
   </div>
-  <!-- ═══ Pestaña LABS ═══ -->
+  <!-- ═══ Pestaña SALUD: progreso (peso, presión) + laboratorios ═══ -->
   <div class="tab-pane" data-tab="labs">
+    <!-- Datos que registró el médico en cada consulta, graficados con el
+         motor del portal (accion=graficas_series; el servidor fuerza que
+         sean SOLO del paciente de la sesión). Sin datos se dice tal cual. -->
+    <div class="seccion-label">Tu progreso</div>
+    <div class="chat-caja" style="padding:20px;" id="progreso-caja">
+      <div id="progreso-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
+      <div id="progreso-peso-caja" style="display:none;margin-bottom:16px;"><div class="progreso-titulo">Peso</div><div><svg id="progreso-peso" viewBox="0 0 560 200"></svg></div></div>
+      <div id="progreso-ta-caja" style="display:none;"><div class="progreso-titulo">Presión arterial</div><div><svg id="progreso-ta" viewBox="0 0 560 200"></svg></div></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:12px;">Valores registrados por tu médico en tus consultas. Él los interpreta contigo.</div>
+    </div>
+
     <div class="seccion-label">Tus laboratorios</div>
     <div class="chat-caja" style="padding:20px;" id="labs-caja">
       <div id="labs-vacio" style="font-size:13px;color:var(--text-3);font-style:italic;">Aún no tienes estudios con datos extraídos.</div>
@@ -541,7 +567,7 @@
 <!-- Navegación inferior (solo en la pantalla principal) -->
 <nav class="nav-inferior" id="nav-inferior" style="display:none;"><div class="nav-inferior-int">
   <button type="button" class="nav-btn activo" data-tab="inicio" onclick="irATab('inicio')"><span>🏠</span>Inicio</button>
-  <button type="button" class="nav-btn" data-tab="labs" onclick="irATab('labs')"><span>🩸</span>Labs</button>
+  <button type="button" class="nav-btn" data-tab="labs" onclick="irATab('labs')"><span>📈</span>Salud</button>
   <button type="button" class="nav-btn" data-tab="citas" onclick="irATab('citas')"><span>📅</span>Citas</button>
   <button type="button" class="nav-btn" data-tab="nova" onclick="irATab('nova')"><span>💬</span>NOVA</button>
 </div></nav>
@@ -981,6 +1007,84 @@ function dibujarAnillo(ev) {
   svg.appendChild(sub);
 }
 
+// ─── MI EQUIPO ───────────────────────────────────────────────────
+var equipoDatos = null;
+function cargarEquipo() {
+  var estado = document.getElementById('equipo-estado');
+  estado.style.display = ''; estado.style.color = ''; estado.textContent = 'Cargando…';
+  fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'paciente_mi_equipo' }) })
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(x) {
+      if (!x.ok) { estado.textContent = (x.d && x.d.error) || 'No pudimos cargar a tu equipo médico.'; estado.style.color = '#E2574B'; return; }
+      equipoDatos = x.d.equipo || [];
+      pintarEquipo();
+    })
+    .catch(function(){ estado.textContent = 'Sin conexión — no pudimos cargar a tu equipo médico.'; estado.style.color = '#E2574B'; });
+}
+function inicialMedico(nombre) {
+  var limpio = String(nombre || '').replace(/^(Dra?\.?|Dr\.?)\s+/i, '');
+  return (limpio.charAt(0) || '?').toUpperCase();
+}
+function pintarEquipo() {
+  if (!equipoDatos) return;
+  var estado = document.getElementById('equipo-estado');
+  var lista = document.getElementById('equipo-lista');
+  lista.innerHTML = '';
+  if (!equipoDatos.length) { estado.style.display = ''; estado.textContent = 'Aún no tienes un médico asignado.'; return; }
+  estado.style.display = 'none';
+  equipoDatos.forEach(function(m) {
+    var fila = document.createElement('div');
+    fila.className = 'equipo-fila';
+    var detalle = (m.especialidad ? sinTraducir(m.especialidad) + ' · ' : '') +
+      (m.rol === 'principal' ? '<span>Tu médico principal</span>' : '<span>Le compartiste tu expediente</span>' + (m.desde ? ' · ' + sinTraducir(fechaCorta(m.desde)) : ''));
+    fila.innerHTML = '<div class="equipo-avatar">' + esc(inicialMedico(m.nombre)) + '</div><div><div class="equipo-nombre" data-no-i18n>' + esc(m.nombre || '—') + '</div><div class="equipo-detalle">' + detalle + '</div></div>';
+    lista.appendChild(fila);
+  });
+}
+
+// ─── PROGRESO: peso y presión arterial ───────────────────────────
+var progresoSeries = null;
+function cargarProgreso() {
+  var estado = document.getElementById('progreso-estado');
+  estado.style.display = ''; estado.style.color = ''; estado.textContent = 'Cargando…';
+  fetch('/api/airtable?tabla=consultas&accion=graficas_series&codigoPaciente=' + encodeURIComponent(pacienteCodigo) + '&codigos=peso,ta_sistolica,ta_diastolica')
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(x) {
+      if (!x.ok) { estado.textContent = (x.d && x.d.error) || 'No pudimos cargar tu progreso.'; estado.style.color = '#E2574B'; return; }
+      progresoSeries = x.d.series || {};
+      pintarProgreso();
+    })
+    .catch(function(){ estado.textContent = 'Sin conexión — no pudimos cargar tu progreso.'; estado.style.color = '#E2574B'; });
+}
+function puntosLocales(serie) {
+  return ((serie && serie.puntos) || []).filter(function(p){ return typeof p.valor === 'number'; }).map(function(p){
+    var d = p.fecha ? new Date(String(p.fecha).length === 10 ? p.fecha + 'T12:00:00' : p.fecha) : null;
+    return { fecha: p.fecha, valor: p.valor, etiqueta: d ? d.toLocaleDateString(localeActual(), { day: 'numeric', month: 'short' }) : null };
+  });
+}
+function pintarProgreso() {
+  if (!progresoSeries || typeof renderGrafica !== 'function') return;
+  var t = function(x){ return window.t ? window.t(x) : x; };
+  var peso = puntosLocales(progresoSeries.peso);
+  var sis = puntosLocales(progresoSeries.ta_sistolica), dia = puntosLocales(progresoSeries.ta_diastolica);
+  var hay = false;
+  if (peso.length) {
+    hay = true; document.getElementById('progreso-peso-caja').style.display = '';
+    renderGrafica({ svg: document.getElementById('progreso-peso'), tipo: 'linea_zonas', escalaX: 'fecha', zonas: [],
+      series: [{ codigo: 'peso', nombre: t('Peso'), unidad: 'kg', decimales: 1, puntos: peso }] });
+  }
+  if (sis.length || dia.length) {
+    hay = true; document.getElementById('progreso-ta-caja').style.display = '';
+    renderGrafica({ svg: document.getElementById('progreso-ta'), tipo: 'multi_linea', escalaX: 'fecha',
+      series: [{ codigo: 'ta_sistolica', nombre: t('Sistólica'), unidad: 'mmHg', decimales: 0, puntos: sis },
+               { codigo: 'ta_diastolica', nombre: t('Diastólica'), unidad: 'mmHg', decimales: 0, puntos: dia }] });
+  }
+  var estado = document.getElementById('progreso-estado');
+  if (hay) estado.style.display = 'none';
+  else { estado.style.display = ''; estado.style.color = ''; estado.textContent = 'Aún no hay registros de peso o presión en tus consultas.'; }
+}
+window.addEventListener('i18n:change', function(){ pintarEquipo(); pintarProgreso(); });
+
 // ─── TEST (Reevaluarme) ──────────────────────────────────────────
 var testPreguntas = [];
 var testIdx = 0;
@@ -1115,6 +1219,8 @@ function cargarPaciente() {
       renderInstallBanner();
       cargarComparativoLabs();
       cargarBio();
+      cargarEquipo();
+      cargarProgreso();
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';

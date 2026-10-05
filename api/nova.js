@@ -2555,6 +2555,64 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── MI EQUIPO (app del paciente) ─────────────────────────────────
+  // Quién atiende al paciente: su médico principal y los médicos a los que
+  // él entregó su expediente con llave. Solo nombre y especialidad — nunca
+  // teléfono, cédula ni el nivel interno (CLAUDE.md §10: el nivel no se
+  // muestra a pacientes). Un fallo de lectura es 502, no "sin equipo".
+  if (action === 'paciente_mi_equipo') {
+    try {
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const H = { Authorization: `Bearer ${AIRTABLE_TOKEN}` };
+      const esc = (v) => String(v).replace(/"/g, '\\"');
+      const codigoPac = sesion.codigo;
+
+      const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv?filterByFormula=${encodeURIComponent(`{Código de paciente}="${esc(codigoPac)}"`)}&maxRecords=1`, { headers: H });
+      if (!pacRes.ok) return res.status(502).json({ error: 'No pudimos cargar a tu equipo médico.' });
+      const pac = ((await pacRes.json()).records || [])[0];
+      if (!pac) return res.status(403).json({ error: 'No disponible.' });
+      const principales = Array.isArray(pac.fields['Médico_principal']) ? pac.fields['Médico_principal'] : [];
+
+      // Vinculados por llave (solo pacientes reales tienen vínculos).
+      let vinculos = [];
+      if (sesion.tipo === 'paciente') {
+        const vRes = await fetch(`${urlTabla(BASE_ID, TABLA_VINCULACIONES)}?filterByFormula=${encodeURIComponent(`{Paciente}="${esc(codigoPac)}"`)}`, { headers: H });
+        if (!vRes.ok) return res.status(502).json({ error: 'No pudimos cargar a tu equipo médico.' });
+        vinculos = ((await vRes.json()).records || []).map(r => r.fields || {});
+      }
+
+      // Datos públicos del médico: solo nombre y especialidad.
+      const campos = '&fields%5B%5D=' + encodeURIComponent('Nombre completo') + '&fields%5B%5D=' + encodeURIComponent('Especialidad') + '&fields%5B%5D=' + encodeURIComponent('Código de médico');
+      const condiciones = principales.map(id => `RECORD_ID()="${esc(id)}"`).concat(vinculos.filter(v => v['Médico']).map(v => `{Código de médico}="${esc(v['Médico'])}"`));
+      let medicos = [];
+      if (condiciones.length) {
+        const mRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tbl87DsuBMmb4DjFM?filterByFormula=${encodeURIComponent(`OR(${condiciones.join(',')})`)}${campos}`, { headers: H });
+        if (!mRes.ok) return res.status(502).json({ error: 'No pudimos cargar a tu equipo médico.' });
+        medicos = (await mRes.json()).records || [];
+      }
+      const equipo = [];
+      for (const m of medicos) {
+        const f = m.fields || {};
+        const esPrincipal = principales.includes(m.id);
+        const vinc = vinculos.find(v => v['Médico'] === f['Código de médico']);
+        if (!esPrincipal && !vinc) continue;
+        equipo.push({
+          nombre: f['Nombre completo'] || null,
+          especialidad: f['Especialidad'] || (vinc && vinc['Especialidad']) || null,
+          rol: esPrincipal ? 'principal' : 'compartido',
+          desde: !esPrincipal && vinc ? (vinc['Fecha de vinculación'] || null) : null,
+        });
+      }
+      equipo.sort((a, b) => (a.rol === b.rol ? 0 : a.rol === 'principal' ? -1 : 1));
+      return res.status(200).json({ ok: true, equipo });
+    } catch (err) {
+      console.error('[nova] paciente_mi_equipo error:', err.message);
+      return res.status(500).json({ error: 'Error interno cargando tu equipo médico.' });
+    }
+  }
+
   // Trayectoria: el paciente (o demo) ve las suyas; el médico, las de un
   // paciente autorizado (cualquier vía, incluida demo en lectura).
   if (action === 'evaluaciones_listar') {
