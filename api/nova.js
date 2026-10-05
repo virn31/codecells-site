@@ -69,6 +69,34 @@ const meds = require('../lib/medicamentos');
 //    interconsulta con escritura; demo nunca) y medicoRecId resuelto, que
 //    es el autor del registro (kiosco = alta delegada, CLAUDE.md §7).
 // Devuelve { error: {status, mensaje} } o { medicoRecId, auth }.
+// Lee TODAS las páginas de una tabla (Airtable da 100 por página) y lanza si
+// Airtable no responde ok. Un 429/5xx nunca se convierte en "sin registros",
+// y un paciente con más de 100 valores no pierde los demás en silencio
+// (CLAUDE.md §6). Mismo patrón que airtableLeerTodo() de api/airtable.js.
+async function leerTodoAirtable(tableId, paramsIniciales = {}) {
+  const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+  const registros = [];
+  let offset;
+  do {
+    const params = new URLSearchParams(paramsIniciales);
+    if (offset) params.set('offset', offset);
+    const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` },
+    });
+    if (!r.ok) {
+      const e = new Error(`Airtable respondió ${r.status} al leer ${tableId}`);
+      e.status = r.status;
+      throw e;
+    }
+    const data = await r.json();
+    registros.push(...(data.records || []));
+    offset = data.offset;
+  } while (offset);
+  return registros;
+}
+
+const MENSAJE_LABS_NO_LEIDOS = 'No se pudieron leer los estudios del paciente en este momento. Esto NO significa que no tenga estudios: intenta de nuevo en unos segundos.';
+
 // Tipo de acceso para las acciones medico_* que no pasan por puertaKiosco ni
 // por puertaMedicoPaciente (labs y calendario). Revisor/Desarrollo entran con
 // el mismo token de médico pero no tocan expediente — ni para leerlo ni para
@@ -1192,18 +1220,21 @@ module.exports = async function handler(req, res) {
       const TBL_PAC_LOG = 'tblyUcCfueFLJuvIv';
 
       const formula = `{Código de paciente ref}="${pacienteCode}"`;
-      const [valoresRes, pacLogRes] = await Promise.all([
-        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, {
-          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-        }),
-        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC_LOG}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}&maxRecords=1`, {
-          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-        }),
-      ]);
-      const valoresData = await valoresRes.json();
-      const pacLogData = await pacLogRes.json();
-      const registros = valoresData.records || [];
-      const pacienteExisteParaLog = !!(pacLogData.records && pacLogData.records[0]);
+      // Un fallo de lectura responde 502 y NO deja constancia de "Paciente no
+      // encontrado" en ACCESOS_EXPEDIENTE (antes ambas cosas eran falsas:
+      // tabla vacía para el médico y bitácora corrompida).
+      let registros, pacienteExisteParaLog;
+      try {
+        const [valores, pacLog] = await Promise.all([
+          leerTodoAirtable(TBL_LAB_VALORES, { filterByFormula: formula, 'sort[0][field]': 'Fecha del estudio', 'sort[0][direction]': 'asc' }),
+          leerTodoAirtable(TBL_PAC_LOG, { filterByFormula: `{Código de paciente}="${pacienteCode}"`, maxRecords: '1' }),
+        ]);
+        registros = valores;
+        pacienteExisteParaLog = pacLog.length > 0;
+      } catch (errLeer) {
+        console.error('[nova] medico_tabla_labs lectura:', errLeer.message);
+        return res.status(502).json({ ok: false, error: MENSAJE_LABS_NO_LEIDOS });
+      }
 
       // Clasificación por palabras clave — heurística, no perfecta, pero
       // agrupa lo más común de un panel CODE CELLS™ en categorías legibles.
@@ -1303,13 +1334,20 @@ module.exports = async function handler(req, res) {
 
       const formula = `{Código de paciente ref}="${pacienteCode}"`;
 
-      const [labsRes, valoresRes, pacRes, consultasRes] = await Promise.all([
-        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha de resultados&sort[0][direction]=desc`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-        fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_CONSULTAS}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha de consulta&sort[0][direction]=desc&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-      ]);
-      const [labsData, valoresData, pacData, consultasData] = await Promise.all([labsRes.json(), valoresRes.json(), pacRes.json(), consultasRes.json()]);
+      let labsData, valoresData, pacData, consultasData;
+      try {
+        const [labs, valores, pac, consultas] = await Promise.all([
+          leerTodoAirtable(TBL_LABS, { filterByFormula: formula, 'sort[0][field]': 'Fecha de resultados', 'sort[0][direction]': 'desc' }),
+          leerTodoAirtable(TBL_LAB_VALORES, { filterByFormula: formula, 'sort[0][field]': 'Fecha del estudio', 'sort[0][direction]': 'asc' }),
+          leerTodoAirtable(TBL_PAC, { filterByFormula: `{Código de paciente}="${pacienteCode}"`, maxRecords: '1' }),
+          leerTodoAirtable(TBL_CONSULTAS, { filterByFormula: formula, 'sort[0][field]': 'Fecha de consulta', 'sort[0][direction]': 'desc', maxRecords: '1' }),
+        ]);
+        // Misma forma que antes ({records}) para no tocar el resto de la acción.
+        labsData = { records: labs }; valoresData = { records: valores }; pacData = { records: pac }; consultasData = { records: consultas };
+      } catch (errLeer) {
+        console.error('[nova] medico_resumen_labs lectura:', errLeer.message);
+        return res.status(502).json({ ok: false, error: MENSAJE_LABS_NO_LEIDOS });
+      }
 
       const estudios = (labsData.records || []).map(r => ({
         id: r.id,
@@ -3823,6 +3861,8 @@ module.exports = async function handler(req, res) {
         const formulaMed = `{Código de médico}="${medicoCode}"`;
         const urlMed = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}?filterByFormula=${encodeURIComponent(formulaMed)}`;
         const medRes = await fetch(urlMed, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
+        // Un 429/5xx no es "médico no reconocido" (CLAUDE.md §6): va al 502.
+        if (!medRes.ok) throw new Error(`Airtable respondió ${medRes.status} al leer MÉDICOS`);
         const medData = await medRes.json();
         medRecord = medData.records?.[0];
       } catch (err) {
@@ -3916,12 +3956,19 @@ module.exports = async function handler(req, res) {
           especialidad: especialidadReal,
           memoria: memoriaMedico,
         });
-        herramientaMedico = buildHerramientaFichaConsulta();
-        herramientaAltaPaciente = buildHerramientaAltaPaciente();
-        herramientaInvitarMedico = buildHerramientaInvitarMedico();
-        herramientaAvisarMedico = buildHerramientaAvisarMedico();
-        herramientaAutorizarDZW = buildHerramientaAutorizarDZW();
-        herramientaSeriesLab = buildHerramientaSeriesHistoricasLab();
+        // Las herramientas dan de alta pacientes y escriben labs: solo para
+        // Tipo de acceso=Clinico, igual que el proxy y las acciones medico_*.
+        // Revisor/Desarrollo conversan con NOVA pero sin herramientas.
+        const accesoChat = await verificarAccesoClinicoMedico(medicoCode, process.env.AIRTABLE_TOKEN);
+        if (accesoChat.errorInfra) return res.status(502).json({ error: MENSAJE_ACCESO_NO_VERIFICABLE });
+        if (accesoChat.permitido) {
+          herramientaMedico = buildHerramientaFichaConsulta();
+          herramientaAltaPaciente = buildHerramientaAltaPaciente();
+          herramientaInvitarMedico = buildHerramientaInvitarMedico();
+          herramientaAvisarMedico = buildHerramientaAvisarMedico();
+          herramientaAutorizarDZW = buildHerramientaAutorizarDZW();
+          herramientaSeriesLab = buildHerramientaSeriesHistoricasLab();
+        }
       }
     } else if (esPac) {
       // El código de paciente viene de la sesión verificada, nunca del
@@ -3938,6 +3985,8 @@ module.exports = async function handler(req, res) {
         const formula = `{Código de paciente}="${pacienteCode}"`;
         const url = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_PACIENTES}?filterByFormula=${encodeURIComponent(formula)}`;
         const pacRes = await fetch(url, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
+        // Un 429/5xx no es "paciente no disponible" (CLAUDE.md §6): va al 502.
+        if (!pacRes.ok) throw new Error(`Airtable respondió ${pacRes.status} al leer PACIENTES`);
         const pacData = await pacRes.json();
         const pacRecord = pacData.records?.[0];
 
@@ -3989,6 +4038,8 @@ module.exports = async function handler(req, res) {
         const formula = `{Código de paciente}="${pacienteCode}"`;
         const url = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_PACIENTES}?filterByFormula=${encodeURIComponent(formula)}`;
         const pacRes = await fetch(url, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
+        // Un 429/5xx no es "paciente no disponible" (CLAUDE.md §6): va al 502.
+        if (!pacRes.ok) throw new Error(`Airtable respondió ${pacRes.status} al leer PACIENTES`);
         const pacData = await pacRes.json();
         const pacRecord = pacData.records?.[0];
 
@@ -4375,16 +4426,16 @@ module.exports = async function handler(req, res) {
 
           // Enlazar al médico que lo está dando de alta — sin esto, el
           // paciente no aparece en "Mis Pacientes" de nadie en el portal.
-          let medicoRecordId = null;
-          if (medicoCode) {
-            try {
-              const TBL_MED = 'tbl87DsuBMmb4DjFM';
-              const formulaMed = `{Código de médico}="${medicoCode}"`;
-              const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaMed)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-              const medData = await medRes.json();
-              medicoRecordId = medData.records?.[0]?.id || null;
-            } catch { /* si falla, el paciente igual se crea, solo sin médico enlazado */ }
-          }
+          // Obligatorio: antes, si esta lectura fallaba, el paciente se creaba
+          // huérfano (sin Médico_principal, invisible en la cartera de quien
+          // lo dio de alta) y NOVA respondía "✅ registrado". Sin médico
+          // resuelto no se crea nada: el catch de abajo responde 502.
+          const TBL_MED = 'tbl87DsuBMmb4DjFM';
+          const formulaMed = `{Código de médico}="${medicoCode}"`;
+          const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MED}?filterByFormula=${encodeURIComponent(formulaMed)}&maxRecords=1`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          if (!medRes.ok) throw new Error(`Airtable respondió ${medRes.status} al leer MÉDICOS`);
+          const medicoRecordId = (await medRes.json()).records?.[0]?.id || null;
+          if (!medicoRecordId) throw new Error(`médico de la sesión (${medicoCode}) no encontrado en MÉDICOS`);
 
           const fieldsNuevoPaciente = { 'Código de paciente': nuevoCodigo, 'Nombre completo': datos.nombre_completo };
           if (medicoRecordId) fieldsNuevoPaciente['Médico_principal'] = [medicoRecordId];
@@ -4412,7 +4463,11 @@ module.exports = async function handler(req, res) {
 
           // Antecedentes heredofamiliares y motivo van a HISTORIA CLÍNICA —
           // NUNCA a Patologías activas del paciente, son historial de la familia.
+          // historiaOk: lo dictado (motivo, AHF) no puede perderse en silencio
+          // detrás de un "✅ registrado" — si no se guardó, NOVA lo dice.
+          let historiaOk = true;
           if (nuevoRecordId && (datos.antecedentes_heredofamiliares || datos.motivo_consulta)) {
+            historiaOk = false;
             await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_HIST}`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
@@ -4422,11 +4477,15 @@ module.exports = async function handler(req, res) {
                 'AHF — Heredo-familiares': datos.antecedentes_heredofamiliares || '',
                 'Paciente': [nuevoRecordId],
               } }] }),
+            }).then(r => {
+              historiaOk = r.ok;
+              if (!r.ok) console.error('[nova] historia clínica inicial no guardada:', r.status);
             }).catch(e => console.error('[nova] error creando historia clínica inicial:', e.message));
           }
 
+          const avisoHistoria = historiaOk ? '' : '\n\n⚠️ El motivo de consulta y los antecedentes heredofamiliares NO se guardaron en la historia clínica: captúralos en el Portal Médico.';
           const mensajeFinal = createRes.ok
-            ? `${datos.mensaje}\n\n✅ Paciente registrado: ${nuevoCodigo} — ${datos.nombre_completo}. Revísalo en el Portal Médico y completa lo que falte.`
+            ? `${datos.mensaje}\n\n✅ Paciente registrado: ${nuevoCodigo} — ${datos.nombre_completo}. Revísalo en el Portal Médico y completa lo que falte.${avisoHistoria}`
             : `${datos.mensaje}\n\n⚠️ Hubo un problema guardando el registro en Airtable — inténtalo de nuevo o cárgalo manualmente.`;
           return res.status(200).json({ content: [{ type: 'text', text: mensajeFinal }], paciente_creado: createRes.ok ? { codigo: nuevoCodigo, recordId: nuevoRecordId } : null });
         } catch (err) {
@@ -4443,7 +4502,7 @@ module.exports = async function handler(req, res) {
         : null;
       if (toolSeriesLab && Array.isArray(toolSeriesLab.input?.series)) {
         try {
-          const resultado = await ejecutarGuardadoSeriesLab(pacienteCode, toolSeriesLab.input.mensaje, toolSeriesLab.input.series);
+          const resultado = await ejecutarGuardadoSeriesLab(medicoCode, pacienteCode, toolSeriesLab.input.mensaje, toolSeriesLab.input.series);
           return res.status(200).json(resultado);
         } catch (err) {
           console.error('[nova] error en guardar_series_historicas_laboratorio:', err.message);
@@ -4498,7 +4557,7 @@ module.exports = async function handler(req, res) {
       // médico y se fuerza una segunda llamada obligando la herramienta de
       // backfill — así el guardado no depende de que el modelo "decida" usarla.
       const huboToolUse = Array.isArray(data.content) && data.content.some(b => b && b.type === 'tool_use');
-      if (!huboToolUse && pacienteCode && /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
+      if (herramientaSeriesLab && !huboToolUse && pacienteCode && /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         const ultimoMensaje = typeof messages[messages.length - 1]?.content === 'string' ? messages[messages.length - 1].content : '';
         const fechasDetectadas = (ultimoMensaje.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}-\d{1,2}-\d{1,2}\b/g) || []).length;
         if (fechasDetectadas >= 2) {
@@ -4521,7 +4580,7 @@ module.exports = async function handler(req, res) {
               ? forzadoData.content.find(b => b && b.type === 'tool_use' && b.name === 'guardar_series_historicas_laboratorio')
               : null;
             if (forzadoTool && Array.isArray(forzadoTool.input?.series)) {
-              const resultado = await ejecutarGuardadoSeriesLab(pacienteCode, forzadoTool.input.mensaje, forzadoTool.input.series);
+              const resultado = await ejecutarGuardadoSeriesLab(medicoCode, pacienteCode, forzadoTool.input.mensaje, forzadoTool.input.series);
               return res.status(200).json(resultado);
             }
           } catch (err) {
@@ -4662,7 +4721,7 @@ function buildHerramientaSeriesHistoricasLab() {
 // tool_use natural de NOVA como desde el reintento forzado (cuando NOVA
 // respondió solo en texto sin usar ninguna herramienta pese a que el
 // dictado claramente traía varias fechas).
-async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
+async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, series) {
   // CONGELAMIENTO 2026-08-24 (instrucción legal): backfill de laboratorio
   // por dictado (NOVA LABS / LAB_VALORES), escribe directo sin esperar
   // "Guardar". Único choke point para ambos call sites (tool normal y el
@@ -4682,12 +4741,22 @@ async function ejecutarGuardadoSeriesLab(pacienteCode, mensaje, series) {
   const banderasValidas = ['Normal', 'Alto', 'Bajo', 'Indeterminado'];
   const capitalizar = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : 'Indeterminado';
 
-  const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}?filterByFormula=${encodeURIComponent(`{Código de paciente}="${pacienteCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-  const pacData = await pacRes.json();
-  const pacRecord = pacData.records?.[0];
-  if (!pacRecord) {
-    return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No encontré ese paciente en Airtable — no se guardó nada.` }] };
+  // El pacienteCode llega del cliente (el portal manda el expediente
+  // abierto): antes se escribía en CUALQUIER paciente con solo su código,
+  // demos incluidos. Ahora pasa por autorizarPaciente() con escritura, con el
+  // médico de la sesión (CLAUDE.md §4). Un fallo de Airtable se relanza: el
+  // llamador responde 502, nunca "no encontré al paciente".
+  let auth;
+  try {
+    auth = await autorizarPaciente(codigoMedico, pacienteCode, { requiereEscritura: true });
+  } catch (err) {
+    if (err instanceof ErrorAutorizacion) {
+      await registrarAccesoExpediente({ pacienteCode, codigoMedico, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'nova:guardar_series_historicas_laboratorio' });
+      return { content: [{ type: 'text', text: `${mensaje}\n\n⚠️ No tienes acceso de escritura a ese expediente (o es un paciente demo). No se guardó nada.` }] };
+    }
+    throw err;
   }
+  const pacRecord = { id: auth.recId };
 
   const resultadosSeries = await Promise.all((series || []).filter(s => s.fecha).map(async serie => {
     const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
