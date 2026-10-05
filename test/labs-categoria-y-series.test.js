@@ -157,3 +157,12 @@ test('series: dos fechas, una bien y otra mal → se dice exactamente cuál', as
   assert.match(texto, /Guardado completo en NOVA LABS: 1 de 2 fecha\(s\) \(2026-01-01\)/);
   assert.match(texto, /NO se guardó: 2026-02-01/);
 });
+
+test('labs: la tabla marca graficable=false solo para analitos sin parámetro en ningún corte', async () => {
+  const { restaurar } = instalar(conCatalogo([valor('ALT', 'recALT'), valor('Glucosa postprandial', null), valor('Fondo uterino', null, '2026-08-01'), valor('Fondo uterino', 'recFU', '2026-09-01')]));
+  try {
+    const res = await nova({ action: 'medico_tabla_labs', pacienteCode: 'CC-PAC-9001' });
+    const g = Object.fromEntries(res.body.filas.map((f) => [f.analito, f.graficable]));
+    assert.deepStrictEqual(g, { ALT: true, 'Glucosa postprandial': false, 'Fondo uterino': true });
+  } finally { restaurar(); }
+});

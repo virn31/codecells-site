@@ -79,7 +79,13 @@ async function leerTodoAirtable(tableId, paramsIniciales = {}) {
   const registros = [];
   let offset;
   do {
-    const params = new URLSearchParams(paramsIniciales);
+    // Un valor lista (p. ej. 'fields[]': [...]) se manda como parámetro
+    // repetido; URLSearchParams(objeto) lo uniría con comas.
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(paramsIniciales)) {
+      if (Array.isArray(v)) v.forEach(x => params.append(k, x));
+      else params.set(k, v);
+    }
     if (offset) params.set('offset', offset);
     const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`, {
       headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` },
@@ -1284,11 +1290,16 @@ module.exports = async function handler(req, res) {
           porAnalito[f['Analito']] = {
             analito: f['Analito'],
             categoria: categoriaDe(f['Parametro']) || SIN_CATEGORIA,
+            // graficable: tiene Parametro en al menos un corte. Sin Parametro
+            // nunca entra al motor de gráficas (CLAUDE.md §7); el portal lo
+            // marca para que el médico sepa cuáles no van a graficar.
+            graficable: false,
             unidad: f['Unidad'] || '',
             rango_texto: f['Rango de referencia'] || '',
             porFecha: {},
           };
         }
+        if (Array.isArray(f['Parametro']) && f['Parametro'].length) porAnalito[f['Analito']].graficable = true;
         // Un corte posterior enlazado al catálogo corrige un "Otros Estudios" previo.
         if (porAnalito[f['Analito']].categoria === SIN_CATEGORIA) {
           const cat = categoriaDe(f['Parametro']);
@@ -4482,7 +4493,76 @@ module.exports = async function handler(req, res) {
           const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
           const TBL_PAC = 'tblyUcCfueFLJuvIv';
           const TBL_HIST = 'tblm2xUADazitHisR';
+          const fechaNacimiento = /^\d{4}-\d{2}-\d{2}$/.test(datos.fecha_nacimiento || '') ? datos.fecha_nacimiento : null;
 
+          // ── RUTA A: el médico confirmó que el dictado es de un paciente que
+          // YA existe → se agrega a ese expediente, no se crea un duplicado.
+          // Pasa por autorizarPaciente() con escritura (la versión de agosto
+          // escribía en cualquier expediente con solo su código).
+          const codigoExistente = (typeof datos.codigo_paciente_existente === 'string' && /^CC-PAC-[0-9]{4,8}$/.test(datos.codigo_paciente_existente.trim()))
+            ? datos.codigo_paciente_existente.trim() : null;
+          if (codigoExistente) {
+            let authExistente;
+            try {
+              authExistente = await autorizarPaciente(medicoCode, codigoExistente, { requiereEscritura: true });
+            } catch (errAuth) {
+              if (errAuth instanceof ErrorAutorizacion) {
+                await registrarAccesoExpediente({ pacienteCode: codigoExistente, codigoMedico: medicoCode, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'nova:crear_paciente_dictado' });
+                return res.status(200).json({ content: [{ type: 'text', text: `${datos.mensaje}\n\n⚠️ No tienes acceso de escritura a ${codigoExistente}. Si es tu paciente en la red, pídele que te comparta su expediente con su llave desde su app. No se guardó nada.` }] });
+              }
+              throw errAuth;
+            }
+            const pRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${authExistente.recId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+            if (!pRes.ok) throw new Error(`Airtable respondió ${pRes.status} al leer ${codigoExistente}`);
+            const pf = (await pRes.json()).fields || {};
+            const patch = {};
+            if (Array.isArray(datos.patologias_detectadas) && datos.patologias_detectadas.length) {
+              patch['Patologías activas'] = Array.from(new Set([...(pf['Patologías activas'] || []), ...datos.patologias_detectadas]));
+            }
+            if (datos.peso_kg) patch['Peso actual (kg)'] = datos.peso_kg;
+            if (datos.talla_cm) patch['Talla (cm)'] = datos.talla_cm;
+            // Identidad: solo se llena lo que estaba vacío, nunca se sobrescribe.
+            if (datos.sexo && !pf['Sexo biológico']) patch['Sexo biológico'] = datos.sexo;
+            if (datos.telefono_whatsapp && !pf['Teléfono WhatsApp']) patch['Teléfono WhatsApp'] = datos.telefono_whatsapp;
+            if (fechaNacimiento && !pf['Fecha de nacimiento']) patch['Fecha de nacimiento'] = fechaNacimiento;
+            const avisos = [];
+            if (Object.keys(patch).length) {
+              const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${authExistente.recId}`, {
+                method: 'PATCH', headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, fields: patch }),
+              });
+              if (!r.ok) avisos.push('⚠️ Los datos generales (peso, talla, patologías) NO se guardaron: captúralos en el Portal Médico.');
+            }
+            if (datos.antecedentes_heredofamiliares || datos.motivo_consulta) {
+              const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_HIST}`, {
+                method: 'POST', headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typecast: true, records: [{ fields: {
+                  'Código de paciente ref': codigoExistente,
+                  'Motivo de consulta': datos.motivo_consulta || '',
+                  'AHF — Heredo-familiares': datos.antecedentes_heredofamiliares || '',
+                  'Paciente': [authExistente.recId],
+                  'Registrado por': [authExistente.medicoRecId].filter(Boolean),
+                } }] }),
+              });
+              if (!r.ok) avisos.push('⚠️ El motivo de consulta y los antecedentes heredofamiliares NO se guardaron en la historia clínica: captúralos en el Portal Médico.');
+            }
+            await registrarAccesoExpediente({ pacienteCode: codigoExistente, codigoMedico: medicoCode, medicoRecId: authExistente.medicoRecId, accion: 'Escritura', resultado: avisos.length ? 'Parcial' : 'Exitoso', endpoint: 'nova:crear_paciente_dictado' });
+            const encabezado = avisos.length ? `Agregado en parte al expediente existente ${codigoExistente}.` : `✅ Agregado al expediente existente de ${pf['Nombre completo'] || ''} (${codigoExistente}). No se creó un duplicado.`;
+            return res.status(200).json({ content: [{ type: 'text', text: `${datos.mensaje}\n\n${encabezado}${avisos.length ? '\n' + avisos.join('\n') : ''}` }], paciente_actualizado: { codigo: codigoExistente, recordId: authExistente.recId } });
+          }
+
+          // ── RUTA B: anti-duplicado ANTES de crear (porta ecef53a, corregido).
+          // Coincidencia por nombre, teléfono o fecha de nacimiento. Si hay
+          // candidatos y el médico no confirmó que es otra persona, se PREGUNTA.
+          // Si no se puede verificar, NO se crea (el catch responde 502).
+          if (!datos.confirmar_nuevo) {
+            const candidatos = await buscarPosiblesDuplicados({ nombre: datos.nombre_completo, telefono: datos.telefono_whatsapp, fechaNacimiento, codigoMedico: medicoCode });
+            if (candidatos.length) {
+              return res.status(200).json({ content: [{ type: 'text', text: `${datos.mensaje}\n\n${textoPosiblesDuplicados(candidatos)}` }], candidatos_duplicado: candidatos.filter(c => c.visible).map(c => ({ codigo: c.codigo, nombre: c.nombre })) });
+            }
+          }
+
+          // ── RUTA C: paciente nuevo (sin coincidencias, o confirmado distinto).
           // Siguiente código CC-PAC- disponible, con verificación
           // anti-colisión del lado del servidor (ver lib/codigos.js).
           const nuevoCodigo = await generarCodigoUnico({
@@ -4509,6 +4589,7 @@ module.exports = async function handler(req, res) {
           if (datos.telefono_whatsapp) fieldsNuevoPaciente['Teléfono WhatsApp'] = datos.telefono_whatsapp;
           if (datos.peso_kg) fieldsNuevoPaciente['Peso actual (kg)'] = datos.peso_kg;
           if (datos.talla_cm) fieldsNuevoPaciente['Talla (cm)'] = datos.talla_cm;
+          if (fechaNacimiento) fieldsNuevoPaciente['Fecha de nacimiento'] = fechaNacimiento;
           // patologias_detectadas viene ya separado de heredofamiliares por diseño de la herramienta
           if (Array.isArray(datos.patologias_detectadas) && datos.patologias_detectadas.length) {
             fieldsNuevoPaciente['Patologías activas'] = datos.patologias_detectadas;
@@ -4825,9 +4906,78 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
   }
   const pacRecord = { id: auth.recId };
 
+  // ── Catálogo e historial previo (portan la Fase B de agosto, 8dab362) ──
+  // Catálogo: el nombre dictado se normaliza y se busca EXACTO contra código,
+  // nombre o alias — nunca por substring. Sin match se guarda sin Parametro
+  // (no grafica, CLAUDE.md §7). Historial: lo que el paciente ya tiene, para
+  // no duplicar al redictar. Si cualquiera de las dos lecturas falla, no se
+  // escribe nada (el llamador responde 502).
+  const catalogo = await leerTodoAirtable('tblA51aUeYypWQMQV', {
+    returnFieldsByFieldId: 'true',
+    'fields[]': ['fldc0AaVggOqucQl9', 'fldrdbPLhWvCQEpGO', 'fld2n3Kl3XLoCfQ9t', 'fldmc8qdW3xGEqyfA'],
+  });
+  const porNombreExacto = new Map();
+  const porAlias = new Map();
+  for (const rec of catalogo) {
+    const f = rec.fields || {};
+    if (f.fldmc8qdW3xGEqyfA === false) continue;
+    for (const t of [f.fldc0AaVggOqucQl9, f.fldrdbPLhWvCQEpGO]) {
+      const n = normalizarAnalitoLab(t);
+      if (n && !porNombreExacto.has(n)) porNombreExacto.set(n, rec.id);
+    }
+    String(f.fld2n3Kl3XLoCfQ9t || '').split(';').forEach(a => {
+      const n = normalizarAnalitoLab(a);
+      if (n && !porNombreExacto.has(n) && !porAlias.has(n)) porAlias.set(n, rec.id);
+    });
+  }
+  const resolverParametro = (nombre) => {
+    const n = normalizarAnalitoLab(nombre);
+    if (porNombreExacto.has(n)) return { id: porNombreExacto.get(n), confianza: 'Alta' };
+    if (porAlias.has(n)) return { id: porAlias.get(n), confianza: 'Media' };
+    return null;
+  };
+
+  const previos = await leerTodoAirtable(TBL_LAB_VALORES, {
+    filterByFormula: `{Código de paciente ref}="${pacienteCode}"`,
+    'fields[]': ['Analito', 'Fecha del estudio', 'Valor', 'Valor numérico', 'Parametro'],
+  });
+  // Clave de comparación: fecha + parámetro del catálogo (o el nombre
+  // normalizado si no está catalogado). El valor decide si es "ya estaba" o
+  // conflicto.
+  const claveLab = (fecha, parametroId, nombre) => `${fecha}|${parametroId || 'n:' + normalizarAnalitoLab(nombre)}`;
+  const valorComparable = (v, num) => (typeof num === 'number' ? String(num) : normalizarAnalitoLab(v));
+  const existentes = new Map();
+  for (const r of previos) {
+    const f = r.fields || {};
+    const param = Array.isArray(f.Parametro) ? f.Parametro[0] : null;
+    existentes.set(claveLab(f['Fecha del estudio'], param, f.Analito), valorComparable(f.Valor, f['Valor numérico']));
+  }
+
   const resultadosSeries = await Promise.all((series || []).filter(s => s.fecha).map(async serie => {
     const analitos = Array.isArray(serie.analitos) ? serie.analitos.filter(a => a && a.nombre) : [];
     const fueraDeRango = analitos.filter(a => a.bandera === 'alto' || a.bandera === 'bajo');
+
+    // Clasificar cada analito ANTES de crear nada: nuevo / ya estaba / conflicto.
+    const nuevos = [];
+    const yaEstaban = [];
+    const conflictos = [];
+    for (const a of analitos) {
+      const numMatch = String(a.valor ?? '').replace(',', '.').match(/-?\d+(\.\d+)?/);
+      const num = numMatch ? parseFloat(numMatch[0]) : undefined;
+      const param = resolverParametro(a.nombre);
+      const clave = claveLab(serie.fecha, param && param.id, a.nombre);
+      if (existentes.has(clave)) {
+        if (existentes.get(clave) === valorComparable(a.valor, num)) yaEstaban.push(a.nombre);
+        else conflictos.push(a.nombre);
+        continue;
+      }
+      nuevos.push({ a, num, param });
+      existentes.set(clave, valorComparable(a.valor, num)); // evita duplicar dentro del mismo dictado
+    }
+    const base = { fecha: serie.fecha, yaEstaban, conflictos, total: nuevos.length };
+
+    // Si no hay nada nuevo que escribir, no se crea cabecera.
+    if (analitos.length && !nuevos.length) return { ...base, estado: 'sin_cambios', escritos: 0 };
 
     const crearRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LABS}`, {
       method: 'POST',
@@ -4848,19 +4998,21 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
     const crearData = await crearRes.json();
     if (!crearRes.ok || !crearData.id) {
       console.error('[nova] error creando NOVA LABS (backfill):', JSON.stringify(crearData));
-      return { fecha: serie.fecha, estado: 'fallida', escritos: 0, total: analitos.length };
+      return { ...base, estado: 'fallida', escritos: 0 };
     }
 
     let escritos = 0;
-    if (analitos.length) {
-      const registrosValores = analitos.map(a => {
+    if (nuevos.length) {
+      const registrosValores = nuevos.map(({ a, num, param }) => {
         const banderaCap = capitalizar(a.bandera);
-        const numMatch = String(a.valor).replace(',', '.').match(/-?\d+(\.\d+)?/);
         return {
           fields: {
+            // Analito = texto literal dictado (evidencia NOM-004, nunca se reescribe).
             'Analito': a.nombre,
             'Valor': String(a.valor ?? ''),
-            ...(numMatch ? { 'Valor numérico': parseFloat(numMatch[0]) } : {}),
+            ...(typeof num === 'number' ? { 'Valor numérico': num } : {}),
+            // Enlace al catálogo solo con match exacto: así grafica.
+            ...(param ? { 'Parametro': [param.id], 'Confianza': param.confianza } : {}),
             'Unidad': a.unidad || '',
             'Rango de referencia': a.rango_texto || '',
             'Bandera': banderasValidas.includes(banderaCap) ? banderaCap : 'Indeterminado',
@@ -4894,7 +5046,7 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
       }
     }
 
-    if (escritos === analitos.length) return { fecha: serie.fecha, estado: 'confirmada', escritos, total: analitos.length };
+    if (escritos === nuevos.length) return { ...base, estado: 'confirmada', escritos };
 
     // Sin ningún valor escrito, la cabecera recién creada queda vacía: se
     // retira para no dejar un estudio huérfano en NOVA LABS. No es dato
@@ -4906,7 +5058,7 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
         cabeceraHuerfana = !del.ok;
       } catch { cabeceraHuerfana = true; }
     }
-    return { fecha: serie.fecha, estado: escritos === 0 ? 'fallida' : 'parcial', escritos, total: analitos.length, cabeceraHuerfana };
+    return { ...base, estado: escritos === 0 ? 'fallida' : 'parcial', escritos, cabeceraHuerfana };
   }));
 
   const confirmadas = resultadosSeries.filter(r => r.estado === 'confirmada');
@@ -4920,8 +5072,17 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
   if (confirmadas.length) lineas.push(`✅ Guardado completo en NOVA LABS: ${confirmadas.length} de ${totalFechas} fecha(s) (${confirmadas.map(r => r.fecha).join(', ')}).`);
   if (parciales.length) lineas.push(`⚠️ Guardado INCOMPLETO: ${parciales.map(r => `${r.fecha} (${r.escritos} de ${r.total} valores)`).join(', ')}. Revisa esas fechas en NOVA LABS y captura a mano lo que falte.`);
   if (fallidas.length) lineas.push(`⚠️ NO se guardó: ${fallidas.map(r => r.fecha).join(', ')}. Vuelve a dictar esas fechas.`);
+  const sinCambios = resultadosSeries.filter(r => r.estado === 'sin_cambios');
+  if (sinCambios.length) lineas.push(`ℹ️ Ya estaba registrado, no se duplicó: ${sinCambios.map(r => r.fecha).join(', ')}.`);
+  const yaParcial = resultadosSeries.filter(r => r.estado !== 'sin_cambios' && r.yaEstaban.length);
+  if (yaParcial.length) lineas.push(`ℹ️ Valores que ya estaban y no se duplicaron: ${yaParcial.map(r => `${r.fecha} (${r.yaEstaban.join(', ')})`).join('; ')}.`);
+  const conConflicto = resultadosSeries.filter(r => r.conflictos.length);
+  if (conConflicto.length) lineas.push(`⚠️ Conflicto — ya hay un valor DISTINTO registrado para: ${conConflicto.map(r => `${r.fecha} (${r.conflictos.join(', ')})`).join('; ')}. No se sobrescribió; revísalo en NOVA LABS y corrige a mano si procede.`);
   if (resultadosSeries.some(r => r.cabeceraHuerfana)) lineas.push('⚠️ Quedó un estudio sin valores en NOVA LABS que no se pudo retirar; revísalo.');
   if (!lineas.length) lineas.push('⚠️ No había fechas que guardar — revisa el formato e inténtalo de nuevo.');
+  const sinCatalogo = [];
+  for (const serie of (series || [])) for (const a of (serie.analitos || [])) if (a && a.nombre && !resolverParametro(a.nombre)) sinCatalogo.push(a.nombre);
+  if (sinCatalogo.length) lineas.push(`ℹ️ Sin parámetro en el catálogo (se guardan pero no grafican): ${[...new Set(sinCatalogo)].join(', ')}.`);
 
   return { content: [{ type: 'text', text: `${mensaje}\n\n${lineas.join('\n')}` }], refrescarLabs: confirmadas.length + parciales.length > 0 };
 }
@@ -4997,6 +5158,8 @@ function buildHerramientaFichaConsulta() {
 // todo el flujo de chat con Anthropic.
 module.exports.buildHerramientaFichaConsulta = buildHerramientaFichaConsulta;
 module.exports.compararNombres = compararNombres;
+module.exports.buscarPosiblesDuplicados = buscarPosiblesDuplicados;
+module.exports.normalizarAnalitoLab = normalizarAnalitoLab;
 module.exports.isAllowedOrigin = isAllowedOrigin;
 module.exports.buildSystemPrompt = buildSystemPrompt;
 module.exports.buildHerramientaPaciente = buildHerramientaPaciente;
@@ -5123,7 +5286,7 @@ async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamien
 function buildHerramientaAltaPaciente() {
   return {
     name: 'crear_paciente_dictado',
-    description: 'Úsala SOLO cuando el médico dicte los datos generales de un paciente NUEVO que claramente no está aún registrado (menciona nombre completo, edad, datos generales, con intención de darlo de alta) — no la uses para seguimiento de un paciente que ya está seleccionado en el portal, para eso existe rellenar_ficha_consulta. CRÍTICO: los antecedentes heredofamiliares (lo que tienen los papás, hermanos, familiares) NUNCA van en patologias_detectadas — esas son solo las condiciones que el PACIENTE MISMO tiene. Confundir esto sería un error clínico grave.',
+    description: 'Úsala SOLO cuando el médico dicte los datos generales de un paciente NUEVO que claramente no está aún registrado (menciona nombre completo, edad, datos generales, con intención de darlo de alta) — no la uses para seguimiento de un paciente que ya está seleccionado en el portal, para eso existe rellenar_ficha_consulta. DUPLICADOS: el backend busca coincidencias por nombre, teléfono y fecha de nacimiento antes de crear. Si te devuelve coincidencias, NO insistas: pregúntale al médico y vuelve a llamar con codigo_paciente_existente (si el dictado es de uno de SUS pacientes listados) o con confirmar_nuevo:true (solo si el médico confirma que es una persona distinta). Nunca inventes un código que no te hayan mostrado. CRÍTICO: los antecedentes heredofamiliares (lo que tienen los papás, hermanos, familiares) NUNCA van en patologias_detectadas — esas son solo las condiciones que el PACIENTE MISMO tiene. Confundir esto sería un error clínico grave.',
     input_schema: {
       type: 'object',
       properties: {
@@ -5132,6 +5295,9 @@ function buildHerramientaAltaPaciente() {
         edad: { type: 'number' },
         sexo: { type: 'string', enum: ['Masculino', 'Femenino'] },
         telefono_whatsapp: { type: 'string', description: 'Teléfono/WhatsApp del paciente, si el médico lo mencionó al dictarlo.' },
+        fecha_nacimiento: { type: 'string', description: "Fecha de nacimiento en formato AAAA-MM-DD SOLO si el médico la dictó explícitamente. Nunca la calcules desde la edad." },
+        codigo_paciente_existente: { type: 'string', description: 'Solo cuando, tras mostrarte coincidencias, el médico confirma que el dictado es de uno de SUS pacientes listados: su código CC-PAC-. El dictado se agrega a ESE expediente y no se crea otro.' },
+        confirmar_nuevo: { type: 'boolean', description: 'true SOLO si, tras mostrarte coincidencias, el médico confirma explícitamente que es una persona DISTINTA y quiere darla de alta como nueva.' },
         peso_kg: { type: 'number' },
         talla_cm: { type: 'number' },
         presion_arterial: { type: 'string', description: "Formato 'sistólica/diastólica', tal como se dictó. Es un signo vital, NO decidas tú si es hipertensión — eso lo decide el médico." },
@@ -5149,6 +5315,85 @@ function buildHerramientaAltaPaciente() {
       required: ['mensaje', 'nombre_completo'],
     },
   };
+}
+
+// Normaliza un nombre de analito para comparar EXACTO (no substring):
+// minúsculas, sin acentos, solo letras/números separados por un espacio.
+function normalizarAnalitoLab(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// ─── ANTI-DUPLICADO EN EL ALTA POR DICTADO ─────────────────────────
+// Posible duplicado = coincide el nombre (compararNombres: acentos, orden,
+// abreviaturas; 2 palabras en común), los últimos 10 dígitos del teléfono o
+// la fecha de nacimiento dictada. Lee todas las páginas y LANZA si Airtable
+// falla: sin verificar no se crea (antes un fallo devolvía [] y se creaba).
+// Privacidad: de un paciente que el médico no puede ver no se revela código
+// ni datos — solo que existe alguien así en la red y cómo vincularlo (llave).
+function ultimos10Digitos(tel) {
+  const d = String(tel || '').replace(/\D/g, '');
+  return d.length >= 10 ? d.slice(-10) : null;
+}
+
+async function buscarPosiblesDuplicados({ nombre, telefono, fechaNacimiento, codigoMedico }) {
+  const registros = await leerTodoAirtable('tblyUcCfueFLJuvIv', {
+    'fields[]': ['Código de paciente', 'Nombre completo', 'Fecha de nacimiento', 'Teléfono WhatsApp', 'Es demo'],
+  });
+  const tel = ultimos10Digitos(telefono);
+  const candidatos = [];
+  for (const rec of registros) {
+    const f = rec.fields || {};
+    if (f['Es demo'] === true || !f['Código de paciente']) continue;
+    const porNombre = !!(nombre && f['Nombre completo'] && compararNombres(f['Nombre completo'], nombre).coincide);
+    const porTelefono = !!(tel && ultimos10Digitos(f['Teléfono WhatsApp']) === tel);
+    const porFecha = !!(fechaNacimiento && f['Fecha de nacimiento'] === fechaNacimiento);
+    if (!porNombre && !porTelefono && !porFecha) continue;
+    // Solo la fecha (sin nombre ni teléfono) es demasiado común: no cuenta sola.
+    if (porFecha && !porNombre && !porTelefono) continue;
+    candidatos.push({ rec, f, porNombre, porTelefono, porFecha });
+  }
+  const resultado = [];
+  for (const c of candidatos.slice(0, 5)) {
+    const codigo = c.f['Código de paciente'];
+    let visible = false;
+    try {
+      await autorizarPaciente(codigoMedico, codigo);
+      visible = true;
+    } catch (err) {
+      if (!(err instanceof ErrorAutorizacion)) throw err;
+    }
+    const coincidencias = [c.porNombre && 'nombre', c.porTelefono && 'teléfono', c.porFecha && 'fecha de nacimiento'].filter(Boolean);
+    resultado.push(visible
+      ? { visible, codigo, nombre: c.f['Nombre completo'] || '', edad: edadDesdeFecha(c.f['Fecha de nacimiento']), coincidencias }
+      : { visible, coincidencias });
+  }
+  return resultado;
+}
+
+function edadDesdeFecha(fnac) {
+  if (!fnac) return null;
+  const d = new Date(`${fnac}T12:00:00`);
+  if (isNaN(d)) return null;
+  const hoy = new Date();
+  let e = hoy.getFullYear() - d.getFullYear();
+  const m = hoy.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < d.getDate())) e--;
+  return e >= 0 && e < 130 ? e : null;
+}
+
+function textoPosiblesDuplicados(candidatos) {
+  const propios = candidatos.filter(c => c.visible);
+  const ajenos = candidatos.filter(c => !c.visible);
+  const partes = ['⚠️ Antes de dar de alta: encontré posibles coincidencias. No se creó nada todavía.'];
+  if (propios.length) {
+    partes.push('Entre tus pacientes:\n' + propios.map(c => `- ${c.nombre} · ${c.codigo}${c.edad != null ? ` · ${c.edad} años` : ''} (coincide: ${c.coincidencias.join(', ')})`).join('\n'));
+  }
+  if (ajenos.length) {
+    partes.push(`En la red hay ${ajenos.length === 1 ? 'una persona' : ajenos.length + ' personas'} con datos que coinciden (${[...new Set(ajenos.flatMap(c => c.coincidencias))].join(', ')}). Si es la misma persona, pídele que te comparta su expediente con su llave desde su app — así no se fragmenta su historial.`);
+  }
+  partes.push('¿El dictado es de alguno de tus pacientes (dime el código) o es una persona distinta que doy de alta como nueva?');
+  return partes.join('\n\n');
 }
 
 // ─── DEFINICIÓN DE LA HERRAMIENTA DE NOVA EN MODO PACIENTE ─────────
