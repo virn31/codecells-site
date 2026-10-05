@@ -52,6 +52,10 @@
   .protocolo-label { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
   .protocolo-valor { font-family: var(--font-serif); font-size: 20px; color: var(--gold); }
   .protocolo-vacio { font-size: 13px; color: var(--text-3); font-style: italic; }
+  .protocolo-embarazo { margin-top: 10px; }
+  .embarazo-dx { font-size: 15px; color: var(--text-1); }
+  .embarazo-sdg { font-size: 12px; color: var(--text-3); }
+  .embarazo-fpp { font-size: 12px; color: var(--text-2); margin-top: 4px; }
 
   .patologias-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
   .patologia-chip { font-size: 11px; color: var(--text-2); background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 20px; padding: 4px 10px; }
@@ -246,6 +250,7 @@
       <div class="protocolo-box">
         <div class="protocolo-label">Tu protocolo actual</div>
         <div id="protocolo-contenido"></div>
+        <div id="protocolo-embarazo" class="protocolo-embarazo" style="display:none;"></div>
         <div id="protocolo-progreso" style="display:none;"></div>
       </div>
       <div class="patologias-chips" id="patologias-chips"></div>
@@ -958,6 +963,45 @@ function renderProgresoProtocolo(f) {
   cont.style.display = 'block';
 }
 
+// ─── EMBARAZO: diagnóstico + edad gestacional (semanas + días) ───
+// Mismo criterio y mismo cálculo que el panel prenatal del portal
+// (calcularEG en portal-medico.html): solo si el médico puso "Embarazo" en
+// Patologías activas, y la edad gestacional solo desde la datación que él
+// estableció ('EG establecida (semanas)' + 'Fecha de EG establecida').
+// Sin datación se dice "Embarazo" sin semanas — nunca se estiman.
+var pacienteFieldsActual = null;
+var EG_MAX_DIAS = 44 * 7; // más allá, la datación ya no describe un embarazo en curso
+function calcularEGPaciente(f) {
+  var establecida = f['EG establecida (semanas)'], fechaRef = f['Fecha de EG establecida'];
+  if (typeof establecida !== 'number' || !fechaRef) return null;
+  var ref = new Date(String(fechaRef).slice(0, 10) + 'T00:00:00').getTime();
+  if (isNaN(ref)) return null;
+  var hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  var total = Math.round(establecida * 7) + Math.floor((hoy.getTime() - ref) / 864e5);
+  if (total < 0 || total > EG_MAX_DIAS) return null;
+  return { semanas: Math.floor(total / 7), dias: total % 7 };
+}
+function textoEG(eg) {
+  var s = eg.semanas + (eg.semanas === 1 ? ' semana' : ' semanas');
+  if (!eg.dias) return s;
+  return s + ' y ' + eg.dias + (eg.dias === 1 ? ' día' : ' días');
+}
+function renderEmbarazo() {
+  var cont = document.getElementById('protocolo-embarazo');
+  var f = pacienteFieldsActual;
+  if (!f || (f['Patologías activas'] || []).indexOf('Embarazo') === -1) { cont.style.display = 'none'; return; }
+  var eg = calcularEGPaciente(f);
+  var html = '<div class="embarazo-dx"><span>Embarazo</span>';
+  if (eg) html += ' · <span>' + esc(textoEG(eg)) + '</span> <span class="embarazo-sdg" data-no-i18n>(' + eg.semanas + '+' + eg.dias + ')</span>';
+  html += '</div>';
+  if (eg && f['FPP corregida']) {
+    html += '<div class="embarazo-fpp"><span>Fecha probable de parto:</span> ' + sinTraducir(fechaCorta(String(f['FPP corregida']).slice(0, 10) + 'T12:00:00')) + '</div>';
+  }
+  cont.innerHTML = html;
+  cont.style.display = 'block';
+}
+window.addEventListener('i18n:change', renderEmbarazo);
+
 // ─── BIOLOGICAL MAP ──────────────────────────────────────────────
 var CB = window.CUESTIONARIO_BIOLOGICO;
 var bioEvaluaciones = [];
@@ -1499,9 +1543,12 @@ function cargarPaciente() {
       document.getElementById('paciente-codigo').textContent = pacienteCodigo;
 
       var protocolo = f['Protocolo actual'];
+      // Escapado: el texto lo captura el médico pero entra al HTML.
       document.getElementById('protocolo-contenido').innerHTML = protocolo
-        ? '<div class="protocolo-valor">' + protocolo + '</div>'
+        ? '<div class="protocolo-valor" data-no-i18n>' + esc(protocolo) + '</div>'
         : '<div class="protocolo-vacio">Tu médico aún no ha asignado tu protocolo — pregúntale en tu próxima consulta.</div>';
+      pacienteFieldsActual = f;
+      renderEmbarazo();
       renderProgresoProtocolo(f);
 
       var patologias = f['Patologías activas'] || [];
