@@ -7111,7 +7111,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'medico_crear_evento_calendario',
-          medicoCode: medicoActual['Código de médico'] || medicoActual['codigo'] || '',
+          pacienteCode: pacienteActual.fields['Código de paciente'] || '',
           pacienteNombre: pacienteActual.fields['Nombre completo'] || 'Paciente',
           fecha: proximaCitaFecha,
           hora: proximaCitaHora,

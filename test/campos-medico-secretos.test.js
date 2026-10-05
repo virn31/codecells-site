@@ -205,23 +205,83 @@ test('nova medico_crear_evento_calendario: sin sesión → 401, sin tocar Airtab
   } finally { restaurar(); }
 });
 
-test('nova medico_crear_evento_calendario: usa el calendario del médico del TOKEN, no el medicoCode del cliente', async () => {
-  const { llamadas, restaurar } = instalarFetch((u) => {
-    if (u.includes(`/${TBL_MEDICOS}?`)) return ok({ records: [{ id: 'recMED3', fields: { 'Código de médico': 'CCMED-JCG01' } }] });
+// Router de Airtable para las acciones medico_* con paciente: el médico del
+// token (con su Tipo de acceso), un paciente propio y uno demo. Cualquier
+// otra escritura (ACCESOS_EXPEDIENTE) responde ok.
+const TBL_PACIENTES = 'tblyUcCfueFLJuvIv';
+function routerMedico(tipoAcceso) {
+  return (u, opts) => {
+    if (u.includes(`/${TBL_MEDICOS}?`)) {
+      return ok({ records: [{ id: 'recMED3', fields: { 'Código de médico': 'CCMED-JCG01', 'Tipo de acceso': tipoAcceso } }] });
+    }
+    if (u.includes(`/${TBL_PACIENTES}?`)) {
+      if (u.includes(encodeURIComponent('CC-PAC-DEMO01'))) {
+        return ok({ records: [{ id: 'recPACDEMO', fields: { 'Código de paciente': 'CC-PAC-DEMO01', 'Es demo': true } }] });
+      }
+      return ok({ records: [{ id: 'recPAC9001', fields: { 'Código de paciente': 'CC-PAC-9001', 'Médico_principal': ['recMED3'] } }] });
+    }
+    if (opts && opts.method === 'POST') return ok({ id: 'recLOG', records: [{ id: 'recLOG' }] });
     throw new Error(`fetch no mockeado: ${u}`);
+  };
+}
+
+async function llamarNova(body, token) {
+  const handler = requerirFresco('../api/nova.js');
+  const res = fakeRes();
+  await handler({
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body,
+  }, res);
+  return res;
+}
+
+const tokenJCG = () => generarToken({ tipo: 'medico', codigo: 'CCMED-JCG01', horas: 1 });
+
+test('nova medico_crear_evento_calendario: usa el calendario del médico del TOKEN, no el medicoCode del cliente', async () => {
+  const { llamadas, restaurar } = instalarFetch(routerMedico('Clinico'));
+  try {
+    const res = await llamarNova({ action: 'medico_crear_evento_calendario', medicoCode: 'CCMED-VIRN01', pacienteCode: 'CC-PAC-9001', fecha: '2026-10-10', hora: '10:00' }, tokenJCG());
+    assert.strictEqual(res.body.motivo, 'sin_conectar', JSON.stringify(res.body));
+    const consultasMedicos = llamadas.filter((u) => u.includes(`/${TBL_MEDICOS}?`)).map(decodeURIComponent);
+    assert.ok(consultasMedicos.length > 0);
+    assert.ok(consultasMedicos.every((u) => !u.includes('CCMED-VIRN01')), 'usó el código que mandó el cliente');
+  } finally { restaurar(); }
+});
+
+test('nova medico_crear_evento_calendario: paciente demo → no se crea evento (CLAUDE.md §5)', async () => {
+  const { restaurar } = instalarFetch(routerMedico('Clinico'));
+  try {
+    const res = await llamarNova({ action: 'medico_crear_evento_calendario', pacienteCode: 'CC-PAC-DEMO01', fecha: '2026-10-10' }, tokenJCG());
+    assert.strictEqual(res.body.ok, false);
+    assert.notStrictEqual(res.body.motivo, 'sin_conectar', 'llegó hasta buscar el calendario con un demo');
+    assert.strictEqual(res.statusCode, 403);
+  } finally { restaurar(); }
+});
+
+for (const accion of ['medico_tabla_labs', 'medico_resumen_labs', 'medico_guardar_labs_rapidos', 'medico_subir_estudio', 'medico_extraer_labs_texto', 'medico_confirmar_labs_texto', 'medico_crear_evento_calendario']) {
+  test(`nova ${accion}: un médico Revisor recibe 403 (Tipo de acceso)`, async () => {
+    const { llamadas, restaurar } = instalarFetch(routerMedico('Revisor'));
+    try {
+      const res = await llamarNova({
+        action: accion, pacienteCode: 'CC-PAC-9001', fecha: '2026-10-10', texto: 'Glucosa 90',
+        fechaEstudio: '2026-10-01', filas: [{ nombreCrudo: 'Glucosa', codigoFinal: 'GLU' }], valores: [{ codigo: 'GLU', valor: 90 }],
+      }, tokenJCG());
+      assert.strictEqual(res.statusCode, 403, JSON.stringify(res.body));
+      assert.match(res.body.error, /tipo de acceso/i);
+      assert.ok(!llamadas.some((u) => u.includes(`/${TBL_PACIENTES}?`)), 'llegó a leer al paciente');
+    } finally { restaurar(); }
+  });
+}
+
+test('nova medico_tabla_labs: un médico Clinico sí pasa la puerta y llega a autorizar al paciente', async () => {
+  const { llamadas, restaurar } = instalarFetch((u, opts) => {
+    if (u.includes('tbl6y1ZfsmPPhrlFk')) return ok({ records: [] }); // LAB_VALORES vacío
+    return routerMedico('Clinico')(u, opts);
   });
   try {
-    const handler = requerirFresco('../api/nova.js');
-    const token = generarToken({ tipo: 'medico', codigo: 'CCMED-JCG01', horas: 1 });
-    const res = fakeRes();
-    await handler({
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: { action: 'medico_crear_evento_calendario', medicoCode: 'CCMED-VIRN01', fecha: '2026-10-10', hora: '10:00' },
-    }, res);
-    assert.strictEqual(res.body.motivo, 'sin_conectar', JSON.stringify(res.body));
-    const consulta = decodeURIComponent(llamadas[0]);
-    assert.ok(consulta.includes('CCMED-JCG01'), consulta);
-    assert.ok(!consulta.includes('CCMED-VIRN01'), 'usó el código que mandó el cliente');
+    const res = await llamarNova({ action: 'medico_tabla_labs', pacienteCode: 'CC-PAC-9001' }, tokenJCG());
+    assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
+    assert.ok(llamadas.some((u) => u.includes(`/${TBL_PACIENTES}?`)));
   } finally { restaurar(); }
 });

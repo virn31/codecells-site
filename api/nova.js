@@ -69,6 +69,22 @@ const meds = require('../lib/medicamentos');
 //    interconsulta con escritura; demo nunca) y medicoRecId resuelto, que
 //    es el autor del registro (kiosco = alta delegada, CLAUDE.md §7).
 // Devuelve { error: {status, mensaje} } o { medicoRecId, auth }.
+// Tipo de acceso para las acciones medico_* que no pasan por puertaKiosco ni
+// por puertaMedicoPaciente (labs y calendario). Revisor/Desarrollo entran con
+// el mismo token de médico pero no tocan expediente — ni para leerlo ni para
+// escribirlo, igual que el proxy (NUCLEO_CLINICO_TABLAS en api/airtable.js).
+// Devuelve true si ya respondió (el llamador hace `return`).
+async function denegarSiNoClinico(sesion, res, { pacienteCode, endpoint, accion }) {
+  const acceso = await verificarAccesoClinicoMedico(sesion.codigo, process.env.AIRTABLE_TOKEN);
+  if (acceso.errorInfra) { res.status(502).json({ ok: false, error: MENSAJE_ACCESO_NO_VERIFICABLE }); return true; }
+  if (!acceso.permitido) {
+    await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, medicoRecId: acceso.recordId, accion, resultado: 'Denegado', endpoint });
+    res.status(403).json({ ok: false, error: 'Tu tipo de acceso no permite trabajar con expedientes clínicos.' });
+    return true;
+  }
+  return false;
+}
+
 async function puertaKiosco(sesion, pacienteCode, endpoint) {
   if (!sesion || sesion.tipo !== 'medico') {
     return { error: { status: 401, mensaje: 'Sesión de personal no válida o expirada. Vuelve a iniciar el kiosco.' } };
@@ -1149,6 +1165,7 @@ module.exports = async function handler(req, res) {
       // pacienteCode — cualquiera con un código adivinado leía la tabla
       // completa de labs. Ahora exige sesión médica real.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_tabla_labs', accion: 'Lectura de labs' })) return;
       const { pacienteCode } = req.body;
       if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs', resultado: 'Rechazado', endpoint: 'medico_tabla_labs' });
@@ -1260,6 +1277,7 @@ module.exports = async function handler(req, res) {
     try {
       // HOTFIX gate-sesion-nova — ver medico_tabla_labs arriba.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_resumen_labs', accion: 'Lectura de labs' })) return;
       const { pacienteCode } = req.body;
       if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Lectura de labs', resultado: 'Rechazado', endpoint: 'medico_resumen_labs' });
@@ -1390,9 +1408,19 @@ module.exports = async function handler(req, res) {
       // cualquiera creaba eventos en su Google Calendar. El calendario es el
       // del médico del token; el medicoCode del cliente se ignora.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ ok: false, error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_crear_evento_calendario', accion: 'Escritura' })) return;
       const medicoCode = sesion.codigo;
-      const { pacienteNombre, fecha, hora, motivo } = req.body;
+      const { pacienteCode, pacienteNombre, fecha, hora, motivo } = req.body;
       if (!fecha) return res.status(400).json({ ok: false, error: 'Falta la fecha.' });
+      // El evento lleva el nombre del paciente: solo de un paciente sobre el
+      // que el médico tiene escritura, y nunca de un demo (CLAUDE.md §5 los
+      // excluye de Google Calendar; requiereEscritura ya los rechaza).
+      try {
+        await autorizarPaciente(sesion.codigo, String(pacienteCode || ''), { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) return res.status(errAuth.status).json({ ok: false, motivo: 'paciente_no_autorizado', error: errAuth.message });
+        return res.status(errAuth.status || 502).json({ ok: false, error: 'No se pudo verificar el acceso al paciente.' });
+      }
       if (!googleCalendarLib) return res.status(200).json({ ok: false, error: 'Integración de Google Calendar no disponible.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -1438,6 +1466,7 @@ module.exports = async function handler(req, res) {
       // ESCRIBE resultados de laboratorio; sin este gate, el mismo código
       // adivinado bastaba para inyectar datos clínicos falsos.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_guardar_labs_rapidos', accion: 'Escritura' })) return;
       const { pacienteCode, panel, tipoEstudio, resultadosTexto, fueraDeRango, valoresRapidos, consultaId } = req.body;
       if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_guardar_labs_rapidos' });
@@ -1584,6 +1613,7 @@ module.exports = async function handler(req, res) {
       // (con extracción de analitos) al expediente con solo el código del
       // paciente.
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_subir_estudio', accion: 'Escritura' })) return;
       const { pacienteCode, fileBase64, fileName, mediaType } = req.body;
       if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_subir_estudio' });
@@ -1762,6 +1792,7 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_extraer_labs_texto') {
     try {
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_extraer_labs_texto', accion: 'Lectura de labs' })) return;
       const { pacienteCode, texto } = req.body;
       if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         return res.status(403).json({ error: 'Código de paciente inválido.' });
@@ -1892,6 +1923,7 @@ module.exports = async function handler(req, res) {
     if (CONGELADO) return respuestaCongelada(res);
     try {
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_confirmar_labs_texto', accion: 'Escritura' })) return;
       const { pacienteCode, fechaEstudio, panel, filas } = req.body;
       if (!pacienteCode || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode)) {
         await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_confirmar_labs_texto' });
