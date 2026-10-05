@@ -2589,6 +2589,29 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // Autoriza al médico DEL TOKEN sobre el paciente (por código, nunca por el
+  // recordId que mande el cliente). Antes generar_plan_semanal y
+  // actualizar_seguimiento_paciente no revisaban sesión: cualquiera con un
+  // recordId leía datos del expediente o le cambiaba el peso.
+  // Devuelve { error:{status,mensaje} } o { auth, esDemo }.
+  async function puertaNutricion(requiereEscritura, endpoint) {
+    if (!sesion || sesion.tipo !== 'medico') return { error: { status: 401, mensaje: 'Sesión médica no válida o expirada. Inicia sesión de nuevo.' } };
+    const acceso = await verificarAccesoClinicoMedico(sesion.codigo, process.env.AIRTABLE_TOKEN);
+    if (acceso.errorInfra) return { error: { status: 502, mensaje: MENSAJE_ACCESO_NO_VERIFICABLE } };
+    if (!acceso.permitido) return { error: { status: 403, mensaje: 'Tu tipo de acceso no permite trabajar con expedientes clínicos.' } };
+    const pacienteCode = String(req.body.pacienteCode || '');
+    let auth;
+    try { auth = await autorizarPaciente(sesion.codigo, pacienteCode, { requiereEscritura }); }
+    catch (err) {
+      if (err instanceof ErrorAutorizacion) {
+        await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: requiereEscritura ? 'Escritura' : 'Lectura de expediente', resultado: 'Rechazado', endpoint });
+        return { error: { status: err.status, mensaje: err.message } };
+      }
+      return { error: { status: err.status || 502, mensaje: 'No se pudo verificar el acceso al paciente.' } };
+    }
+    return { auth, esDemo: auth.via === 'demo' };
+  }
+
   if (action === 'generar_plan_semanal') {
     // CONGELAMIENTO 2026-08-24 (instrucción legal): guarda el plan generado
     // en el expediente del paciente. Generación y guardado no están
@@ -2596,8 +2619,14 @@ module.exports = async function handler(req, res) {
     // lib/congelamientoDatosPersonales.js.
     if (CONGELADO) return respuestaCongelada(res);
     try {
-      const { pacienteRecordId, medicoCode, peso: pesoReq, talla: tallaReq, edad: edadReq, sexo: sexoReq, factorActividad, objetivo, preferencias, dias, objetivosSemana, tipoDieta, planNutricional, ayunoIntermitente } = req.body;
-      if (!pacienteRecordId) return res.status(400).json({ error: 'Falta pacienteRecordId.' });
+      const { peso: pesoReq, talla: tallaReq, edad: edadReq, sexo: sexoReq, factorActividad, objetivo, preferencias, dias, objetivosSemana, tipoDieta, planNutricional, ayunoIntermitente } = req.body;
+      // Lectura basta para GENERAR (así un demo sirve para demostrar); el plan
+      // solo se GUARDA si el médico tiene escritura y el paciente no es demo.
+      const puerta = await puertaNutricion(false, 'generar_plan_semanal');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      const puedeGuardar = !puerta.esDemo && puerta.auth.escritura === true;
+      const pacienteRecordId = puerta.auth.recId;
+      const medicoCode = sesion.codigo; // la firma es del médico del token
       const numDias = Math.min(Math.max(parseInt(dias) || 7, 1), 30);
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -2707,10 +2736,6 @@ module.exports = async function handler(req, res) {
       const tipoDietaEfectivo = tipoDieta || (macrosPreset.excluirKeto ? 'keto' : null);
       if (macrosPreset.forzarVegetariano) perfilPreferencias.vegetariano = true;
       if (macrosPreset.forzarVegano) { perfilPreferencias.vegetariano = true; perfilPreferencias.vegano = true; }
-      // Si el médico no fijó un objetivo calórico manual, se usa el ajuste
-      // propio del tipo de dieta seleccionado (auto o manual).
-      if (!objetivo) kcalObjetivo = Math.round(get * macrosPreset.ajuste_kcal);
-
       const perfil = {
         patologias: f['Patologías activas'] || [],
         severidad_erc: f['Severidad ERC'] || null,
@@ -2722,6 +2747,12 @@ module.exports = async function handler(req, res) {
       const get = geb * (factorActividad || 1.2);
       const ajusteObjetivo = { perdida_grasa: 0.82, mantenimiento: 1.0, ganancia_masa: 1.12, soporte_metabolico: 1.0 }[objetivo] ?? 1.0;
       let kcalObjetivo = Math.round(get * ajusteObjetivo);
+      // Si el médico no fijó un objetivo calórico manual, se usa el ajuste
+      // propio del tipo de dieta seleccionado (auto o manual). Esta línea
+      // estaba ANTES de declarar get/kcalObjetivo: sin objetivo manual (el
+      // portal nunca lo manda) el generador fallaba siempre con "Error
+      // interno" (zona muerta temporal de const/let).
+      if (!objetivo) kcalObjetivo = Math.round(get * macrosPreset.ajuste_kcal);
       const imc = Math.round((peso / ((talla/100)**2)) * 10) / 10;
 
       // Tipo de dieta ad-hoc (metodología de Víctor: el médico puede pedir
@@ -2938,8 +2969,9 @@ module.exports = async function handler(req, res) {
       if (firmaMedico.telefono) texto += `\n📲 WhatsApp: ${firmaMedico.telefono}`;
 
       // Guardar este plan para que el siguiente seguimiento no repita lo mismo.
+      // Con un paciente demo (solo lectura) o sin escritura, no se guarda nada.
       const idsUsados = [...new Set(planSemana.flatMap(({ menu }) => Object.values(menu).map(i => i.id).filter(Boolean)))];
-      fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PLANES}`, {
+      if (puedeGuardar) fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PLANES}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ typecast: true, records: [{ fields: {
@@ -2975,8 +3007,11 @@ module.exports = async function handler(req, res) {
     // (peso, historial de peso). Ver lib/congelamientoDatosPersonales.js.
     if (CONGELADO) return respuestaCongelada(res);
     try {
-      const { pacienteRecordId, pesoNuevo, nota } = req.body;
-      if (!pacienteRecordId || !pesoNuevo) return res.status(400).json({ error: 'Faltan pacienteRecordId o pesoNuevo.' });
+      const { pesoNuevo, nota } = req.body;
+      if (!pesoNuevo) return res.status(400).json({ error: 'Falta pesoNuevo.' });
+      const puerta = await puertaNutricion(true, 'actualizar_seguimiento_paciente');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      const pacienteRecordId = puerta.auth.recId;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
       const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
@@ -2993,11 +3028,13 @@ module.exports = async function handler(req, res) {
       const lineaNueva = `[${fecha}] ${pesoNuevo}kg` + (diferencia !== null ? ` (${diferencia > 0 ? '+' : ''}${diferencia}kg vs anterior)` : '') + (nota ? ` — ${nota}` : '');
       const nuevoHistorial = (historialPrevio ? historialPrevio + '\n' : '') + lineaNueva;
 
-      await fetch(getUrl, {
+      const patchRes = await fetch(getUrl, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ typecast: true, fields: { 'Peso actual (kg)': pesoNuevo, 'Historial de peso': nuevoHistorial } }),
       });
+      // Antes respondía "Peso actualizado" sin mirar si Airtable lo guardó.
+      if (!patchRes.ok) return res.status(502).json({ error: 'No se pudo guardar el peso. Intenta de nuevo.' });
 
       return res.status(200).json({ peso_anterior: pesoAnterior || null, peso_nuevo: pesoNuevo, diferencia_kg: diferencia, mensaje: 'Peso actualizado. El siguiente plan que generes ya usará este valor automáticamente.' });
     } catch (err) {

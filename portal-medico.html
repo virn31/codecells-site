@@ -7591,7 +7591,6 @@ document.getElementById('btn-generar-nutricion').addEventListener('click', async
   const btn = document.getElementById('btn-generar-nutricion');
   const lbl = document.getElementById('btn-nutri-label');
   const loader = document.getElementById('btn-nutri-loader');
-  const medicoCode = medicoActual?.['Código de médico'] || medicoActual?.['Código'] || '';
 
   const objetivosSemana = [...document.querySelectorAll('#tab-nutricion .nutri-chip input:checked')].map(c => c.value);
   const dias = parseInt(document.getElementById('nutri-dias').value) || 7;
@@ -7608,8 +7607,8 @@ document.getElementById('btn-generar-nutricion').addEventListener('click', async
   try {
     const body = {
       action: 'generar_plan_semanal',
-      pacienteRecordId: pacienteActual.id,
-      medicoCode,
+      // El servidor autoriza por código; el médico (y la firma) salen del token.
+      pacienteCode: pacienteActual.fields['Código de paciente'],
       dias,
       objetivosSemana,
     };
