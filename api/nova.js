@@ -28,6 +28,7 @@ try {
 // anti-colisión del lado del servidor — ver lib/codigos.js para el
 // detalle honesto de qué tanto esto "asegura" contra Airtable.
 const { generarCodigoUnico } = require('../lib/codigos');
+const usoNova = require('../lib/usoNova');
 
 // Sesión firmada (HMAC), la misma que ya exige api/airtable.js — HOTFIX
 // gate-sesion-nova: el modo médico del chat y los endpoints de labs abajo
@@ -3789,8 +3790,12 @@ module.exports = async function handler(req, res) {
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Falta el array de mensajes.' });
     }
-    if (messages.length > 100) {
-      return res.status(400).json({ error: 'Historial demasiado largo.' });
+    // Antes: >100 mensajes → 400 y NOVA dejaba de responder a media consulta.
+    // Al modelo solo le llega la ventana corta (lib/usoNova.js), así que se
+    // recorta en vez de fallar.
+    usoNova.recortarHistorial(messages, 100);
+    if (!messages.length) {
+      return res.status(400).json({ error: 'Falta el array de mensajes.' });
     }
     const esMedicoPreliminar = typeof medicoCode === 'string' && /^CCMED-[A-Z0-9]{4,8}$/.test(medicoCode);
     const limiteCaracteres = esMedicoPreliminar ? 12000 : 4000;
@@ -3837,6 +3842,20 @@ module.exports = async function handler(req, res) {
     // ==='demo' no coincidía con ningún check y caía a público (seguro por
     // default, pero sin contexto de su propio expediente).
     const esDemo   = !!(sesion && sesion.tipo === 'demo');
+
+    // ── Tope diario discreto (lib/usoNova.js) ──
+    // Va ANTES de las ramas de modo: la del paciente borra "Respuesta médico
+    // pendiente" al leerla, y un bloqueo después de eso la perdería sin que
+    // el paciente la viera. El médico con un expediente abierto (trabajo
+    // clínico) nunca cuenta ni se bloquea; demo y público no tienen tope.
+    const tipoUso = esMedico ? 'medico' : esVIP ? 'vip' : esPac ? 'paciente' : esDemo ? 'demo' : 'publico';
+    const medicoConExpediente = esMedico && typeof pacienteCode === 'string' && /^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCode);
+    if (esPac || esVIP || (esMedico && !medicoConExpediente)) {
+      const uso = await usoNova.verificarYContar(tipoUso, sesion.codigo);
+      if (uso.agotado) {
+        return res.status(200).json({ content: [{ type: 'text', text: usoNova.mensajeTope(tipoUso, req.body.idioma) }], limiteDiario: true });
+      }
+    }
 
     // El cliente propone `contexto`; el servidor decide si lo honra — pero
     // la decisión real de qué rama corre abajo (médico/paciente/demo/VIP)
@@ -4125,6 +4144,13 @@ module.exports = async function handler(req, res) {
     // de que la herramienta termine de construirse; si se corta a medias, la
     // llamada a la herramienta queda incompleta y NOVA "no responde".
     const safeTokens = Math.min(typeof max_tokens === 'number' ? max_tokens : 1024, esMedico ? 8000 : 4096);
+
+    // Conversación larga del paciente → NOVA cierra con naturalidad; y al
+    // modelo solo le llega la ventana corta del historial (lib/usoNova.js).
+    if ((esPac || esVIP) && usoNova.mensajesDelUsuario(messages) >= usoNova.CIERRE_SUAVE_PACIENTE && typeof systemPrompt === 'string') {
+      systemPrompt += usoNova.INSTRUCCION_CIERRE_SUAVE;
+    }
+    usoNova.recortarHistorial(messages, usoNova.VENTANA[tipoUso]);
 
     const anthropicBody = {
       model      : 'claude-sonnet-5',
