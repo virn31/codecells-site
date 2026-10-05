@@ -7,14 +7,14 @@
 
 **Última actualización:** 2026-10-04
 **Rama de trabajo:** `feat/paciente-unico` (sale de `chore/ambiente-preview`, que sale de `feat/kiosco-antecedentes-go`). **Sin push** los commits de `feat/paciente-unico`.
-**Pruebas:** `node --test test/*.test.js` → **185/185 en verde**.
+**Pruebas:** `node --test test/*.test.js` → **197/197 en verde**.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Push de `feat/paciente-unico`** (lo corre Víctor con `!`) y probar en su Preview (celular real) con el Dr. Galván: MVP-1, idioma, Mi equipo, Progreso y la pestaña Plan.
-2. **MVP-2** — presentar el diseño a Víctor ANTES de construir (docs/VISION-APP-MEDICA.md): medicamentos estructurados que prescribe el médico en el portal → el paciente los ve y marca "tomado" → adherencia real → avisos dentro de la app (y entonces sí, recordatorios).
+1. **Push de `feat/paciente-unico`** (lo corre Víctor con `!`) y probar en su Preview (celular real) con el Dr. Galván: MVP-1, idioma, Mi equipo, Progreso, Plan (nutrición) y **MVP-2 Medicamentos** (receta → app → "Tomado").
+2. **MVP-2 sin revisar en navegador**: el modal de receta nuevo del portal y la tarjeta "Hoy"/sección de medicamentos y suplementos de la app solo se probaron con pruebas y en vivo contra la base (handler directo), NO visualmente. Mejora pendiente: "Tu última receta" muestra la más reciente de cualquier médico (las indicaciones de otra receta quedan ocultas).
 3. **Fase 3 de SPEC-PACIENTE-UNICO:** retiro de VIP (portal-vip, dezawavip, vip-activar, DZW, tipo 'vip', pre-auth de pacientes_vip, tabla REFERIDOS_VIP sin uso) + redirecciones.
 4. Pendiente de Víctor: **capas A/B/C** de las consultas (§5).
 5. Después: documentos en la app, fases del protocolo, pedir cita desde la app, liga al directorio.
@@ -53,12 +53,13 @@
 | Nutrición: cerrado el acceso sin sesión a generar plan y a cambiar peso; arreglado el generador (fallaba siempre, TDZ) | `7db9519` | paciente-unico |
 | App: "Mi equipo" (solo nombre/especialidad) y "Tu progreso" (peso, presión) | `55a4869` | paciente-unico |
 | Nutrición: el médico edita y PUBLICA el plan → pestaña Plan en la app (Inicio · Salud · Plan · Citas · NOVA) | `eac538e` | paciente-unico |
+| MVP-2 Medicamentos: receta estructurada = único acto médico; "Hoy" + adherencia 7 d; suplementos del paciente (medicamento → "pregúntale a tu médico"); suspender solo quien recetó; receta bloqueada para demos; impresión escapada | `1445cfe` | paciente-unico |
 
 Verificado en Chrome (local + base de prueba): identidad completa, app (evaluación de Mariana 6.8), kiosco (PBA 4.8 y 7.5), portal (gráfica + tabla). **Sin probar en celular real.** Plan nutricional verificado en Chrome (portal publica → app lo muestra; EN correcto). Sin probar en navegador: formulario de fecha de inicio del protocolo; el modal del portal ocultando el selector de idioma.
 
 ## 4. Antes de fusionar a `main` (crear en producción "CODE CELLS CRM")
 
-Tablas: `ANTECEDENTES_OBSTETRICOS`, `LLAVES_ACCESO`, `VINCULACIONES`, `CREDENCIALES_PACIENTE`, `EVALUACIONES_BIOLOGICAS` (las nuevas se usan por NOMBRE). Campos: `Registrado por` en HISTORIA CLÍNICA; `Fecha inicio protocolo` en PACIENTES; en CONSULTAS Edema, Proteinuria, Movimientos fetales, Placenta — localización/grado, Interpretación Doppler; en PLANES_NUTRICIONALES `Código de paciente ref`, `Plan publicado (texto)`, `Kcal objetivo`, `Proteína (g)`, `Carbohidratos (g)`, `Grasa (g)`, `Publicado` (casilla), `Publicado por` (liga a MÉDICOS), `Fecha publicación`. Y: al fusionar, los pacientes de producción ya no entran con su código (necesitan enlace) — aceptable porque no hay nada lanzado.
+Tablas: `ANTECEDENTES_OBSTETRICOS`, `LLAVES_ACCESO`, `VINCULACIONES`, `CREDENCIALES_PACIENTE`, `EVALUACIONES_BIOLOGICAS`, `RECETAS`, `MEDICAMENTOS_PACIENTE`, `TOMAS_MEDICAMENTO`, `SUPLEMENTOS_PACIENTE` (copiar campos de la base de prueba; las nuevas se usan por NOMBRE). Campos: `Registrado por` en HISTORIA CLÍNICA; `Fecha inicio protocolo` en PACIENTES; en CONSULTAS Edema, Proteinuria, Movimientos fetales, Placenta — localización/grado, Interpretación Doppler; en PLANES_NUTRICIONALES `Código de paciente ref`, `Plan publicado (texto)`, `Kcal objetivo`, `Proteína (g)`, `Carbohidratos (g)`, `Grasa (g)`, `Publicado` (casilla), `Publicado por` (liga a MÉDICOS), `Fecha publicación`. Y: al fusionar, los pacientes de producción ya no entran con su código (necesitan enlace) — aceptable porque no hay nada lanzado.
 
 ## 5. Decisiones abiertas para Víctor
 
