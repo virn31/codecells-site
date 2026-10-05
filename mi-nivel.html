@@ -147,6 +147,12 @@
   .equipo-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--gold-pale); color: var(--gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 16px; flex-shrink: 0; }
   .equipo-nombre { font-size: 14px; color: var(--text-1); }
   .equipo-detalle { font-size: 12px; color: var(--text-3); }
+  .plan-meta { font-size: 12px; color: var(--text-3); margin-bottom: 12px; }
+  .plan-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+  .plan-macro { background: var(--black-3); border-radius: 12px; padding: 10px 6px; text-align: center; }
+  .plan-macro b { display: block; font-size: 16px; color: var(--gold); font-weight: 500; }
+  .plan-macro small { font-size: 11px; color: var(--text-3); }
+  .plan-texto { font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; color: var(--text-1); }
   .progreso-titulo { font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
   .protocolo-dias { font-size: 12px; color: var(--text-2); margin-top: 10px; }
   .protocolo-barra { height: 6px; background: var(--black-3); border-radius: 6px; overflow: hidden; margin-top: 6px; }
@@ -314,6 +320,20 @@
       </div>
     </div>
 
+  </div>
+  <!-- ═══ Pestaña PLAN: el plan nutricional que el médico PUBLICÓ (nova
+       paciente_plan_actual). Generar no basta: publicarlo es acto del médico. -->
+  <div class="tab-pane" data-tab="plan">
+    <div class="seccion-label">Tu plan nutricional</div>
+    <div class="chat-caja" style="padding:20px;" id="plan-caja">
+      <div id="plan-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
+      <div id="plan-contenido" style="display:none;">
+        <div class="plan-meta" id="plan-meta"></div>
+        <div class="plan-macros" id="plan-macros"></div>
+        <div class="plan-texto" id="plan-texto" data-no-i18n></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:10px;">Sigue las indicaciones de tu médico. Si tienes dudas sobre tu plan, pregúntale a él.</div>
   </div>
   <!-- ═══ Pestaña CITAS ═══ -->
   <div class="tab-pane" data-tab="citas">
@@ -568,6 +588,7 @@
 <nav class="nav-inferior" id="nav-inferior" style="display:none;"><div class="nav-inferior-int">
   <button type="button" class="nav-btn activo" data-tab="inicio" onclick="irATab('inicio')"><span>🏠</span>Inicio</button>
   <button type="button" class="nav-btn" data-tab="labs" onclick="irATab('labs')"><span>📈</span>Salud</button>
+  <button type="button" class="nav-btn" data-tab="plan" onclick="irATab('plan')"><span>🥗</span>Plan</button>
   <button type="button" class="nav-btn" data-tab="citas" onclick="irATab('citas')"><span>📅</span>Citas</button>
   <button type="button" class="nav-btn" data-tab="nova" onclick="irATab('nova')"><span>💬</span>NOVA</button>
 </div></nav>
@@ -1085,6 +1106,50 @@ function pintarProgreso() {
 }
 window.addEventListener('i18n:change', function(){ pintarEquipo(); pintarProgreso(); });
 
+// ─── PLAN NUTRICIONAL (publicado por el médico) ──────────────────
+var planDatos;  // undefined = cargando/error; null = sin plan; objeto = plan
+function cargarPlan() {
+  var estado = document.getElementById('plan-estado');
+  estado.style.display = ''; estado.style.color = ''; estado.textContent = 'Cargando…';
+  document.getElementById('plan-contenido').style.display = 'none';
+  fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'paciente_plan_actual' }) })
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(x) {
+      if (!x.ok) { estado.textContent = (x.d && x.d.error) || 'No pudimos cargar tu plan nutricional.'; estado.style.color = '#E2574B'; return; }
+      planDatos = x.d.plan || null;
+      pintarPlan();
+    })
+    .catch(function(){ estado.textContent = 'Sin conexión — no pudimos cargar tu plan nutricional.'; estado.style.color = '#E2574B'; });
+}
+// El plan viene en formato WhatsApp: *negritas*. Se escapa todo primero y
+// solo después se convierte *texto* en <b>; nunca se inyecta HTML del plan.
+function formatoWhatsApp(texto) {
+  return esc(texto).replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
+}
+function pintarPlan() {
+  if (planDatos === undefined) return;
+  var estado = document.getElementById('plan-estado');
+  var cont = document.getElementById('plan-contenido');
+  if (!planDatos) { cont.style.display = 'none'; estado.style.display = ''; estado.style.color = ''; estado.textContent = 'Tu médico aún no te ha enviado un plan nutricional.'; return; }
+  estado.style.display = 'none';
+  cont.style.display = '';
+  var meta = '';
+  if (planDatos.medico) meta += sinTraducir(planDatos.medico);
+  if (planDatos.fecha) meta += (meta ? ' · ' : '') + sinTraducir(fechaCorta(planDatos.fecha));
+  document.getElementById('plan-meta').innerHTML = meta;
+  var m = planDatos.macros || {};
+  var piezas = [[m.kcal, 'kcal'], [m.proteina_g, 'Proteína'], [m.carbohidratos_g, 'Carbohidratos'], [m.grasa_g, 'Grasa']];
+  var macros = document.getElementById('plan-macros');
+  var hayMacros = piezas.some(function(p){ return typeof p[0] === 'number'; });
+  macros.style.display = hayMacros ? '' : 'none';
+  macros.innerHTML = piezas.map(function(p){
+    var valor = typeof p[0] === 'number' ? p[0] + (p[1] === 'kcal' ? '' : ' g') : '—';
+    return '<div class="plan-macro"><b data-no-i18n>' + esc(valor) + '</b><small>' + esc(p[1]) + '</small></div>';
+  }).join('');
+  document.getElementById('plan-texto').innerHTML = formatoWhatsApp(planDatos.texto);
+}
+window.addEventListener('i18n:change', pintarPlan);
+
 // ─── TEST (Reevaluarme) ──────────────────────────────────────────
 var testPreguntas = [];
 var testIdx = 0;
@@ -1221,6 +1286,7 @@ function cargarPaciente() {
       cargarBio();
       cargarEquipo();
       cargarProgreso();
+      cargarPlan();
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';

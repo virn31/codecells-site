@@ -3026,22 +3026,35 @@ module.exports = async function handler(req, res) {
       texto += `\n👨🏻‍⚕️ ${firmaMedico.nombre}`;
       if (firmaMedico.telefono) texto += `\n📲 WhatsApp: ${firmaMedico.telefono}`;
 
-      // Guardar este plan para que el siguiente seguimiento no repita lo mismo.
-      // Con un paciente demo (solo lectura) o sin escritura, no se guarda nada.
+      // Guardar este plan para que el siguiente seguimiento no repita lo mismo
+      // y para poder publicarlo en la app del paciente (medico_publicar_plan
+      // necesita su id). Con un paciente demo (solo lectura) o sin escritura,
+      // no se guarda nada. Un fallo al guardar no tumba el plan (el médico aún
+      // puede copiarlo), pero se reporta: sin planId no se ofrece publicar.
       const idsUsados = [...new Set(planSemana.flatMap(({ menu }) => Object.values(menu).map(i => i.id).filter(Boolean)))];
-      if (puedeGuardar) fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PLANES}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typecast: true, records: [{ fields: {
-          'Fecha generación': new Date().toISOString(),
-          'Paciente': [pacienteRecordId],
-          'Platillos usados (IDs)': idsUsados.join(', '),
-          'Preset usado': presetElegido,
-          'Días': numDias,
-        } }] }),
-      }).catch(e => console.error('[nova] error guardando plan en historial:', e.message));
+      let planId = null;
+      if (puedeGuardar) {
+        try {
+          const guardarRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_PLANES}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ typecast: true, records: [{ fields: {
+              'Fecha generación': new Date().toISOString(),
+              'Paciente': [pacienteRecordId],
+              'Código de paciente ref': puerta.auth.codigo,
+              'Platillos usados (IDs)': idsUsados.join(', '),
+              'Preset usado': presetElegido,
+              'Días': numDias,
+            } }] }),
+          });
+          if (guardarRes.ok) planId = (((await guardarRes.json()).records || [])[0] || {}).id || null;
+          else console.error('[nova] error guardando plan en historial: HTTP', guardarRes.status);
+        } catch (e) { console.error('[nova] error guardando plan en historial:', e.message); }
+      }
 
       return res.status(200).json({
+        plan_id: planId,
+        plan_guardado: planId !== null,
         objetivo_nutricional: { kcal_objetivo: kcalObjetivo, proteina_g: proteinaG, carbohidratos_g: carboG, grasa_g: grasaG, imc },
         compatibles_total: compatibles.length, dias: numDias, preset_usado: presetElegido,
         preset_seleccion_automatica: seleccionAuto ? { auto: true, razon: seleccionAuto.razon } : { auto: false, razon: 'Elegido manualmente por el médico' },
@@ -3053,6 +3066,96 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] generar_plan_semanal error:', err.message);
       return res.status(500).json({ error: 'Error interno generando el plan semanal.' });
+    }
+  }
+
+  // ─── PUBLICAR EL PLAN EN LA APP DEL PACIENTE ─────────────────────
+  // El plan generado es una herramienta del médico; publicarlo es un acto
+  // del médico (puede ajustar el texto antes). Requiere escritura sobre el
+  // paciente y que el plan sea de ESE paciente: un planId de otro expediente
+  // se rechaza aunque el médico tenga acceso a ambos.
+  if (action === 'medico_publicar_plan') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica no válida o expirada. Inicia sesión de nuevo.' });
+      const planId = String(req.body.planId || '');
+      const textoPlan = String(req.body.texto || '').trim();
+      if (!/^rec[A-Za-z0-9]{14}$/.test(planId)) return res.status(400).json({ error: 'Plan no válido.' });
+      if (!textoPlan) return res.status(400).json({ error: 'El plan está vacío.' });
+      if (textoPlan.length > 20000) return res.status(400).json({ error: 'El plan es demasiado largo.' });
+      const puerta = await puertaNutricion(true, 'medico_publicar_plan');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      if (puerta.esDemo) return res.status(403).json({ error: 'Los pacientes demo son de solo lectura.' });
+
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const H = { Authorization: `Bearer ${AIRTABLE_TOKEN}` };
+      const url = `https://api.airtable.com/v0/${BASE_ID}/tblghlpLnwMNosqhd/${planId}`;
+      const planRes = await fetch(url, { headers: H });
+      if (planRes.status === 404) return res.status(404).json({ error: 'No se encontró el plan.' });
+      if (!planRes.ok) return res.status(502).json({ error: 'No se pudo leer el plan. Intenta de nuevo.' });
+      const plan = await planRes.json();
+      const pacientesDelPlan = (plan.fields && plan.fields['Paciente']) || [];
+      if (!pacientesDelPlan.includes(puerta.auth.recId)) return res.status(403).json({ error: 'Ese plan no pertenece a este paciente.' });
+
+      const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n) : null; };
+      const m = req.body.macros || {};
+      const campos = {
+        'Plan publicado (texto)': textoPlan,
+        'Código de paciente ref': puerta.auth.codigo,
+        'Publicado': true,
+        'Publicado por': [puerta.auth.medicoRecId].filter(Boolean),
+        'Fecha publicación': new Date().toISOString(),
+      };
+      for (const [k, nombre] of [['kcal', 'Kcal objetivo'], ['proteina_g', 'Proteína (g)'], ['carbohidratos_g', 'Carbohidratos (g)'], ['grasa_g', 'Grasa (g)']]) {
+        if (num(m[k]) !== null) campos[nombre] = num(m[k]);
+      }
+      const patchRes = await fetch(url, { method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: campos }) });
+      if (!patchRes.ok) return res.status(502).json({ error: 'No se pudo publicar el plan. El paciente aún no lo ve; intenta de nuevo.' });
+      await registrarAccesoExpediente({ pacienteCode: puerta.auth.codigo, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Permitido', endpoint: 'medico_publicar_plan' });
+      return res.status(200).json({ ok: true, publicado: true, fecha: campos['Fecha publicación'] });
+    } catch (err) {
+      console.error('[nova] medico_publicar_plan error:', err.message);
+      return res.status(500).json({ error: 'Error interno publicando el plan.' });
+    }
+  }
+
+  // El paciente (o demo) ve el ÚLTIMO plan publicado por un médico: texto tal
+  // cual lo publicó, macros, fecha y nombre del médico. Nunca precios ni
+  // datos internos. "Sin plan" (200, plan:null) ≠ error de lectura (502).
+  if (action === 'paciente_plan_actual') {
+    try {
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
+      const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const H = { Authorization: `Bearer ${AIRTABLE_TOKEN}` };
+      const esc = (v) => String(v).replace(/"/g, '\\"');
+      const formula = `AND({Código de paciente ref}="${esc(sesion.codigo)}",{Publicado})`;
+      const campos = ['Plan publicado (texto)', 'Kcal objetivo', 'Proteína (g)', 'Carbohidratos (g)', 'Grasa (g)', 'Fecha publicación', 'Publicado por']
+        .map(c => '&fields%5B%5D=' + encodeURIComponent(c)).join('');
+      const pRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblghlpLnwMNosqhd?filterByFormula=${encodeURIComponent(formula)}&sort%5B0%5D%5Bfield%5D=${encodeURIComponent('Fecha publicación')}&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=1${campos}`, { headers: H });
+      if (!pRes.ok) return res.status(502).json({ error: 'No pudimos cargar tu plan nutricional.' });
+      const reg = ((await pRes.json()).records || [])[0];
+      if (!reg || !reg.fields['Plan publicado (texto)']) return res.status(200).json({ ok: true, plan: null });
+      const f = reg.fields;
+      let medico = null;
+      const medId = (f['Publicado por'] || [])[0];
+      if (medId) {
+        // Lista filtrada (no GET por id): solo así Airtable respeta fields[] y
+        // del médico no se lee nada más que el nombre.
+        const mRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tbl87DsuBMmb4DjFM?filterByFormula=${encodeURIComponent(`RECORD_ID()="${esc(medId)}"`)}&maxRecords=1&fields%5B%5D=${encodeURIComponent('Nombre completo')}`, { headers: H });
+        if (!mRes.ok) return res.status(502).json({ error: 'No pudimos cargar tu plan nutricional.' });
+        medico = ((((await mRes.json()).records || [])[0] || {}).fields || {})['Nombre completo'] || null;
+      }
+      return res.status(200).json({ ok: true, plan: {
+        texto: f['Plan publicado (texto)'],
+        fecha: f['Fecha publicación'] || null,
+        medico,
+        macros: { kcal: f['Kcal objetivo'] ?? null, proteina_g: f['Proteína (g)'] ?? null, carbohidratos_g: f['Carbohidratos (g)'] ?? null, grasa_g: f['Grasa (g)'] ?? null },
+      } });
+    } catch (err) {
+      console.error('[nova] paciente_plan_actual error:', err.message);
+      return res.status(500).json({ error: 'Error interno cargando tu plan nutricional.' });
     }
   }
 

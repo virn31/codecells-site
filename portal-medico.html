@@ -3677,8 +3677,12 @@
               <div class="nutri-resultado-header">
                 <span class="tag tag-gold" id="nutri-resumen-tag">—</span>
                 <button class="btn-secondary" id="btn-copiar-plan">📋 Copiar para WhatsApp</button>
+                <button class="btn-secondary" id="btn-publicar-plan" style="display:none;">📱 Publicar en la app del paciente</button>
               </div>
-              <pre id="nutri-texto-plan" class="nutri-texto-plan"></pre>
+              <!-- El texto es editable: lo que se copia o se publica es lo que
+                   el médico deja aquí, no el generado original. -->
+              <div id="nutri-publicar-estado" style="font-size:12px;color:var(--text-3);margin:6px 0;">Puedes ajustar el texto antes de copiarlo o publicarlo.</div>
+              <pre id="nutri-texto-plan" class="nutri-texto-plan" contenteditable="plaintext-only" spellcheck="false"></pre>
             </div>
           </div>
 
@@ -7633,7 +7637,20 @@ document.getElementById('btn-generar-nutricion').addEventListener('click', async
       `${data.objetivo_nutricional.kcal_objetivo} kcal · ${data.preset_usado.replace(/_/g,' ')} · ${data.dias} días`;
     document.getElementById('nutri-texto-plan').textContent = data.texto_formateado;
     document.getElementById('nutri-contenido').style.display = 'block';
-    document.getElementById('nutri-contenido')._textoPlano = data.texto_formateado;
+    // Publicar solo es posible si el servidor confirmó que guardó el plan
+    // (paciente demo o sin escritura → no hay plan_id y no se ofrece).
+    const nutriCont = document.getElementById('nutri-contenido');
+    nutriCont._planId = data.plan_id || null;
+    nutriCont._codigoPaciente = pacienteActual.fields['Código de paciente'];
+    nutriCont._macros = { kcal: data.objetivo_nutricional.kcal_objetivo, proteina_g: data.objetivo_nutricional.proteina_g, carbohidratos_g: data.objetivo_nutricional.carbohidratos_g, grasa_g: data.objetivo_nutricional.grasa_g };
+    const btnPub = document.getElementById('btn-publicar-plan');
+    const estPub = document.getElementById('nutri-publicar-estado');
+    btnPub.disabled = false;
+    btnPub.style.display = data.plan_id ? '' : 'none';
+    estPub.style.color = '';
+    estPub.textContent = data.plan_id
+      ? 'Puedes ajustar el texto antes de copiarlo o publicarlo.'
+      : (pacienteActual.fields['Es demo'] ? 'Paciente demo: el plan no se guarda ni se publica.' : '⚠️ El plan no se guardó en el expediente, así que no se puede publicar en la app. Puedes copiarlo.');
 
     if (data.preset_seleccion_automatica?.auto) {
       showToast(`Dieta elegida automáticamente: ${data.preset_seleccion_automatica.razon}`, 'success');
@@ -7650,12 +7667,45 @@ document.getElementById('btn-generar-nutricion').addEventListener('click', async
 });
 
 document.getElementById('btn-copiar-plan').addEventListener('click', () => {
-  const texto = document.getElementById('nutri-contenido')._textoPlano || document.getElementById('nutri-texto-plan').textContent;
+  // Lo que se copia es lo que el médico dejó en el recuadro (editable).
+  const texto = document.getElementById('nutri-texto-plan').innerText;
   navigator.clipboard.writeText(texto).then(() => {
     showToast('Plan copiado — listo para pegar en WhatsApp ✓', 'success');
   }).catch(() => {
     showToast('No se pudo copiar automáticamente, selecciona el texto manualmente.', 'error');
   });
+});
+
+document.getElementById('btn-publicar-plan').addEventListener('click', async () => {
+  const cont = document.getElementById('nutri-contenido');
+  const btnPub = document.getElementById('btn-publicar-plan');
+  const estPub = document.getElementById('nutri-publicar-estado');
+  const texto = document.getElementById('nutri-texto-plan').innerText.trim();
+  if (!cont._planId) return;
+  if (!texto) { estPub.style.color = '#E2574B'; estPub.textContent = '⚠️ El plan está vacío.'; return; }
+  btnPub.disabled = true;
+  estPub.style.color = ''; estPub.textContent = 'Publicando…';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_publicar_plan', pacienteCode: cont._codigoPaciente, planId: cont._planId, texto, macros: cont._macros }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.publicado) {
+      estPub.style.color = '#E2574B';
+      estPub.textContent = `⚠️ ${data.error || 'No se pudo publicar.'} El paciente aún no lo ve.`;
+      btnPub.disabled = false;
+      return;
+    }
+    estPub.style.color = '#3E9B6E';
+    estPub.textContent = '✓ Publicado: el paciente ya lo ve en su app (pestaña Plan). Si lo editas, vuelve a publicar.';
+    btnPub.disabled = false;
+  } catch (err) {
+    estPub.style.color = '#E2574B';
+    estPub.textContent = '⚠️ Sin conexión — el plan no se publicó.';
+    btnPub.disabled = false;
+  }
 });
 
 novaInput.addEventListener('keydown', e => {
