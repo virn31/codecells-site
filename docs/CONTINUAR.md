@@ -12,32 +12,42 @@
 
 ---
 
-## 1. Siguiente paso (empezar aquí): DIRECTORIO MÉDICO en la app del paciente
+## 1. Siguiente paso (empezar aquí): DIRECTORIO MÉDICO + AGENDA AUTOMÁTICA
 
-Objetivo (docs/VISION-APP-MEDICA.md, MVP-3): que el paciente encuentre médicos
-de la red desde su app y, si quiere, le entregue su expediente con la llave
-que ya existe (vía `vinculado`). Es la pieza que cierra "el paciente decide
-con quién va" (CLAUDE.md §2).
+### Decidido por Víctor (2026-10-04, al cerrar)
+1. **El directorio ya tiene motor de búsqueda** (ciudad, especialidad, etc.) → se REUTILIZA, no se rehace.
+2. **Se muestran todos los datos del médico** en su tarjeta. Excepción que no cambia: el **nivel interno** (Asociado/Certificado/Senior/Partner) nunca se muestra a pacientes (CLAUDE.md §10) — confirmarlo con Víctor al revisar la tarjeta.
+3. **Botón "Agenda automática"** en cada médico: el médico **vincula su correo-agenda (Google Calendar)** y define **días y horarios disponibles**; el paciente ve SOLO esos espacios libres y **NOVA le ayuda a hacer su cita**.
+4. **Botón al directorio en la página principal de CODE CELLS** (`index.html`, home de codecells.mx — hoy no lo enlaza).
+5. Esto **resuelve la decisión pendiente desde 2026-08-24** (memoria "Módulo Agenda no funcional"): se COMPLETA la integración con Google Calendar, no se retira.
 
-### Lo que YA existe (no rehacer — verificar primero)
-- Página pública `/directorio` (`directorio/index.html`, ~900 líneas); `/buscar-medico.html` redirige ahí (`vercel.json`).
-- Tabla `directorio_medico` (`tblkUNPwu1sQgZBPJ`) en `api/airtable.js`: GET público con lista blanca de campos y `{Publicado}=1`; `accion=ciudades`; registro de lead (`Origen: Formulario /directorio`, estampa versión del aviso de privacidad) que emite un token de visitante para ver contactos.
-- Portal → sección **"Mi directorio"** (perfil público que edita el propio médico; `guardarCampoMiDir`).
-- NOVA (modo público) tiene la herramienta `buscar_medicos_directorio`.
-- Base de prueba: **solo 1 perfil** (VIRN01, Culiacán). Hay que cargar perfiles ficticios para probar.
+### Lo que YA existe (verificar primero, no rehacer)
+- `/directorio` (`directorio/index.html`, ~900 líneas) con su buscador; `/buscar-medico.html` redirige ahí.
+- Tabla `directorio_medico` (`tblkUNPwu1sQgZBPJ`) en `api/airtable.js`: GET público con lista blanca + `{Publicado}=1`; `accion=ciudades`; lead con aviso de privacidad → token de visitante para ver contactos.
+- Portal → **"Mi directorio"** (perfil que edita el propio médico). NOVA público: herramienta `buscar_medicos_directorio`.
+- **Google OAuth funciona**: `api/google-oauth-callback.js` guarda `Google Calendar Refresh Token` / `Google Calendar Email` en MÉDICOS (VIRN01 ya conectado en producción). Pero `api/google-calendar.js` está a medias (actualizar/eliminar son stubs; crear espera un header que nadie manda).
+- Módulo Agenda (`api/agenda.js`, `agenda/`): auth correcta pero **tabla AGENDA es el esqueleto vacío de Airtable**, la UI no crea citas, cron desactivado, bug `cc_medico_session` vs `cc_medico_token` en `agenda/js/agenda-api.js:49`.
+- Base de prueba: **1 solo perfil** en el directorio (VIRN01). Cargar perfiles ficticios.
 
-### Plan propuesto (presentarlo a Víctor ANTES de construir)
-1. **Revisar** `directorio/index.html` + ramas `directorio_medico` de `api/airtable.js`: qué campos son públicos, cómo se filtra, cómo se ve en celular.
-2. **Pestaña/acceso en la app** (`mi-nivel.html`): buscar por especialidad y ciudad, tarjeta del médico (nombre, especialidad, ciudad, lo que declara ofrecer). Para un paciente con sesión NO debe pedir el formulario de lead (ya está identificado).
-3. **"Compartir mi expediente con este médico"** desde la tarjeta: reutiliza `paciente_generar_llave` (8 caracteres, 24 h, un solo uso) — el código `CC-PAC-` solo nunca abre nada.
-4. **Pedir cita** al médico del directorio: depende del módulo Agenda (no funcional, ver memoria) → probablemente solo "solicitud" que le llega al médico, sin disponibilidad real. Decidir con Víctor.
-5. Pruebas + verificación en navegador + perfiles ficticios en base de prueba.
+### ⚠️ Primero (seguridad, antes de usar los tokens de Google)
+- **`api/auth-login.js` devuelve TODOS los campos del médico** (`fields: registro.fields`) → el `Google Calendar Refresh Token` viaja en texto plano en cada login. Filtrar la respuesta a una lista blanca. El refresh token solo debe leerlo el servidor.
 
-### Preguntas para Víctor (mañana, antes de construir)
-- ¿El paciente ve el **teléfono/WhatsApp** del médico o solo un botón de solicitud? (hoy en `/directorio` el contacto exige dejar datos).
-- ¿El directorio en la app muestra a **todos** los publicados o solo a médicos afiliados activos? ¿Algún orden (cercanía, especialidad)?
-- ¿Qué pasa al pedir cita: mensaje al médico (Telegram/portal) o cita en AGENDA?
-- Recordatorio CLAUDE.md §10: el **nivel interno** (Asociado/Certificado/Senior/Partner) nunca se muestra a pacientes.
+### Plan por etapas (presentar a Víctor antes de construir cada una)
+1. **Fuga del refresh token** en auth-login (arriba).
+2. **Revisar** el directorio actual (campos, buscador, celular) y la home; botón "Directorio médico" en `index.html`.
+3. **Directorio dentro de la app del paciente** (`mi-nivel.html`), reusando el buscador; con sesión no pide formulario de lead. Tarjeta con todos los datos (menos el nivel interno) + "Compartir mi expediente" (llave existente) + "Agendar".
+4. **Disponibilidad del médico**: en el portal, conectar Google Calendar (ya existe) + definir días/horarios/duración de consulta. Nueva tabla en prueba (p. ej. `DISPONIBILIDAD_MEDICO`) o campos en MÉDICOS — decidir.
+5. **Espacios libres** = horario definido − eventos ocupados de Google Calendar (API freeBusy, desde el servidor con el refresh token). Nunca mostrar detalles de los eventos del médico, solo libre/ocupado.
+6. **Reservar**: reconstruir AGENDA con campos reales; crear la cita + evento en Google Calendar del médico; volver a verificar que el espacio siga libre justo antes de confirmar (dos pacientes, mismo horario). Confirmación al paciente solo si ambos guardados se confirmaron.
+7. **NOVA ayuda a agendar** (herramientas: ver espacios, reservar) — NOVA propone, el paciente confirma; NOVA nunca dice "agendada" sin confirmación del servidor (CLAUDE.md §6).
+8. Pruebas + navegador + Preview con Galván.
+
+### Preguntas para Víctor
+- Duración de consulta y anticipación mínima/máxima para reservar (¿por médico?).
+- ¿La cita se confirma sola o el médico la aprueba?
+- ¿Cancelar/reprogramar desde la app?
+- ¿Qué ve un paciente demo (sin reservar, solo demostración)?
+- Google Calendar: hay que revisar la pantalla de consentimiento OAuth (verificación de Google si el scope es sensible).
 
 ## 2. También pendiente (después del directorio)
 
