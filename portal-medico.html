@@ -1785,6 +1785,18 @@
   }
   .nutri-placeholder p { font-size: 13px; max-width: 320px; line-height: 1.7; }
 
+  /* Receta: renglones estructurados + lo que el paciente ya toma */
+  .rec-nota { font-size: 11px; color: var(--text-3); }
+  .rec-actuales { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-2); }
+  .rec-actual { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--black-3); border: 0.5px solid var(--border-dim); border-radius: 8px; padding: 8px 10px; }
+  .rec-actual b { color: var(--text-1); font-weight: 500; }
+  .rec-actual .rec-sin-confirmar { color: #D9A441; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+  .rec-fila { display: grid; grid-template-columns: 2fr 1fr 1fr 1.3fr 0.8fr 28px; gap: 6px; margin-bottom: 6px; }
+  .rec-fila .rec-ind { grid-column: 1 / 6; }
+  .rec-fila input, .rec-fila select { font-size: 12px; padding: 7px 8px; min-width: 0; }
+  .rec-fila .rec-quitar { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 16px; }
+  @media (max-width: 640px) { .rec-fila { grid-template-columns: 1fr 1fr; } .rec-fila .rec-ind { grid-column: 1 / 3; } }
+
   /* ─── FORMULARIO DE CONSULTA ─── */
   .consulta-section {
     margin: 0 2rem 2rem;
@@ -4310,17 +4322,28 @@
         </div>
       </div>
 
+      <!-- Lo que el paciente ya toma (medicamentos de cualquier médico de la
+           red + suplementos que registró él, sin confirmar). nova medicamentos_listar. -->
       <div class="form-group">
-        <label>Medicamentos / Protocolo CODE CELLS™</label>
-        <textarea id="rec-medicamentos" rows="6"
-          placeholder="Rp. 
-
-1. BPC-157 — 250mcg subcutáneo cada 24h × 30 días
-2. Vitamina D3 — 5,000 UI vía oral cada 24h × 60 días
-3. Zinc — 30mg vía oral cada 24h × 30 días
-
-NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
+        <label>Lo que el paciente ya toma</label>
+        <div id="rec-actuales" class="rec-actuales"><span class="rec-nota">Cargando…</span></div>
       </div>
+
+      <!-- Medicamentos estructurados: al emitir se guardan en el expediente y
+           aparecen en la app del paciente (nova medico_emitir_receta). -->
+      <div class="form-group">
+        <label>Medicamentos (aparecen en la app del paciente)</label>
+        <div id="rec-filas"></div>
+        <button type="button" class="btn-secondary" id="rec-agregar-fila" style="margin-top:8px;">+ Agregar medicamento</button>
+      </div>
+
+      <div class="form-group">
+        <label>Prescripción adicional / Protocolo CODE CELLS™ (texto libre)</label>
+        <textarea id="rec-medicamentos" rows="3"
+          placeholder="NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
+        <div class="rec-nota">Se imprime y el paciente lo ve como texto, pero no genera tomas ni recordatorios.</div>
+      </div>
+      <div id="rec-estado" class="rec-nota" style="margin-top:6px;"></div>
 
       <div class="form-row">
         <div class="form-group">
@@ -4339,8 +4362,9 @@ NOVA LABS RESTORE™ Kit — según protocolo adjunto"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="modal-receta-cancel">Cancelar</button>
+      <button class="btn-secondary" id="btn-imprimir-sin-guardar" style="display:none;">Imprimir sin guardar</button>
       <button class="btn-save" id="btn-imprimir-receta" style="background:#1d9e75;">
-        <span>Imprimir receta</span>
+        <span>Emitir e imprimir</span>
       </button>
     </div>
   </div>
@@ -8009,6 +8033,118 @@ async function generarPDF() {
 }
 
 // ─── RECETA MÉDICA ───────────────────────────────────────────────
+// Un solo acto médico (Víctor, 2026-10-04): "Emitir e imprimir" GUARDA la
+// receta y sus medicamentos (nova medico_emitir_receta) y solo después
+// imprime. Si el guardado falla se dice, y el médico puede imprimir sin
+// guardar sabiendo que no quedará en el expediente ni en la app.
+const REC_VIAS = ['Oral', 'Sublingual', 'Subcutánea', 'Intramuscular', 'Intravenosa', 'Tópica', 'Inhalada', 'Oftálmica', 'Ótica', 'Nasal', 'Rectal', 'Vaginal', 'Otra'];
+const REC_FRECUENCIAS = [['c4h','Cada 4 horas'],['c6h','Cada 6 horas'],['c8h','Cada 8 horas'],['c12h','Cada 12 horas'],['c24h','Una vez al día'],['c48h','Cada 48 horas'],['semanal','Una vez por semana'],['prn','Solo si lo necesita']];
+const REC_MAX_FILAS = 10;
+
+function recEsDemo() { return !!(pacienteActual && pacienteActual.fields && pacienteActual.fields['Es demo']); }
+
+function recAgregarFila(datos) {
+  const cont = document.getElementById('rec-filas');
+  if (cont.children.length >= REC_MAX_FILAS) { showToast(`Máximo ${REC_MAX_FILAS} medicamentos por receta.`, 'error'); return; }
+  const fila = document.createElement('div');
+  fila.className = 'rec-fila';
+  fila.innerHTML = `
+    <input type="text" class="rec-nombre" placeholder="Medicamento" maxlength="120">
+    <input type="text" class="rec-dosis" placeholder="Dosis (ej. 500 mg)" maxlength="60">
+    <select class="rec-via"><option value="">Vía…</option>${REC_VIAS.map(v => `<option>${v}</option>`).join('')}</select>
+    <select class="rec-frec"><option value="">Frecuencia…</option>${REC_FRECUENCIAS.map(([c, e]) => `<option value="${c}">${e}</option>`).join('')}</select>
+    <input type="number" class="rec-dias" placeholder="Días" min="1" max="365" title="Vacío = hasta nuevo aviso">
+    <button type="button" class="rec-quitar" title="Quitar">✕</button>
+    <input type="text" class="rec-ind" placeholder="Indicaciones (ej. con alimentos)" maxlength="300">`;
+  if (datos) {
+    fila.querySelector('.rec-nombre').value = datos.nombre || '';
+    fila.querySelector('.rec-dosis').value = datos.dosis || '';
+  }
+  fila.querySelector('.rec-quitar').addEventListener('click', () => fila.remove());
+  cont.appendChild(fila);
+}
+
+// Lee los renglones. Un renglón totalmente vacío se ignora; uno a medias es
+// error (nada se completa por defecto: CLAUDE.md §7).
+function recLeerFilas() {
+  const filas = [...document.querySelectorAll('#rec-filas .rec-fila')];
+  const meds = [];
+  for (let i = 0; i < filas.length; i++) {
+    const f = filas[i];
+    const m = {
+      nombre: f.querySelector('.rec-nombre').value.trim(),
+      dosis: f.querySelector('.rec-dosis').value.trim(),
+      via: f.querySelector('.rec-via').value,
+      frecuencia: f.querySelector('.rec-frec').value,
+      duracionDias: f.querySelector('.rec-dias').value.trim(),
+      indicaciones: f.querySelector('.rec-ind').value.trim(),
+    };
+    if (!m.nombre && !m.dosis && !m.via && !m.frecuencia && !m.duracionDias && !m.indicaciones) continue;
+    if (!m.nombre || !m.dosis || !m.via || !m.frecuencia) return { error: `Medicamento ${i + 1}: completa nombre, dosis, vía y frecuencia (o quita el renglón).` };
+    m.duracionDias = m.duracionDias ? parseInt(m.duracionDias, 10) : null;
+    meds.push(m);
+  }
+  return { meds };
+}
+
+async function recCargarActuales() {
+  const caja = document.getElementById('rec-actuales');
+  caja.innerHTML = '<span class="rec-nota">Cargando…</span>';
+  try {
+    const res = await fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'medicamentos_listar', pacienteCode: pacienteActual.fields['Código de paciente'] }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { caja.innerHTML = `<span class="rec-nota" style="color:#E2574B;">⚠️ ${escaparHtml(d.error || 'No se pudo leer lo que toma el paciente.')}</span>`; return; }
+    const activos = (d.medicamentos || []).filter(m => m.estado === 'Activo');
+    const sup = d.suplementos || [];
+    if (!activos.length && !sup.length) { caja.innerHTML = '<span class="rec-nota">Sin medicamentos activos ni suplementos registrados.</span>'; return; }
+    caja.innerHTML = '';
+    activos.forEach(m => {
+      const a = m.adherencia && m.adherencia.porcentaje !== null ? ` · adherencia 7 d: ${m.adherencia.porcentaje}%` : '';
+      const div = document.createElement('div');
+      div.className = 'rec-actual';
+      div.innerHTML = `<div><b>${escaparHtml(m.nombre)}</b> ${escaparHtml(m.dosis)} · ${escaparHtml(m.via)} · ${escaparHtml(m.frecuenciaEtiqueta)}<br><span class="rec-nota">${escaparHtml(m.medico || 'Médico')} · desde ${escaparHtml(m.inicio || '—')}${a}</span></div>`;
+      if (m.puedeSuspender) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn-secondary'; b.textContent = 'Suspender';
+        b.addEventListener('click', () => recSuspender(m, b));
+        div.appendChild(b);
+      }
+      caja.appendChild(div);
+    });
+    sup.forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'rec-actual';
+      div.innerHTML = `<div><b>${escaparHtml(s.nombre)}</b> ${escaparHtml(s.comoLoToma || '')}<br><span class="rec-sin-confirmar">Suplemento · registrado por el paciente, sin confirmar</span></div>`;
+      caja.appendChild(div);
+    });
+  } catch (e) {
+    caja.innerHTML = '<span class="rec-nota" style="color:#E2574B;">⚠️ Sin conexión — no se pudo leer lo que toma el paciente.</span>';
+  }
+}
+
+// Suspender: el motivo se escribe en línea (sin prompt() del navegador).
+function recSuspender(m, boton) {
+  const fila = boton.parentElement;
+  if (fila.querySelector('.rec-motivo')) return;
+  const cont = document.createElement('div');
+  cont.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:6px;';
+  cont.innerHTML = '<input type="text" class="rec-motivo" placeholder="Motivo de la suspensión" maxlength="200" style="flex:1;font-size:12px;padding:6px 8px;"><button type="button" class="btn-secondary">Confirmar</button>';
+  fila.style.flexWrap = 'wrap';
+  fila.appendChild(cont);
+  cont.querySelector('button').addEventListener('click', async () => {
+    const motivo = cont.querySelector('input').value.trim();
+    if (!motivo) { showToast('Escribe el motivo de la suspensión.', 'error'); return; }
+    cont.querySelector('button').disabled = true;
+    try {
+      const res = await fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'medico_suspender_medicamento', pacienteCode: pacienteActual.fields['Código de paciente'], medicamentoId: m.id, motivo }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.suspendido) { showToast(d.error || 'No se pudo suspender; sigue activo.', 'error'); cont.querySelector('button').disabled = false; return; }
+      showToast(`${m.nombre} suspendido — ya no aparece como activo en la app del paciente.`, 'success');
+      recCargarActuales();
+    } catch (e) { showToast('Sin conexión — no se suspendió.', 'error'); cont.querySelector('button').disabled = false; }
+  });
+}
+
 function abrirModalReceta() {
   if (!pacienteActual) return;
   const f = pacienteActual.fields;
@@ -8019,16 +8155,32 @@ function abrirModalReceta() {
   // Fecha fija en es-MX a propósito: es la receta médica bajo cédula
   // profesional, documento formal — no debe cambiar con el idioma de la interfaz.
   document.getElementById('rec-fecha').value = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
-  // Prellenar diagnóstico si hay uno en el formulario activo
   // Precargar desde formulario activo de consulta
   const diagActivo  = document.getElementById('f-diagnostico')?.value;
   const planActivo  = document.getElementById('f-plan')?.value;
   const motivoActivo = document.getElementById('f-motivo')?.value;
-
   if (diagActivo)  document.getElementById('rec-diagnostico').value  = diagActivo;
   if (planActivo)  document.getElementById('rec-indicaciones').value = planActivo;
   // Si no hay plan pero sí motivo, usar motivo como referencia
   else if (motivoActivo) document.getElementById('rec-indicaciones').value = motivoActivo;
+
+  document.getElementById('rec-filas').innerHTML = '';
+  recAgregarFila();
+  document.getElementById('btn-imprimir-sin-guardar').style.display = 'none';
+  const estado = document.getElementById('rec-estado');
+  const btn = document.getElementById('btn-imprimir-receta');
+  // Pacientes demo: nunca se emite receta (llevaría la cédula del médico
+  // sobre un paciente ficticio — CLAUDE.md §5).
+  if (recEsDemo()) {
+    btn.disabled = true;
+    estado.style.color = '#E2574B';
+    estado.textContent = 'Paciente demo: no se emiten ni imprimen recetas.';
+  } else {
+    btn.disabled = false;
+    estado.style.color = '';
+    estado.textContent = '';
+  }
+  recCargarActuales();
   document.getElementById('modal-receta').classList.add('active');
 }
 
@@ -8039,25 +8191,84 @@ function cerrarModalReceta() {
 document.getElementById('btn-receta').addEventListener('click', abrirModalReceta);
 document.getElementById('modal-receta-close').addEventListener('click', cerrarModalReceta);
 document.getElementById('modal-receta-cancel').addEventListener('click', cerrarModalReceta);
+document.getElementById('rec-agregar-fila').addEventListener('click', () => recAgregarFila());
 document.getElementById('modal-receta').addEventListener('click', function(e) {
   if (e.target === this) cerrarModalReceta();
 });
 
-document.getElementById('btn-imprimir-receta').addEventListener('click', () => {
+document.getElementById('btn-imprimir-receta').addEventListener('click', async () => {
+  if (recEsDemo()) return;
+  const estado = document.getElementById('rec-estado');
+  const btn = document.getElementById('btn-imprimir-receta');
+  const filas = recLeerFilas();
+  if (filas.error) { estado.style.color = '#E2574B'; estado.textContent = '⚠️ ' + filas.error; return; }
+  const cuerpo = {
+    action: 'medico_emitir_receta',
+    pacienteCode: pacienteActual.fields['Código de paciente'],
+    medicamentos: filas.meds,
+    diagnostico: document.getElementById('rec-diagnostico').value.trim(),
+    indicaciones: document.getElementById('rec-indicaciones').value.trim(),
+    prescripcionAdicional: document.getElementById('rec-medicamentos').value.trim(),
+    proximaCita: document.getElementById('rec-proxima-cita').value.trim(),
+    observaciones: document.getElementById('rec-sello').value.trim(),
+  };
+  if (!cuerpo.medicamentos.length && !cuerpo.prescripcionAdicional) { estado.style.color = '#E2574B'; estado.textContent = '⚠️ La receta está vacía.'; return; }
+  btn.disabled = true;
+  estado.style.color = ''; estado.textContent = 'Guardando la receta…';
+  try {
+    const res = await fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.emitida) {
+      estado.style.color = '#E2574B';
+      estado.textContent = `⚠️ ${d.error || 'No se pudo guardar la receta.'} Si necesitas el papel ahora, "Imprimir sin guardar" la imprime pero NO queda en el expediente ni en la app.`;
+      document.getElementById('btn-imprimir-sin-guardar').style.display = '';
+      btn.disabled = false;
+      return;
+    }
+    showToast(d.medicamentosGuardados
+      ? `Receta emitida: ${d.medicamentosGuardados} medicamento(s) ya aparecen en la app del paciente ✓`
+      : 'Receta emitida y guardada en el expediente ✓', 'success');
+    if (d.advertencia) showToast(d.advertencia, 'error');
+    imprimirReceta(filas.meds);
+  } catch (e) {
+    estado.style.color = '#E2574B';
+    estado.textContent = '⚠️ Sin conexión — la receta no se guardó. "Imprimir sin guardar" la imprime pero NO queda en el expediente ni en la app.';
+    document.getElementById('btn-imprimir-sin-guardar').style.display = '';
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('btn-imprimir-sin-guardar').addEventListener('click', () => {
+  if (recEsDemo()) return;
+  const filas = recLeerFilas();
+  if (filas.error) { showToast(filas.error, 'error'); return; }
+  imprimirReceta(filas.meds);
+});
+
+// Todo lo que entra al HTML impreso se escapa: el nombre del paciente puede
+// venir del kiosco o del autorregistro.
+function imprimirReceta(medsEstructurados) {
+  const e = escaparHtml;
   const f = pacienteActual?.fields || {};
-  const nombre     = f['Nombre completo'] || f['nombre'] || 'Paciente';
-  const pacId      = f['Código de paciente'] || f['ID_Paciente'] || '';
-  const edad       = formatEdad(f['Edad']) ? formatEdad(f['Edad']) + ' años' : '—';
-  const medNombre  = medicoActual?.['Nombre completo'] || medicoActual?.['Nombre'] || 'Médico';
-  const medCedula  = medicoActual?.['Cédula profesional'] || medicoActual?.['Cedula'] || '—';
-  const medEsp     = medicoActual?.['Especialidad'] || '—';
-  const medCodigo  = medicoActual?.['Código de médico'] || medicoActual?.['Código'] || '—';
-  const diagnostico   = document.getElementById('rec-diagnostico').value || '—';
-  const fecha         = document.getElementById('rec-fecha').value;
-  const medicamentos  = document.getElementById('rec-medicamentos').value || '—';
-  const indicaciones  = document.getElementById('rec-indicaciones').value || '';
-  const proximaCita   = document.getElementById('rec-proxima-cita').value || '—';
-  const sello         = document.getElementById('rec-sello').value || '';
+  const nombre     = e(f['Nombre completo'] || f['nombre'] || 'Paciente');
+  const pacId      = e(f['Código de paciente'] || f['ID_Paciente'] || '');
+  const edad       = formatEdad(f['Edad']) ? e(formatEdad(f['Edad'])) + ' años' : '—';
+  const medNombre  = e(medicoActual?.['Nombre completo'] || medicoActual?.['Nombre'] || 'Médico');
+  const medCedula  = e(medicoActual?.['Cédula profesional'] || medicoActual?.['Cedula'] || '—');
+  const medEsp     = e(medicoActual?.['Especialidad'] || '—');
+  const medCodigo  = e(medicoActual?.['Código de médico'] || medicoActual?.['Código'] || '—');
+  const diagnostico   = e(document.getElementById('rec-diagnostico').value || '—');
+  const fecha         = e(document.getElementById('rec-fecha').value);
+  const etiquetaFrec  = Object.fromEntries(REC_FRECUENCIAS);
+  const lineas = medsEstructurados.map((m, i) =>
+    `${i + 1}. ${e(m.nombre)} — ${e(m.dosis)} vía ${e(m.via.toLowerCase())}, ${e((etiquetaFrec[m.frecuencia] || '').toLowerCase())}${m.duracionDias ? ` × ${m.duracionDias} días` : ''}${m.indicaciones ? `. ${e(m.indicaciones)}` : ''}`);
+  const adicional     = document.getElementById('rec-medicamentos').value.trim();
+  const medicamentos  = [lineas.join('\n'), e(adicional)].filter(Boolean).join('\n\n') || '—';
+  const indicaciones  = e(document.getElementById('rec-indicaciones').value || '');
+  const proximaCita   = e(document.getElementById('rec-proxima-cita').value || '—');
+  const sello         = e(document.getElementById('rec-sello').value || '');
+  const sexo          = e(f['Sexo'] || f['sexo'] || '—');
+  const telefono      = e(f['Telefono'] || f['telefono'] || f['WhatsApp'] || '—');
 
   const pdfArea = document.getElementById('pdf-print-area');
   pdfArea.innerHTML = `
@@ -8102,11 +8313,11 @@ document.getElementById('btn-imprimir-receta').addEventListener('click', () => {
           </div>
           <div>
             <div style="font-size:9px;color:#7A7570;text-transform:uppercase;letter-spacing:0.1em;">Sexo</div>
-            <div style="font-size:13px;font-weight:500;color:#1C1915;">${f['Sexo'] || f['sexo'] || '—'}</div>
+            <div style="font-size:13px;font-weight:500;color:#1C1915;">${sexo}</div>
           </div>
           <div>
             <div style="font-size:9px;color:#7A7570;text-transform:uppercase;letter-spacing:0.1em;">Teléfono</div>
-            <div style="font-size:12px;color:#1C1915;">${f['Telefono'] || f['telefono'] || f['WhatsApp'] || '—'}</div>
+            <div style="font-size:12px;color:#1C1915;">${telefono}</div>
           </div>
           <div style="flex:2;min-width:160px;">
             <div style="font-size:9px;color:#7A7570;text-transform:uppercase;letter-spacing:0.1em;">Diagnóstico</div>
@@ -8160,7 +8371,7 @@ document.getElementById('btn-imprimir-receta').addEventListener('click', () => {
       cerrarModalReceta();
     }, 500);
   }, 200);
-});
+}
 
 // ─── LINK DE AUTORREGISTRO PERSONALIZADO ─────────────────────────
 document.getElementById('btn-link-autorregistro').addEventListener('click', async () => {

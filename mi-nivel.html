@@ -147,6 +147,26 @@
   .equipo-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--gold-pale); color: var(--gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 16px; flex-shrink: 0; }
   .equipo-nombre { font-size: 14px; color: var(--text-1); }
   .equipo-detalle { font-size: 12px; color: var(--text-3); }
+  .meds-lista { display: flex; flex-direction: column; gap: 12px; }
+  .med-item { border-bottom: 1px solid var(--border-dim); padding-bottom: 12px; }
+  .med-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .med-item.inactivo { opacity: 0.55; }
+  .med-nombre { font-size: 15px; color: var(--text-1); }
+  .med-detalle { font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.5; }
+  .med-tomas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .toma-btn { font-size: 13px; color: var(--text-2); background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 20px; padding: 9px 14px; cursor: pointer; min-height: 40px; }
+  .toma-btn.hecha { color: var(--black); background: var(--gold); border-color: var(--gold); font-weight: 600; }
+  .toma-btn:disabled { opacity: 0.5; }
+  .meds-adherencia { font-size: 13px; color: var(--text-2); margin-bottom: 14px; }
+  .meds-adherencia b { color: var(--gold); font-size: 20px; font-weight: 500; }
+  .receta-ultima { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-dim); font-size: 13px; color: var(--text-2); line-height: 1.6; white-space: pre-wrap; }
+  .sup-form { margin-top: 14px; display: flex; flex-direction: column; }
+  .sup-form input[type=text] { width: 100%; box-sizing: border-box; background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 12px; color: var(--text-1); padding: 11px 14px; font-size: 14px; font-family: var(--font-sans); margin-top: 8px; }
+  .sup-form input[type=text]:focus { outline: none; border-color: var(--gold); }
+  .sup-tipo { display: flex; gap: 16px; font-size: 14px; color: var(--text-2); }
+  .sup-tipo input { accent-color: var(--gold); }
+  .sup-aviso { margin-top: 10px; font-size: 13px; color: #D9A441; line-height: 1.5; }
+  .sup-quitar { background: none; border: none; color: var(--text-3); font-size: 12px; cursor: pointer; padding: 4px 0; margin-top: 4px; text-decoration: underline; }
   .plan-meta { font-size: 12px; color: var(--text-3); margin-bottom: 12px; }
   .plan-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
   .plan-macro { background: var(--black-3); border-radius: 12px; padding: 10px 6px; text-align: center; }
@@ -229,6 +249,18 @@
         <div id="protocolo-progreso" style="display:none;"></div>
       </div>
       <div class="patologias-chips" id="patologias-chips"></div>
+    </div>
+
+    <!-- Hoy: tomas de los medicamentos que recetó el médico (nova
+         medicamentos_listar / paciente_marcar_toma). Oculto si no hay
+         medicamentos activos; un error se muestra como error. -->
+    <div id="hoy-seccion" style="display:none;">
+      <div class="seccion-label">Hoy</div>
+      <div class="chat-caja" style="padding:20px;">
+        <div id="hoy-estado" style="font-size:13px;color:var(--text-3);"></div>
+        <div id="hoy-lista" class="meds-lista"></div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:12px;">Toca cada toma cuando la tomes. Por ahora la app no te avisa si está cerrada.</div>
+      </div>
     </div>
 
     <!-- Biological Map™: un aro por sistema (función 0–10, más = mejor),
@@ -324,6 +356,42 @@
   <!-- ═══ Pestaña PLAN: el plan nutricional que el médico PUBLICÓ (nova
        paciente_plan_actual). Generar no basta: publicarlo es acto del médico. -->
   <div class="tab-pane" data-tab="plan">
+    <!-- Medicamentos que recetó el médico + adherencia (MVP-2). -->
+    <div class="seccion-label">Tus medicamentos</div>
+    <div class="chat-caja" style="padding:20px;">
+      <div id="meds-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
+      <div id="meds-adherencia" class="meds-adherencia" style="display:none;"></div>
+      <div id="meds-lista" class="meds-lista"></div>
+      <div id="receta-ultima" style="display:none;"></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:12px;">Solo tu médico puede cambiar o suspender un medicamento. No lo dejes ni lo cambies sin consultarlo.</div>
+    </div>
+
+    <!-- Suplementos: los registra el PACIENTE (sin confirmar por un médico).
+         Un medicamento no se registra aquí: lo receta su médico. -->
+    <div class="seccion-label">Tus suplementos</div>
+    <div class="chat-caja" style="padding:20px;">
+      <div id="sup-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
+      <div id="sup-lista" class="meds-lista"></div>
+      <button type="button" class="filtro-labs-btn" id="sup-btn-agregar" style="margin-top:12px;display:none;" onclick="abrirFormSuplemento()">+ Agregar suplemento</button>
+      <div id="sup-form" class="sup-form" style="display:none;">
+        <div class="sup-tipo">
+          <label><input type="radio" name="sup-tipo" value="suplemento" checked> <span>Suplemento</span></label>
+          <label><input type="radio" name="sup-tipo" value="medicamento"> <span>Medicamento</span></label>
+        </div>
+        <div id="sup-aviso-medico" class="sup-aviso" style="display:none;">Los medicamentos los registra tu médico en tu receta. Pregúntale a tu médico por este medicamento.</div>
+        <div id="sup-campos">
+          <input type="text" id="sup-nombre" maxlength="120" placeholder="Nombre (ej. Vitamina D3)">
+          <input type="text" id="sup-como" maxlength="200" placeholder="Cómo lo tomas (ej. 1 cápsula al día)">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button type="button" class="filtro-labs-btn activo" id="sup-guardar" onclick="guardarSuplemento()">Guardar</button>
+          <button type="button" class="filtro-labs-btn" onclick="cerrarFormSuplemento()">Cancelar</button>
+        </div>
+        <div id="sup-form-msg" style="font-size:12px;margin-top:8px;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:12px;">Tu médico verá lo que registres aquí, marcado como registrado por ti.</div>
+    </div>
+
     <div class="seccion-label">Tu plan nutricional</div>
     <div class="chat-caja" style="padding:20px;" id="plan-caja">
       <div id="plan-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
@@ -588,7 +656,7 @@
 <nav class="nav-inferior" id="nav-inferior" style="display:none;"><div class="nav-inferior-int">
   <button type="button" class="nav-btn activo" data-tab="inicio" onclick="irATab('inicio')"><span>🏠</span>Inicio</button>
   <button type="button" class="nav-btn" data-tab="labs" onclick="irATab('labs')"><span>📈</span>Salud</button>
-  <button type="button" class="nav-btn" data-tab="plan" onclick="irATab('plan')"><span>🥗</span>Plan</button>
+  <button type="button" class="nav-btn" data-tab="plan" onclick="irATab('plan')"><span>📋</span>Plan</button>
   <button type="button" class="nav-btn" data-tab="citas" onclick="irATab('citas')"><span>📅</span>Citas</button>
   <button type="button" class="nav-btn" data-tab="nova" onclick="irATab('nova')"><span>💬</span>NOVA</button>
 </div></nav>
@@ -1150,6 +1218,175 @@ function pintarPlan() {
 }
 window.addEventListener('i18n:change', pintarPlan);
 
+// ─── MEDICAMENTOS Y SUPLEMENTOS (MVP-2) ──────────────────────────
+var medsDatos;  // undefined = cargando/error
+function tt(x) { return window.t ? window.t(x) : x; }
+function postNova(cuerpo) {
+  return fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, status: r.status, d: d }; }); });
+}
+function cargarMedicamentos() {
+  var est = document.getElementById('meds-estado'), sup = document.getElementById('sup-estado'), hoy = document.getElementById('hoy-estado');
+  est.style.display = ''; est.style.color = ''; est.textContent = 'Cargando…';
+  sup.style.display = ''; sup.style.color = ''; sup.textContent = 'Cargando…';
+  postNova({ action: 'medicamentos_listar' }).then(function(x) {
+    if (!x.ok) {
+      var m = (x.d && x.d.error) || 'No pudimos cargar tus medicamentos.';
+      [est, sup].forEach(function(e){ e.textContent = m; e.style.color = '#E2574B'; });
+      document.getElementById('hoy-seccion').style.display = '';
+      hoy.textContent = m; hoy.style.color = '#E2574B';
+      return;
+    }
+    medsDatos = x.d;
+    pintarMedicamentos();
+  }).catch(function() {
+    var m = 'Sin conexión — no pudimos cargar tus medicamentos.';
+    [est, sup].forEach(function(e){ e.textContent = m; e.style.color = '#E2574B'; });
+  });
+}
+function detalleMed(m) {
+  var partes = [esc(m.dosis), esc(m.via ? tt(m.via) : ''), esc(tt(m.frecuenciaEtiqueta))].filter(Boolean).join(' · ');
+  if (m.duracionDias) partes += ' · ' + esc(tt('por')) + ' <span data-no-i18n>' + m.duracionDias + '</span> ' + esc(tt('días'));
+  if (m.indicaciones) partes += '<br><span data-no-i18n>' + esc(m.indicaciones) + '</span>';
+  if (m.medico) partes += '<br>' + sinTraducir(m.medico);
+  return partes;
+}
+function pintarMedicamentos() {
+  if (!medsDatos) return;
+  var d = medsDatos, soloLectura = !!d.soloLectura;
+  var activos = (d.medicamentos || []).filter(function(m){ return m.estado === 'Activo'; });
+  var otros = (d.medicamentos || []).filter(function(m){ return m.estado !== 'Activo'; });
+
+  // ── Hoy (Inicio)
+  var hoySec = document.getElementById('hoy-seccion'), hoyLista = document.getElementById('hoy-lista'), hoyEst = document.getElementById('hoy-estado');
+  hoyLista.innerHTML = ''; hoyEst.textContent = ''; hoyEst.style.color = '';
+  hoySec.style.display = activos.length ? '' : 'none';
+  activos.forEach(function(m) {
+    var item = document.createElement('div'); item.className = 'med-item';
+    item.innerHTML = '<div class="med-nombre" data-no-i18n>' + esc(m.nombre) + '</div><div class="med-detalle">' + detalleMed(m) + '</div>';
+    var tomas = document.createElement('div'); tomas.className = 'med-tomas';
+    var marcadas = (m.tomasHoy && m.tomasHoy.marcadas) || [];
+    if (m.frecuencia === 'prn') {
+      var n = marcadas.length;
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'toma-btn';
+      b.textContent = n ? tt('Lo tomé') + ' (' + n + ')' : tt('Lo tomé');
+      b.disabled = soloLectura;
+      b.onclick = function(){ marcarToma(m, n + 1, true, b); };
+      tomas.appendChild(b);
+    } else if (m.tomasHoy && m.tomasHoy.esperadas > 0) {
+      for (var k = 1; k <= m.tomasHoy.esperadas; k++) (function(k) {
+        var hecha = marcadas.indexOf(k) !== -1;
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'toma-btn' + (hecha ? ' hecha' : '');
+        b.textContent = (hecha ? '✓ ' : '') + (m.tomasHoy.esperadas === 1 ? tt('Tomado') : tt('Toma') + ' ' + k);
+        b.disabled = soloLectura;
+        b.onclick = function(){ marcarToma(m, k, !hecha, b); };
+        tomas.appendChild(b);
+      })(k);
+    } else {
+      tomas.innerHTML = '<span class="med-detalle">' + esc(tt('Hoy no te toca.')) + '</span>';
+    }
+    item.appendChild(tomas);
+    hoyLista.appendChild(item);
+  });
+  if (soloLectura && activos.length) { hoyEst.textContent = tt('Modo demo: solo lectura.'); }
+
+  // ── Plan: medicamentos
+  var est = document.getElementById('meds-estado'), lista = document.getElementById('meds-lista'), adh = document.getElementById('meds-adherencia');
+  lista.innerHTML = '';
+  if (!activos.length && !otros.length) { est.style.display = ''; est.style.color = ''; est.textContent = 'Tu médico aún no te ha recetado medicamentos.'; }
+  else est.style.display = 'none';
+  var a = d.adherencia || {};
+  if (a.porcentaje !== null && a.porcentaje !== undefined) {
+    adh.style.display = '';
+    adh.innerHTML = '<b data-no-i18n>' + a.porcentaje + '%</b> ' + esc(tt('de tus tomas en los últimos 7 días')) + ' <span data-no-i18n>(' + a.tomadas + '/' + a.esperadas + ')</span>';
+  } else adh.style.display = 'none';
+  activos.concat(otros).forEach(function(m) {
+    var item = document.createElement('div'); item.className = 'med-item' + (m.estado === 'Activo' ? '' : ' inactivo');
+    var extra = '';
+    if (m.estado === 'Suspendido') extra = '<br><span>' + esc(tt('Suspendido por tu médico')) + '</span>' + (m.motivoSuspension ? ': <span data-no-i18n>' + esc(m.motivoSuspension) + '</span>' : '');
+    else if (m.estado === 'Terminado') extra = '<br><span>' + esc(tt('Tratamiento terminado')) + '</span>';
+    else if (m.adherencia && m.adherencia.porcentaje !== null) extra = '<br>' + esc(tt('Últimos 7 días:')) + ' <span data-no-i18n>' + m.adherencia.porcentaje + '%</span>';
+    item.innerHTML = '<div class="med-nombre" data-no-i18n>' + esc(m.nombre) + '</div><div class="med-detalle">' + detalleMed(m) + extra + '</div>';
+    lista.appendChild(item);
+  });
+  var rec = document.getElementById('receta-ultima'), r = d.ultimaReceta;
+  if (r && (r.indicaciones || r.prescripcionAdicional || r.proximaCita)) {
+    rec.style.display = ''; rec.className = 'receta-ultima';
+    var html = '<div class="med-detalle">' + esc(tt('Tu última receta')) + ' · ' + sinTraducir(fechaCorta(r.fecha)) + (r.medico ? ' · ' + sinTraducir(r.medico) : '') + '</div>';
+    if (r.prescripcionAdicional) html += '<div data-no-i18n style="margin-top:6px;">' + esc(r.prescripcionAdicional) + '</div>';
+    if (r.indicaciones) html += '<div style="margin-top:8px;"><span class="med-detalle">' + esc(tt('Indicaciones')) + '</span><div data-no-i18n>' + esc(r.indicaciones) + '</div></div>';
+    if (r.proximaCita) html += '<div style="margin-top:8px;"><span class="med-detalle">' + esc(tt('Próxima cita')) + ':</span> <span data-no-i18n>' + esc(r.proximaCita) + '</span></div>';
+    rec.innerHTML = html;
+  } else rec.style.display = 'none';
+
+  // ── Plan: suplementos
+  var sest = document.getElementById('sup-estado'), slista = document.getElementById('sup-lista');
+  slista.innerHTML = '';
+  var sups = d.suplementos || [];
+  if (!sups.length) { sest.style.display = ''; sest.style.color = ''; sest.textContent = 'No has registrado suplementos.'; }
+  else sest.style.display = 'none';
+  sups.forEach(function(s) {
+    var item = document.createElement('div'); item.className = 'med-item';
+    item.innerHTML = '<div class="med-nombre" data-no-i18n>' + esc(s.nombre) + '</div>' + (s.comoLoToma ? '<div class="med-detalle" data-no-i18n>' + esc(s.comoLoToma) + '</div>' : '');
+    if (!soloLectura) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'sup-quitar'; b.textContent = tt('Ya no lo tomo');
+      b.onclick = function(){ bajaSuplemento(s, b); };
+      item.appendChild(b);
+    }
+    slista.appendChild(item);
+  });
+  document.getElementById('sup-btn-agregar').style.display = soloLectura ? 'none' : '';
+}
+function marcarToma(m, numero, tomado, boton) {
+  boton.disabled = true;
+  postNova({ action: 'paciente_marcar_toma', medicamentoId: m.id, numero: numero, tomado: tomado }).then(function(x) {
+    if (!x.ok) { boton.disabled = false; mostrarErrorHoy((x.d && x.d.error) || 'No pudimos registrar la toma. Intenta de nuevo.'); return; }
+    cargarMedicamentos();
+  }).catch(function(){ boton.disabled = false; mostrarErrorHoy('Sin conexión — la toma no se registró.'); });
+}
+function mostrarErrorHoy(msg) { var e = document.getElementById('hoy-estado'); e.textContent = msg; e.style.color = '#E2574B'; }
+function abrirFormSuplemento() {
+  document.getElementById('sup-form').style.display = '';
+  document.getElementById('sup-btn-agregar').style.display = 'none';
+  document.getElementById('sup-form-msg').textContent = '';
+  actualizarTipoSuplemento();
+}
+function cerrarFormSuplemento() {
+  document.getElementById('sup-form').style.display = 'none';
+  document.getElementById('sup-btn-agregar').style.display = '';
+  document.getElementById('sup-nombre').value = ''; document.getElementById('sup-como').value = '';
+  document.querySelector('input[name="sup-tipo"][value="suplemento"]').checked = true;
+}
+// Elegir "Medicamento" no guarda nada: se le pide preguntar a su médico.
+function actualizarTipoSuplemento() {
+  var esMed = document.querySelector('input[name="sup-tipo"]:checked').value === 'medicamento';
+  document.getElementById('sup-aviso-medico').style.display = esMed ? '' : 'none';
+  document.getElementById('sup-campos').style.display = esMed ? 'none' : '';
+  document.getElementById('sup-guardar').style.display = esMed ? 'none' : '';
+}
+document.querySelectorAll('input[name="sup-tipo"]').forEach(function(r){ r.addEventListener('change', actualizarTipoSuplemento); });
+function guardarSuplemento() {
+  var msg = document.getElementById('sup-form-msg');
+  var nombre = document.getElementById('sup-nombre').value.trim();
+  if (!nombre) { msg.style.color = '#E2574B'; msg.textContent = tt('Escribe el nombre del suplemento.'); return; }
+  var btn = document.getElementById('sup-guardar'); btn.disabled = true;
+  msg.style.color = ''; msg.textContent = tt('Guardando…');
+  postNova({ action: 'paciente_agregar_suplemento', tipo: 'suplemento', nombre: nombre, comoLoToma: document.getElementById('sup-como').value.trim() }).then(function(x) {
+    btn.disabled = false;
+    if (!x.ok) { msg.style.color = '#E2574B'; msg.textContent = (x.d && x.d.error) || tt('No pudimos guardar el suplemento. Intenta de nuevo.'); return; }
+    cerrarFormSuplemento();
+    cargarMedicamentos();
+  }).catch(function(){ btn.disabled = false; msg.style.color = '#E2574B'; msg.textContent = tt('Sin conexión — no se guardó.'); });
+}
+function bajaSuplemento(s, boton) {
+  boton.disabled = true;
+  postNova({ action: 'paciente_baja_suplemento', suplementoId: s.id }).then(function(x) {
+    if (!x.ok) { boton.disabled = false; var e = document.getElementById('sup-estado'); e.style.display = ''; e.style.color = '#E2574B'; e.textContent = (x.d && x.d.error) || tt('No pudimos darlo de baja. Intenta de nuevo.'); return; }
+    cargarMedicamentos();
+  }).catch(function(){ boton.disabled = false; });
+}
+window.addEventListener('i18n:change', pintarMedicamentos);
+
 // ─── TEST (Reevaluarme) ──────────────────────────────────────────
 var testPreguntas = [];
 var testIdx = 0;
@@ -1287,6 +1524,7 @@ function cargarPaciente() {
       cargarEquipo();
       cargarProgreso();
       cargarPlan();
+      cargarMedicamentos();
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';

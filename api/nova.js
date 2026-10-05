@@ -56,6 +56,7 @@ const {
 } = require('../lib/vinculacion');
 const credPaciente = require('../lib/credencialesPaciente');
 const evalBio = require('../lib/evaluacionesBiologicas');
+const meds = require('../lib/medicamentos');
 
 // Puerta común de las acciones kiosco_* — las mismas reglas que
 // /api/airtable aplica a ANTECEDENTES_OBSTETRICOS desde el mismo kiosco.
@@ -2652,7 +2653,7 @@ module.exports = async function handler(req, res) {
   // actualizar_seguimiento_paciente no revisaban sesión: cualquiera con un
   // recordId leía datos del expediente o le cambiaba el peso.
   // Devuelve { error:{status,mensaje} } o { auth, esDemo }.
-  async function puertaNutricion(requiereEscritura, endpoint) {
+  async function puertaMedicoPaciente(requiereEscritura, endpoint) {
     if (!sesion || sesion.tipo !== 'medico') return { error: { status: 401, mensaje: 'Sesión médica no válida o expirada. Inicia sesión de nuevo.' } };
     const acceso = await verificarAccesoClinicoMedico(sesion.codigo, process.env.AIRTABLE_TOKEN);
     if (acceso.errorInfra) return { error: { status: 502, mensaje: MENSAJE_ACCESO_NO_VERIFICABLE } };
@@ -2680,7 +2681,7 @@ module.exports = async function handler(req, res) {
       const { peso: pesoReq, talla: tallaReq, edad: edadReq, sexo: sexoReq, factorActividad, objetivo, preferencias, dias, objetivosSemana, tipoDieta, planNutricional, ayunoIntermitente } = req.body;
       // Lectura basta para GENERAR (así un demo sirve para demostrar); el plan
       // solo se GUARDA si el médico tiene escritura y el paciente no es demo.
-      const puerta = await puertaNutricion(false, 'generar_plan_semanal');
+      const puerta = await puertaMedicoPaciente(false, 'generar_plan_semanal');
       if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
       const puedeGuardar = !puerta.esDemo && puerta.auth.escritura === true;
       const pacienteRecordId = puerta.auth.recId;
@@ -3083,7 +3084,7 @@ module.exports = async function handler(req, res) {
       if (!/^rec[A-Za-z0-9]{14}$/.test(planId)) return res.status(400).json({ error: 'Plan no válido.' });
       if (!textoPlan) return res.status(400).json({ error: 'El plan está vacío.' });
       if (textoPlan.length > 20000) return res.status(400).json({ error: 'El plan es demasiado largo.' });
-      const puerta = await puertaNutricion(true, 'medico_publicar_plan');
+      const puerta = await puertaMedicoPaciente(true, 'medico_publicar_plan');
       if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
       if (puerta.esDemo) return res.status(403).json({ error: 'Los pacientes demo son de solo lectura.' });
 
@@ -3159,6 +3160,204 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── MEDICAMENTOS (MVP-2) ────────────────────────────────────────
+  // La receta es el ÚNICO acto que crea medicamentos (decisión de Víctor,
+  // 2026-10-04). Lógica y tablas en lib/medicamentos.js.
+
+  // Emite la receta: guarda cabecera + medicamentos y solo entonces el portal
+  // imprime. Escritura sobre el paciente; nunca para un paciente demo (una
+  // receta con cédula sobre un paciente ficticio es un problema regulatorio,
+  // CLAUDE.md §5).
+  if (action === 'medico_emitir_receta') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica no válida o expirada. Inicia sesión de nuevo.' });
+      const lista = Array.isArray(req.body.medicamentos) ? req.body.medicamentos : [];
+      if (lista.length > meds.MAX_MEDICAMENTOS) return res.status(400).json({ error: `Máximo ${meds.MAX_MEDICAMENTOS} medicamentos por receta.` });
+      const validados = [];
+      for (let i = 0; i < lista.length; i++) {
+        const v = meds.validarMedicamento(lista[i], i);
+        if (v.error) return res.status(400).json({ error: v.error });
+        validados.push(v.med);
+      }
+      const texto = (k, max) => String(req.body[k] || '').trim().slice(0, max);
+      const datos = { diagnostico: texto('diagnostico', 300), indicaciones: texto('indicaciones', 3000), prescripcionAdicional: texto('prescripcionAdicional', 5000), proximaCita: texto('proximaCita', 120), observaciones: texto('observaciones', 1000) };
+      if (!validados.length && !datos.prescripcionAdicional) return res.status(400).json({ error: 'La receta está vacía: agrega al menos un medicamento o una prescripción.' });
+
+      const puerta = await puertaMedicoPaciente(true, 'medico_emitir_receta');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      if (puerta.esDemo) return res.status(403).json({ error: 'Paciente demo: no se emiten recetas (llevaría tu cédula sobre un paciente ficticio).' });
+
+      const r = await meds.emitirReceta({ codigoPaciente: puerta.auth.codigo, pacienteRecId: puerta.auth.recId, medicoCodigo: sesion.codigo, medicoRecId: puerta.auth.medicoRecId, datos, medicamentos: validados });
+      if (r.error) return res.status(r.error.status).json({ error: r.error.mensaje });
+      await registrarAccesoExpediente({ pacienteCode: puerta.auth.codigo, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Permitido', endpoint: 'medico_emitir_receta' });
+      return res.status(200).json({ ok: true, emitida: true, recetaId: r.recetaId, medicamentosGuardados: r.medicamentos.length, advertencia: r.advertencia || null });
+    } catch (err) {
+      console.error('[nova] medico_emitir_receta error:', err.message);
+      return res.status(500).json({ error: 'Error interno emitiendo la receta. Verifica antes de reintentar: pudo haberse guardado en parte.' });
+    }
+  }
+
+  // Suspende un medicamento. Solo quien lo recetó (y conserva escritura sobre
+  // el paciente). Nunca se borra.
+  if (action === 'medico_suspender_medicamento') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica no válida o expirada. Inicia sesión de nuevo.' });
+      const id = String(req.body.medicamentoId || '');
+      const motivo = String(req.body.motivo || '').trim().slice(0, 200);
+      if (!/^rec[A-Za-z0-9]{14}$/.test(id)) return res.status(400).json({ error: 'Medicamento no válido.' });
+      if (!motivo) return res.status(400).json({ error: 'Escribe el motivo de la suspensión.' });
+      const puerta = await puertaMedicoPaciente(true, 'medico_suspender_medicamento');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      let med;
+      try { med = await meds.leerMedicamento(id); } catch (e) { return res.status(502).json({ error: 'No se pudo leer el medicamento. Intenta de nuevo.' }); }
+      if (!med) return res.status(404).json({ error: 'No se encontró el medicamento.' });
+      // Mismo paciente que la puerta autorizó: un id de otro expediente se rechaza.
+      if (med.codigoPaciente !== puerta.auth.codigo) return res.status(403).json({ error: 'Ese medicamento no pertenece a este paciente.' });
+      if (med.medicoCodigo !== sesion.codigo) return res.status(403).json({ error: 'Solo el médico que lo recetó puede suspenderlo.' });
+      if (med.estado !== 'Activo') return res.status(409).json({ error: 'Ese medicamento ya no está activo.' });
+      if (!(await meds.suspenderMedicamento(id, motivo))) return res.status(502).json({ error: 'No se pudo suspender. Sigue activo en la app del paciente; intenta de nuevo.' });
+      await registrarAccesoExpediente({ pacienteCode: puerta.auth.codigo, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Permitido', endpoint: 'medico_suspender_medicamento' });
+      return res.status(200).json({ ok: true, suspendido: true });
+    } catch (err) {
+      console.error('[nova] medico_suspender_medicamento error:', err.message);
+      return res.status(500).json({ error: 'Error interno suspendiendo el medicamento.' });
+    }
+  }
+
+  // Lista para la app (paciente/demo: los suyos) y para el portal (médico
+  // autorizado, incluida demo en lectura): medicamentos, tomas de hoy,
+  // adherencia de 7 días, suplementos del paciente y la última receta.
+  if (action === 'medicamentos_listar') {
+    try {
+      if (!sesion) return res.status(401).json({ error: 'Sesión requerida.' });
+      let codigoPac, puerta = null;
+      if (sesion.tipo === 'paciente' || sesion.tipo === 'demo') codigoPac = sesion.codigo;
+      else if (sesion.tipo === 'medico') {
+        puerta = await puertaMedicoPaciente(false, 'medicamentos_listar');
+        if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+        codigoPac = puerta.auth.codigo;
+      } else return res.status(403).json({ error: 'No disponible.' });
+
+      const hoy = meds.hoyEnZona();
+      const dias = []; for (let i = meds.DIAS_ADHERENCIA; i >= 0; i--) dias.push(meds.sumarDias(hoy, -i));
+      let lista, tomas, suplementos, receta;
+      try {
+        [lista, tomas, suplementos, receta] = await Promise.all([meds.listarMedicamentos(codigoPac), meds.listarTomas(codigoPac, dias), meds.listarSuplementos(codigoPac), meds.ultimaReceta(codigoPac)]);
+      } catch (e) { return res.status(502).json({ error: 'No pudimos cargar los medicamentos. Intenta de nuevo.' }); }
+
+      // Nombres de los médicos (solo el nombre).
+      const ids = [...new Set(lista.map(m => m.medicoRecId).concat(receta ? [receta.medicoRecId] : []).filter(Boolean))];
+      const nombres = {};
+      if (ids.length) {
+        const f = `OR(${ids.map(i => `RECORD_ID()="${i}"`).join(',')})`;
+        const mRes = await fetch(`https://api.airtable.com/v0/${(process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA')}/tbl87DsuBMmb4DjFM?filterByFormula=${encodeURIComponent(f)}&fields%5B%5D=${encodeURIComponent('Nombre completo')}`, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
+        if (!mRes.ok) return res.status(502).json({ error: 'No pudimos cargar los medicamentos. Intenta de nuevo.' });
+        for (const r of (await mRes.json()).records || []) nombres[r.id] = (r.fields || {})['Nombre completo'] || null;
+      }
+
+      const adh = meds.adherencia(lista, tomas, hoy);
+      const hace30 = meds.sumarDias(hoy, -30);
+      const esMedico = sesion.tipo === 'medico';
+      const visibles = lista.filter(m => meds.vigente(m, hoy) || (m.suspendidoDia && m.suspendidoDia >= hace30) || (m.duracionDias && meds.sumarDias(m.inicio, m.duracionDias) >= hace30));
+      const salida = visibles.map(m => {
+        const esperadasHoy = meds.vigente(m, hoy) ? meds.tomasEsperadasEnDia(m, hoy) : 0;
+        const o = {
+          id: m.id, nombre: m.nombre, dosis: m.dosis, via: m.via, frecuencia: m.frecuencia, frecuenciaEtiqueta: m.frecuenciaEtiqueta,
+          duracionDias: m.duracionDias, inicio: m.inicio, indicaciones: m.indicaciones,
+          estado: meds.vigente(m, hoy) ? 'Activo' : (m.estado === 'Suspendido' ? 'Suspendido' : 'Terminado'),
+          motivoSuspension: m.motivoSuspension || null,
+          medico: nombres[m.medicoRecId] || null,
+          tomasHoy: { esperadas: esperadasHoy, marcadas: tomas.filter(t => t.medicamentoId === m.id && t.dia === hoy).map(t => t.numero) },
+          adherencia: adh.porMedicamento[m.id],
+        };
+        if (esMedico) o.puedeSuspender = o.estado === 'Activo' && m.medicoCodigo === sesion.codigo && puerta.auth.escritura === true;
+        return o;
+      });
+      return res.status(200).json({
+        ok: true, hoy, medicamentos: salida,
+        adherencia: { dias: adh.dias, esperadas: adh.esperadas, tomadas: adh.tomadas, porcentaje: adh.porcentaje },
+        suplementos,
+        ultimaReceta: receta ? { fecha: receta.fecha, diagnostico: receta.diagnostico, indicaciones: receta.indicaciones, prescripcionAdicional: receta.prescripcionAdicional, proximaCita: receta.proximaCita, medico: nombres[receta.medicoRecId] || null } : null,
+        soloLectura: sesion.tipo === 'demo',
+      });
+    } catch (err) {
+      console.error('[nova] medicamentos_listar error:', err.message);
+      return res.status(500).json({ error: 'Error interno cargando los medicamentos.' });
+    }
+  }
+
+  // El paciente marca (o corrige) una toma de HOY. Solo sesión de paciente
+  // real (demo es solo lectura); el medicamento debe ser suyo y tocar hoy.
+  if (action === 'paciente_marcar_toma') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(sesion && sesion.tipo === 'demo' ? 403 : 401).json({ error: sesion && sesion.tipo === 'demo' ? 'Modo demo: solo lectura.' : 'Sesión requerida.' });
+      const id = String(req.body.medicamentoId || '');
+      const numero = Number(req.body.numero);
+      const tomado = req.body.tomado !== false;
+      if (!/^rec[A-Za-z0-9]{14}$/.test(id) || !Number.isInteger(numero) || numero < 1) return res.status(400).json({ error: 'Toma no válida.' });
+      let med;
+      try { med = await meds.leerMedicamento(id); } catch (e) { return res.status(502).json({ error: 'No pudimos registrar la toma. Intenta de nuevo.' }); }
+      // El medicamento se lee por id; se confirma que sea de ESTE paciente.
+      if (!med || med.codigoPaciente !== sesion.codigo) return res.status(403).json({ error: 'No disponible.' });
+      const hoy = meds.hoyEnZona();
+      const esperadas = meds.vigente(med, hoy) ? meds.tomasEsperadasEnDia(med, hoy) : 0;
+      const esPrn = med.frecuencia === 'prn' && meds.vigente(med, hoy);
+      if (!esPrn && numero > esperadas) return res.status(409).json({ error: 'Esa toma no corresponde a hoy.' });
+      if (esPrn && numero > 12) return res.status(400).json({ error: 'Toma no válida.' });
+      try {
+        if (tomado) await meds.marcarToma({ codigoPaciente: sesion.codigo, medicamentoId: id, numero });
+        else await meds.desmarcarToma({ codigoPaciente: sesion.codigo, medicamentoId: id, numero });
+      } catch (e) { return res.status(502).json({ error: 'No pudimos registrar la toma. Intenta de nuevo.' }); }
+      return res.status(200).json({ ok: true, tomado, dia: hoy });
+    } catch (err) {
+      console.error('[nova] paciente_marcar_toma error:', err.message);
+      return res.status(500).json({ error: 'Error interno registrando la toma.' });
+    }
+  }
+
+  // El paciente registra un SUPLEMENTO. Un medicamento no se registra aquí:
+  // lo receta su médico. La distinción la hace el paciente al elegir el tipo
+  // (no se adivina por el texto, CLAUDE.md §6).
+  if (action === 'paciente_agregar_suplemento') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(sesion && sesion.tipo === 'demo' ? 403 : 401).json({ error: sesion && sesion.tipo === 'demo' ? 'Modo demo: solo lectura.' : 'Sesión requerida.' });
+      if (req.body.tipo !== 'suplemento') return res.status(422).json({ error: 'Los medicamentos los registra tu médico en tu receta. Pregúntale a tu médico por este medicamento.', preguntarMedico: true });
+      const nombre = String(req.body.nombre || '').trim();
+      const comoLoToma = String(req.body.comoLoToma || '').trim();
+      if (!nombre) return res.status(400).json({ error: 'Escribe el nombre del suplemento.' });
+      if (nombre.length > 120 || comoLoToma.length > 200) return res.status(400).json({ error: 'El texto es demasiado largo.' });
+      let actuales;
+      try { actuales = await meds.listarSuplementos(sesion.codigo); } catch (e) { return res.status(502).json({ error: 'No pudimos guardar el suplemento. Intenta de nuevo.' }); }
+      if (actuales.length >= 30) return res.status(400).json({ error: 'Tienes 30 suplementos registrados; da de baja alguno antes de agregar otro.' });
+      let s;
+      try { s = await meds.agregarSuplemento({ codigoPaciente: sesion.codigo, nombre, comoLoToma }); } catch (e) { return res.status(502).json({ error: 'No pudimos guardar el suplemento. Intenta de nuevo.' }); }
+      return res.status(200).json({ ok: true, suplemento: s });
+    } catch (err) {
+      console.error('[nova] paciente_agregar_suplemento error:', err.message);
+      return res.status(500).json({ error: 'Error interno guardando el suplemento.' });
+    }
+  }
+
+  if (action === 'paciente_baja_suplemento') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(sesion && sesion.tipo === 'demo' ? 403 : 401).json({ error: sesion && sesion.tipo === 'demo' ? 'Modo demo: solo lectura.' : 'Sesión requerida.' });
+      const id = String(req.body.suplementoId || '');
+      if (!/^rec[A-Za-z0-9]{14}$/.test(id)) return res.status(400).json({ error: 'Suplemento no válido.' });
+      let r;
+      try { r = await meds.bajaSuplemento({ codigoPaciente: sesion.codigo, id }); } catch (e) { return res.status(502).json({ error: 'No pudimos darlo de baja. Intenta de nuevo.' }); }
+      if (r.error) return res.status(r.error.status).json({ error: r.error.mensaje });
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('[nova] paciente_baja_suplemento error:', err.message);
+      return res.status(500).json({ error: 'Error interno.' });
+    }
+  }
+
   // ─── SEGUIMIENTO: ACTUALIZAR PESO Y REGENERAR ────────────────────
   // "Ciclo de ajuste semanal" — registra el nuevo peso en el historial y
   // deja el expediente listo para que el siguiente generar_plan_semanal
@@ -3170,7 +3369,7 @@ module.exports = async function handler(req, res) {
     try {
       const { pesoNuevo, nota } = req.body;
       if (!pesoNuevo) return res.status(400).json({ error: 'Falta pesoNuevo.' });
-      const puerta = await puertaNutricion(true, 'actualizar_seguimiento_paciente');
+      const puerta = await puertaMedicoPaciente(true, 'actualizar_seguimiento_paciente');
       if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
       const pacienteRecordId = puerta.auth.recId;
 
