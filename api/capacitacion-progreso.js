@@ -31,6 +31,9 @@ async function buscarRegistro(codigoMedico, modulo) {
   const formula = `AND({Médico}="${codigoMedico.replace(/"/g, '\\"')}", {Módulo}="${modulo.replace(/"/g, '\\"')}")`;
   const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}&maxRecords=1`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  // Un fallo no es "sin registro previo": antes se creaba un registro
+  // duplicado del mismo módulo (M4). Se lanza y el handler responde 502.
+  if (!r.ok) throw Object.assign(new Error(`Airtable respondió ${r.status}`), { status: 502 });
   const data = await r.json();
   return (data.records && data.records[0]) || null;
 }
@@ -56,6 +59,9 @@ module.exports = async (req, res) => {
       const formula = `{Médico}="${codigoMedico.replace(/"/g, '\\"')}"`;
       const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?filterByFormula=${encodeURIComponent(formula)}`;
       const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      // Un fallo no es "progreso en cero" (M3): el médico vería perdidos sus
+      // módulos aprobados.
+      if (!r.ok) return res.status(502).json({ ok: false, error: 'No pudimos leer tu progreso en este momento. No se perdió nada: intenta de nuevo.' });
       const data = await r.json();
       const progreso = (data.records || []).map(rec => ({
         modulo: rec.fields['Módulo'] || null,

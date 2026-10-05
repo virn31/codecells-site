@@ -2,7 +2,12 @@
 // Google redirige aquí después de que el médico autoriza el acceso a su
 // Google Calendar. Intercambiamos el "code" por tokens, identificamos qué
 // cuenta de Google conectó, y guardamos su refresh_token en su registro de
-// MÉDICOS (identificado por el "state", que es su código CCMED-).
+// MÉDICOS. El "state" es un token firmado de 15 min (tipo 'google_oauth')
+// que el portal pide a api/nova.js (medico_google_oauth_state) con la sesión
+// del médico — nunca el código CCMED- en texto plano (cualquiera podía
+// enlazar su calendario al registro de otro médico).
+
+const { verificarToken } = require('../lib/auth');
 
 const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
@@ -41,6 +46,14 @@ module.exports = async (req, res) => {
     return res.status(200).send(paginaResultado(false, 'Faltan datos en la respuesta de Google. Intenta de nuevo desde el Portal.'));
   }
 
+  // Se verifica ANTES de canjear el code: sin state válido no se guarda nada.
+  const stateVerificado = verificarToken(state);
+  if (!stateVerificado || stateVerificado.tipo !== 'google_oauth' || !/^CCMED-[A-Z0-9]{4,8}$/.test(stateVerificado.codigo || '')) {
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(200).send(paginaResultado(false, 'El enlace de conexión no es válido o ya venció (dura 15 minutos). Vuelve a intentarlo desde el Portal Médico.'));
+  }
+  const codigoMedico = stateVerificado.codigo;
+
   try {
     // Intercambiar el code por tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -73,12 +86,18 @@ module.exports = async (req, res) => {
     });
     const userInfo = await userInfoRes.json();
 
-    // Guardar en el registro del médico (state = su código CCMED-)
-    const formula = encodeURIComponent(`{Código de médico} = "${state}"`);
+    // Guardar en el registro del médico del state firmado.
+    const formula = encodeURIComponent(`{Código de médico} = "${codigoMedico}"`);
     const buscarRes = await fetch(
-      `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${MEDICOS_TABLE_ID}?filterByFormula=${formula}`,
+      `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${MEDICOS_TABLE_ID}?filterByFormula=${formula}&maxRecords=1`,
       { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
     );
+    // Un fallo de Airtable no es "no encontramos tu registro" (M10).
+    if (!buscarRes.ok) {
+      console.error('[google-oauth-callback] Airtable respondió', buscarRes.status, 'al buscar al médico');
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(paginaResultado(false, 'No pudimos guardar la conexión por un problema temporal. Intenta de nuevo en unos minutos desde el Portal.'));
+    }
     const buscarData = await buscarRes.json();
     const medico = buscarData.records && buscarData.records[0];
 
@@ -87,7 +106,7 @@ module.exports = async (req, res) => {
       return res.status(200).send(paginaResultado(false, 'No encontramos tu registro de médico. Contacta al equipo.'));
     }
 
-    await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${MEDICOS_TABLE_ID}/${medico.id}`, {
+    const guardarRes = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${MEDICOS_TABLE_ID}/${medico.id}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -97,6 +116,13 @@ module.exports = async (req, res) => {
         },
       }),
     });
+
+    // "Conectado" solo si de verdad quedó guardado.
+    if (!guardarRes.ok) {
+      console.error('[google-oauth-callback] Airtable respondió', guardarRes.status, 'al guardar el token');
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(paginaResultado(false, 'Google autorizó la conexión, pero no pudimos guardarla. Intenta de nuevo en unos minutos desde el Portal.'));
+    }
 
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(paginaResultado(true, `Tu Google Calendar (${userInfo.email || ''}) ya está conectado. Tus citas confirmadas se agregarán ahí automáticamente.`));

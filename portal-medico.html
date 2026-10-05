@@ -7586,7 +7586,7 @@ function cerrarNova() {
 
 document.getElementById('btn-nova-open').addEventListener('click', abrirNova);
 
-document.getElementById('btn-google-calendar').addEventListener('click', () => {
+document.getElementById('btn-google-calendar').addEventListener('click', async () => {
   if (!medicoActual || medicoActual.id === 'demo') {
     showToast('El modo demo no puede conectar Google Calendar.', 'error');
     return;
@@ -7597,7 +7597,22 @@ document.getElementById('btn-google-calendar').addEventListener('click', () => {
   }
   const GOOGLE_CLIENT_ID = '741625233877-n4i5n224o0mq7h2ao7cbnru470co7m9b.apps.googleusercontent.com';
   const redirectUri = 'https://www.codecells.mx/api/google-oauth-callback';
-  const codigoMedico = medicoActual['Código de médico'] || medicoActual['codigo'];
+  // El state lo firma el servidor con tu sesión (15 min): ya no es tu código
+  // CCMED- en texto plano, que permitía enlazar un calendario ajeno a tu cuenta.
+  let state;
+  try {
+    const r = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_google_oauth_state' }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok || !d.state) throw new Error(d.error || 'sin state');
+    state = d.state;
+  } catch (err) {
+    showToast('No se pudo iniciar la conexión con Google. Vuelve a iniciar sesión e intenta de nuevo.', 'error');
+    return;
+  }
   const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: redirectUri,
@@ -7605,7 +7620,7 @@ document.getElementById('btn-google-calendar').addEventListener('click', () => {
     scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email',
     access_type: 'offline',
     prompt: 'consent',
-    state: codigoMedico,
+    state,
   }).toString();
   window.location.href = authUrl;
 });

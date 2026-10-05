@@ -41,7 +41,9 @@ async function airtableFetch(tabla, opts = {}, extra = '') {
 
 async function buscarMedicoPorCodigo(codigo) {
   const formula = encodeURIComponent(`{Código de médico}="${codigo}"`);
-  const { data } = await airtableFetch(TBL_MEDICOS_ID, {}, `?filterByFormula=${formula}`);
+  const { ok, data } = await airtableFetch(TBL_MEDICOS_ID, {}, `?filterByFormula=${formula}`);
+  // Un fallo no es "no tiene Telegram Chat ID configurado" (M14).
+  if (!ok) throw new Error(`Airtable no respondió al buscar ${codigo}`);
   return data.records && data.records.length > 0 ? data.records[0] : null;
 }
 
@@ -106,7 +108,10 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Código de invitación inválido.' });
       }
       const formula = encodeURIComponent(`{Código invitación}="${inviteCode}"`);
-      const { data } = await airtableFetch(TBL_TEMP, {}, `?filterByFormula=${formula}&maxRecords=1`);
+      const { ok: okInv, data } = await airtableFetch(TBL_TEMP, {}, `?filterByFormula=${formula}&maxRecords=1`);
+      // Un fallo de Airtable no es "invitación no disponible" (M2): el 403
+      // uniforme es para códigos inexistentes, no para fallos temporales.
+      if (!okInv) return res.status(503).json({ error: 'No pudimos verificar tu invitación en este momento. Intenta de nuevo en unos minutos.' });
       origenInvitacion = data.records && data.records[0] ? data.records[0] : null;
       // 403 uniforme, nunca 404: mismo principio que lib/autorizacion.js —
       // un código de invitación inexistente no debe ser distinguible por

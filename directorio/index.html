@@ -640,6 +640,9 @@
 
     let TOKEN_VISITANTE = sessionStorage.getItem('cc_visitante') || null;
     let CONTACTOS = {};
+    // true si el servidor no pudo leer los teléfonos: la tarjeta lo dice en
+    // vez de quedarse en blanco (un fallo no es "sin teléfono").
+    let CONTACTOS_ERROR = false;
     let medicoSolicitado = null;
 
     async function cargarContactos() {
@@ -654,8 +657,10 @@
           return;
         }
         const data = await r.json();
+        CONTACTOS_ERROR = !r.ok;
         CONTACTOS = data.contactos || {};
       } catch (err) {
+        CONTACTOS_ERROR = true;
         console.error('Error cargando contactos:', err);
       }
     }
@@ -820,7 +825,7 @@
             <div class="medico-contacto">
               ${horarios ? `<div class="medico-horarios">🕐 ${horarios}</div>` : ''}
               ${tel ? `<div class="medico-tel">📞 ${escaparHtml(tel)}</div>` : ''}
-              ${(!tel && TOKEN_VISITANTE) ? '' : ''}
+              ${(!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) ? `<div class="medico-tel-lock">No pudimos cargar el teléfono. Recarga la página en unos segundos.</div>` : ''}
               ${wa && TOKEN_VISITANTE ? `<a class="medico-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">Contactar por WhatsApp →</a>` : ''}
               ${!TOKEN_VISITANTE ? `<div class="medico-tel-lock">Deja tus datos para ver los contactos</div>` : ''}
               <button class="btn-contacto" onclick="abrirModal('${m.id}', '${nombre.replace(/'/g, "\\'")}')">Solicitar contacto</button>

@@ -35,7 +35,7 @@ const usoNova = require('../lib/usoNova');
 // solo validaban el FORMATO de medicoCode/pacienteCode (regex), nunca que
 // la sesión fuera real. Un CCMED-XXXX inventado, sin médico detrás, bastaba
 // para obtener herramientas completas de médico.
-const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
+const { verificarToken, tokenDesdeRequest, generarToken } = require('../lib/auth');
 
 // Capa 1 de constancia de acceso a expedientes — solo observa, no decide
 // ningún acceso (ver lib/accesosExpediente.js para el modelo completo).
@@ -1441,6 +1441,17 @@ module.exports = async function handler(req, res) {
   // Se llama al guardar una consulta con "Próxima cita" capturada. Si el
   // médico no ha conectado su Google Calendar, responde ok:false sin generar
   // error — es una comodidad opcional, nunca bloquea el flujo de la consulta.
+  // `state` firmado para conectar Google Calendar. Antes el state era el
+  // código CCMED- en texto plano y el callback lo aceptaba sin más: cualquiera
+  // podía enlazar SU calendario al registro de otro médico y recibir ahí los
+  // eventos de consulta (nombre del paciente + motivo). Ahora solo el médico
+  // de la sesión obtiene un state, válido 15 minutos, que no sirve como
+  // sesión en ningún endpoint (tipo 'google_oauth').
+  if (action === 'medico_google_oauth_state') {
+    if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ ok: false, error: 'Sesión médica requerida.' });
+    return res.status(200).json({ ok: true, state: generarToken({ tipo: 'google_oauth', codigo: sesion.codigo, horas: 0.25 }) });
+  }
+
   if (action === 'medico_crear_evento_calendario') {
     // CONGELAMIENTO 2026-08-24 (instrucción legal): escribe nombre del
     // paciente + motivo en Google Calendar. Ver lib/congelamientoDatosPersonales.js.
@@ -1471,6 +1482,8 @@ module.exports = async function handler(req, res) {
       const TBL_MEDICOS = 'tbl87DsuBMmb4DjFM';
 
       const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MEDICOS}?filterByFormula=${encodeURIComponent(`{Código de médico}="${medicoCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      // Un fallo de lectura no es "calendario no conectado".
+      if (!medRes.ok) return res.status(502).json({ ok: false, error: "No se pudo leer tu configuración de Google Calendar. La cita no se agregó al calendario." });
       const medData = await medRes.json();
       const medico = medData.records?.[0];
       const refreshToken = medico?.fields?.['Google Calendar Refresh Token'];
@@ -4654,10 +4667,11 @@ module.exports = async function handler(req, res) {
 
           const fechaHoy = new Date().toISOString().slice(0, 10);
           const formula = `{Fecha}="${fechaHoy}"`;
-          const listUrl = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_NOVA_CONVERSACIONES}?filterByFormula=${encodeURIComponent(formula)}`;
-          const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-          const listData = await listRes.json();
-          const existente = (listData.records || []).find(r => (r.fields?.['Médico'] || []).includes(medicoRecordId));
+          // Todas las páginas y error ruidoso: antes un fallo (o más de 100
+          // conversaciones en el día) creaba un registro nuevo y partía la
+          // conversación del día en dos.
+          const conversacionesHoy = await leerTodoAirtable(TBL_NOVA_CONVERSACIONES, { filterByFormula: formula });
+          const existente = conversacionesHoy.find(r => (r.fields?.['Médico'] || []).includes(medicoRecordId));
 
           const ultimoMensajeMedico = messages[messages.length - 1]?.content || '';
           const linea = `Médico: ${ultimoMensajeMedico}\nNOVA: ${bloqueTexto.text}\n---\n`;
@@ -5349,10 +5363,9 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
     try {
       const fechaHoy = new Date().toISOString().slice(0, 10);
       const formula = `{Fecha}="${fechaHoy}"`;
-      const listUrl = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_NOVA_CONVERSACIONES}?filterByFormula=${encodeURIComponent(formula)}`;
-      const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const listData = await listRes.json();
-      const existente = (listData.records || []).find(r => (r.fields?.Paciente || []).includes(pacRecordId));
+      // Todas las páginas y error ruidoso (mismo motivo que el log del médico).
+      const conversacionesHoy = await leerTodoAirtable(TBL_NOVA_CONVERSACIONES, { filterByFormula: formula });
+      const existente = conversacionesHoy.find(r => (r.fields?.Paciente || []).includes(pacRecordId));
 
       const linea = `Paciente: ${ultimoMensajePaciente}\nNOVA: ${accion.reply}\n---\n`;
 
