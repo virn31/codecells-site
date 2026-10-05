@@ -1477,6 +1477,59 @@ module.exports = async function handler(req, res) {
   // eventos de consulta (nombre del paciente + motivo). Ahora solo el médico
   // de la sesión obtiene un state, válido 15 minutos, que no sirve como
   // sesión en ningún endpoint (tipo 'google_oauth').
+  // Motor de dictado (Fase 1 de la SPEC de dictado bidireccional): recibe
+  // texto (transcrito por el navegador o tecleado) y devuelve los campos
+  // verificados contra lo dictado. NO guarda nada. Mismas reglas de acceso
+  // que escribir en el expediente: el médico revisará y guardará.
+  if (action === 'medico_dictado') {
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ ok: false, error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_dictado', accion: 'Escritura' })) return;
+      const pacienteCode = String(req.body.pacienteCode || '');
+      const texto = typeof req.body.texto === 'string' ? req.body.texto.trim() : '';
+      if (!texto) return res.status(400).json({ ok: false, error: 'No llegó texto dictado.' });
+      if (texto.length > MAX_TEXTO_DICTADO) return res.status(400).json({ ok: false, error: `El dictado es muy largo (máximo ${MAX_TEXTO_DICTADO} caracteres). Divídelo en partes.` });
+      const origen = req.body.origen === 'telegram' ? 'telegram' : 'portal';
+      const metodo = req.body.metodo === 'voz' ? 'voz' : 'texto';
+      try {
+        await autorizarPaciente(sesion.codigo, pacienteCode, { requiereEscritura: true });
+      } catch (errAuth) {
+        if (errAuth instanceof ErrorAutorizacion) {
+          await registrarAccesoExpediente({ pacienteCode, codigoMedico: sesion.codigo, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'medico_dictado' });
+          return res.status(errAuth.status).json({ ok: false, error: errAuth.message });
+        }
+        return res.status(errAuth.status || 502).json({ ok: false, error: 'No se pudo verificar el acceso al paciente.' });
+      }
+
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-5',
+          max_tokens: 4000,
+          system: PROMPT_DICTADO,
+          tools: [buildHerramientaEstructurarDictado()],
+          tool_choice: { type: 'tool', name: 'estructurar_dictado' },
+          messages: [{ role: 'user', content: `Transcripción del dictado:\n<dictado>\n${texto}\n</dictado>` }],
+        }),
+      });
+      if (!r.ok) {
+        console.error('[nova] medico_dictado Anthropic:', r.status, (await r.text()).slice(0, 300));
+        return res.status(502).json({ ok: false, error: 'NOVA no pudo procesar el dictado en este momento. Tu texto no se perdió: intenta de nuevo.' });
+      }
+      const data = await r.json();
+      const tool = Array.isArray(data.content) ? data.content.find(b => b && b.type === 'tool_use' && b.name === 'estructurar_dictado') : null;
+      if (!tool || data.stop_reason === 'max_tokens') {
+        return res.status(502).json({ ok: false, error: 'NOVA no terminó de procesar el dictado. Intenta con un fragmento más corto.' });
+      }
+      const resultado = procesarDictado(texto, tool.input.campos, tool.input.sin_ubicar);
+      return res.status(200).json({ ok: true, origen, metodo, transcripcion: texto, ...resultado });
+    } catch (err) {
+      console.error('[nova] medico_dictado error:', err.message);
+      return res.status(500).json({ ok: false, error: 'Error interno procesando el dictado. Tu texto no se perdió: intenta de nuevo.' });
+    }
+  }
+
   if (action === 'medico_google_oauth_state') {
     if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ ok: false, error: 'Sesión médica requerida.' });
     return res.status(200).json({ ok: true, state: generarToken({ tipo: 'google_oauth', codigo: sesion.codigo, horas: 0.25 }) });
@@ -5160,6 +5213,9 @@ module.exports.buildHerramientaFichaConsulta = buildHerramientaFichaConsulta;
 module.exports.compararNombres = compararNombres;
 module.exports.buscarPosiblesDuplicados = buscarPosiblesDuplicados;
 module.exports.normalizarAnalitoLab = normalizarAnalitoLab;
+module.exports.procesarDictado = procesarDictado;
+module.exports.normalizarDictado = normalizarDictado;
+module.exports.numerosEnPalabras = numerosEnPalabras;
 module.exports.isAllowedOrigin = isAllowedOrigin;
 module.exports.buildSystemPrompt = buildSystemPrompt;
 module.exports.buildHerramientaPaciente = buildHerramientaPaciente;
@@ -5322,6 +5378,219 @@ function buildHerramientaAltaPaciente() {
 function normalizarAnalitoLab(t) {
   return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// ─── MOTOR DE DICTADO (SPEC-NOVA-DICTACION-BIDIRECCIONAL, Fase 1) ───
+// NOVA transcribe y estructura, nunca redacta (CLAUDE.md §7). Por cada campo
+// que coloca devuelve la CITA exacta del dictado; el servidor verifica que la
+// cita exista en la transcripción. Campos de texto: el valor ES la cita
+// literal (NOVA solo decide en qué campo va cada fragmento). Números: la cita
+// debe contener el número. Lo que no se verifica se DESCARTA y se le muestra
+// al médico. Nada se guarda aquí: el médico revisa y guarda (portal) o
+// confirma (Telegram). Mismos nombres de campo que rellenar_ficha_consulta,
+// para reutilizar el llenado del formulario.
+const CAMPOS_DICTADO = Object.freeze({
+  peso:                  { tipo: 'numero', rango: [1, 400], etiqueta: 'Peso (kg)' },
+  talla:                 { tipo: 'numero', rango: [30, 250], etiqueta: 'Talla (cm)' },
+  presion:               { tipo: 'presion', etiqueta: 'Presión arterial' },
+  temperatura:           { tipo: 'numero', rango: [33, 43], etiqueta: 'Temperatura (°C)' },
+  frecuencia_cardiaca:   { tipo: 'numero', rango: [30, 220], etiqueta: 'Frecuencia cardiaca' },
+  frecuencia_respiratoria: { tipo: 'numero', rango: [6, 60], etiqueta: 'Frecuencia respiratoria' },
+  saturacion_oxigeno:    { tipo: 'numero', rango: [50, 100], etiqueta: 'Saturación de oxígeno' },
+  circunferencia_cintura: { tipo: 'numero', rango: [30, 250], etiqueta: 'Circunferencia de cintura (cm)' },
+  motivo_consulta:       { tipo: 'texto', etiqueta: 'Motivo de consulta' },
+  exploracion_fisica:    { tipo: 'texto', etiqueta: 'Exploración física' },
+  diagnostico:           { tipo: 'texto', etiqueta: 'Diagnóstico' },
+  plan_terapeutico:      { tipo: 'texto', etiqueta: 'Plan terapéutico' },
+  antecedentes_heredofamiliares: { tipo: 'texto', etiqueta: 'Antecedentes heredofamiliares' },
+  antecedentes_personales_patologicos: { tipo: 'texto', etiqueta: 'Antecedentes personales patológicos' },
+  antecedentes_quirurgicos: { tipo: 'texto', etiqueta: 'Antecedentes quirúrgicos' },
+  antecedentes_ginecoobstetricos: { tipo: 'texto', etiqueta: 'Antecedentes ginecoobstétricos' },
+  medicamentos_actuales: { tipo: 'texto', etiqueta: 'Medicamentos actuales' },
+  alergias:              { tipo: 'texto', etiqueta: 'Alergias' },
+  habitos_estilo_vida:   { tipo: 'texto', etiqueta: 'Hábitos y estilo de vida' },
+  estado_civil:          { tipo: 'texto', etiqueta: 'Estado civil' },
+  ocupacion:             { tipo: 'texto', etiqueta: 'Ocupación' },
+});
+const SIGNOS_BASICOS_DICTADO = ['presion', 'frecuencia_cardiaca', 'temperatura', 'saturacion_oxigeno', 'peso', 'talla'];
+const MAX_TEXTO_DICTADO = 8000;
+
+// Minúsculas, sin acentos, puntuación → espacio, espacios colapsados. Se
+// conserva el punto decimal entre dígitos ("37.2").
+function normalizarDictado(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/(\d)[.,](\d)/g, '$1#$2')
+    .replace(/[^a-z0-9#ñ/ ]+/g, ' ')
+    .replace(/#/g, '.')
+    .replace(/\s+/g, ' ').trim();
+}
+
+// Números en palabras (español) → cifras, de forma DETERMINISTA y solo para
+// verificar la cita: el reconocimiento de voz a veces entrega "noventa y dos"
+// en vez de "92". No es inferencia: si NOVA dice 92 y la cita dice "noventa y
+// dos", se acepta; si dice 90, se descarta. Cubre 0–999 y decimales con
+// "punto" ("treinta y siete punto dos" → 37.2).
+const NUM_UNIDADES = { cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
+const NUM_ESPECIALES = {
+  diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
+  veinte: 20, veintiuno: 21, veintiun: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
+  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
+};
+const NUM_DECENAS = { treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90 };
+const NUM_CENTENAS = { cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400,
+  cuatrocientas: 400, quinientos: 500, quinientas: 500, seiscientos: 600, setecientos: 700, ochocientos: 800, novecientos: 900 };
+
+function claseNumero(w) {
+  if (w in NUM_CENTENAS) return [3, NUM_CENTENAS[w]];
+  if (w in NUM_DECENAS) return [2, NUM_DECENAS[w]];
+  if (w in NUM_ESPECIALES) return [2, NUM_ESPECIALES[w]]; // 10–29 ocupan decena + unidad
+  if (w in NUM_UNIDADES) return [1, NUM_UNIDADES[w]];
+  return null;
+}
+
+function numerosEnPalabras(textoNorm) {
+  const palabras = textoNorm.split(' ');
+  const enteros = []; // [{valor, fin}] — fin = índice de la última palabra
+  let actual = null; let ultimaClase = 9; let decenaSinUnidad = false;
+  const cerrar = (i) => { if (actual !== null) enteros.push({ valor: actual, fin: i }); actual = null; ultimaClase = 9; decenaSinUnidad = false; };
+  for (let i = 0; i < palabras.length; i++) {
+    const w = palabras[i];
+    if (w === 'y' && actual !== null && decenaSinUnidad) continue;
+    const c = claseNumero(w);
+    if (!c) { cerrar(i - 1); continue; }
+    const [clase, valor] = c;
+    // Una unidad tras una decena exacta (con o sin "y") se suma: "noventa y dos".
+    const suma = actual !== null && (clase < ultimaClase || (clase === 1 && decenaSinUnidad));
+    if (!suma) cerrar(i - 1);
+    actual = (actual || 0) + valor;
+    decenaSinUnidad = clase === 2 && valor % 10 === 0 && valor >= 30;
+    ultimaClase = clase === 2 && !decenaSinUnidad ? 1.5 : clase;
+  }
+  cerrar(palabras.length - 1);
+  // Decimales: "<entero> punto <entero>" → "37.2"
+  const out = [];
+  for (let k = 0; k < enteros.length; k++) {
+    const a = enteros[k]; const b = enteros[k + 1];
+    if (b && palabras[a.fin + 1] === 'punto' && b.fin > a.fin + 1) { out.push(Number(`${a.valor}.${b.valor}`)); k++; }
+    else out.push(a.valor);
+  }
+  return out;
+}
+
+// Números de la cita: en cifras ("37.2", "37 punto 2", "120/80") y en palabras.
+function numerosDeCita(cita) {
+  const n = normalizarDictado(cita).replace(/(\d+) punto (\d+)/g, '$1.$2');
+  return [...(n.match(/\d+(?:\.\d+)?/g) || []).map(Number), ...numerosEnPalabras(n.replace(/\//g, ' '))];
+}
+
+// Encabezados que el médico dice en voz alta ("Diagnóstico: …"). Se quita
+// solo el encabezado inicial del propio campo; el contenido queda literal.
+const ENCABEZADOS_DICTADO = {
+  motivo_consulta: ['motivo de consulta', 'motivo'],
+  exploracion_fisica: ['exploracion fisica', 'exploracion', 'ef'],
+  diagnostico: ['diagnostico', 'dx', 'impresion diagnostica'],
+  plan_terapeutico: ['plan terapeutico', 'plan', 'tratamiento'],
+  alergias: ['alergias'],
+  medicamentos_actuales: ['medicamentos actuales', 'medicamentos'],
+};
+function quitarEncabezado(campo, texto) {
+  const t = String(texto).trim();
+  for (const e of (ENCABEZADOS_DICTADO[campo] || [])) {
+    const m = t.match(/^([^:]{1,40}):\s*(.+)$/s);
+    if (m && normalizarDictado(m[1]) === e) return m[2].trim();
+  }
+  return t;
+}
+
+// Verifica UN campo propuesto contra la transcripción. Devuelve
+// { ok: true, valor, aviso? } o { ok: false, motivo }.
+function verificarCampoDictado(campo, valor, cita, transcripcionNorm) {
+  const def = CAMPOS_DICTADO[campo];
+  if (!def) return { ok: false, motivo: 'campo desconocido' };
+  const citaNorm = normalizarDictado(cita);
+  if (citaNorm.length < 2 || !transcripcionNorm.includes(citaNorm)) {
+    return { ok: false, motivo: 'la cita no aparece en lo que dictaste' };
+  }
+  if (def.tipo === 'texto') return { ok: true, valor: quitarEncabezado(campo, cita) };
+  const nums = numerosDeCita(cita);
+  if (def.tipo === 'presion') {
+    const m = String(valor || '').match(/^\s*(\d{2,3})\s*\/\s*(\d{2,3})\s*$/);
+    if (!m) return { ok: false, motivo: 'formato de presión no válido' };
+    const sis = Number(m[1]); const dia = Number(m[2]);
+    if (!nums.includes(sis) || !nums.includes(dia)) return { ok: false, motivo: 'las cifras no aparecen en la cita' };
+    const fuera = sis < 60 || sis > 260 || dia < 30 || dia > 160 || dia >= sis;
+    return { ok: true, valor: `${sis}/${dia}`, ...(fuera ? { aviso: 'fuera de rango plausible — revisa' } : {}) };
+  }
+  const v = Number(valor);
+  if (!Number.isFinite(v)) return { ok: false, motivo: 'no es un número' };
+  if (!nums.includes(v)) return { ok: false, motivo: 'el número no aparece en la cita' };
+  const fuera = v < def.rango[0] || v > def.rango[1];
+  return { ok: true, valor: v, ...(fuera ? { aviso: 'fuera de rango plausible — revisa' } : {}) };
+}
+
+// Aplica la verificación a la salida del modelo. Texto repetido en un mismo
+// campo se une con ". "; un número repetido con valores distintos es
+// conflicto y se descarta (el médico lo dicta de nuevo).
+function procesarDictado(transcripcion, propuestos, sinUbicar) {
+  const tNorm = normalizarDictado(transcripcion);
+  const campos = {};
+  const detalle = [];
+  const descartados = [];
+  for (const p of (Array.isArray(propuestos) ? propuestos : [])) {
+    if (!p || typeof p.campo !== 'string') continue;
+    const r = verificarCampoDictado(p.campo, p.valor, p.cita, tNorm);
+    if (!r.ok) { descartados.push({ campo: p.campo, valor: p.valor ?? null, cita: p.cita ?? null, motivo: r.motivo }); continue; }
+    const def = CAMPOS_DICTADO[p.campo];
+    if (campos[p.campo] !== undefined) {
+      if (def.tipo === 'texto') { if (!String(campos[p.campo]).includes(r.valor)) campos[p.campo] = `${campos[p.campo]}. ${r.valor}`; }
+      else if (campos[p.campo] !== r.valor) {
+        descartados.push({ campo: p.campo, valor: r.valor, cita: p.cita, motivo: `dictaste dos valores distintos (${campos[p.campo]} y ${r.valor})` });
+        delete campos[p.campo];
+        for (let i = detalle.length - 1; i >= 0; i--) if (detalle[i].campo === p.campo) detalle.splice(i, 1);
+        continue;
+      }
+    } else campos[p.campo] = r.valor;
+    detalle.push({ campo: p.campo, etiqueta: def.etiqueta, valor: r.valor, cita: String(p.cita).trim(), ...(r.aviso ? { aviso: r.aviso } : {}) });
+  }
+  const sinUbicarVerificado = (Array.isArray(sinUbicar) ? sinUbicar : [])
+    .map(x => String(x || '').trim()).filter(x => x && tNorm.includes(normalizarDictado(x)));
+  const faltantes = SIGNOS_BASICOS_DICTADO.filter(c => campos[c] === undefined).map(c => CAMPOS_DICTADO[c].etiqueta);
+  return { campos, detalle, descartados, sinUbicar: sinUbicarVerificado, faltantes };
+}
+
+const PROMPT_DICTADO = `Eres el transcriptor clínico de NOVA. Recibes lo que un médico dictó durante o después de una consulta y lo ACOMODAS en los campos de la ficha. Reglas que no se negocian:
+- No redactas, no resumes, no corriges, no completas. Solo decides en qué campo va cada fragmento de lo que el médico dijo.
+- Para cada campo devuelves "cita": el fragmento EXACTO, copiado palabra por palabra de la transcripción, de donde sale ese dato. Si no puedes señalar una cita exacta, NO llenes ese campo.
+- Nunca agregues negativos clínicos ("niega alergias", "sin antecedentes") que no se dijeron, ni unidades, ni fechas, ni códigos CIE-10, ni dosis, ni diagnósticos que el médico no dijo.
+- Antecedentes heredofamiliares (padres, hermanos, familia) nunca van en antecedentes personales.
+- Para números (peso, talla, temperatura, frecuencias, saturación, cintura) "valor" es el número tal como se dijo; presión como "sistólica/diastólica".
+- Lo que el médico dijo y no encaja en ningún campo va en "sin_ubicar" (copiado literal). No lo inventes en otro campo.
+- Usa la herramienta estructurar_dictado. Si no hay nada clínico que acomodar, devuélvela con campos vacíos.`;
+
+function buildHerramientaEstructurarDictado() {
+  return {
+    name: 'estructurar_dictado',
+    description: 'Acomoda lo dictado en campos de la ficha. Cada campo con su cita literal de la transcripción.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        campos: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              campo: { type: 'string', enum: Object.keys(CAMPOS_DICTADO) },
+              valor: { type: ['string', 'number'] },
+              cita: { type: 'string', description: 'Fragmento EXACTO, palabra por palabra, de la transcripción.' },
+            },
+            required: ['campo', 'valor', 'cita'],
+          },
+        },
+        sin_ubicar: { type: 'array', items: { type: 'string' }, description: 'Fragmentos literales que no encajan en ningún campo.' },
+      },
+      required: ['campos'],
+    },
+  };
 }
 
 // ─── ANTI-DUPLICADO EN EL ALTA POR DICTADO ─────────────────────────
