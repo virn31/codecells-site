@@ -1153,11 +1153,15 @@ module.exports = async function handler(req, res) {
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
       const formula = `{Código de paciente ref}="${pacienteCode}"`;
-      const valoresRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_LAB_VALORES}?filterByFormula=${encodeURIComponent(formula)}&sort[0][field]=Fecha del estudio&sort[0][direction]=asc`, {
-        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-      });
-      const valoresData = await valoresRes.json();
-      const registros = valoresData.records || [];
+      // Un fallo de Airtable ya no se muestra como "sin estudios" en el
+      // comparativo del propio paciente; y se leen todas las páginas.
+      let registros;
+      try {
+        registros = await leerTodoAirtable(TBL_LAB_VALORES, { filterByFormula: formula, 'sort[0][field]': 'Fecha del estudio', 'sort[0][direction]': 'asc' });
+      } catch (errLeer) {
+        console.error('[nova] paciente_comparativo_labs lectura:', errLeer.message);
+        return res.status(502).json({ ok: false, error: 'No pudimos leer tus estudios en este momento. Esto no significa que no tengas: intenta de nuevo en unos segundos.' });
+      }
 
       // Pivote: { "Glucosa": [ {fecha, valor, unidad, bandera, rango_texto, relevante}, ... ], ... }
       const pivote = {};
@@ -4247,18 +4251,22 @@ module.exports = async function handler(req, res) {
 
       // Efectos secundarios — no deben tumbar la respuesta al paciente si fallan,
       // solo se registran en el log del servidor.
+      let resultadoAcciones = null;
       try {
-        await ejecutarAccionesPaciente({
+        resultadoAcciones = await ejecutarAccionesPaciente({
           accion, pacRecordId, pacMedicoLink, pacienteCode,
           ultimoMensajePaciente: messages[messages.length - 1]?.content || '',
         });
       } catch (err) {
         console.error('[nova] error ejecutando acciones de paciente:', err.message);
+        // Sin saber qué se cumplió, lo pedido se trata como no cumplido: es
+        // mejor que el paciente lo intente de nuevo a que espere en vano.
+        resultadoAcciones = { cita: accion.crear_solicitud_cita ? 'fallo' : null, valoracion: accion.requiere_valoracion_medica ? 'fallo' : null };
       }
 
       // Se devuelve en el mismo formato {content:[...]} de siempre para no
       // romper la extracción de texto que ya hace el cliente.
-      return res.status(200).json({ content: [{ type: 'text', text: accion.reply }] });
+      return res.status(200).json({ content: [{ type: 'text', text: accion.reply + avisoAccionesPaciente(accion, resultadoAcciones) }] });
     }
 
     // ─── MODO MÉDICO CON HERRAMIENTA DE FICHA (opcional) ───────────────
@@ -5119,6 +5127,8 @@ async function encontrarMedicoParaPaciente(pacRecordId, pacMedicoLink, AIRTABLE_
   const pacRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_PACIENTES}/${pacRecordId}`, {
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
   });
+  // Un fallo aquí dejaba la solicitud sin médico y sin aviso, en silencio.
+  if (!pacRes.ok) throw new Error(`Airtable respondió ${pacRes.status} al leer el paciente`);
   const pacData = await pacRes.json();
   const ciudadPaciente = (pacData.fields?.['Ciudad'] || '').trim();
   const nombrePaciente = pacData.fields?.['Nombre completo'] || '';
@@ -5130,6 +5140,7 @@ async function encontrarMedicoParaPaciente(pacRecordId, pacMedicoLink, AIRTABLE_
       `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}?filterByFormula=${encodeURIComponent('{Activo}=1')}`,
       { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
     );
+    if (!medListRes.ok) throw new Error(`Airtable respondió ${medListRes.status} al leer médicos activos`);
     const medListData = await medListRes.json();
     const medicosActivos = medListData.records || [];
 
@@ -5157,23 +5168,55 @@ async function encontrarMedicoParaPaciente(pacRecordId, pacMedicoLink, AIRTABLE_
   return { medicoAsignadoId, ciudadPaciente, nombrePaciente };
 }
 
+// Devuelve true SOLO si el aviso salió (el bot respondió ok). Antes cada
+// fallo era un `return;` mudo y nadie se enteraba de que el médico no supo.
 async function enviarAlertaMedico({ medicoAsignadoId, mensaje, pacienteRecordId, preguntaPaciente, AIRTABLE_TOKEN }) {
-  if (!medicoAsignadoId) return;
-  const medRecRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}/${medicoAsignadoId}`, {
-    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-  });
-  const medRecData = await medRecRes.json();
-  const codigoMedico = medRecData.fields?.['Código de médico'];
-  if (!codigoMedico) return;
+  if (!medicoAsignadoId) { console.error('[nova] alerta sin médico asignado'); return false; }
+  try {
+    const medRecRes = await fetch(`https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_MEDICOS_APP}/${medicoAsignadoId}`, {
+      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+    });
+    if (!medRecRes.ok) throw new Error(`Airtable respondió ${medRecRes.status} al leer el médico`);
+    const medRecData = await medRecRes.json();
+    const codigoMedico = medRecData.fields?.['Código de médico'];
+    if (!codigoMedico) throw new Error('el médico asignado no tiene código');
 
-  await fetch('https://www.codecells.mx/api/telegram-bot', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-internal-secret': process.env.INTERNAL_ALERT_SECRET,
-    },
-    body: JSON.stringify({ codigoMedico, mensaje, pacienteRecordId, preguntaPaciente }),
-  }).catch(err => console.error('[nova] error enviando alerta Telegram:', err.message));
+    const r = await fetch('https://www.codecells.mx/api/telegram-bot', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-secret': process.env.INTERNAL_ALERT_SECRET,
+      },
+      body: JSON.stringify({ codigoMedico, mensaje, pacienteRecordId, preguntaPaciente }),
+    });
+    if (!r.ok) throw new Error(`telegram-bot respondió ${r.status}`);
+    return true;
+  } catch (err) {
+    console.error('[nova] error enviando alerta Telegram:', err.message);
+    return false;
+  }
+}
+
+// Lo que se agrega a la respuesta de NOVA cuando una acción que el paciente
+// pidió no se cumplió: NOVA redacta su respuesta ANTES de que corran las
+// acciones, así que sin esto el paciente leía "ya avisé a tu médico" aunque
+// la solicitud no existiera (CLAUDE.md §6).
+const AVISOS_ACCION_PACIENTE = {
+  cita_fallo: '⚠️ No pude registrar tu solicitud de cita en este momento. Intenta de nuevo en unos minutos o contacta directamente a tu médico.',
+  cita_sin_aviso: '⚠️ Tu solicitud de cita quedó registrada, pero no pude avisarle a tu médico en este momento. Si es urgente, contáctalo directamente.',
+  valoracion_fallo: '⚠️ No pude avisarle a tu médico en este momento. Si es urgente, contáctalo directamente.',
+  congelado: '⚠️ Por ahora no puedo registrar solicitudes ni avisar a tu médico desde aquí. Si necesitas atención, contacta directamente a tu médico.',
+};
+
+function avisoAccionesPaciente(accion, resultado) {
+  if (!accion || !resultado) return '';
+  const pidioAlgo = accion.crear_solicitud_cita || accion.requiere_valoracion_medica;
+  if (resultado.congelado) return pidioAlgo ? '\n\n' + AVISOS_ACCION_PACIENTE.congelado : '';
+  const avisos = [];
+  if (resultado.cita === 'fallo') avisos.push(AVISOS_ACCION_PACIENTE.cita_fallo);
+  if (resultado.cita === 'sin_aviso') avisos.push(AVISOS_ACCION_PACIENTE.cita_sin_aviso);
+  if (resultado.valoracion === 'fallo') avisos.push(AVISOS_ACCION_PACIENTE.valoracion_fallo);
+  return avisos.length ? '\n\n' + avisos.join('\n') : '';
 }
 
 // ─── EJECUCIÓN DE ACCIONES (Airtable) ──────────────────────────────
@@ -5185,9 +5228,13 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
   // (no se toca Airtable) sin afectar la respuesta al paciente — mismo
   // comportamiento que ya tenía esta función ante un fallo (best-effort,
   // invisible al usuario). Ver lib/congelamientoDatosPersonales.js.
+  // Devuelve qué pasó con lo que el paciente pidió (cita / valoración) para
+  // que la respuesta no afirme algo que no ocurrió.
+  const resultado = { cita: null, valoracion: null, congelado: false };
   if (CONGELADO) {
     console.error('[nova] ejecutarAccionesPaciente omitida por congelamiento de datos personales (2026-08-24).');
-    return;
+    resultado.congelado = true;
+    return resultado;
   }
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
   const headers = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
@@ -5220,10 +5267,11 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
         });
         if (!createRes.ok) {
           console.error('[nova] error creando SOLICITUDES_CITA:', await createRes.text());
+          resultado.cita = 'fallo';
           return;
         }
 
-        await enviarAlertaMedico({
+        const avisado = await enviarAlertaMedico({
           medicoAsignadoId,
           mensaje:
             `Nueva solicitud de consulta CODE CELLS™\n\n` +
@@ -5235,8 +5283,11 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
           preguntaPaciente: ultimoMensajePaciente || accion.solicitud_motivo || 'Solicitud de cita',
           AIRTABLE_TOKEN,
         });
+        resultado.cita = avisado ? 'ok' : 'sin_aviso';
       } catch (err) {
         console.error('[nova] error en flujo crear_solicitud_cita:', err.message);
+        // Si el fallo fue antes de crear el registro, no hay solicitud.
+        if (!resultado.cita) resultado.cita = 'fallo';
       }
     })());
   }
@@ -5247,7 +5298,7 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
         const { medicoAsignadoId, ciudadPaciente, nombrePaciente } =
           await encontrarMedicoParaPaciente(pacRecordId, pacMedicoLink, AIRTABLE_TOKEN);
 
-        await enviarAlertaMedico({
+        const avisado = await enviarAlertaMedico({
           medicoAsignadoId,
           mensaje:
             `Paciente solicita valoración clínica\n\n` +
@@ -5258,8 +5309,10 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
           preguntaPaciente: ultimoMensajePaciente,
           AIRTABLE_TOKEN,
         });
+        resultado.valoracion = avisado ? 'ok' : 'fallo';
       } catch (err) {
         console.error('[nova] error en flujo requiere_valoracion_medica:', err.message);
+        resultado.valoracion = 'fallo';
       }
     })());
   }
@@ -5325,4 +5378,5 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
   })());
 
   await Promise.all(tareas);
+  return resultado;
 }

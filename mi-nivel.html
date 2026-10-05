@@ -1684,11 +1684,21 @@ function cargarComparativoLabs() {
   })
     .then(function(r){ return r.json(); })
     .then(function(data){
-      if (!data.ok) return;
+      if (!data.ok) return mostrarErrorComparativoLabs();
       labsPivote = data.pivote || {};
       renderComparativoLabs();
     })
-    .catch(function(){ /* silencioso — no bloquea el resto del portal */ });
+    .catch(mostrarErrorComparativoLabs);
+}
+
+// Antes un fallo dejaba visible "Aún no tienes estudios…": un error leído
+// como expediente vacío (CLAUDE.md §6). No bloquea el resto de la app.
+function mostrarErrorComparativoLabs() {
+  var vacioEl = document.getElementById('labs-vacio');
+  var msg = 'No pudimos leer tus estudios en este momento. Esto no significa que no tengas: intenta de nuevo en unos segundos.';
+  vacioEl.textContent = window.t ? window.t(msg) : msg;
+  vacioEl.style.display = 'block';
+  document.getElementById('labs-contenido').style.display = 'none';
 }
 
 // ─── INVITAR A ALGUIEN (sin guardar datos de terceros) ───────────

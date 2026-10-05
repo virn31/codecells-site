@@ -171,7 +171,7 @@
     <div class="item"><div class="item-top"><span class="item-path"><a href="/autorregistro.html">autorregistro.html</a></span><span class="badge b-paused">PAUSADO 2026-08-23</span></div>
       <div class="item-desc">Autorregistro de paciente por link — "tercera vía" de creación de expediente, no autorizada (CLAUDE.md §7: solo kiosco y consulta).</div>
       <div class="item-meta">Bloqueado en servidor: <code>api/nova.js</code> acción <code>kiosco_crear_paciente</code> devuelve 503 si llega con <code>regToken</code>, antes de tocar Airtable. Botón que generaba el link ya está oculto (<code>display:none</code>) en portal-medico.html.</div>
-      <div class="item-note">El archivo sigue desplegado y responde a <code>/autorregistro.html?token=...</code> — un link viejo guardado carga la página, pero cualquier intento de registro cae en el error "pausado". No es un hueco de seguridad: el paso de preconsulta (<code>api/guardar-preconsulta.js</code>) tampoco puede crear pacientes nuevos, exige que el código ya exista en Airtable. Sigue "apareciendo" solo en el sentido de que la URL responde — no en que funcione.</div>
+      <div class="item-note">El archivo sigue desplegado y responde a <code>/autorregistro.html?token=...</code> — un link viejo guardado carga la página, pero cualquier intento de registro cae en el error "pausado". El paso de preconsulta (<code>api/guardar-preconsulta.js</code>) quedó CERRADO el 2026-10-05 (responde 410): no pedía sesión y permitía sobrescribir antecedentes de cualquier paciente existente con solo su código. Sigue "apareciendo" solo en el sentido de que la URL responde — no en que funcione.</div>
     </div>
   </section>
 

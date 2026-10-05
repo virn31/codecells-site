@@ -12,7 +12,7 @@
 // accion: "sugerir_cie10" | "completitud_expediente"
 
 const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
-const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
+const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -25,6 +25,14 @@ async function airtableGet(tableId, formula, sort) {
   if (sort) { params.set('sort[0][field]', sort); params.set('sort[0][direction]', 'desc'); }
   const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  // Un fallo NO es "sin registros": antes el reporte NOM-004 decía "el
+  // paciente no tiene antecedentes / ninguna consulta" cuando Airtable no
+  // respondía — un reporte de cumplimiento falso presentado como confirmado.
+  if (!r.ok) {
+    const e = new Error(`Airtable respondió ${r.status} al leer ${tableId}`);
+    e.status = 502;
+    throw e;
+  }
   const data = await r.json();
   return (data.records && data.records[0]) || null;
 }
@@ -90,6 +98,11 @@ async function completitudExpediente(req, res, sesion) {
   // paciente (hueco de autorización), y el 404 distinguía "no existe" de
   // "sí existe", oráculo de enumeración. autorizarPaciente() cierra ambos:
   // solo el médico dueño (o demo) puede pedirlo, y el error es uniforme.
+  // Lee expediente: solo Tipo de acceso=Clinico, igual que el proxy.
+  const acceso = await verificarAccesoClinicoMedico(sesion.codigo, AIRTABLE_TOKEN);
+  if (acceso.errorInfra) return res.status(502).json({ error: MENSAJE_ACCESO_NO_VERIFICABLE });
+  if (!acceso.permitido) return res.status(403).json({ error: 'Tu tipo de acceso no permite leer expedientes clínicos.' });
+
   let auth;
   try {
     auth = await autorizarPaciente(sesion.codigo, codigoPaciente);
@@ -102,10 +115,16 @@ async function completitudExpediente(req, res, sesion) {
   }
 
   const faltantes = [];
-  const [historia, ultimaConsulta] = await Promise.all([
-    airtableGet(HISTORIA_TABLE_ID, `{Código de paciente ref}="${auth.codigo}"`),
-    airtableGet(CONSULTAS_TABLE_ID, `{Código de paciente ref}="${auth.codigo}"`, 'Fecha de consulta'),
-  ]);
+  let historia, ultimaConsulta;
+  try {
+    [historia, ultimaConsulta] = await Promise.all([
+      airtableGet(HISTORIA_TABLE_ID, `{Código de paciente ref}="${auth.codigo}"`),
+      airtableGet(CONSULTAS_TABLE_ID, `{Código de paciente ref}="${auth.codigo}"`, 'Fecha de consulta'),
+    ]);
+  } catch (errLeer) {
+    console.error('[nova-asistente-clinico] completitud_expediente lectura:', errLeer.message);
+    return res.status(502).json({ ok: false, error: 'No se pudo leer el expediente para revisar su completitud. Intenta de nuevo; esto no significa que falten datos.' });
+  }
 
   if (!historia) {
     faltantes.push({ campo: 'Historia clínica', detalle: 'El paciente no tiene ningún antecedente capturado todavía.' });

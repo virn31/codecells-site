@@ -14,6 +14,8 @@ const { generarPlanNutricional } = require('../lib/nutricion');
 const { generarToken } = require('../lib/auth');
 const { generarCodigoPorIniciales } = require('../lib/codigos');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico } = require('../lib/autorizacion');
+const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -144,6 +146,36 @@ async function borrarPendiente(recordId) {
  * Reparte la ficha en las 3 tablas correctas — mismo criterio que usa el
  * botón "Guardar consulta" del Portal Médico.
  */
+// Puerta del dictado por Telegram — las mismas reglas que el portal
+// (CLAUDE.md §4). Antes bastaba el código CC-PAC- para dictar y guardar en
+// el expediente de CUALQUIER paciente. Ahora: Tipo de acceso=Clinico y
+// autorizarPaciente() con escritura (propio, vinculado o interconsulta con
+// escritura; demo nunca). Un fallo de Airtable se relanza (el catch del
+// webhook avisa "problema temporal"); nunca se lee como "no autorizado".
+// Devuelve { pacienteRecord } o { mensaje } para responderle al médico.
+async function autorizarDictadoTelegram(medico, codigoPaciente) {
+  const codigoMedico = medico.fields[CAMPO_CODIGO];
+  const acceso = await verificarAccesoClinicoMedico(codigoMedico, AIRTABLE_TOKEN);
+  if (acceso.errorInfra) throw new Error('No se pudo verificar el Tipo de acceso del médico.');
+  if (!acceso.permitido) {
+    await registrarAccesoExpediente({ pacienteCode: codigoPaciente, codigoMedico, medicoRecId: acceso.recordId, accion: 'Escritura', resultado: 'Denegado', endpoint: 'telegram:dictado' });
+    return { mensaje: 'Tu tipo de acceso no permite escribir en expedientes clínicos.' };
+  }
+  try {
+    await autorizarPaciente(codigoMedico, codigoPaciente, { requiereEscritura: true });
+  } catch (err) {
+    if (err instanceof ErrorAutorizacion) {
+      await registrarAccesoExpediente({ pacienteCode: codigoPaciente, codigoMedico, accion: 'Escritura', resultado: 'Rechazado', endpoint: 'telegram:dictado' });
+      // Mismo mensaje para "no existe" y "no es tuyo": no reabrir la enumeración.
+      return { mensaje: `No tienes acceso de escritura al paciente ${codigoPaciente} (o no existe). No se guardó nada.` };
+    }
+    throw err;
+  }
+  const pacienteRecord = await buscarPacientePorCodigo(codigoPaciente);
+  if (!pacienteRecord) throw new Error(`Paciente ${codigoPaciente} autorizado pero no releído.`);
+  return { pacienteRecord };
+}
+
 async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
   // Falla ruidosa, no escritura parcial: una CONSULTA sin Paciente enlazado
   // queda huérfana del expediente para siempre (Airtable no permite
@@ -699,11 +731,14 @@ module.exports = async (req, res) => {
         }
         try {
           const ficha = JSON.parse(pendiente.fields['Ficha JSON']);
-          const pacienteRecord = await buscarPacientePorCodigo(pendiente.fields['Código de paciente']);
-          if (!pacienteRecord) {
-            await sendTelegramMessage(chatId, 'No encontré ese paciente ya — puede que se haya movido. Intenta el dictado de nuevo.');
+          // Se vuelve a autorizar al confirmar: el acceso pudo cambiar entre
+          // el dictado y el "sí".
+          const puerta = await autorizarDictadoTelegram(medicoVinculado, pendiente.fields['Código de paciente']);
+          if (puerta.mensaje) {
+            await sendTelegramMessage(chatId, puerta.mensaje);
             return res.status(200).json({ ok: true });
           }
+          const pacienteRecord = puerta.pacienteRecord;
           await guardarFichaEnExpediente(pacienteRecord, ficha, medicoVinculado);
           await borrarPendiente(pendiente.id);
           await sendTelegramMessage(
@@ -757,11 +792,12 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
-      const pacienteRecord = await buscarPacientePorCodigo(codigoPaciente);
-      if (!pacienteRecord) {
-        await sendTelegramMessage(chatId, `No encontré ningún paciente con el código ${codigoPaciente}.`);
+      const puerta = await autorizarDictadoTelegram(medicoVinculado, codigoPaciente);
+      if (puerta.mensaje) {
+        await sendTelegramMessage(chatId, puerta.mensaje);
         return res.status(200).json({ ok: true });
       }
+      const pacienteRecord = puerta.pacienteRecord;
 
       // Si ya estábamos esperando su dictado, el mensaje completo ES el
       // dictado (no hace falta repetir el código).
