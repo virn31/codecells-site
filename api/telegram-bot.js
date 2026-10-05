@@ -67,6 +67,11 @@ const ETIQUETAS_FICHA = {
 async function airtableGet(tableId, formula) {
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  // Un 429/5xx NO es "no encontrado" (CLAUDE.md §6): antes un fallo de
+  // Airtable se leía como "código inexistente" al vincular, como "sin hilo"
+  // al responder a un paciente, etc. Se lanza; el catch del webhook avisa
+  // al médico que fue un problema temporal.
+  if (!res.ok) throw new Error(`Airtable respondió ${res.status} al leer ${tableId}`);
   const data = await res.json();
   return data.records && data.records.length > 0 ? data.records[0] : null;
 }
@@ -311,16 +316,22 @@ async function entregarRespuestaAlPaciente(hilo, textoRespuesta) {
 
   const pacUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PACIENTES_TABLE_ID}/${pacienteId}`;
   const pacRes = await fetch(pacUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  // Sin la lectura previa no se escribe: antes un fallo se tomaba como "no
+  // había respuestas pendientes" y el PATCH borraba las anteriores.
+  if (!pacRes.ok) throw new Error(`Airtable respondió ${pacRes.status} al leer el paciente`);
   const pacData = await pacRes.json();
   const previa = pacData.fields?.['Respuesta médico pendiente'] || '';
   const fechaHoy = new Date().toISOString().slice(0, 10);
   const nuevaRespuesta = (previa ? previa + '\n' : '') + `[${fechaHoy}] ${textoRespuesta.trim()}`;
 
-  await fetch(pacUrl, {
+  const guardadoRes = await fetch(pacUrl, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: { 'Respuesta médico pendiente': nuevaRespuesta } }),
   });
+  // El hilo solo se marca respondido si la respuesta quedó guardada; si no,
+  // el médico recibiría "Respuesta enviada" y el paciente nunca la vería.
+  if (!guardadoRes.ok) throw new Error(`Airtable respondió ${guardadoRes.status} al guardar la respuesta`);
 
   await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HILOS_TABLE_ID}/${hilo.id}`, {
     method: 'PATCH',
@@ -828,6 +839,14 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('Error en telegram-bot webhook:', err);
+    // Antes el médico no recibía nada: su mensaje parecía ignorado. Se le
+    // dice que falló y que nada se guardó a medias por este mensaje.
+    const chatIdError = req.body && req.body.message && req.body.message.chat && req.body.message.chat.id;
+    if (chatIdError) {
+      try {
+        await sendTelegramMessage(chatIdError, 'No pude procesar tu mensaje por un problema temporal con la base de datos. Intenta de nuevo en un minuto.');
+      } catch (e) { console.error('[telegram-bot] no se pudo avisar el error al médico:', e.message); }
+    }
     return res.status(200).json({ ok: true }); // Siempre 200 para que Telegram no reintente en loop
   }
 };

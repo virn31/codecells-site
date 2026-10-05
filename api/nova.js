@@ -5245,6 +5245,9 @@ async function ejecutarAccionesPaciente({ accion, pacRecordId, pacMedicoLink, pa
       try {
         const getUrl = `https://api.airtable.com/v0/${BASE_ID_CLINICA}/${TBL_PACIENTES}/${pacRecordId}`;
         const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        // Sin la lectura previa NO se escribe: antes un fallo se tomaba como
+        // memoria vacía y el PATCH borraba todo el historial del paciente.
+        if (!getRes.ok) throw new Error(`Airtable respondió ${getRes.status} al leer la memoria previa; no se sobrescribe`);
         const getData = await getRes.json();
         const memoriaPrevia = getData.fields?.['Memoria NOVA (paciente)'] || '';
         const fechaHoy = new Date().toISOString().slice(0, 10);
