@@ -5539,12 +5539,15 @@ function procesarDictado(transcripcion, propuestos, sinUbicar, recetaPropuesta) 
   for (const p of (Array.isArray(propuestos) ? propuestos : [])) {
     if (!p || typeof p.campo !== 'string') continue;
     const r = verificarCampoDictado(p.campo, p.valor, p.cita, tNorm);
-    if (!r.ok) { descartados.push({ campo: p.campo, valor: p.valor ?? null, cita: p.cita ?? null, motivo: r.motivo }); continue; }
+    if (!r.ok) { descartados.push({ campo: p.campo, etiqueta: CAMPOS_DICTADO[p.campo]?.etiqueta || p.campo, valor: p.valor ?? null, cita: p.cita ?? null, motivo: r.motivo }); continue; }
     const def = CAMPOS_DICTADO[p.campo];
     if (campos[p.campo] !== undefined) {
-      if (def.tipo === 'texto') { if (!String(campos[p.campo]).includes(r.valor)) campos[p.campo] = `${campos[p.campo]}. ${r.valor}`; }
+      if (def.tipo === 'texto') {
+        const prev = String(campos[p.campo]);
+        if (!prev.includes(r.valor)) campos[p.campo] = `${prev}${/[.!?]\s*$/.test(prev) ? '' : '.'} ${r.valor}`;
+      }
       else if (campos[p.campo] !== r.valor) {
-        descartados.push({ campo: p.campo, valor: r.valor, cita: p.cita, motivo: `dictaste dos valores distintos (${campos[p.campo]} y ${r.valor})` });
+        descartados.push({ campo: p.campo, etiqueta: def.etiqueta, valor: r.valor, cita: p.cita, motivo: `dictaste dos valores distintos (${campos[p.campo]} y ${r.valor})` });
         delete campos[p.campo];
         for (let i = detalle.length - 1; i >= 0; i--) if (detalle[i].campo === p.campo) detalle.splice(i, 1);
         continue;
@@ -5657,6 +5660,7 @@ const PROMPT_DICTADO = `Eres el transcriptor clínico de NOVA. Recibes lo que un
 - Para cada campo devuelves "cita": el fragmento EXACTO, copiado palabra por palabra de la transcripción, de donde sale ese dato. Si no puedes señalar una cita exacta, NO llenes ese campo.
 - Nunca agregues negativos clínicos ("niega alergias", "sin antecedentes") que no se dijeron, ni unidades, ni fechas, ni códigos CIE-10, ni dosis, ni diagnósticos que el médico no dijo.
 - Antecedentes heredofamiliares (padres, hermanos, familia) nunca van en antecedentes personales.
+- Lo que el paciente REFIERE (síntomas, cómo empezó, qué lo empeora o mejora, evolución) va en motivo_consulta. En exploracion_fisica solo va lo que el médico ENCONTRÓ al explorar (auscultación, palpación, inspección, hallazgos).
 - Para números (peso, talla, temperatura, frecuencias, saturación, cintura) "valor" es el número tal como se dijo; presión como "sistólica/diastólica".
 - Lo que el médico dijo y no encaja en ningún campo va en "sin_ubicar" (copiado literal). No lo inventes en otro campo.
 - El médico no dicta en orden: puede empezar con el padecimiento, saltar a un antecedente y volver. Tu trabajo es justamente ESTRUCTURAR: cada fragmento a su campo; si un campo recibe varios fragmentos, devuelve una entrada por fragmento.

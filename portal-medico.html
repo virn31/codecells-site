@@ -1909,6 +1909,23 @@
     100% { box-shadow: 0 0 0 0 rgba(201,169,110,0); }
   }
 
+  /* Dictado a NOVA (SPEC dictado, Fase 2). La marca de "lo colocó NOVA" es
+     persistente — no un destello — hasta que el médico edita el campo; al
+     editarlo cambia a "editado por ti". Así se distingue en pantalla qué
+     estructuró NOVA y qué escribió el médico (CLAUDE.md §7). */
+  .dictado-box { border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; background: var(--gold-pale2); }
+  .dictado-box textarea { width: 100%; }
+  .dictado-acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .dictado-mic.grabando { background: #E2574B !important; color: #fff !important; border-color: #E2574B !important; }
+  .dictado-estado { font-size: 11.5px; color: var(--text-2); min-height: 16px; }
+  .dictado-resultado { margin-top: 10px; font-size: 12px; line-height: 1.5; }
+  .dictado-resultado h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin: 10px 0 4px; }
+  .dictado-resultado ul { margin: 0; padding-left: 18px; }
+  .dictado-cita { color: var(--text-3); font-style: italic; }
+  .dictado-aviso { color: #E2574B; }
+  .campo-dictado-nova { border-color: var(--gold) !important; box-shadow: inset 3px 0 0 var(--gold); }
+  .campo-dictado-editado { box-shadow: inset 3px 0 0 var(--text-3); }
+
   .form-group select { appearance: none; cursor: pointer; }
 
   .vitals-grid {
@@ -3835,6 +3852,22 @@
           </div>
 
           <div class="consulta-body">
+
+            <!-- Dictado a NOVA: el médico habla o escribe libre, NOVA coloca
+                 cada fragmento en su campo con la cita literal (nova
+                 medico_dictado). Nada se guarda aquí: el médico revisa y usa
+                 "Guardar consulta" como siempre. -->
+            <div class="dictado-box" id="dictado-box">
+              <div class="section-label" style="margin:0 0 6px;">🎙️ Dictar a NOVA</div>
+              <textarea id="dictado-texto" rows="3" maxlength="8000" placeholder="Dicta o escribe la consulta en el orden que quieras. NOVA solo acomoda lo que digas en cada campo; no completa nada."></textarea>
+              <div class="dictado-acciones">
+                <button type="button" class="btn-secondary dictado-mic" id="dictado-mic">🎙️ Dictar</button>
+                <button type="button" class="btn-secondary" id="dictado-estructurar">Estructurar en la ficha</button>
+                <button type="button" class="btn-secondary" id="dictado-borrar" style="margin-left:auto;">Borrar dictado</button>
+              </div>
+              <div class="dictado-estado" id="dictado-estado"></div>
+              <div class="dictado-resultado" id="dictado-resultado" style="display:none;"></div>
+            </div>
 
             <div class="form-row">
               <div class="form-group">
@@ -7073,6 +7106,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     'Próxima cita': document.getElementById('f-proxima-cita').value || null,
   };
   if (vitalesExtra.length > 0) fields['Signos vitales'] = vitalesExtra.join(' · ');
+  Object.assign(fields, dictadoCamposParaGuardar());
 
   // Limpiar nulls
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
@@ -7277,6 +7311,7 @@ function limpiarFormulario() {
   document.getElementById('f-proxima-cita-hora').value = '10:00';
   document.getElementById('lab-rapido-filas').innerHTML = '';
   document.getElementById('lab-archivo-estado').textContent = '';
+  dictadoReset();
 }
 
 // ─── VALORES RÁPIDOS DE LABORATORIO (point-of-care) ────────────────
@@ -7873,10 +7908,8 @@ async function enviarNova() {
 // NOVA manda los campos extraídos junto con su respuesta de texto. Aquí se
 // mapean a los inputs reales del formulario — el médico siempre revisa y
 // confirma antes de Guardar, esto nunca guarda solo.
-function aplicarFichaNova(ficha) {
-  if (!ficha || typeof ficha !== 'object') return;
-
-  const mapa = {
+// Mismos nombres de campo que rellenar_ficha_consulta y medico_dictado.
+const MAPA_FICHA_NOVA = {
     peso: 'f-peso',
     talla: 'f-talla',
     presion: 'f-presion',
@@ -7907,10 +7940,13 @@ function aplicarFichaNova(ficha) {
     panel_laboratorio: 'f-panel-lab',
     resultados_laboratorio: 'f-resultados-lab',
     valores_fuera_rango: 'f-fuera-rango-lab',
-  };
+};
+
+function aplicarFichaNova(ficha) {
+  if (!ficha || typeof ficha !== 'object') return;
 
   let camposLlenados = 0;
-  for (const [clave, inputId] of Object.entries(mapa)) {
+  for (const [clave, inputId] of Object.entries(MAPA_FICHA_NOVA)) {
     const valor = ficha[clave];
     if (valor === undefined || valor === null || valor === '') continue;
     const el = document.getElementById(inputId);
@@ -7925,6 +7961,251 @@ function aplicarFichaNova(ficha) {
     showToast(`NOVA llenó ${camposLlenados} campo${camposLlenados === 1 ? '' : 's'} de la ficha — revisa antes de guardar`, 'success');
   }
 }
+
+// ─── DICTADO A NOVA (SPEC dictado, Fase 2) ─────────────────────────
+// Voz por el navegador (Web Speech, es-MX) o texto tecleado/pegado →
+// nova medico_dictado → cada campo verificado por cita literal se coloca en
+// la ficha con marca persistente. Nada se guarda aquí: "Guardar consulta"
+// guarda además la transcripción, el origen y qué colocó NOVA vs. qué editó
+// el médico (CLAUDE.md §7: debe quedar distinguible).
+const dictado = {
+  aplicado: null,      // { transcripciones: [], voz: bool, colocados: { inputId: {...} } }
+  metodoActual: 'texto',
+  rec: null,
+  grabando: false,
+  base: '',
+};
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function dictadoEstado(texto, error) {
+  const el = document.getElementById('dictado-estado');
+  el.textContent = texto || '';
+  el.style.color = error ? '#E2574B' : '';
+}
+
+function dictadoDetenerVoz() {
+  dictado.grabando = false;
+  if (dictado.rec) { try { dictado.rec.stop(); } catch (e) {} }
+  const mic = document.getElementById('dictado-mic');
+  mic.classList.remove('grabando');
+  mic.textContent = '🎙️ Dictar';
+  document.getElementById('dictado-texto').readOnly = false;
+}
+
+function dictadoIniciarVoz() {
+  const ta = document.getElementById('dictado-texto');
+  const rec = new SpeechRec();
+  rec.lang = 'es-MX';
+  rec.continuous = true;
+  rec.interimResults = true;
+  dictado.base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
+  let finales = '';
+  rec.onresult = (ev) => {
+    let provisional = '';
+    finales = '';
+    for (let i = 0; i < ev.results.length; i++) {
+      const t = ev.results[i][0].transcript;
+      if (ev.results[i].isFinal) finales += t; else provisional += t;
+    }
+    if (finales) dictado.metodoActual = 'voz';
+    ta.value = dictado.base + finales + provisional;
+  };
+  rec.onerror = (ev) => {
+    if (ev.error === 'no-speech' || ev.error === 'aborted') return;
+    const msg = ev.error === 'not-allowed' || ev.error === 'service-not-allowed'
+      ? 'El navegador no tiene permiso para usar el micrófono. Actívalo en el candado de la barra de direcciones, o escribe el texto.'
+      : ev.error === 'network'
+        ? 'Se perdió la conexión del reconocimiento de voz. Lo dictado hasta aquí se conserva; puedes seguir escribiendo.'
+        : `El reconocimiento de voz se detuvo (${ev.error}). Lo dictado hasta aquí se conserva.`;
+    dictadoEstado(msg, true);
+    dictadoDetenerVoz();
+  };
+  // Chrome corta la sesión tras un silencio: si el médico no la detuvo, se
+  // reanuda sobre lo ya transcrito (sin perder texto).
+  rec.onend = () => {
+    ta.value = dictado.base + finales;
+    if (dictado.grabando) { try { dictado.base = ta.value ? ta.value.replace(/\s*$/, ' ') : ''; finales = ''; rec.start(); } catch (e) { dictadoDetenerVoz(); } }
+  };
+  dictado.rec = rec;
+  dictado.grabando = true;
+  ta.readOnly = true;
+  const mic = document.getElementById('dictado-mic');
+  mic.classList.add('grabando');
+  mic.textContent = '⏹ Detener';
+  dictadoEstado('Escuchando… habla con naturalidad; puedes saltar de un tema a otro.');
+  try { rec.start(); } catch (e) { dictadoEstado('No se pudo iniciar el micrófono.', true); dictadoDetenerVoz(); }
+}
+
+function dictadoQuitarMarcas() {
+  document.querySelectorAll('.campo-dictado-nova, .campo-dictado-editado').forEach(el => {
+    el.classList.remove('campo-dictado-nova', 'campo-dictado-editado');
+    el.removeAttribute('title');
+  });
+}
+
+function dictadoReset() {
+  if (dictado.grabando) dictadoDetenerVoz();
+  dictado.aplicado = null;
+  dictado.metodoActual = 'texto';
+  document.getElementById('dictado-texto').value = '';
+  document.getElementById('dictado-resultado').style.display = 'none';
+  document.getElementById('dictado-resultado').innerHTML = '';
+  dictadoEstado('');
+  dictadoQuitarMarcas();
+}
+
+// Coloca un campo verificado. Texto: si el campo ya tenía algo distinto se
+// AGREGA en renglón nuevo (nunca se borra lo que escribió el médico).
+// Número: si ya había otro valor NO se sobrescribe; se reporta.
+function dictadoColocar(campo, valor, citas, etiqueta, colocados, conflictos) {
+  const inputId = MAPA_FICHA_NOVA[campo];
+  const el = inputId && document.getElementById(inputId);
+  if (!el) { conflictos.push({ etiqueta, valor, motivo: 'no hay casilla para este dato en el formulario' }); return; }
+  const actual = el.value.trim();
+  const v = String(valor);
+  const esNumerico = el.type === 'number' || campo === 'presion';
+  if (esNumerico) {
+    if (actual && actual !== v) { conflictos.push({ etiqueta, valor: v, motivo: `la casilla ya tenía ${actual}; no se cambió` }); return; }
+    el.value = v;
+  } else if (!actual) {
+    el.value = v;
+  } else if (!actual.includes(v)) {
+    el.value = el.tagName === 'TEXTAREA' ? `${actual}\n${v}` : `${actual}; ${v}`;
+  }
+  const previo = colocados[inputId];
+  colocados[inputId] = {
+    etiqueta,
+    citas: [...(previo ? previo.citas : []), ...citas],
+    valorColocado: el.value,
+  };
+  el.classList.remove('campo-dictado-editado');
+  el.classList.add('campo-dictado-nova');
+  el.title = 'Colocado por NOVA desde tu dictado: «' + citas.join('» · «') + '»';
+  const det = el.closest('details');
+  if (det) det.open = true;
+  if (!el.dataset.dictadoEscucha) {
+    el.dataset.dictadoEscucha = '1';
+    el.addEventListener('input', () => {
+      const c = dictado.aplicado && dictado.aplicado.colocados[el.id];
+      if (!c) return;
+      const editado = el.value !== c.valorColocado;
+      el.classList.toggle('campo-dictado-editado', editado);
+      el.classList.toggle('campo-dictado-nova', !editado);
+    });
+  }
+}
+
+function dictadoRenderResultado(d, conflictos) {
+  const caja = document.getElementById('dictado-resultado');
+  const esc = escaparHtml;
+  const partes = [];
+  const lista = (titulo, items) => items.length ? `<h4>${titulo}</h4><ul>${items.join('')}</ul>` : '';
+  partes.push(lista('Dónde quedó lo que dijiste', (d.detalle || []).map(x =>
+    `<li><b>${esc(x.etiqueta)}:</b> ${esc(x.valor)} <span class="dictado-cita">— «${esc(x.cita)}»</span>${x.aviso ? ` <span class="dictado-aviso">⚠️ ${esc(x.aviso)}</span>` : ''}</li>`)));
+  partes.push(lista('No se colocó — revísalo', conflictos.map(x =>
+    `<li class="dictado-aviso"><b>${esc(x.etiqueta)}:</b> ${esc(x.valor)} — ${esc(x.motivo)}</li>`)));
+  partes.push(lista('Descartado (no se pudo comprobar en lo que dictaste)', (d.descartados || []).map(x =>
+    `<li><b>${esc(x.etiqueta || x.campo)}:</b> ${esc(x.valor ?? '')} — ${esc(x.motivo)}</li>`)));
+  partes.push(lista('Dijiste, pero no encaja en ningún campo (cópialo tú si importa)', (d.sinUbicar || []).map(x =>
+    `<li class="dictado-cita">«${esc(x)}»</li>`)));
+  if ((d.faltantes || []).length) partes.push(`<h4>Signos que no dictaste</h4><div>${esc(d.faltantes.join(', '))} — quedan vacíos.</div>`);
+  if (d.receta) {
+    const r = d.receta;
+    partes.push(lista('Borrador de receta (no se emite solo)', (r.medicamentos || []).map(m =>
+      `<li><b>${esc(m.nombre)}</b> ${esc(m.dosis)} ${esc(m.via)} ${esc(m.frecuencia)}${m.duracionDias ? ` · ${m.duracionDias} días` : ''}${m.faltan.length ? ` <span class="dictado-aviso">— falta: ${esc(m.faltan.join(', '))}</span>` : ''}</li>`)));
+    if (r.indicaciones) partes.push(`<div><b>Indicaciones:</b> ${esc(r.indicaciones)}</div>`);
+    if (r.proximaCita) partes.push(`<div><b>Próxima cita (dicha):</b> ${esc(r.proximaCita)}</div>`);
+    (r.descartados || []).forEach(x => partes.push(`<div class="dictado-aviso">Medicamento descartado: ${esc(x.medicamento || '—')} — ${esc(x.motivo)}</div>`));
+    partes.push('<button type="button" class="btn-secondary" id="dictado-abrir-receta" style="margin-top:8px;">Abrir receta con este borrador</button>');
+  }
+  caja.innerHTML = partes.join('') || '<div>NOVA no encontró nada clínico que acomodar en este dictado.</div>';
+  caja.style.display = '';
+  const btnRec = document.getElementById('dictado-abrir-receta');
+  if (btnRec) btnRec.addEventListener('click', () => abrirModalReceta(d.receta));
+}
+
+async function dictadoEstructurar() {
+  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
+  if (dictado.grabando) dictadoDetenerVoz();
+  const texto = document.getElementById('dictado-texto').value.trim();
+  if (!texto) { dictadoEstado('No hay nada dictado todavía.', true); return; }
+  const btn = document.getElementById('dictado-estructurar');
+  btn.disabled = true;
+  dictadoEstado('NOVA está acomodando tu dictado…');
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'medico_dictado',
+        pacienteCode: pacienteActual.fields['Código de paciente'] || '',
+        texto,
+        origen: 'portal',
+        metodo: dictado.metodoActual,
+      }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) { dictadoEstado('⚠️ ' + (d.error || 'NOVA no pudo procesar el dictado. Tu texto sigue aquí.'), true); return; }
+    if (!dictado.aplicado) dictado.aplicado = { transcripciones: [], voz: false, colocados: {} };
+    const ap = dictado.aplicado;
+    ap.transcripciones.push(texto);
+    if (dictado.metodoActual === 'voz') ap.voz = true;
+    const conflictos = [];
+    for (const [campo, valor] of Object.entries(d.campos || {})) {
+      const items = (d.detalle || []).filter(x => x.campo === campo);
+      const etiqueta = items[0] ? items[0].etiqueta : campo;
+      dictadoColocar(campo, valor, items.map(x => x.cita), etiqueta, ap.colocados, conflictos);
+    }
+    dictadoRenderResultado(d, conflictos);
+    const n = Object.keys(d.campos || {}).length - conflictos.length;
+    dictadoEstado(n > 0
+      ? `NOVA colocó ${n} dato${n === 1 ? '' : 's'} (borde dorado). Revisa y guarda la consulta.`
+      : 'NOVA no colocó ningún dato. Revisa el detalle abajo.');
+    // El texto ya estructurado se limpia para el siguiente fragmento; queda
+    // guardado en la transcripción de esta consulta.
+    document.getElementById('dictado-texto').value = '';
+    dictado.metodoActual = 'texto';
+  } catch (e) {
+    dictadoEstado('⚠️ Sin conexión — NOVA no recibió el dictado. Tu texto sigue aquí.', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Campos de auditoría que se agregan al guardar la consulta.
+function dictadoCamposParaGuardar() {
+  const ap = dictado.aplicado;
+  if (!ap) return { 'Origen del registro': 'Formulario' };
+  const lineas = Object.entries(ap.colocados).map(([id, c]) => {
+    const el = document.getElementById(id);
+    const editado = el && el.value !== c.valorColocado;
+    return `${c.etiqueta}: colocado por NOVA desde «${c.citas.join('» · «')}»${editado ? ' — editado por el médico antes de guardar' : ''}`;
+  });
+  return {
+    'Origen del registro': 'Dictado NOVA — portal',
+    'Método': ap.voz ? 'Voz' : 'Texto',
+    'Transcripción dictada': ap.transcripciones.join('\n\n'),
+    'Detalle del dictado': lineas.join('\n') || 'NOVA no colocó ningún campo.',
+  };
+}
+
+(function iniciarDictado() {
+  const mic = document.getElementById('dictado-mic');
+  if (!SpeechRec) {
+    mic.disabled = true;
+    mic.title = 'Este navegador no permite dictar por voz';
+    dictadoEstado('Este navegador no permite dictar por voz (funciona en Chrome y Edge). Puedes escribir o pegar el texto y estructurarlo igual.');
+  } else {
+    mic.addEventListener('click', () => (dictado.grabando ? dictadoDetenerVoz() : dictadoIniciarVoz()));
+  }
+  document.getElementById('dictado-estructurar').addEventListener('click', dictadoEstructurar);
+  document.getElementById('dictado-borrar').addEventListener('click', () => {
+    if (dictado.grabando) dictadoDetenerVoz();
+    document.getElementById('dictado-texto').value = '';
+    dictado.metodoActual = 'texto';
+    dictadoEstado('');
+  });
+})();
 
 // Iniciar temporizador cuando la app carga
 const _origIniciarApp = iniciarApp;
@@ -8080,6 +8361,12 @@ function recAgregarFila(datos) {
   if (datos) {
     fila.querySelector('.rec-nombre').value = datos.nombre || '';
     fila.querySelector('.rec-dosis').value = datos.dosis || '';
+    // Del borrador del dictado: solo lo que se dijo; lo demás queda vacío y
+    // recLeerFilas no deja emitir hasta que el médico lo elija.
+    if (datos.via && REC_VIAS.includes(datos.via)) fila.querySelector('.rec-via').value = datos.via;
+    if (datos.frecuencia && REC_FRECUENCIAS.some(([c]) => c === datos.frecuencia)) fila.querySelector('.rec-frec').value = datos.frecuencia;
+    if (datos.duracionDias) fila.querySelector('.rec-dias').value = datos.duracionDias;
+    fila.querySelector('.rec-ind').value = datos.indicaciones || '';
   }
   fila.querySelector('.rec-quitar').addEventListener('click', () => fila.remove());
   cont.appendChild(fila);
@@ -8166,7 +8453,8 @@ function recSuspender(m, boton) {
   });
 }
 
-function abrirModalReceta() {
+// borrador (opcional): el borrador de receta de medico_dictado.
+function abrirModalReceta(borrador) {
   if (!pacienteActual) return;
   const f = pacienteActual.fields;
   const nombre = f['Nombre completo'] || f['nombre'] || 'Paciente';
@@ -8186,7 +8474,11 @@ function abrirModalReceta() {
   else if (motivoActivo) document.getElementById('rec-indicaciones').value = motivoActivo;
 
   document.getElementById('rec-filas').innerHTML = '';
-  recAgregarFila();
+  const meds = borrador && Array.isArray(borrador.medicamentos) ? borrador.medicamentos : [];
+  if (meds.length) meds.slice(0, REC_MAX_FILAS).forEach(m => recAgregarFila(m));
+  else recAgregarFila();
+  if (borrador && borrador.indicaciones) document.getElementById('rec-indicaciones').value = borrador.indicaciones;
+  if (borrador && borrador.proximaCita) document.getElementById('rec-proxima-cita').value = borrador.proximaCita;
   document.getElementById('btn-imprimir-sin-guardar').style.display = 'none';
   const estado = document.getElementById('rec-estado');
   const btn = document.getElementById('btn-imprimir-receta');
@@ -8199,7 +8491,9 @@ function abrirModalReceta() {
   } else {
     btn.disabled = false;
     estado.style.color = '';
-    estado.textContent = '';
+    estado.textContent = meds.length
+      ? 'Borrador de tu dictado: revisa cada renglón y completa lo que no dijiste (vía, frecuencia…) antes de emitir.'
+      : '';
   }
   recCargarActuales();
   document.getElementById('modal-receta').classList.add('active');
@@ -8209,7 +8503,7 @@ function cerrarModalReceta() {
   document.getElementById('modal-receta').classList.remove('active');
 }
 
-document.getElementById('btn-receta').addEventListener('click', abrirModalReceta);
+document.getElementById('btn-receta').addEventListener('click', () => abrirModalReceta());
 document.getElementById('modal-receta-close').addEventListener('click', cerrarModalReceta);
 document.getElementById('modal-receta-cancel').addEventListener('click', cerrarModalReceta);
 document.getElementById('rec-agregar-fila').addEventListener('click', () => recAgregarFila());

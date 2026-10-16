@@ -39,6 +39,16 @@ test('dictado: lo que no se dijo se descarta (CIE-10 inventado, negativo clínic
   assert.ok(r.descartados.every((d) => /no aparece/.test(d.motivo)));
 });
 
+test('dictado: fragmentos del mismo campo se unen sin doble punto y los descartados traen etiqueta', () => {
+  const r = procesarDictado(DICTADO, [
+    { campo: 'motivo_consulta', valor: 'x', cita: 'Paciente con dolor abdominal cólico desde ayer, sin fiebre.' },
+    { campo: 'motivo_consulta', valor: 'x', cita: 'Madre con diabetes' },
+    { campo: 'alergias', valor: 'x', cita: 'niega alergias' },
+  ]);
+  assert.strictEqual(r.campos.motivo_consulta, 'Paciente con dolor abdominal cólico desde ayer, sin fiebre. Madre con diabetes');
+  assert.strictEqual(r.descartados[0].etiqueta, 'Alergias');
+});
+
 test('dictado: números verificados contra la cita (incluida coma decimal y presión con dos cifras)', () => {
   const r = procesarDictado(DICTADO, [
     { campo: 'presion', valor: '120/80', cita: 'Presión 120 80' },
