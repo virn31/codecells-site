@@ -5,16 +5,19 @@
 > agrega al final): este archivo es el estado actual, no un diario. El
 > historial vive en git (`git log`) y en la memoria del proyecto.
 
-**Última actualización:** 2026-10-16 (SPEC de dictado — Fase 2 hecha)
-**Rama de trabajo:** `feat/paciente-unico` — 15 commits **sin push** (lo corre Víctor). Nada fusionado a `main`.
-**Pruebas:** `node --test test/*.test.js` → **325/325 en verde**.
+**Última actualización:** 2026-10-16 (SPEC de dictado — Fases 2 y 3 hechas)
+**Rama de trabajo:** `feat/paciente-unico` — 16 commits **sin push** (lo corre Víctor). Nada fusionado a `main`.
+**Pruebas:** `node --test test/*.test.js` → **342/342 en verde**.
 **Servidor local:** detenido. `node scripts/servidor-local.js` solo si se necesita navegador.
 
 ---
 
-## 1. Siguiente paso (empezar aquí): SPEC de dictado — FASE 3 (Telegram usa `medico_dictado`)
+## 1. Siguiente paso (empezar aquí): decidir con Víctor entre (a) arreglar que "Guardar consulta" del PORTAL reemplaza Historia Clínica, o (b) SPEC de dictado — FASE 4
 
-**Antes, pendiente de Víctor:** probar la **voz real** en Chrome (no se pudo probar sin micrófono; el flujo con texto sí está probado de punta a punta en prueba). **Punto legal:** Web Speech de Chrome manda el audio a servidores de Google → llevar al abogado o limitar la voz a prueba mientras tanto.
+**(a) — recomendado primero, borra datos clínicos:** el botón "Guardar consulta" de `portal-medico.html` hace PATCH a HISTORIA CLÍNICA con lo capturado en la consulta → REEMPLAZA los antecedentes previos (AHF, APP, alergias…). Telegram ya se corrigió (agrega en renglón nuevo); el portal no. Además esos PATCH y el de PACIENTES/labs no revisan `r.ok`.
+
+**Pendiente de Víctor:** probar la **voz real** en Chrome (sin micrófono no se pudo; el flujo con texto está probado de punta a punta). **Punto legal:** Web Speech de Chrome manda el audio a servidores de Google → llevar al abogado o limitar la voz a prueba mientras tanto.
+**Decisión abierta:** ¿emitir receta desde Telegram (p. ej. "sí, receta" cuando venga completa)? Hoy NO: queda como borrador y se emite desde el portal.
 
 **Decisiones de Víctor (2026-10-05):** 1) voz por el **navegador** (Web Speech API) en el portal; voz en Telegram solo cuando el abogado apruebe un proveedor en servidor; 2) lo dictado llena los **campos de la consulta** (no un texto suelto); 3) Telegram con **dictado libre** (comandos solo como atajo opcional).
 **Cambios a la SPEC (aprobados con el plan):** nada de CIE-10 sugerido ni dosis completadas; sin "confianza" numérica; médico siempre del token/chat; acción en nova.js, no archivo nuevo.
@@ -24,8 +27,8 @@
 **Fase 1b HECHA** (`75b7a1b`): `medico_dictado` arma también un borrador de receta verificado por cita.
 
 **Fase 2 HECHA** (2026-10-16): caja "🎙️ Dictar a NOVA" en Nueva consulta (Web Speech es-MX, reanuda tras silencio; sin Web Speech → aviso y texto). "Estructurar" coloca cada campo con borde dorado persistente (gris si el médico lo edita); texto se AGREGA en renglón nuevo, números ya capturados NO se sobrescriben (se reporta). Panel: dónde quedó / no se colocó / descartado / sin ubicar / signos faltantes / borrador de receta → "Abrir receta con este borrador" (no se emite hasta completar lo faltante). Al guardar: `Transcripción dictada`, `Origen del registro` (Formulario / Dictado NOVA — portal / — Telegram), `Método`, `Detalle del dictado` (qué colocó NOVA y qué editó el médico). Prompt: síntomas referidos → motivo, no exploración.
-**Fase 3 (siguiente):** Telegram usa `medico_dictado` en vez de interpretar por el chat; "Entendí:" campo por campo antes de "sí"; guardar `Origen del registro` = "Dictado NOVA — Telegram".
-**Fase 4:** auditoría (campos de origen), guía para médicos, Preview con Galván.
+**Fase 3 HECHA** (2026-10-16): motor movido a `lib/dictado.js` (portal y Telegram, mismo código; `estructurarDictado(texto)`). Telegram ya no llama al chat de NOVA en producción sin sesión. "Entendí:" campo por campo con citas, descartados, sin ubicar, faltantes, borrador de receta (NO se emite desde Telegram). "sí" guarda (re-autoriza; retira el pendiente ANTES de guardar → sin duplicados; si falla, lo repone), "cancelar"/"no" descarta, otro texto se AGREGA y se re-estructura todo; código de otro paciente descarta el pendiente y lo dice; "sí" sin dictado no llama al modelo; pendiente v2 caduca a las 12 h; formato viejo no se guarda. Consulta con Origen "Dictado NOVA — Telegram", transcripción y detalle. Antecedentes se AGREGAN (antes reemplazaba). Fallos parciales se dicen. Notas de voz → instrucciones (teclado del celular). Motor ganó `grupo_sanguineo` (símbolo o palabras; "AB+" no prueba "B+") y `escolaridad` (opciones del portal; terminada/trunca solo si se dijo; cita con fragmentos "…" solo en estos dos campos). Grupo sanguíneo distinto al del expediente NO se sobrescribe (aviso + bitácora "NO aplicado"). Telegram perdió (deliberado, salen como "no encaja"): labs en texto y el cajón notas_internas→Razonamiento clínico.
+**Fase 4:** auditoría (campos de origen), guía para médicos, Preview con Galván (incluir dictado portal + Telegram).
 
 ## 2. Pendientes (después de la SPEC)
 
@@ -77,7 +80,8 @@
 | Bitácora ACCESOS_EXPEDIENTE: reintento + alerta Telegram (siempre hay registro) | `1ae0b4a` |
 | Anti-duplicado del alta por dictado; series enlazadas al catálogo + idempotentes; "no graficable"; formatDate sin corrimiento | `ea71139` |
 | Dictado Fase 1 (motor, cita literal) + borrador de receta | `7d151d3`, `75b7a1b` |
-| **2026-10-16** Dictado Fase 2: voz/texto en Nueva consulta, marcas NOVA/editado, campos de auditoría en CONSULTAS | (este commit) |
+| **2026-10-16** Dictado Fase 2: voz/texto en Nueva consulta, marcas NOVA/editado, campos de auditoría en CONSULTAS | `4ffdff6` |
+| **2026-10-16** Dictado Fase 3: Telegram con el motor compartido (`lib/dictado.js`), grupo sanguíneo y escolaridad | (este commit) |
 
 ## 5. Antes de fusionar a `main` (crear en producción "CODE CELLS CRM")
 
@@ -106,7 +110,8 @@ Revocar/reconectar Google Calendar de VIRN01 (§2.2).
 - Regex `pacienteCode` duplicada en ~14 sitios (extraer a constante).
 - Recordatorios de medicamentos con la app cerrada (push).
 - `Clasificación cie10.pdf` y `SPEC-NOVA-DICTACION-BIDIRECCIONAL.md` sin rastrear (no son de Claude).
-- Guardar consulta: los PATCH de HISTORIA CLÍNICA y PACIENTES y el guardado de labs no revisan `r.ok` (fallo silencioso tras "Consulta guardada ✓").
+- Telegram: labs dictados ya no se guardan (salen "no encaja"); si se quieren, hacerlo con el flujo de series + catálogo, no texto libre. La sugerencia CIE-10 de Telegram sigue apuntando a `www.codecells.mx` aun en Preview.
+- Base de prueba: CC-PAC-9999901 quedó con grupo O+, "Licenciatura terminada" y ~5 consultas de prueba de dictado (2026-10-16); registro vacío de PENDIENTES del chat ficticio 990001117.
 - Dictado: un encabezado dicho sin dos puntos ("Diagnóstico angina…") queda literal en el campo (deliberado: quitarlo sin ":" rompería "Diagnóstico diferencial…").
 - `package.json` aún lista `@anthropic-ai/sdk` (solo lo usaba el `buscar-medicos` retirado).
 

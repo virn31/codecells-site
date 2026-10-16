@@ -16,6 +16,7 @@ const { generarCodigoPorIniciales } = require('../lib/codigos');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico } = require('../lib/autorizacion');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
+const { estructurarDictado } = require('../lib/dictado');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -36,36 +37,6 @@ const CAMPO_CHAT_ID = 'Telegram Chat ID';
 const CAMPO_NOMBRE = 'Nombre completo';
 const CAMPO_CEDULA = 'Cédula profesional';
 
-const ETIQUETAS_FICHA = {
-  peso: 'Peso (kg)',
-  talla: 'Talla (cm)',
-  presion: 'Presión',
-  temperatura: 'Temperatura (°C)',
-  frecuencia_cardiaca: 'Frec. cardiaca',
-  frecuencia_respiratoria: 'Frec. respiratoria',
-  saturacion_oxigeno: 'Sat. O2 (%)',
-  circunferencia_cintura: 'Cintura (cm)',
-  motivo_consulta: 'Motivo de consulta',
-  exploracion_fisica: 'Exploración física',
-  diagnostico: 'Diagnóstico',
-  plan_terapeutico: 'Plan terapéutico',
-  notas_internas: 'Razonamiento clínico',
-  antecedentes_heredofamiliares: 'AHF',
-  antecedentes_personales_patologicos: 'APP',
-  antecedentes_quirurgicos: 'Quirúrgicos',
-  antecedentes_ginecoobstetricos: 'Gineco-obstétricos',
-  medicamentos_actuales: 'Medicamentos actuales',
-  alergias: 'Alergias',
-  habitos_estilo_vida: 'Hábitos',
-  estado_civil: 'Estado civil',
-  ocupacion: 'Ocupación',
-  grupo_sanguineo: 'Grupo sanguíneo',
-  escolaridad: 'Escolaridad',
-  panel_laboratorio: 'Panel de laboratorio',
-  resultados_laboratorio: 'Resultados de laboratorio',
-  valores_fuera_rango: 'Valores fuera de rango',
-};
-
 async function airtableGet(tableId, formula) {
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${tableId}?filterByFormula=${encodeURIComponent(formula)}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -82,70 +53,96 @@ async function buscarPacientePorCodigo(codigo) {
   return airtableGet(PACIENTES_TABLE_ID, `{Código de paciente} = "${codigo}"`);
 }
 
-/**
- * Llama a NOVA en modo médico (mismo endpoint que usa el Portal) para que
- * interprete el dictado y regrese la "ficha" estructurada, sin pasar por
- * ningún formulario de navegador.
- */
-async function interpretarDictado(dictado, medico) {
-  const res = await fetch('https://www.codecells.mx/api/nova', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      medicoCode: medico.fields[CAMPO_CODIGO],
-      medicoNombre: medico.fields[CAMPO_NOMBRE],
-      medicoEspecialidad: medico.fields['Especialidad'],
-      messages: [{ role: 'user', content: dictado }],
-    }),
-  });
-  const data = await res.json();
-  return data.ficha || null;
+// ── Dictado por Telegram (SPEC dictado, Fase 3) ────────────────────────
+// Mismo motor que el portal (lib/dictado.js): cada campo se verifica contra
+// una cita literal de lo dictado. El médico ve "Entendí:" campo por campo y
+// solo "sí" guarda. Mientras hay un dictado pendiente, lo que escriba se
+// AGREGA al dictado y se vuelve a estructurar todo; "cancelar" lo descarta.
+// El pendiente vive en PENDIENTES ('Ficha JSON' = { v: 2, transcripcion,
+// resultado }) y caduca: un "sí" horas después no guarda nada olvidado.
+const VERSION_PENDIENTE = 2;
+const HORAS_VIGENCIA_PENDIENTE = 12;
+
+function leerDictadoPendiente(pendiente) {
+  if (!pendiente || !pendiente.fields['Ficha JSON']) return null;
+  let d;
+  try { d = JSON.parse(pendiente.fields['Ficha JSON']); } catch { return { invalido: 'formato' }; }
+  if (!d || d.v !== VERSION_PENDIENTE || !d.transcripcion || !d.resultado) return { invalido: 'formato' };
+  const fecha = Date.parse(pendiente.fields['Fecha'] || '');
+  if (!Number.isFinite(fecha) || Date.now() - fecha > HORAS_VIGENCIA_PENDIENTE * 3600 * 1000) return { invalido: 'vencido' };
+  return d;
 }
 
-function resumenFicha(ficha) {
-  const lineas = Object.entries(ficha)
-    .filter(([clave, val]) => clave !== 'campos_faltantes' && val !== undefined && val !== null && val !== '')
-    .map(([clave, val]) => `${ETIQUETAS_FICHA[clave] || clave}: ${val}`);
-  return lineas.join('\n');
+function mensajeEntendi(nombre, codigo, r) {
+  const L = [`Entendí para ${nombre} (${codigo}):`, ''];
+  const porCampo = {};
+  for (const x of (r.detalle || [])) (porCampo[x.campo] = porCampo[x.campo] || []).push(x);
+  for (const [campo, items] of Object.entries(porCampo)) {
+    const valor = r.campos[campo];
+    if (valor === undefined) continue;
+    const citas = items.map((x) => x.cita).filter((c) => String(c) !== String(valor));
+    L.push(`• **${items[0].etiqueta}:** ${valor}${citas.length ? ` — «${citas.join('» · «')}»` : ''}${items.some((x) => x.aviso) ? ' ⚠️ fuera de rango plausible, revisa' : ''}`);
+  }
+  if (!Object.keys(r.campos || {}).length) L.push('No encontré datos clínicos que acomodar en la ficha.');
+  if ((r.descartados || []).length) {
+    L.push('', '**Descartado** (no lo encontré tal cual en lo que dictaste):');
+    r.descartados.forEach((x) => L.push(`• ${x.etiqueta || x.campo}: ${x.valor ?? ''} — ${x.motivo}`));
+  }
+  if ((r.sinUbicar || []).length) {
+    L.push('', '**No encaja en ningún campo** (no se guarda):');
+    r.sinUbicar.forEach((x) => L.push(`• «${x}»`));
+  }
+  if ((r.faltantes || []).length) L.push('', `Signos que no dictaste (quedan vacíos): ${r.faltantes.join(', ')}.`);
+  if (r.receta) {
+    L.push('', '**Receta** (borrador — no se emite desde Telegram; la emites tú desde el portal):');
+    (r.receta.medicamentos || []).forEach((m) => L.push(`• ${m.nombre} ${m.dosis} ${m.via} ${m.frecuencia}${m.duracionDias ? ` · ${m.duracionDias} días` : ''}${m.faltan.length ? ` — falta: ${m.faltan.join(', ')}` : ''}`.replace(/\s+/g, ' ')));
+    if (r.receta.indicaciones) L.push(`Indicaciones: ${r.receta.indicaciones}`);
+    if (r.receta.proximaCita) L.push(`Próxima cita: ${r.receta.proximaCita}`);
+  }
+  L.push('', Object.keys(r.campos || {}).length
+    ? 'Responde **sí** para guardarlo en su expediente, **cancelar** para descartarlo, o sigue dictando para agregar.'
+    : 'Sigue dictando para agregar, o **cancelar** para descartarlo.');
+  return L.join('\n');
 }
 
-async function guardarPendiente(chatId, pacienteRecordId, codigoPaciente, ficha) {
+async function guardarPendiente(chatId, pacienteRecordId, codigoPaciente, dictado) {
   const existente = await airtableGet(PENDIENTES_TABLE_ID, `{Chat ID} = "${chatId}"`);
   const body = {
     fields: {
       'Chat ID': String(chatId),
       'Paciente': [pacienteRecordId],
       'Código de paciente': codigoPaciente,
-      'Ficha JSON': ficha ? JSON.stringify(ficha) : '',
+      'Ficha JSON': dictado ? JSON.stringify({ v: VERSION_PENDIENTE, ...dictado }) : '',
       'Fecha': new Date().toISOString(),
     },
   };
   const url = existente
     ? `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PENDIENTES_TABLE_ID}/${existente.id}`
     : `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PENDIENTES_TABLE_ID}`;
-  await fetch(url, {
+  const r = await fetch(url, {
     method: existente ? 'PATCH' : 'POST',
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  // Sin pendiente guardado, un "sí" después no tendría qué guardar: se avisa.
+  if (!r.ok) throw new Error(`Airtable respondió ${r.status} al guardar el dictado pendiente`);
 }
 
 async function obtenerPendiente(chatId) {
   return airtableGet(PENDIENTES_TABLE_ID, `{Chat ID} = "${chatId}"`);
 }
 
+// Se limpia TODO (dictado y paciente): antes quedaba el código del paciente
+// y cualquier mensaje posterior del médico se tomaba como dictado para él.
 async function borrarPendiente(recordId) {
-  await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PENDIENTES_TABLE_ID}/${recordId}`, {
+  const r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PENDIENTES_TABLE_ID}/${recordId}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields: { 'Ficha JSON': '' } }),
+    body: JSON.stringify({ fields: { 'Ficha JSON': '', 'Código de paciente': '', 'Paciente': [] } }),
   });
+  return r.ok;
 }
 
-/**
- * Reparte la ficha en las 3 tablas correctas — mismo criterio que usa el
- * botón "Guardar consulta" del Portal Médico.
- */
 // Puerta del dictado por Telegram — las mismas reglas que el portal
 // (CLAUDE.md §4). Antes bastaba el código CC-PAC- para dictar y guardar en
 // el expediente de CUALQUIER paciente. Ahora: Tipo de acceso=Clinico y
@@ -176,24 +173,35 @@ async function autorizarDictadoTelegram(medico, codigoPaciente) {
   return { pacienteRecord };
 }
 
-async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
+// Reparte lo confirmado en CONSULTAS / HISTORIA CLÍNICA / PACIENTES, con el
+// mismo criterio que "Guardar consulta" del portal. Cuenta lo confirmado por
+// Airtable (CLAUDE.md §6): si la consulta no se crea, se lanza y el médico lo
+// sabe; si la consulta se creó pero otra parte falla, se devuelve qué faltó.
+async function guardarDictadoEnExpediente(pacienteRecord, dictado, medico) {
   // Falla ruidosa, no escritura parcial: una CONSULTA sin Paciente enlazado
-  // queda huérfana del expediente para siempre (Airtable no permite
-  // enlazarla después por lote) — CLAUDE.md §6/§4. Se corta aquí, antes de
-  // escribir nada, en vez de crear el registro y confiar en que el llamador
-  // ya validó pacienteRecord.
+  // queda huérfana del expediente para siempre.
   if (!pacienteRecord || !pacienteRecord.id) {
-    throw new Error('guardarFichaEnExpediente: pacienteRecord.id no disponible — no se crea la consulta sin paciente enlazado.');
+    throw new Error('guardarDictadoEnExpediente: pacienteRecord.id no disponible — no se crea la consulta sin paciente enlazado.');
   }
-
   const headers = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
   const pacId = pacienteRecord.fields['Código de paciente'];
+  const c = dictado.resultado.campos || {};
 
   const vitalesExtra = [];
-  if (ficha.frecuencia_cardiaca) vitalesExtra.push(`FC: ${ficha.frecuencia_cardiaca} lpm`);
-  if (ficha.frecuencia_respiratoria) vitalesExtra.push(`FR: ${ficha.frecuencia_respiratoria} rpm`);
-  if (ficha.saturacion_oxigeno) vitalesExtra.push(`SatO2: ${ficha.saturacion_oxigeno}%`);
-  if (ficha.circunferencia_cintura) vitalesExtra.push(`Cintura: ${ficha.circunferencia_cintura} cm`);
+  if (c.frecuencia_cardiaca) vitalesExtra.push(`FC: ${c.frecuencia_cardiaca} lpm`);
+  if (c.frecuencia_respiratoria) vitalesExtra.push(`FR: ${c.frecuencia_respiratoria} rpm`);
+  if (c.saturacion_oxigeno) vitalesExtra.push(`SatO2: ${c.saturacion_oxigeno}%`);
+  if (c.circunferencia_cintura) vitalesExtra.push(`Cintura: ${c.circunferencia_cintura} cm`);
+
+  // El grupo sanguíneo no cambia: si el expediente ya tiene otro, uno de los
+  // dos está mal y no se resuelve sobrescribiendo — se avisa y la bitácora lo
+  // dice (no queda como "colocado").
+  const grupoPrevio = pacienteRecord.fields['Grupo sanguíneo'];
+  const grupoEnConflicto = !!(c.grupo_sanguineo && grupoPrevio && grupoPrevio !== c.grupo_sanguineo);
+  const detalle = (dictado.resultado.detalle || []).map((x) => (x.campo === 'grupo_sanguineo' && grupoEnConflicto
+    ? `${x.etiqueta}: dictado «${x.cita}» — NO aplicado, el expediente ya dice ${grupoPrevio}`
+    : `${x.etiqueta}: colocado por NOVA desde «${x.cita}»`));
+  detalle.push('Revisado y confirmado por el médico en Telegram ("sí"), sin edición campo por campo.');
 
   const consultaFields = {
     'Código de paciente ref': pacId,
@@ -202,18 +210,18 @@ async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
     'Código de médico ref': medico.fields[CAMPO_CODIGO] || '—',
     'Firma / Cédula médico': (medico.fields[CAMPO_NOMBRE] || 'Médico') + (medico.fields[CAMPO_CEDULA] ? ' — Céd. ' + medico.fields[CAMPO_CEDULA] : ''),
     'Fecha de consulta': new Date().toISOString().split('T')[0],
-    'Peso en consulta (kg)': ficha.peso || undefined,
-    'Talla en consulta (cm)': ficha.talla || undefined,
-    'Presión arterial en consulta': ficha.presion || undefined,
-    'Temperatura en consulta (°C)': ficha.temperatura || undefined,
-    'Motivo de consulta': ficha.motivo_consulta || undefined,
-    'Exploración física': ficha.exploracion_fisica || undefined,
-    'Diagnóstico (CIE-10)': ficha.diagnostico || undefined,
-    'Plan terapéutico': ficha.plan_terapeutico || undefined,
-    // notas_internas es el catch-all genérico de NOVA ("cualquier dato sin
-    // campo propio") — va al NO portable por default, mismo criterio que el
-    // autorelleno del portal (ver portal-medico.html, aplicarFichaNova).
-    'Razonamiento clínico': ficha.notas_internas || undefined,
+    'Peso en consulta (kg)': c.peso ?? undefined,
+    'Talla en consulta (cm)': c.talla ?? undefined,
+    'Presión arterial en consulta': c.presion || undefined,
+    'Temperatura en consulta (°C)': c.temperatura ?? undefined,
+    'Motivo de consulta': c.motivo_consulta || undefined,
+    'Exploración física': c.exploracion_fisica || undefined,
+    'Diagnóstico (CIE-10)': c.diagnostico || undefined,
+    'Plan terapéutico': c.plan_terapeutico || undefined,
+    'Origen del registro': 'Dictado NOVA — Telegram',
+    'Método': 'Texto',
+    'Transcripción dictada': dictado.transcripcion,
+    'Detalle del dictado': detalle.join('\n'),
   };
   if (vitalesExtra.length > 0) consultaFields['Signos vitales'] = vitalesExtra.join(' · ');
   Object.keys(consultaFields).forEach((k) => consultaFields[k] === undefined && delete consultaFields[k]);
@@ -223,93 +231,84 @@ async function guardarFichaEnExpediente(pacienteRecord, ficha, medico) {
     headers,
     body: JSON.stringify({ typecast: true, records: [{ fields: consultaFields }] }),
   });
+  if (!consultaRes.ok) throw new Error(`Airtable respondió ${consultaRes.status} al crear la consulta`);
   const consultaData = await consultaRes.json();
   const consultaId = consultaData.records && consultaData.records[0] && consultaData.records[0].id;
+  if (!consultaId) throw new Error('Airtable no devolvió la consulta creada');
 
-  // Sugerencia automática de CIE-10 — mismo criterio que el portal: solo si
-  // el médico no dictó ya un diagnóstico explícito. Se autentica con un
-  // token interno de un solo uso (pocos minutos de vida), mismo mecanismo
-  // de sesión que usa el resto del sistema — no un canal de seguridad aparte.
-  if (consultaId && !ficha.diagnostico) {
+  const falto = [];
+
+  // Sugerencia automática de CIE-10 — solo si el médico no dictó diagnóstico.
+  if (!c.diagnostico) {
     try {
       const tokenInterno = generarToken({ tipo: 'medico', codigo: medico.fields[CAMPO_CODIGO], horas: 0.05 });
       await fetch('https://www.codecells.mx/api/nova-asistente-clinico', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenInterno}` },
-        body: JSON.stringify({
-          accion: 'sugerir_cie10',
-          consultaRecordId: consultaId,
-          motivo: ficha.motivo_consulta || '',
-          exploracion: ficha.exploracion_fisica || '',
-        }),
+        body: JSON.stringify({ accion: 'sugerir_cie10', consultaRecordId: consultaId, motivo: c.motivo_consulta || '', exploracion: c.exploracion_fisica || '' }),
       });
     } catch (err) {
       console.error('[telegram-bot] error al pedir sugerencia CIE-10:', err.message);
     }
   }
 
-  if (ficha.resultados_laboratorio) {
-    const labFields = {
-      'Código de paciente ref': pacId,
-      'Paciente': [pacienteRecord.id],
-      'Panel solicitado': ficha.panel_laboratorio || 'Personalizado',
-      'Resultados (texto)': ficha.resultados_laboratorio,
-      'Fecha de resultados': new Date().toISOString().split('T')[0],
-    };
-    if (ficha.valores_fuera_rango) labFields['Valores fuera de rango'] = ficha.valores_fuera_rango;
-    if (consultaId) labFields['Consulta'] = [consultaId];
-    await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${LABS_TABLE_ID}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ typecast: true, records: [{ fields: labFields }] }),
-    });
-  }
-
-  const historiaFields = {
-    'AHF — Heredo-familiares': ficha.antecedentes_heredofamiliares || undefined,
-    'APP — Enfermedades previas': ficha.antecedentes_personales_patologicos || undefined,
-    'Antecedentes quirúrgicos': ficha.antecedentes_quirurgicos || undefined,
-    'AGO — Ginecobstétrico': ficha.antecedentes_ginecoobstetricos || undefined,
-    'Medicamentos actuales': ficha.medicamentos_actuales || undefined,
-    'Alergias': ficha.alergias || undefined,
-    'APNP — Alimentación': ficha.habitos_estilo_vida || undefined,
+  // Antecedentes: se AGREGAN a lo que ya había (renglón nuevo), nunca se
+  // reemplaza lo que otro médico o el paciente ya registraron.
+  const historiaNueva = {
+    'AHF — Heredo-familiares': c.antecedentes_heredofamiliares,
+    'APP — Enfermedades previas': c.antecedentes_personales_patologicos,
+    'Antecedentes quirúrgicos': c.antecedentes_quirurgicos,
+    'AGO — Ginecobstétrico': c.antecedentes_ginecoobstetricos,
+    'Medicamentos actuales': c.medicamentos_actuales,
+    'Alergias': c.alergias,
+    'APNP — Alimentación': c.habitos_estilo_vida,
   };
-  Object.keys(historiaFields).forEach((k) => historiaFields[k] === undefined && delete historiaFields[k]);
-
-  if (Object.keys(historiaFields).length > 0) {
-    const historiaExistente = await airtableGet(HISTORIA_TABLE_ID, `{Código de paciente ref} = "${pacId}"`);
-    if (historiaExistente) {
-      await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HISTORIA_TABLE_ID}/${historiaExistente.id}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ typecast: true, fields: historiaFields }),
-      });
-    } else {
-      historiaFields['Código de paciente ref'] = pacId;
-      historiaFields['Paciente'] = [pacienteRecord.id];
-      historiaFields['Fecha entrevista NOVA'] = new Date().toISOString();
-      await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HISTORIA_TABLE_ID}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ typecast: true, records: [{ fields: historiaFields }] }),
-      });
+  Object.keys(historiaNueva).forEach((k) => !historiaNueva[k] && delete historiaNueva[k]);
+  if (Object.keys(historiaNueva).length > 0) {
+    try {
+      const existente = await airtableGet(HISTORIA_TABLE_ID, `{Código de paciente ref} = "${pacId}"`);
+      let r;
+      if (existente) {
+        const fields = {};
+        for (const [k, v] of Object.entries(historiaNueva)) {
+          const prev = String(existente.fields[k] || '').trim();
+          fields[k] = !prev ? v : prev.includes(v) ? prev : `${prev}\n${v}`;
+        }
+        r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HISTORIA_TABLE_ID}/${existente.id}`, {
+          method: 'PATCH', headers, body: JSON.stringify({ typecast: true, fields }),
+        });
+      } else {
+        r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${HISTORIA_TABLE_ID}`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ typecast: true, records: [{ fields: { ...historiaNueva, 'Código de paciente ref': pacId, 'Paciente': [pacienteRecord.id], 'Fecha entrevista NOVA': new Date().toISOString() } }] }),
+        });
+      }
+      if (!r.ok) throw new Error(`Airtable respondió ${r.status}`);
+    } catch (err) {
+      console.error('[telegram-bot] historia clínica no guardada:', err.message);
+      falto.push(`antecedentes en Historia Clínica (${Object.keys(historiaNueva).join(', ')})`);
     }
   }
 
-  const pacienteFields = {
-    'Estado civil': ficha.estado_civil || undefined,
-    'Ocupación': ficha.ocupacion || undefined,
-    'Grupo sanguíneo': ficha.grupo_sanguineo || undefined,
-    'Escolaridad': ficha.escolaridad || undefined,
-  };
-  Object.keys(pacienteFields).forEach((k) => pacienteFields[k] === undefined && delete pacienteFields[k]);
+  const avisos = [];
+  const pacienteFields = {};
+  if (c.estado_civil) pacienteFields['Estado civil'] = c.estado_civil;
+  if (c.ocupacion) pacienteFields['Ocupación'] = c.ocupacion;
+  if (c.escolaridad) pacienteFields['Escolaridad'] = c.escolaridad;
+  if (c.grupo_sanguineo && !grupoPrevio) pacienteFields['Grupo sanguíneo'] = c.grupo_sanguineo;
+  if (grupoEnConflicto) avisos.push(`No cambié el grupo sanguíneo: el expediente dice ${grupoPrevio} y dictaste ${c.grupo_sanguineo}. Verifícalo y corrígelo desde el portal.`);
   if (Object.keys(pacienteFields).length > 0) {
-    await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PACIENTES_TABLE_ID}/${pacienteRecord.id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ typecast: true, fields: pacienteFields }),
-    });
+    try {
+      const r = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${PACIENTES_TABLE_ID}/${pacienteRecord.id}`, {
+        method: 'PATCH', headers, body: JSON.stringify({ typecast: true, fields: pacienteFields }),
+      });
+      if (!r.ok) throw new Error(`Airtable respondió ${r.status}`);
+    } catch (err) {
+      console.error('[telegram-bot] datos del paciente no guardados:', err.message);
+      falto.push(`datos del paciente (${Object.keys(pacienteFields).join(', ')})`);
+    }
   }
+  return { consultaId, falto, avisos };
 }
 
 async function buscarMedicoPorCodigo(codigo) {
@@ -629,6 +628,18 @@ module.exports = async (req, res) => {
 
     const message = update.message;
 
+    // Notas de voz: aún no se transcriben en servidor (falta que el abogado
+    // apruebe un proveedor). Al médico vinculado se le dice qué hacer en vez
+    // de ignorarlo en silencio.
+    if (message && !message.text && (message.voice || message.audio)) {
+      if (await esDuplicado(message.chat.id, update.update_id)) return res.status(200).json({ ok: true });
+      const medicoVoz = await buscarMedicoPorChatId(message.chat.id);
+      if (medicoVoz) {
+        await sendTelegramMessage(message.chat.id, 'Todavía no proceso notas de voz. Usa el micrófono del teclado de tu celular para dictar: me llega como texto y lo estructuro igual.');
+      }
+      return res.status(200).json({ ok: true });
+    }
+
     if (!message || !message.text) {
       return res.status(200).json({ ok: true });
     }
@@ -649,7 +660,7 @@ module.exports = async (req, res) => {
           'Para vincular tu cuenta, envíame tu código de médico (formato CCMED-XXXXXX).\n\n' +
           'Una vez vinculado:\n' +
           '• Escribe "plan" + datos del paciente → plan nutricional de 7 días.\n' +
-          '• Escribe el código del paciente (CC-PAC-XXXXXX) + tu dictado → lo interpreto y, si confirmas, lo guardo en su expediente.'
+          '• Escribe el código del paciente (CC-PAC-XXXXXX) + tu dictado, en el orden que quieras → te digo campo por campo qué entendí. Puedes seguir dictando para agregar; "sí" lo guarda en su expediente y "cancelar" lo descarta.'
       );
       return res.status(200).json({ ok: true });
     }
@@ -714,66 +725,100 @@ module.exports = async (req, res) => {
       }
     }
 
-    // ¿Es una confirmación ("sí", "confirmar", "guardar"...) de un dictado
-    // de expediente pendiente?
-    if (/^(s[ií]|confirmar|guardar|correcto|ok|dale)\.?!?$/i.test(texto)) {
-      const pendiente = await obtenerPendiente(chatId);
-      if (pendiente && pendiente.fields['Ficha JSON']) {
-        // CONGELAMIENTO 2026-08-24 (instrucción legal): guardarFichaEnExpediente
-        // escribe datos clínicos permanentes (CONSULTAS/LABS/HISTORIA/PACIENTES).
-        // Ver lib/congelamientoDatosPersonales.js.
-        if (CONGELADO) {
-          await sendTelegramMessage(
-            chatId,
-            'Estamos actualizando nuestro aviso de privacidad y políticas de datos. El registro de nueva información clínica no está disponible temporalmente. Tu dictado sigue pendiente de confirmar cuando se reactive.'
-          );
-          return res.status(200).json({ ok: true });
-        }
-        try {
-          const ficha = JSON.parse(pendiente.fields['Ficha JSON']);
-          // Se vuelve a autorizar al confirmar: el acceso pudo cambiar entre
-          // el dictado y el "sí".
-          const puerta = await autorizarDictadoTelegram(medicoVinculado, pendiente.fields['Código de paciente']);
-          if (puerta.mensaje) {
-            await sendTelegramMessage(chatId, puerta.mensaje);
-            return res.status(200).json({ ok: true });
-          }
-          const pacienteRecord = puerta.pacienteRecord;
-          await guardarFichaEnExpediente(pacienteRecord, ficha, medicoVinculado);
-          await borrarPendiente(pendiente.id);
-          await sendTelegramMessage(
-            chatId,
-            `Guardado en el expediente de ${pacienteRecord.fields['Nombre completo'] || pendiente.fields['Código de paciente']}. ✅`
-          );
-        } catch (err) {
-          console.error('[telegram-bot] error guardando ficha confirmada:', err.message);
-          await sendTelegramMessage(chatId, 'Hubo un error guardando en Airtable. Intenta de nuevo.');
-        }
-        return res.status(200).json({ ok: true });
-      }
-      // No hay nada pendiente que confirmar — cae al flujo normal abajo.
-    }
-
-    // ¿El mensaje trae un código de paciente (CC-PAC-XXXXXX), el comando
-    // "/consulta", O ya estábamos esperando el dictado de un paciente que
-    // se identificó en un mensaje anterior? En cualquiera de los tres casos
-    // se interpreta como dictado de expediente.
+    // ── Dictado de expediente (SPEC dictado, Fase 3) ─────────────────────
+    // Dictado libre: el código del paciente identifica a quién va (nunca se
+    // adivina por nombre); "sí" guarda, "cancelar" descarta, cualquier otro
+    // texto mientras hay un dictado pendiente se AGREGA y se re-estructura.
+    const esConfirmacion = /^(s[ií]|confirmar|guardar|correcto|ok|dale)\.?!?$/i.test(texto);
+    const esCancelacion = /^(cancelar|cancela|descartar|desc[aá]rtalo|borrar|no)\.?!?$/i.test(texto);
     const matchPaciente = texto.match(/CC-PAC-[0-9]{4,8}/i);
     const esComandoConsulta = /^\/consulta\b/i.test(texto);
+    const esComandoPlan = /^\/?plan\b/i.test(texto);
+    const pendiente = await obtenerPendiente(chatId);
+    const conDictado = pendiente && pendiente.fields['Ficha JSON'] ? pendiente : null;
+    const esperando = pendiente && pendiente.fields['Código de paciente'] && !pendiente.fields['Ficha JSON'] ? pendiente : null;
 
-    let pendienteEsperando = null;
-    if (!matchPaciente && !esComandoConsulta) {
-      const posible = await obtenerPendiente(chatId);
-      if (posible && posible.fields['Código de paciente'] && !posible.fields['Ficha JSON']) {
-        pendienteEsperando = posible;
-      }
+    if ((conDictado || esperando) && esCancelacion) {
+      const borrado = await borrarPendiente((conDictado || esperando).id);
+      await sendTelegramMessage(chatId, borrado
+        ? 'Descartado. No se guardó nada en el expediente.'
+        : 'No pude descartar el dictado pendiente (problema temporal). No se ha guardado nada; escribe "cancelar" de nuevo.');
+      return res.status(200).json({ ok: true });
     }
 
-    if (matchPaciente || esComandoConsulta || pendienteEsperando) {
-      // CONGELAMIENTO 2026-08-24 (instrucción legal): este flujo interpreta y
-      // guarda (vía guardarPendiente, aunque sea de forma pendiente de
-      // confirmar) datos clínicos de un paciente identificado. Ver
-      // lib/congelamientoDatosPersonales.js.
+    if (conDictado && esConfirmacion) {
+      // CONGELAMIENTO 2026-08-24 (instrucción legal): guardar escribe datos
+      // clínicos permanentes. Ver lib/congelamientoDatosPersonales.js.
+      if (CONGELADO) {
+        await sendTelegramMessage(
+          chatId,
+          'Estamos actualizando nuestro aviso de privacidad y políticas de datos. El registro de nueva información clínica no está disponible temporalmente. Tu dictado sigue pendiente de confirmar cuando se reactive.'
+        );
+        return res.status(200).json({ ok: true });
+      }
+      const codigoPend = conDictado.fields['Código de paciente'];
+      let pendienteRetirado = false;
+      let d = null;
+      try {
+        // Se vuelve a autorizar al confirmar: el acceso pudo cambiar entre
+        // el dictado y el "sí".
+        const puerta = await autorizarDictadoTelegram(medicoVinculado, codigoPend);
+        if (puerta.mensaje) {
+          await sendTelegramMessage(chatId, puerta.mensaje);
+          return res.status(200).json({ ok: true });
+        }
+        d = leerDictadoPendiente(conDictado);
+        if (!d || d.invalido) {
+          await borrarPendiente(conDictado.id);
+          await sendTelegramMessage(chatId, d && d.invalido === 'vencido'
+            ? `Ese dictado lleva más de ${HORAS_VIGENCIA_PENDIENTE} horas sin confirmar; por seguridad no lo guardo. Díctalo de nuevo.`
+            : 'Ese dictado se tomó con una versión anterior del bot; por seguridad no lo guardo. Díctalo de nuevo.');
+          return res.status(200).json({ ok: true });
+        }
+        if (!Object.keys(d.resultado.campos || {}).length) {
+          await sendTelegramMessage(chatId, 'Ese dictado no tiene datos que guardar. Sigue dictando o escribe "cancelar".');
+          return res.status(200).json({ ok: true });
+        }
+        // Primero se retira el pendiente: si no se puede, NO se guarda (un
+        // segundo "sí" duplicaría la consulta).
+        if (!(await borrarPendiente(conDictado.id))) {
+          await sendTelegramMessage(chatId, 'No se guardó: tuve un problema temporal con el dictado pendiente. Escribe "sí" de nuevo en un momento.');
+          return res.status(200).json({ ok: true });
+        }
+        pendienteRetirado = true;
+        const pacienteRecord = puerta.pacienteRecord;
+        const { falto, avisos } = await guardarDictadoEnExpediente(pacienteRecord, d, medicoVinculado);
+        let msg = `Consulta guardada en el expediente de ${pacienteRecord.fields['Nombre completo'] || codigoPend}. ✅`;
+        if (falto.length) msg += `\n\n⚠️ Pero NO se guardó: ${falto.join('; ')}. Captúralo desde el portal.`;
+        avisos.forEach((a) => { msg += `\n\n⚠️ ${a}`; });
+        if (d.resultado.receta) msg += '\n\nLa receta no se emitió: emítela desde el portal (botón Receta).';
+        await sendTelegramMessage(chatId, msg);
+      } catch (err) {
+        console.error('[telegram-bot] error guardando dictado confirmado:', err.message);
+        // La consulta no se creó: se repone el pendiente para que "sí" funcione.
+        let repuesto = !pendienteRetirado;
+        if (pendienteRetirado && d && conDictado.fields['Paciente'] && conDictado.fields['Paciente'][0]) {
+          try { await guardarPendiente(chatId, conDictado.fields['Paciente'][0], codigoPend, { transcripcion: d.transcripcion, resultado: d.resultado }); repuesto = true; } catch (e) { /* abajo se avisa */ }
+        }
+        await sendTelegramMessage(chatId, repuesto
+          ? 'No se guardó la consulta (problema temporal con Airtable). Tu dictado sigue pendiente: escribe "sí" de nuevo en un momento.'
+          : 'No se guardó la consulta (problema temporal con Airtable) y no pude conservar el dictado. Tu texto sigue arriba en este chat: reenvíalo con el código del paciente.');
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // "sí" cuando solo se dio el código y aún no hay nada dictado: no hay qué
+    // guardar ni qué estructurar (antes se mandaba "sí" al modelo como dictado).
+    if (esperando && esConfirmacion) {
+      await sendTelegramMessage(chatId, `Aún no me has dictado nada para ${esperando.fields['Código de paciente']}. Dicta lo que quieras registrar, o escribe "cancelar".`);
+      return res.status(200).json({ ok: true });
+    }
+
+    const agregaAlPendiente = conDictado && !matchPaciente && !esComandoConsulta && !esComandoPlan && !esConfirmacion;
+
+    if (matchPaciente || esComandoConsulta || esperando || agregaAlPendiente) {
+      // CONGELAMIENTO 2026-08-24 (instrucción legal): este flujo estructura y
+      // guarda como pendiente datos clínicos de un paciente identificado.
       if (CONGELADO) {
         await sendTelegramMessage(
           chatId,
@@ -783,8 +828,8 @@ module.exports = async (req, res) => {
       }
       const codigoPaciente = matchPaciente
         ? matchPaciente[0].toUpperCase()
-        : pendienteEsperando
-          ? pendienteEsperando.fields['Código de paciente']
+        : pendiente && pendiente.fields['Código de paciente']
+          ? pendiente.fields['Código de paciente']
           : null;
 
       if (!codigoPaciente) {
@@ -798,38 +843,49 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
       const pacienteRecord = puerta.pacienteRecord;
+      const nombrePaciente = pacienteRecord.fields['Nombre completo'] || codigoPaciente;
 
-      // Si ya estábamos esperando su dictado, el mensaje completo ES el
-      // dictado (no hace falta repetir el código).
-      const dictado = pendienteEsperando
-        ? texto.trim()
-        : texto.replace(/^\/consulta\b/i, '').replace(codigoPaciente, '').replace(/^[:\s-]+/, '').trim();
+      const dictadoNuevo = matchPaciente || esComandoConsulta
+        ? texto.replace(/^\/consulta\b/i, '').replace(new RegExp(codigoPaciente, 'i'), '').replace(/^[:\s-]+/, '').trim()
+        : texto.trim();
 
-      if (!dictado) {
+      // ¿Hay un dictado vigente? Del mismo paciente se continúa; de otro se
+      // descarta (y se dice).
+      let previo = '';
+      let aviso = '';
+      if (conDictado) {
+        const d = leerDictadoPendiente(conDictado);
+        const mismo = conDictado.fields['Código de paciente'] === codigoPaciente;
+        if (d && !d.invalido && mismo) previo = d.transcripcion;
+        else if (d && !d.invalido) aviso = `(Descarté el dictado sin confirmar de ${conDictado.fields['Código de paciente']}.)\n\n`;
+        else aviso = '(El dictado anterior ya no era válido; empiezo uno nuevo.)\n\n';
+      }
+
+      if (!dictadoNuevo) {
+        if (previo) {
+          await sendTelegramMessage(chatId, `Sigues con el dictado de ${nombrePaciente}. Dime qué agregar, "sí" para guardar o "cancelar".`);
+          return res.status(200).json({ ok: true });
+        }
         await guardarPendiente(chatId, pacienteRecord.id, codigoPaciente, null);
-        await sendTelegramMessage(chatId, `Encontré a ${pacienteRecord.fields['Nombre completo']} — ahora dime qué quieres registrar.`);
+        await sendTelegramMessage(chatId, `${aviso}Encontré a ${nombrePaciente} — dicta lo que quieras registrar, en el orden que quieras.`);
         return res.status(200).json({ ok: true });
       }
 
-      await sendTelegramMessage(chatId, 'Analizando el dictado, un momento...');
+      const transcripcion = previo ? `${previo}\n${dictadoNuevo}` : dictadoNuevo;
+      await sendTelegramMessage(chatId, previo ? 'Lo agrego al dictado y lo vuelvo a acomodar, un momento...' : 'Acomodando el dictado, un momento...');
 
       try {
-        const ficha = await interpretarDictado(dictado, medicoVinculado);
-        if (!ficha) {
-          await sendTelegramMessage(chatId, 'No pude interpretar datos clínicos claros en ese mensaje. Intenta con más detalle.');
+        const r = await estructurarDictado(transcripcion);
+        if (!r.ok) {
+          await sendTelegramMessage(chatId, r.error);
           return res.status(200).json({ ok: true });
         }
-
-        await guardarPendiente(chatId, pacienteRecord.id, codigoPaciente, ficha);
-
-        const resumen = resumenFicha(ficha);
-        await sendTelegramMessageChunked(
-          chatId,
-          `Esto entendí para ${pacienteRecord.fields['Nombre completo']} (${codigoPaciente}):\n\n${resumen}\n\n¿Lo guardo? Responde "sí" para confirmar, o mándame la corrección.`
-        );
+        const resultado = { campos: r.campos, detalle: r.detalle, descartados: r.descartados, sinUbicar: r.sinUbicar, faltantes: r.faltantes, receta: r.receta };
+        await guardarPendiente(chatId, pacienteRecord.id, codigoPaciente, { transcripcion, resultado });
+        await sendTelegramMessageChunked(chatId, aviso + mensajeEntendi(nombrePaciente, codigoPaciente, resultado));
       } catch (err) {
-        console.error('[telegram-bot] error interpretando dictado:', err.message);
-        await sendTelegramMessage(chatId, 'Hubo un error interpretando el dictado. Intenta de nuevo.');
+        console.error('[telegram-bot] error estructurando dictado:', err.message);
+        await sendTelegramMessage(chatId, 'Hubo un error acomodando el dictado; no se guardó nada. Intenta de nuevo.');
       }
       return res.status(200).json({ ok: true });
     }
@@ -837,8 +893,6 @@ module.exports = async (req, res) => {
     // Médico vinculado: solo se genera plan nutricional si el mensaje empieza
     // explícitamente con "plan" o "/plan" — así cualquier otro mensaje suyo
     // (confirmar una cita, comentarios, etc.) no se confunde con esto.
-    const esComandoPlan = /^\/?plan\b/i.test(texto);
-
     if (!esComandoPlan) {
       await sendTelegramMessage(
         chatId,

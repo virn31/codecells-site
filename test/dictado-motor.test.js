@@ -39,6 +39,42 @@ test('dictado: lo que no se dijo se descarta (CIE-10 inventado, negativo clínic
   assert.ok(r.descartados.every((d) => /no aparece/.test(d.motivo)));
 });
 
+test('dictado: grupo sanguíneo solo si se dijo — con símbolo o con palabras; "AB+" no prueba "B+"', () => {
+  const T = 'Tipo de sangre O positivo. Su esposo es AB+. Hermano cero Rh negativo. Hija tipo A-.';
+  const prueba = (valor, cita) => procesarDictado(T, [{ campo: 'grupo_sanguineo', valor, cita }]);
+  assert.strictEqual(prueba('O+', 'Tipo de sangre O positivo').campos.grupo_sanguineo, 'O+');
+  assert.strictEqual(prueba('o -', 'Hermano cero Rh negativo').campos.grupo_sanguineo, 'O-');
+  assert.strictEqual(prueba('A-', 'Hija tipo A-').campos.grupo_sanguineo, 'A-');
+  assert.strictEqual(prueba('AB+', 'Su esposo es AB+').campos.grupo_sanguineo, 'AB+');
+  assert.strictEqual(prueba('B+', 'Su esposo es AB+').campos.grupo_sanguineo, undefined);
+  assert.strictEqual(prueba('O-', 'Tipo de sangre O positivo').campos.grupo_sanguineo, undefined);
+  assert.strictEqual(prueba('Z+', 'Tipo de sangre O positivo').descartados[0].motivo, 'grupo sanguíneo no válido');
+});
+
+test('dictado: escolaridad solo si se dijo; "terminada"/"trunca" exigen que se haya dicho', () => {
+  const T = 'Terminó la licenciatura en contaduría. Su hermano estudió licenciatura. El papá tiene licenciatura trunca. La mamá hizo prepa. Primaria incompleta la abuela. Tiene maestría.';
+  const prueba = (valor, cita) => procesarDictado(T, [{ campo: 'escolaridad', valor, cita }]);
+  assert.strictEqual(prueba('Licenciatura terminada', 'Terminó la licenciatura en contaduría').campos.escolaridad, 'Licenciatura terminada');
+  assert.match(prueba('Licenciatura terminada', 'Su hermano estudió licenciatura').descartados[0].motivo, /no dijiste si terminó/);
+  assert.strictEqual(prueba('Licenciatura trunca', 'El papá tiene licenciatura trunca').campos.escolaridad, 'Licenciatura trunca');
+  assert.strictEqual(prueba('Licenciatura terminada', 'El papá tiene licenciatura trunca').campos.escolaridad, undefined);
+  assert.strictEqual(prueba('Preparatoria', 'La mamá hizo prepa').campos.escolaridad, 'Preparatoria');
+  assert.match(prueba('Primaria', 'Primaria incompleta la abuela').descartados[0].motivo, /incompleto/);
+  assert.strictEqual(prueba('Posgrado', 'Tiene maestría').campos.escolaridad, 'Posgrado');
+  assert.strictEqual(prueba('Secundaria', 'La mamá hizo prepa').campos.escolaridad, undefined);
+});
+
+test('dictado: en campos de opción la cita admite fragmentos con "…", pero cada uno debe ser literal', () => {
+  const T = 'Estudió la licenciatura en derecho. Presión 118 sobre 76.\naclaro: sí terminó la licenciatura, está titulada';
+  const prueba = (cita) => procesarDictado(T, [{ campo: 'escolaridad', valor: 'Licenciatura terminada', cita }]);
+  assert.strictEqual(prueba('Estudió la licenciatura en derecho … sí terminó la licenciatura').campos.escolaridad, 'Licenciatura terminada');
+  assert.strictEqual(prueba('Estudió la licenciatura en derecho ... está titulada').campos.escolaridad, 'Licenciatura terminada');
+  assert.strictEqual(prueba('Estudió la licenciatura en derecho … y se tituló con honores').campos.escolaridad, undefined);
+  // En campos de texto "…" NO separa: la cita tiene que ser continua.
+  const t = procesarDictado(T, [{ campo: 'motivo_consulta', valor: 'x', cita: 'Estudió la licenciatura … está titulada' }]);
+  assert.strictEqual(t.campos.motivo_consulta, undefined);
+});
+
 test('dictado: fragmentos del mismo campo se unen sin doble punto y los descartados traen etiqueta', () => {
   const r = procesarDictado(DICTADO, [
     { campo: 'motivo_consulta', valor: 'x', cita: 'Paciente con dolor abdominal cólico desde ayer, sin fiebre.' },

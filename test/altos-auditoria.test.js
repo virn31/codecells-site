@@ -206,7 +206,7 @@ const dedupe = (u, m) => (u.includes(DEDUPE) ? ok(m === 'GET' ? { records: [] } 
 test('Telegram: dictar sobre un paciente AJENO → se rechaza sin interpretar ni guardar', async () => {
   const cap = await webhook('CC-PAC-9002 dolor de cabeza desde ayer', dedupe);
   assert.match(cap.telegram.at(-1), /No tienes acceso de escritura al paciente CC-PAC-9002/);
-  assert.ok(!cap.llamadas.some((l) => l.includes('codecells.mx/api/nova')), 'mandó el dictado a NOVA');
+  assert.ok(!cap.llamadas.some((l) => l.includes('api.anthropic.com')), 'mandó el dictado al modelo');
   assert.ok(!cap.posts.some((p) => p.u.includes(PENDIENTES) || p.u.includes(CONSULTAS)));
 });
 
@@ -234,5 +234,5 @@ test('Telegram: confirmar ("sí") un dictado pendiente de un paciente AJENO → 
 test('Telegram: dictar sobre un paciente PROPIO sí pasa la puerta (llega a interpretar)', async () => {
   const cap = await webhook('CC-PAC-9001 dolor de cabeza desde ayer', dedupe);
   assert.ok(!cap.telegram.some((m) => /No tienes acceso|tipo de acceso/.test(m)), cap.telegram.join(' | '));
-  assert.ok(cap.llamadas.some((l) => l.includes('codecells.mx/api/nova')), 'no llegó a interpretar el dictado');
+  assert.ok(cap.llamadas.some((l) => l.includes('api.anthropic.com')), 'no llegó a estructurar el dictado');
 });

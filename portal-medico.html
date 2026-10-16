@@ -8060,13 +8060,16 @@ function dictadoReset() {
 function dictadoColocar(campo, valor, citas, etiqueta, colocados, conflictos) {
   const inputId = MAPA_FICHA_NOVA[campo];
   const el = inputId && document.getElementById(inputId);
-  if (!el) { conflictos.push({ etiqueta, valor, motivo: 'no hay casilla para este dato en el formulario' }); return; }
+  if (!el) { conflictos.push({ campo, etiqueta, valor, motivo: 'no hay casilla para este dato en el formulario' }); return; }
   const actual = el.value.trim();
   const v = String(valor);
-  const esNumerico = el.type === 'number' || campo === 'presion';
-  if (esNumerico) {
-    if (actual && actual !== v) { conflictos.push({ etiqueta, valor: v, motivo: `la casilla ya tenía ${actual}; no se cambió` }); return; }
+  // Números, presión y listas (grupo sanguíneo, escolaridad): un valor ya
+  // capturado distinto no se reemplaza.
+  const esValorUnico = el.type === 'number' || campo === 'presion' || el.tagName === 'SELECT';
+  if (esValorUnico) {
+    if (actual && actual !== v) { conflictos.push({ campo, etiqueta, valor: v, motivo: `la casilla ya tenía ${actual}; no se cambió` }); return; }
     el.value = v;
+    if (el.value !== v) { el.value = actual; conflictos.push({ campo, etiqueta, valor: v, motivo: 'no es una opción de la lista' }); return; }
   } else if (!actual) {
     el.value = v;
   } else if (!actual.includes(v)) {
@@ -8100,7 +8103,8 @@ function dictadoRenderResultado(d, conflictos) {
   const esc = escaparHtml;
   const partes = [];
   const lista = (titulo, items) => items.length ? `<h4>${titulo}</h4><ul>${items.join('')}</ul>` : '';
-  partes.push(lista('Dónde quedó lo que dijiste', (d.detalle || []).map(x =>
+  const noColocados = new Set(conflictos.map(x => x.campo));
+  partes.push(lista('Dónde quedó lo que dijiste', (d.detalle || []).filter(x => !noColocados.has(x.campo)).map(x =>
     `<li><b>${esc(x.etiqueta)}:</b> ${esc(x.valor)} <span class="dictado-cita">— «${esc(x.cita)}»</span>${x.aviso ? ` <span class="dictado-aviso">⚠️ ${esc(x.aviso)}</span>` : ''}</li>`)));
   partes.push(lista('No se colocó — revísalo', conflictos.map(x =>
     `<li class="dictado-aviso"><b>${esc(x.etiqueta)}:</b> ${esc(x.valor)} — ${esc(x.motivo)}</li>`)));
