@@ -11,12 +11,12 @@
 
 const { sendTelegramMessage, sendTelegramMessageChunked, answerCallbackQuery, editarMensaje } = require('../lib/telegram');
 const { generarPlanNutricional } = require('../lib/nutricion');
-const { generarToken } = require('../lib/auth');
 const { generarCodigoPorIniciales } = require('../lib/codigos');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico } = require('../lib/autorizacion');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { estructurarDictado } = require('../lib/dictado');
+const { sugerirCie10, diagnosticoConCodigos } = require('../lib/cie10');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -99,9 +99,20 @@ function mensajeEntendi(nombre, codigo, r) {
     if (r.receta.indicaciones) L.push(`Indicaciones: ${r.receta.indicaciones}`);
     if (r.receta.proximaCita) L.push(`Próxima cita: ${r.receta.proximaCita}`);
   }
-  L.push('', Object.keys(r.campos || {}).length
-    ? 'Responde **sí** para guardarlo en su expediente, **cancelar** para descartarlo, o sigue dictando para agregar.'
-    : 'Sigue dictando para agregar, o **cancelar** para descartarlo.');
+  const opciones = (r.cie10 && r.cie10.opciones) || [];
+  if (opciones.length) {
+    L.push('', '**CIE-10 sugeridos para tu diagnóstico** (verificados contra el catálogo; elige tú):');
+    opciones.forEach((o) => L.push(`${o.n}) ${o.codigo} — ${o.descripcion} («${o.frase}»)`));
+  } else if (r.cie10 && r.cie10.error) {
+    L.push('', `CIE-10: ${r.cie10.error} El diagnóstico se guarda como lo dictaste.`);
+  }
+  if (!Object.keys(r.campos || {}).length) {
+    L.push('', 'Sigue dictando para agregar, o **cancelar** para descartarlo.');
+  } else if (opciones.length) {
+    L.push('', 'Responde **sí 1** (o **sí 1 3** para varios códigos) para guardar con esos códigos, **sí** para guardar el diagnóstico sin código, **cancelar** para descartarlo, o sigue dictando para agregar.');
+  } else {
+    L.push('', 'Responde **sí** para guardarlo en su expediente, **cancelar** para descartarlo, o sigue dictando para agregar.');
+  }
   return L.join('\n');
 }
 
@@ -177,7 +188,8 @@ async function autorizarDictadoTelegram(medico, codigoPaciente) {
 // mismo criterio que "Guardar consulta" del portal. Cuenta lo confirmado por
 // Airtable (CLAUDE.md §6): si la consulta no se crea, se lanza y el médico lo
 // sabe; si la consulta se creó pero otra parte falla, se devuelve qué faltó.
-async function guardarDictadoEnExpediente(pacienteRecord, dictado, medico) {
+// elegidos: opciones CIE-10 que el médico eligió con "sí 1 3" (o []).
+async function guardarDictadoEnExpediente(pacienteRecord, dictado, medico, elegidos = []) {
   // Falla ruidosa, no escritura parcial: una CONSULTA sin Paciente enlazado
   // queda huérfana del expediente para siempre.
   if (!pacienteRecord || !pacienteRecord.id) {
@@ -201,6 +213,7 @@ async function guardarDictadoEnExpediente(pacienteRecord, dictado, medico) {
   const detalle = (dictado.resultado.detalle || []).map((x) => (x.campo === 'grupo_sanguineo' && grupoEnConflicto
     ? `${x.etiqueta}: dictado «${x.cita}» — NO aplicado, el expediente ya dice ${grupoPrevio}`
     : `${x.etiqueta}: colocado por NOVA desde «${x.cita}»`));
+  if (elegidos.length) detalle.push(`CIE-10: sugerido por NOVA (verificado en el catálogo) y elegido por el médico: ${elegidos.map((e) => e.codigo).join(', ')}.`);
   detalle.push('Revisado y confirmado por el médico en Telegram ("sí"), sin edición campo por campo.');
 
   const consultaFields = {
@@ -216,7 +229,7 @@ async function guardarDictadoEnExpediente(pacienteRecord, dictado, medico) {
     'Temperatura en consulta (°C)': c.temperatura ?? undefined,
     'Motivo de consulta': c.motivo_consulta || undefined,
     'Exploración física': c.exploracion_fisica || undefined,
-    'Diagnóstico (CIE-10)': c.diagnostico || undefined,
+    'Diagnóstico (CIE-10)': (elegidos.length ? diagnosticoConCodigos(elegidos) : c.diagnostico) || undefined,
     'Plan terapéutico': c.plan_terapeutico || undefined,
     'Origen del registro': 'Dictado NOVA — Telegram',
     'Método': 'Texto',
@@ -237,20 +250,6 @@ async function guardarDictadoEnExpediente(pacienteRecord, dictado, medico) {
   if (!consultaId) throw new Error('Airtable no devolvió la consulta creada');
 
   const falto = [];
-
-  // Sugerencia automática de CIE-10 — solo si el médico no dictó diagnóstico.
-  if (!c.diagnostico) {
-    try {
-      const tokenInterno = generarToken({ tipo: 'medico', codigo: medico.fields[CAMPO_CODIGO], horas: 0.05 });
-      await fetch('https://www.codecells.mx/api/nova-asistente-clinico', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenInterno}` },
-        body: JSON.stringify({ accion: 'sugerir_cie10', consultaRecordId: consultaId, motivo: c.motivo_consulta || '', exploracion: c.exploracion_fisica || '' }),
-      });
-    } catch (err) {
-      console.error('[telegram-bot] error al pedir sugerencia CIE-10:', err.message);
-    }
-  }
 
   // Antecedentes: se AGREGAN a lo que ya había (renglón nuevo), nunca se
   // reemplaza lo que otro médico o el paciente ya registraron.
@@ -729,7 +728,10 @@ module.exports = async (req, res) => {
     // Dictado libre: el código del paciente identifica a quién va (nunca se
     // adivina por nombre); "sí" guarda, "cancelar" descarta, cualquier otro
     // texto mientras hay un dictado pendiente se AGREGA y se re-estructura.
-    const esConfirmacion = /^(s[ií]|confirmar|guardar|correcto|ok|dale)\.?!?$/i.test(texto);
+    // "sí", o "sí 1 3" / "sí 1, 3" / "sí 1 y 3" para elegir códigos CIE-10.
+    const mConfirmacion = texto.match(/^(?:s[ií]|confirmar|guardar|correcto|ok|dale)(?:[\s,.:]+((?:\d{1,2}(?:\s*(?:,|y|\s)\s*)?)+))?\s*[.!]?$/i);
+    const esConfirmacion = !!mConfirmacion;
+    const numerosElegidos = mConfirmacion && mConfirmacion[1] ? [...new Set(mConfirmacion[1].match(/\d+/g).map(Number))] : [];
     const esCancelacion = /^(cancelar|cancela|descartar|desc[aá]rtalo|borrar|no)\.?!?$/i.test(texto);
     const matchPaciente = texto.match(/CC-PAC-[0-9]{4,8}/i);
     const esComandoConsulta = /^\/consulta\b/i.test(texto);
@@ -779,6 +781,17 @@ module.exports = async (req, res) => {
           await sendTelegramMessage(chatId, 'Ese dictado no tiene datos que guardar. Sigue dictando o escribe "cancelar".');
           return res.status(200).json({ ok: true });
         }
+        // Códigos elegidos: solo números de la lista mostrada; uno que no
+        // existe no se adivina — no se guarda nada y se pide de nuevo.
+        const opciones = (d.resultado.cie10 && d.resultado.cie10.opciones) || [];
+        const invalidos = numerosElegidos.filter((n) => !opciones.some((o) => o.n === n));
+        if (invalidos.length) {
+          await sendTelegramMessage(chatId, opciones.length
+            ? `No hay opción ${invalidos.join(', ')} en la lista de CIE-10 (van del 1 al ${opciones.length}). No guardé nada; responde de nuevo, p. ej. "sí 1".`
+            : 'Este dictado no tiene códigos CIE-10 sugeridos para elegir. Responde "sí" para guardarlo sin código.');
+          return res.status(200).json({ ok: true });
+        }
+        const elegidos = numerosElegidos.map((n) => opciones.find((o) => o.n === n));
         // Primero se retira el pendiente: si no se puede, NO se guarda (un
         // segundo "sí" duplicaría la consulta).
         if (!(await borrarPendiente(conDictado.id))) {
@@ -787,8 +800,9 @@ module.exports = async (req, res) => {
         }
         pendienteRetirado = true;
         const pacienteRecord = puerta.pacienteRecord;
-        const { falto, avisos } = await guardarDictadoEnExpediente(pacienteRecord, d, medicoVinculado);
+        const { falto, avisos } = await guardarDictadoEnExpediente(pacienteRecord, d, medicoVinculado, elegidos);
         let msg = `Consulta guardada en el expediente de ${pacienteRecord.fields['Nombre completo'] || codigoPend}. ✅`;
+        if (elegidos.length) msg += `\nDiagnóstico: ${diagnosticoConCodigos(elegidos)}`;
         if (falto.length) msg += `\n\n⚠️ Pero NO se guardó: ${falto.join('; ')}. Captúralo desde el portal.`;
         avisos.forEach((a) => { msg += `\n\n⚠️ ${a}`; });
         if (d.resultado.receta) msg += '\n\nLa receta no se emitió: emítela desde el portal (botón Receta).';
@@ -881,6 +895,25 @@ module.exports = async (req, res) => {
           return res.status(200).json({ ok: true });
         }
         const resultado = { campos: r.campos, detalle: r.detalle, descartados: r.descartados, sinUbicar: r.sinUbicar, faltantes: r.faltantes, receta: r.receta };
+        // CIE-10 sugeridos para el diagnóstico DICTADO (verificados contra el
+        // catálogo), numerados para que el médico elija con "sí 1 3". Si falla
+        // la sugerencia, se dice y el dictado sigue (se guarda sin código).
+        if (r.campos.diagnostico) {
+          try {
+            const s = await sugerirCie10(String(r.campos.diagnostico));
+            if (s.ok) {
+              let n = 0;
+              const opciones = [];
+              for (const g of s.grupos) for (const c of g.candidatos) opciones.push({ n: ++n, codigo: c.codigo, descripcion: c.descripcion, frase: g.frase });
+              resultado.cie10 = { opciones };
+            } else {
+              resultado.cie10 = { opciones: [], error: 'no pude sugerir códigos en este momento.' };
+            }
+          } catch (errCie) {
+            console.error('[telegram-bot] sugerencia CIE-10:', errCie.message);
+            resultado.cie10 = { opciones: [], error: 'no pude sugerir códigos en este momento.' };
+          }
+        }
         await guardarPendiente(chatId, pacienteRecord.id, codigoPaciente, { transcripcion, resultado });
         await sendTelegramMessageChunked(chatId, aviso + mensajeEntendi(nombrePaciente, codigoPaciente, resultado));
       } catch (err) {

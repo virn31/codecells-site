@@ -788,6 +788,12 @@
   }
   .nova-input-row button:hover { background: #d4b07a; }
   .nova-input-row button:disabled { background: var(--gold-dim); cursor: not-allowed; }
+  /* Micrófono del chat: secundario (no compite con Enviar); rojo mientras escucha */
+  .nova-input-row button.nova-mic { background: transparent; border: 0.5px solid var(--border-dim); color: var(--text-2); font-size: 15px; }
+  .nova-input-row button.nova-mic:hover { background: var(--black-4); }
+  .nova-input-row button.nova-mic.grabando { background: #E2574B; border-color: #E2574B; color: #fff; animation: novaMicPulso 1.2s ease-in-out infinite; }
+  .nova-input-row button.nova-mic:disabled { background: transparent; opacity: 0.35; }
+  @keyframes novaMicPulso { 0%, 100% { box-shadow: 0 0 0 0 rgba(226,87,75,0.5); } 50% { box-shadow: 0 0 0 5px rgba(226,87,75,0); } }
 
   html { background: var(--black); }
   html, body {
@@ -1925,6 +1931,11 @@
   .dictado-aviso { color: #E2574B; }
   .campo-dictado-nova { border-color: var(--gold) !important; box-shadow: inset 3px 0 0 var(--gold); }
   .campo-dictado-editado { box-shadow: inset 3px 0 0 var(--text-3); }
+  .cie10-sug { margin-top: -0.25rem; }
+  .cie10-sug-grupo { margin-top: 10px; }
+  .cie10-sug-grupo label { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; padding: 4px 0; cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--text-1); }
+  .cie10-sug-grupo label input { width: auto; margin-top: 2px; }
+  .cie10-sug-acciones { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
   .form-group select { appearance: none; cursor: pointer; }
 
@@ -3197,6 +3208,7 @@
     </div>
     <div class="nova-input-row">
       <input type="text" id="nova-input" placeholder="Escribe tu consulta…" autocomplete="off">
+      <button id="nova-mic" class="nova-mic" type="button" title="Dictar a NOVA" aria-label="Dictar a NOVA">🎙️</button>
       <button id="nova-send">↑</button>
     </div>
   </div>
@@ -3941,6 +3953,15 @@
                   <option value="suspendido">Suspendido</option>
                 </select>
               </div>
+            </div>
+
+            <!-- CIE-10: NOVA propone códigos para el diagnóstico que escribiste o
+                 dictaste (verificados contra el catálogo); tú eliges uno o varios.
+                 nova medico_sugerir_cie10. Nada se guarda hasta "Guardar consulta". -->
+            <div class="cie10-sug">
+              <button type="button" class="btn-secondary" id="btn-sugerir-cie10">🔎 Sugerir CIE-10 para este diagnóstico</button>
+              <div class="dictado-estado" id="cie10-sug-estado"></div>
+              <div class="dictado-resultado" id="cie10-sug-panel" style="display:none;"></div>
             </div>
 
             <div class="form-group">
@@ -6416,6 +6437,48 @@ document.getElementById('btn-guardar-datos').addEventListener('click', async () 
 });
 
 // ─── HISTORIA CLÍNICA ─────────────────────────────────────────────
+// Une un antecedente nuevo a lo que ya había: renglón nuevo, sin repetir lo
+// que ya está. Nunca reemplaza.
+function unirAntecedente(previo, nuevo) {
+  const p = String(previo || '').trim();
+  const n = String(nuevo || '').trim();
+  if (!n) return p;
+  if (!p) return n;
+  return p.includes(n) ? p : `${p}\n${n}`;
+}
+
+// Guarda los antecedentes capturados en una consulta. Relee la historia en
+// el momento (no la copia cargada al abrir el paciente, que puede ser vieja)
+// y AGREGA. Lanza si Airtable no confirma.
+async function guardarAntecedentesDeConsulta(pacId, nuevos) {
+  const formula = encodeURIComponent(`{Código de paciente ref}="${pacId}"`);
+  const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1&pacienteBuscado=${encodeURIComponent(pacId)}`);
+  const existente = data.records && data.records[0];
+  if (!existente) {
+    await airtablePost(TBL_HISTORIA, { ...nuevos, 'Código de paciente ref': pacId, 'Paciente': [pacienteActual.id], 'Fecha entrevista NOVA': new Date().toISOString() }, pacId);
+    return;
+  }
+  const cambios = {};
+  for (const [campo, valor] of Object.entries(nuevos)) {
+    const previo = String(existente.fields[campo] || '').trim();
+    const unido = unirAntecedente(previo, valor);
+    if (unido !== previo) cambios[campo] = unido;
+  }
+  if (!Object.keys(cambios).length) return;
+  const res = await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${existente.id}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: cambios, typecast: true })
+  });
+  if (!res.ok) throw await leerErrorAirtable(res);
+}
+
+// Estado vacío REAL (antes se mostraban antecedentes de ejemplo inventados —
+// "DM2 padre", "alergia a penicilina" — en pacientes sin historia: CLAUDE.md §7).
+function renderHistoriaVacia() {
+  return '<div class="data-cell"><div class="val" style="font-weight:400;font-size:13px;color:var(--text-3);">Sin historia clínica registrada todavía. Puedes capturarla con "Editar historia" o en los antecedentes de la consulta.</div></div>';
+}
+
 let historiaActualId = null;
 let historiaActualFields = {};
 
@@ -6432,7 +6495,7 @@ async function cargarHistoria(pacId) {
     const data = await airtableFetch(TBL_HISTORIA, `?filterByFormula=${formula}&maxRecords=1&pacienteBuscado=${encodeURIComponent(pacId)}`);
 
     if (!data.records || data.records.length === 0) {
-      cont.innerHTML = renderHistoriaDemo();
+      cont.innerHTML = renderHistoriaVacia();
       return;
     }
 
@@ -6442,6 +6505,9 @@ async function cargarHistoria(pacId) {
     const campos = [
       { key: 'Motivo de la entrevista', val: f['Motivo de consulta'] },
       { key: 'Antecedentes heredofamiliares', val: f['AHF — Heredo-familiares'] },
+      { key: 'Antecedentes personales patológicos', val: f['APP — Enfermedades previas'] },
+      { key: 'Antecedentes quirúrgicos', val: f['Antecedentes quirúrgicos'] },
+      { key: 'Antecedentes gineco-obstétricos', val: f['AGO — Ginecobstétrico'] },
       { key: 'Alimentación', val: f['APNP — Alimentación'] },
       { key: 'Tabaco', val: f['APNP — Tabaco'] },
       { key: 'Alcohol', val: f['APNP — Alcohol'] },
@@ -6450,12 +6516,12 @@ async function cargarHistoria(pacId) {
       { key: 'Medicamentos actuales', val: f['Medicamentos actuales'] },
     ].filter(c => c.val);
 
-    if (campos.length === 0) { cont.innerHTML = renderHistoriaDemo(); return; }
+    if (campos.length === 0) { cont.innerHTML = renderHistoriaVacia(); return; }
 
     cont.innerHTML = campos.map(c => `
       <div class="data-cell" style="margin-bottom:8px;border-radius:4px;">
         <div class="key">${c.key}</div>
-        <div class="val" style="font-weight:400;font-size:13px;line-height:1.6;margin-top:4px;">${c.val}</div>
+        <div class="val" style="font-weight:400;font-size:13px;line-height:1.6;margin-top:4px;white-space:pre-line;">${escaparHtml(c.val)}</div>
       </div>
     `).join('');
 
@@ -6518,11 +6584,12 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
   try {
     if (historiaActualId) {
       // Ya existe un registro (llenado por el paciente o el kiosco) — se corrige
-      await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
+      const res = await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields, typecast: true })
       });
+      if (!res.ok) throw await leerErrorAirtable(res);
     } else {
       // No existía historia clínica todavía — el médico la crea de cero
       fields['Código de paciente ref'] = pacId;
@@ -6535,25 +6602,11 @@ document.getElementById('btn-guardar-historia').addEventListener('click', async 
     document.getElementById('historia-content').style.display = 'block';
     cargarHistoria(pacId);
   } catch (err) {
-    errEl.textContent = 'Error al guardar. Verifica conexión.';
+    errEl.textContent = `No se guardó la historia clínica: ${err.message || 'verifica tu conexión'}.`;
   } finally {
     btn.disabled = false; lbl.style.display = 'inline'; loader.style.display = 'none';
   }
 });
-
-function renderHistoriaDemo() {
-  return `
-    <div class="data-grid">
-      <div class="data-cell"><div class="key">AHF</div><div class="val" style="font-weight:400;font-size:12px;">DM2 padre, HAS madre</div></div>
-      <div class="data-cell"><div class="key">Alergias</div><div class="val" style="font-weight:400;font-size:12px;">Penicilina — reacción leve</div></div>
-      <div class="data-cell"><div class="key">Diagnóstico</div><div class="val" style="font-weight:400;font-size:12px;">Síndrome metabólico, Fatiga crónica</div></div>
-      <div class="data-cell"><div class="key">Medicamentos</div><div class="val" style="font-weight:400;font-size:12px;">Metformina 850mg c/12h</div></div>
-    </div>
-    <div style="margin-top:12px;padding:10px 12px;background:var(--gold-pale2);border:0.5px solid var(--border);border-radius:4px;font-size:12px;color:var(--text-3);">
-      Historia clínica no cargada desde Airtable — mostrando datos de ejemplo.
-    </div>
-  `;
-}
 
 // ─── CONSULTAS PREVIAS ────────────────────────────────────────────
 let viendoInterconsultas = false;
@@ -7111,34 +7164,71 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
   // Limpiar nulls
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
 
-  try {
-    const consultaCreada = await airtablePost(TBL_CONSULTAS, fields, pacId);
-    showToast('Consulta guardada en Airtable ✓', 'success');
+  // Antecedentes → HISTORIA CLÍNICA. Se AGREGAN a lo que ya hay (antes un
+  // "Madre con DM2" capturado en la consulta REEMPLAZABA todo el AHF previo,
+  // de otros médicos o del propio paciente).
+  const historiaNuevos = {
+    'AHF — Heredo-familiares': document.getElementById('f-ahf').value.trim(),
+    'APP — Enfermedades previas': document.getElementById('f-app').value.trim(),
+    'Antecedentes quirúrgicos': document.getElementById('f-quirurgicos').value.trim(),
+    'AGO — Ginecobstétrico': document.getElementById('f-ago').value.trim(),
+    'Medicamentos actuales': document.getElementById('f-medicamentos').value.trim(),
+    'Alergias': document.getElementById('f-alergias').value.trim(),
+    'APNP — Alimentación': document.getElementById('f-habitos').value.trim(),
+  };
+  Object.keys(historiaNuevos).forEach(k => !historiaNuevos[k] && delete historiaNuevos[k]);
 
-    // Sugerencia automática de CIE-10 — solo si el médico no capturó uno
-    // explícito. Nunca bloquea el guardado, corre en segundo plano.
-    if (!fields['Diagnóstico (CIE-10)'] && consultaCreada.id) {
-      const patologiasTexto = (pacienteActual.fields['Patologías activas'] || []).join(', ');
-      const token = sessionStorage.getItem(TOKEN_KEY);
-      fetch('/api/nova-asistente-clinico', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-        body: JSON.stringify({
-          accion: 'sugerir_cie10',
-          consultaRecordId: consultaCreada.id,
-          motivo: motivo,
-          exploracion: document.getElementById('f-exploracion').value || '',
-          patologiasActivas: patologiasTexto,
-        }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.ok && data.sugerido && data.guardado) {
-            showToast('NOVA sugirió un CIE-10 — revísalo en la consulta.', 'success');
-          }
-        })
-        .catch(() => {});
+  // Datos sociodemográficos → PACIENTES. El grupo sanguíneo no cambia: si el
+  // expediente ya tiene otro, no se sobrescribe (se corrige en "Editar datos
+  // generales" si el del expediente es el equivocado).
+  const avisos = [];
+  const pacienteFields = {};
+  const estadoCivil = document.getElementById('f-estado-civil').value.trim();
+  const ocupacion = document.getElementById('f-ocupacion').value.trim();
+  const grupoSanguineo = document.getElementById('f-grupo-sanguineo').value;
+  const escolaridad = document.getElementById('f-escolaridad').value;
+  if (estadoCivil) pacienteFields['Estado civil'] = estadoCivil;
+  if (ocupacion) pacienteFields['Ocupación'] = ocupacion;
+  if (escolaridad) pacienteFields['Escolaridad'] = escolaridad;
+  if (grupoSanguineo) {
+    const grupoPrevio = pacienteActual.fields['Grupo sanguíneo'];
+    if (!grupoPrevio) pacienteFields['Grupo sanguíneo'] = grupoSanguineo;
+    else if (grupoPrevio !== grupoSanguineo) avisos.push(`No cambié el grupo sanguíneo: el expediente dice ${grupoPrevio} y elegiste ${grupoSanguineo}. Si el del expediente está mal, corrígelo en "Editar datos generales".`);
+  }
+
+  // Orden: primero lo que se puede repetir sin duplicar (antecedentes y datos
+  // del paciente), después la consulta, al final los laboratorios. Si algo
+  // falla antes de la consulta, no se crea y el formulario queda intacto para
+  // reintentar. Cada mensaje dice qué SÍ quedó guardado (CLAUDE.md §6).
+  const hechos = [];
+  const yaGuardado = () => (hechos.length ? `Se guardaron ${hechos.join(' y ')}, pero ` : 'No se guardó nada: ');
+  try {
+    if (Object.keys(historiaNuevos).length) {
+      try { await guardarAntecedentesDeConsulta(pacId, historiaNuevos); }
+      catch (e) { throw new Error(`No se guardó nada: falló Historia Clínica (${e.message}). Intenta de nuevo.`); }
+      hechos.push('los antecedentes');
     }
+    if (Object.keys(pacienteFields).length) {
+      const resPac = await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}&pacienteBuscado=${encodeURIComponent(pacienteActual.fields['Código de paciente'] || '')}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: pacienteFields, typecast: true })
+      });
+      if (!resPac.ok) {
+        const e = await leerErrorAirtable(resPac);
+        throw new Error(`${yaGuardado()}fallaron los datos del paciente (${e.message}). Vuelve a guardar: no se duplica nada.`);
+      }
+      Object.assign(pacienteActual.fields, pacienteFields);
+      hechos.push('los datos del paciente');
+    }
+
+    let consultaCreada;
+    try { consultaCreada = await airtablePost(TBL_CONSULTAS, fields, pacId); }
+    catch (e) { throw new Error(`${yaGuardado()}la consulta NO (${e.message}). Vuelve a guardar: lo anterior no se duplica.`); }
+    if (hechos.includes('los antecedentes')) cargarHistoria(pacId);
+
+    // (La sugerencia CIE-10 que se escribía sola aquí tras guardar se retiró:
+    // ahora el médico elige el código antes de guardar — medico_sugerir_cie10.)
 
     // Si el médico capturó fecha de próxima cita, intenta crear el evento en
     // su Google Calendar (si lo tiene conectado). Nunca bloquea ni falla el
@@ -7166,72 +7256,17 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
         .catch(() => {});
     }
 
-    // Antecedentes dictados van a HISTORIA CLÍNICA — crea o corrige el
-    // registro existente (mismo patrón que el botón "Editar historia").
-    const historiaFields = {
-      'AHF — Heredo-familiares': document.getElementById('f-ahf').value.trim() || null,
-      'APP — Enfermedades previas': document.getElementById('f-app').value.trim() || null,
-      'Antecedentes quirúrgicos': document.getElementById('f-quirurgicos').value.trim() || null,
-      'AGO — Ginecobstétrico': document.getElementById('f-ago').value.trim() || null,
-      'Medicamentos actuales': document.getElementById('f-medicamentos').value.trim() || null,
-      'Alergias': document.getElementById('f-alergias').value.trim() || null,
-      'APNP — Alimentación': document.getElementById('f-habitos').value.trim() || null,
-    };
-    Object.keys(historiaFields).forEach(k => !historiaFields[k] && delete historiaFields[k]);
-
-    if (Object.keys(historiaFields).length > 0) {
-      try {
-        if (historiaActualId) {
-          await fetch(`/api/airtable?tabla=${TBL_HISTORIA}&recordId=${historiaActualId}&pacienteBuscado=${encodeURIComponent(pacId)}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields: historiaFields, typecast: true })
-          });
-        } else {
-          historiaFields['Código de paciente ref'] = pacId;
-          historiaFields['Paciente'] = [pacienteActual.id];
-          historiaFields['Fecha entrevista NOVA'] = new Date().toISOString();
-          await airtablePost(TBL_HISTORIA, historiaFields, pacId);
-        }
-        cargarHistoria(pacId);
-      } catch (err) {
-        console.error('Error guardando antecedentes en Historia Clínica:', err);
-      }
-    }
-
-    // Datos sociodemográficos van directo a PACIENTES.
-    const estadoCivil = document.getElementById('f-estado-civil').value.trim();
-    const ocupacion = document.getElementById('f-ocupacion').value.trim();
-    const grupoSanguineo = document.getElementById('f-grupo-sanguineo').value;
-    const escolaridad = document.getElementById('f-escolaridad').value;
-    if (estadoCivil || ocupacion || grupoSanguineo || escolaridad) {
-      const pacienteFields = {};
-      if (estadoCivil) pacienteFields['Estado civil'] = estadoCivil;
-      if (ocupacion) pacienteFields['Ocupación'] = ocupacion;
-      if (grupoSanguineo) pacienteFields['Grupo sanguíneo'] = grupoSanguineo;
-      if (escolaridad) pacienteFields['Escolaridad'] = escolaridad;
-      try {
-        await fetch(`/api/airtable?tabla=pacientes&recordId=${pacienteActual.id}&pacienteBuscado=${encodeURIComponent(pacienteActual.fields['Código de paciente'] || '')}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: pacienteFields, typecast: true })
-        });
-      } catch (err) {
-        console.error('Error guardando datos sociodemográficos:', err);
-      }
-    }
-
-    // Resultados de laboratorio — texto libre dictado por el médico y/o
-    // filas de valores rápidos capturadas en consultorio. Ambos se guardan
-    // vía nova.js para que los valores rápidos alimenten LAB_VALORES y el
-    // comparativo automático (no solo NOVA LABS como antes).
+    // Resultados de laboratorio — texto libre y/o valores rápidos, vía
+    // nova.js (alimentan LAB_VALORES y el comparativo). Si fallan, la consulta
+    // ya quedó: se dice y lo capturado de labs se conserva en el formulario.
     const panelLab = document.getElementById('f-panel-lab').value;
     const resultadosLab = document.getElementById('f-resultados-lab').value.trim();
     const fueraDeRangoLab = document.getElementById('f-fuera-rango-lab').value.trim();
     const filasRapidas = leerFilasLabRapido();
+    let labsFallaron = false;
     if (resultadosLab || filasRapidas.length) {
       try {
-        await fetch('/api/nova', {
+        const resLab = await fetch('/api/nova', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -7245,13 +7280,20 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
             consultaId: (consultaCreada && consultaCreada.id) || null,
           }),
         });
+        const dLab = await resLab.json().catch(() => ({}));
+        if (!resLab.ok || !dLab.ok) throw new Error(dLab.error || `error ${resLab.status}`);
         cargarLabs(pacId);
       } catch (err) {
         console.error('Error guardando resultados en NOVA LABS:', err);
+        labsFallaron = true;
+        avisos.unshift(`Los laboratorios NO se guardaron (${err.message}). Siguen en el formulario: guárdalos desde "Pegar resultado de laboratorio" o vuelve a capturarlos.`);
       }
     }
 
-    limpiarFormulario();
+    if (avisos.length) showToast(`Consulta guardada ✓ — pero: ${avisos.join(' ')}`, 'error');
+    else showToast('Consulta guardada ✓', 'success');
+
+    limpiarFormulario(labsFallaron ? LAB_IDS_FORMULARIO : []);
     // Recargar consultas
     setTimeout(() => cargarConsultas(pacId), 800);
 
@@ -7259,7 +7301,7 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
     // solo actualiza en segundo plano el perfil de patologías del paciente.
     interpretarPerfilClinico(pacienteActual.id, fields['Diagnóstico (CIE-10)'], fields['Motivo de consulta'], fields['Plan terapéutico']);
   } catch (err) {
-    showToast('Error al guardar. Verifica conexión.', 'error');
+    showToast(err.message || 'Error al guardar. Verifica conexión.', 'error');
   } finally {
     btn.disabled = false;
     lbl.style.display = 'inline';
@@ -7294,7 +7336,10 @@ async function interpretarPerfilClinico(pacienteRecordId, diagnostico, motivoCon
 
 document.getElementById('btn-limpiar').addEventListener('click', limpiarFormulario);
 
-function limpiarFormulario() {
+// Casillas de laboratorio: se conservan si su guardado falló.
+const LAB_IDS_FORMULARIO = ['f-panel-lab', 'f-resultados-lab', 'f-fuera-rango-lab', 'lab-rapido-filas'];
+
+function limpiarFormulario(conservar = []) {
   ['f-protocolo','f-sesion','f-peso','f-talla','f-presion','f-temp',
    'f-motivo','f-exploracion','f-diagnostico','f-plan',
    'f-razonamiento-clinico','f-adherencia-obs',
@@ -7302,6 +7347,7 @@ function limpiarFormulario() {
    'f-grupo-sanguineo','f-escolaridad',
    'f-ahf','f-app','f-quirurgicos','f-ago','f-medicamentos','f-alergias','f-habitos',
    'f-panel-lab','f-resultados-lab','f-fuera-rango-lab','f-proxima-cita'].forEach(id => {
+    if (conservar.includes(id)) return;
     const el = document.getElementById(id);
     if (!el) return;
     if (el.tagName === 'SELECT') el.selectedIndex = 0;
@@ -7309,7 +7355,8 @@ function limpiarFormulario() {
   });
   document.getElementById('f-estado').value = 'activo';
   document.getElementById('f-proxima-cita-hora').value = '10:00';
-  document.getElementById('lab-rapido-filas').innerHTML = '';
+  if (!conservar.includes('lab-rapido-filas')) document.getElementById('lab-rapido-filas').innerHTML = '';
+  cie10SugReset();
   document.getElementById('lab-archivo-estado').textContent = '';
   dictadoReset();
 }
@@ -7793,6 +7840,87 @@ novaInput.addEventListener('keydown', e => {
 });
 novaSend.addEventListener('click', enviarNova);
 
+// ─── NOVA: dictado por voz al chat ────────────────────────────────
+// Web Speech (es-MX) escribe en la caja del chat; el médico revisa y envía
+// (nunca se envía solo: lo que el navegador entendió mal se corrige antes).
+// Chrome solo permite un reconocimiento a la vez: si el dictado de la
+// consulta está grabando, se detiene.
+const novaMic = document.getElementById('nova-mic');
+const novaVoz = { rec: null, grabando: false, base: '' };
+
+// Al detener se desconectan los eventos: Chrome avisa el fin un instante
+// después y, sin esto, reescribiría la caja (p. ej. tras enviar el mensaje).
+// Lo ya escrito en la caja se queda.
+function desconectarReconocimiento(rec) {
+  if (!rec) return;
+  rec.onresult = null; rec.onend = null; rec.onerror = null;
+  try { rec.stop(); } catch (e) {}
+}
+
+function novaDetenerVoz() {
+  novaVoz.grabando = false;
+  desconectarReconocimiento(novaVoz.rec);
+  novaVoz.rec = null;
+  novaMic.classList.remove('grabando');
+  novaMic.textContent = '🎙️';
+  novaMic.title = 'Dictar a NOVA';
+  novaInput.placeholder = 'Escribe tu consulta…';
+}
+
+(function iniciarMicNova() {
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Rec) {
+    novaMic.disabled = true;
+    novaMic.title = 'Este navegador no permite dictar por voz (usa Chrome o Edge)';
+    return;
+  }
+  novaMic.addEventListener('click', () => {
+    if (novaVoz.grabando) { novaDetenerVoz(); novaInput.focus(); return; }
+    if (typeof dictado !== 'undefined' && dictado.grabando) dictadoDetenerVoz();
+    const rec = new Rec();
+    rec.lang = 'es-MX';
+    rec.continuous = true;
+    rec.interimResults = true;
+    novaVoz.base = novaInput.value ? novaInput.value.replace(/\s*$/, ' ') : '';
+    let finales = '';
+    rec.onresult = (ev) => {
+      let provisional = '';
+      finales = '';
+      for (let i = 0; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) finales += ev.results[i][0].transcript;
+        else provisional += ev.results[i][0].transcript;
+      }
+      novaInput.value = novaVoz.base + finales + provisional;
+    };
+    rec.onerror = (ev) => {
+      if (ev.error === 'no-speech' || ev.error === 'aborted') return;
+      novaDetenerVoz();
+      agregarMensajeNova('assistant', ev.error === 'not-allowed' || ev.error === 'service-not-allowed'
+        ? '⚠️ El navegador no tiene permiso para usar el micrófono. Actívalo en el candado de la barra de direcciones.'
+        : `⚠️ El dictado por voz se detuvo (${ev.error}). Lo que dictaste sigue en la caja.`);
+    };
+    // Chrome corta tras un silencio: si el médico no lo detuvo, se reanuda.
+    rec.onend = () => {
+      novaInput.value = novaVoz.base + finales;
+      if (novaVoz.grabando) {
+        try { novaVoz.base = novaInput.value ? novaInput.value.replace(/\s*$/, ' ') : ''; finales = ''; rec.start(); }
+        catch (e) { novaDetenerVoz(); }
+      }
+    };
+    novaVoz.rec = rec;
+    novaVoz.grabando = true;
+    novaMic.classList.add('grabando');
+    novaMic.textContent = '⏹';
+    novaMic.title = 'Detener dictado';
+    novaInput.placeholder = 'Escuchando…';
+    try { rec.start(); } catch (e) { novaDetenerVoz(); }
+  });
+})();
+
+// Al enviar, el micrófono se detiene (lo dictado ya va en el mensaje).
+novaSend.addEventListener('click', () => { if (novaVoz.grabando) novaDetenerVoz(); }, true);
+novaInput.addEventListener('keydown', e => { if (e.key === 'Enter' && novaVoz.grabando) novaDetenerVoz(); }, true);
+
 function agregarMensajeNova(rol, texto) {
   const div = document.createElement('div');
   div.className = `nova-msg nova-msg--${rol === 'assistant' ? 'nova' : 'user'}`;
@@ -7985,7 +8113,8 @@ function dictadoEstado(texto, error) {
 
 function dictadoDetenerVoz() {
   dictado.grabando = false;
-  if (dictado.rec) { try { dictado.rec.stop(); } catch (e) {} }
+  desconectarReconocimiento(dictado.rec);
+  dictado.rec = null;
   const mic = document.getElementById('dictado-mic');
   mic.classList.remove('grabando');
   mic.textContent = '🎙️ Dictar';
@@ -7993,6 +8122,7 @@ function dictadoDetenerVoz() {
 }
 
 function dictadoIniciarVoz() {
+  if (novaVoz.grabando) novaDetenerVoz(); // Chrome: un reconocimiento a la vez
   const ta = document.getElementById('dictado-texto');
   const rec = new SpeechRec();
   rec.lang = 'es-MX';
@@ -8161,6 +8291,9 @@ async function dictadoEstructurar() {
       dictadoColocar(campo, valor, items.map(x => x.cita), etiqueta, ap.colocados, conflictos);
     }
     dictadoRenderResultado(d, conflictos);
+    // Si NOVA colocó el diagnóstico, se le sugieren de una vez los CIE-10
+    // (el médico elige; nada queda marcado).
+    if (d.campos && d.campos.diagnostico && ap.colocados['f-diagnostico']) sugerirCie10Portal();
     const n = Object.keys(d.campos || {}).length - conflictos.length;
     dictadoEstado(n > 0
       ? `NOVA colocó ${n} dato${n === 1 ? '' : 's'} (borde dorado). Revisa y guarda la consulta.`
@@ -8176,10 +8309,112 @@ async function dictadoEstructurar() {
   }
 }
 
+// ─── CIE-10 SUGERIDO, ELEGIDO POR EL MÉDICO ────────────────────────
+// NOVA propone categorías para el texto del diagnóstico (solo lo que el
+// médico escribió o dictó; verificadas contra el catálogo y con la
+// descripción OFICIAL). Ninguna viene marcada: el médico elige una o varias.
+const cie10Sug = { elegidos: [] };
+
+function cie10SugEstado(texto, error) {
+  const el = document.getElementById('cie10-sug-estado');
+  el.textContent = texto || '';
+  el.style.color = error ? '#E2574B' : '';
+}
+
+function cie10SugReset() {
+  cie10Sug.elegidos = [];
+  const panel = document.getElementById('cie10-sug-panel');
+  panel.style.display = 'none';
+  panel.innerHTML = '';
+  cie10SugEstado('');
+}
+
+// Mismo formato que lib/cie10.js diagnosticoConCodigos (Telegram).
+function diagnosticoConCodigos(elegidos) {
+  return elegidos.map(e => `${e.codigo} — ${e.descripcion}${e.frase ? ` (${e.frase})` : ''}`).join('; ');
+}
+
+async function sugerirCie10Portal() {
+  if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
+  const texto = document.getElementById('f-diagnostico').value.trim();
+  if (!texto) { cie10SugEstado('Escribe o dicta primero el diagnóstico.', true); return; }
+  const btn = document.getElementById('btn-sugerir-cie10');
+  btn.disabled = true;
+  cie10SugEstado('NOVA está buscando los códigos CIE-10…');
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_sugerir_cie10', texto, pacienteCode: pacienteActual.fields['Código de paciente'] || '' }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) { cie10SugEstado('⚠️ ' + (d.error || 'NOVA no pudo sugerir códigos.') + ' Puedes buscarlos escribiendo en el campo.', true); return; }
+    cie10SugRender(d);
+  } catch (e) {
+    cie10SugEstado('⚠️ Sin conexión — NOVA no pudo sugerir códigos.', true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function cie10SugRender(d) {
+  const panel = document.getElementById('cie10-sug-panel');
+  const esc = escaparHtml;
+  const grupos = d.grupos || [];
+  if (!grupos.length) {
+    panel.style.display = 'none';
+    cie10SugEstado('NOVA no encontró un diagnóstico que codificar en ese texto. Puedes buscar el código escribiendo en el campo.', true);
+    return;
+  }
+  panel.innerHTML = '<h4>Elige el o los códigos que correspondan (ninguno viene marcado)</h4>' +
+    grupos.map((g, gi) => `<div class="cie10-sug-grupo"><div class="dictado-cita">«${esc(g.frase)}»</div>${
+      g.candidatos.length
+        ? g.candidatos.map((c, ci) => `<label><input type="checkbox" data-g="${gi}" data-c="${ci}"> <span><b>${esc(c.codigo)}</b> — ${esc(c.descripcion)}</span></label>`).join('')
+        : '<div class="dictado-aviso">Sin un código válido en el catálogo — búscalo escribiendo en el campo de diagnóstico.</div>'
+    }</div>`).join('') +
+    ((d.descartados || []).length ? `<h4>Descartado</h4><ul>${d.descartados.map(x => `<li>${esc(x.codigo || x.frase)} — ${esc(x.motivo)}</li>`).join('')}</ul>` : '') +
+    '<div class="cie10-sug-acciones"><button type="button" class="btn-save" id="cie10-sug-usar" disabled>Usar los seleccionados</button><button type="button" class="btn-secondary" id="cie10-sug-cerrar">Cerrar</button></div>' +
+    '<div class="rec-nota" style="margin-top:6px;">Códigos del catálogo CIE-10 (OPS), con subcategoría de 4 caracteres cuando existe. La descripción es la del catálogo.</div>';
+  panel.style.display = '';
+  cie10SugEstado('');
+  const usar = document.getElementById('cie10-sug-usar');
+  panel.querySelectorAll('input[type=checkbox]').forEach(chk => chk.addEventListener('change', () => {
+    usar.disabled = !panel.querySelector('input[type=checkbox]:checked');
+  }));
+  document.getElementById('cie10-sug-cerrar').addEventListener('click', () => { panel.style.display = 'none'; });
+  usar.addEventListener('click', () => {
+    const elegidos = [...panel.querySelectorAll('input[type=checkbox]:checked')].map(chk => {
+      const g = grupos[Number(chk.dataset.g)];
+      const c = g.candidatos[Number(chk.dataset.c)];
+      return { codigo: c.codigo, descripcion: c.descripcion, frase: g.frase };
+    });
+    const el = document.getElementById('f-diagnostico');
+    el.value = diagnosticoConCodigos(elegidos);
+    // Si NOVA había colocado el diagnóstico desde el dictado, ahora lo
+    // decidió el médico: la marca pasa a "editado por ti".
+    if (dictado.aplicado && dictado.aplicado.colocados['f-diagnostico']) {
+      el.classList.remove('campo-dictado-nova');
+      el.classList.add('campo-dictado-editado');
+    }
+    cie10Sug.elegidos = elegidos.map(e => e.codigo);
+    panel.style.display = 'none';
+    cie10SugEstado(`✓ Diagnóstico con ${elegidos.length} código${elegidos.length === 1 ? '' : 's'} elegido${elegidos.length === 1 ? '' : 's'} por ti. Revísalo antes de guardar.`);
+  });
+}
+
+document.getElementById('btn-sugerir-cie10').addEventListener('click', sugerirCie10Portal);
+// Si el médico borra un código a mano, deja de contar como "elegido".
+document.getElementById('f-diagnostico').addEventListener('input', (e) => {
+  cie10Sug.elegidos = cie10Sug.elegidos.filter(c => e.target.value.includes(c));
+});
+
 // Campos de auditoría que se agregan al guardar la consulta.
 function dictadoCamposParaGuardar() {
   const ap = dictado.aplicado;
-  if (!ap) return { 'Origen del registro': 'Formulario' };
+  const lineaCie10 = cie10Sug.elegidos.length
+    ? `CIE-10: sugerido por NOVA (verificado en el catálogo) y elegido por el médico: ${cie10Sug.elegidos.join(', ')}`
+    : '';
+  if (!ap) return { 'Origen del registro': 'Formulario', ...(lineaCie10 ? { 'Detalle del dictado': lineaCie10 } : {}) };
   const lineas = Object.entries(ap.colocados).map(([id, c]) => {
     const el = document.getElementById(id);
     const editado = el && el.value !== c.valorColocado;
@@ -8189,7 +8424,7 @@ function dictadoCamposParaGuardar() {
     'Origen del registro': 'Dictado NOVA — portal',
     'Método': ap.voz ? 'Voz' : 'Texto',
     'Transcripción dictada': ap.transcripciones.join('\n\n'),
-    'Detalle del dictado': lineas.join('\n') || 'NOVA no colocó ningún campo.',
+    'Detalle del dictado': [...lineas, ...(lineaCie10 ? [lineaCie10] : [])].join('\n') || 'NOVA no colocó ningún campo.',
   };
 }
 

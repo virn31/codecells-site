@@ -70,7 +70,23 @@ function fakeRes() {
 }
 
 // pendiente: registro de PENDIENTES (o null); reglas(u, metodo) sobrescribe.
-async function webhook(message, { pendiente = null, reglas = () => null, historia = null } = {}) {
+const DICTADO_DX = 'dolor torácico al esfuerzo. Diagnóstico angina estable probable.';
+const toolDictadoConDx = () => ({
+  stop_reason: 'tool_use',
+  content: [{ type: 'tool_use', name: 'estructurar_dictado', input: {
+    campos: [
+      { campo: 'motivo_consulta', valor: 'x', cita: 'dolor torácico al esfuerzo' },
+      { campo: 'diagnostico', valor: 'x', cita: 'angina estable probable' },
+    ],
+    sin_ubicar: [],
+  } }],
+});
+const toolCie10 = () => ({
+  stop_reason: 'tool_use',
+  content: [{ type: 'tool_use', name: 'proponer_cie10', input: { diagnosticos: [{ frase: 'angina estable probable', codigos: ['I20', 'I25', 'K94'] }] } }],
+});
+
+async function webhook(message, { pendiente = null, reglas = () => null, historia = null, dictadoTool = toolDictado } = {}) {
   const original = global.fetch;
   const cap = { posts: [], telegram: [], llamadas: [], anthropic: [] };
   global.fetch = async (url, opts = {}) => {
@@ -81,7 +97,11 @@ async function webhook(message, { pendiente = null, reglas = () => null, histori
     const especial = reglas(u, metodo);
     if (especial) return especial;
     if (u.includes('api.telegram.org')) { cap.telegram.push(JSON.parse(opts.body).text); return ok({ ok: true, result: { message_id: 1 } }); }
-    if (u.startsWith('https://api.anthropic.com/')) { cap.anthropic.push(JSON.parse(opts.body)); return ok(toolDictado()); }
+    if (u.startsWith('https://api.anthropic.com/')) {
+      const b = JSON.parse(opts.body);
+      cap.anthropic.push(b);
+      return ok(b.tool_choice && b.tool_choice.name === 'proponer_cie10' ? toolCie10() : dictadoTool());
+    }
     if (u.includes(DEDUPE)) return ok(metodo === 'GET' ? { records: [] } : { id: 'recD' });
     if (u.includes(PENDIENTES)) return ok(metodo === 'GET' ? { records: pendiente ? [pendiente] : [] } : { id: 'recPEND' });
     if (u.includes(`/${MEDICOS}`)) {
@@ -241,6 +261,65 @@ test('Telegram dictado: un grupo sanguíneo distinto al del expediente NO se sob
   const cons = postsA(cap, CONSULTAS, 'POST');
   assert.ok(cons.length === 1, 'la consulta sí debe guardarse');
   assert.match(cons[0].body.records[0].fields['Detalle del dictado'], /NO aplicado, el expediente ya dice A\+/);
+});
+
+test('Telegram CIE-10: con diagnóstico dictado, "Entendí" muestra códigos numerados y verificados', async () => {
+  const cap = await webhook({ text: `CC-PAC-9001 ${DICTADO_DX}` }, { dictadoTool: toolDictadoConDx });
+  assert.strictEqual(cap.anthropic.length, 2);
+  assert.strictEqual(cap.anthropic[1].tool_choice.name, 'proponer_cie10');
+  assert.match(cap.anthropic[1].messages[0].content, /angina estable probable/);
+  const final = cap.telegram.at(-1);
+  assert.match(final, /1\) I20 — Angina de pecho \(«angina estable probable»\)/);
+  assert.match(final, /2\) I25 — /);
+  assert.ok(!/K94/.test(final), 'mostró un código que no está en el catálogo');
+  assert.match(final, /sí 1/);
+  const ficha = JSON.parse(postsA(cap, PENDIENTES).at(-1).body.fields['Ficha JSON']);
+  assert.deepStrictEqual(ficha.resultado.cie10.opciones.map((o) => o.codigo), ['I20', 'I25']);
+});
+
+function pendienteConCie10() {
+  const p = pendienteV2();
+  const f = JSON.parse(p.fields['Ficha JSON']);
+  f.resultado.campos.diagnostico = 'angina estable probable';
+  f.resultado.detalle.push({ campo: 'diagnostico', etiqueta: 'Diagnóstico', valor: 'angina estable probable', cita: 'angina estable probable' });
+  f.resultado.cie10 = { opciones: [
+    { n: 1, codigo: 'I20', descripcion: 'Angina de pecho', frase: 'angina estable probable' },
+    { n: 2, codigo: 'I25', descripcion: 'Enfermedad isquémica crónica del corazón', frase: 'angina estable probable' },
+  ] };
+  p.fields['Ficha JSON'] = JSON.stringify(f);
+  return p;
+}
+
+test('Telegram CIE-10: "sí 1" guarda el diagnóstico con el código elegido y su frase', async () => {
+  const cap = await webhook({ text: 'sí 1' }, { pendiente: pendienteConCie10() });
+  const f = postsA(cap, CONSULTAS, 'POST')[0].body.records[0].fields;
+  assert.strictEqual(f['Diagnóstico (CIE-10)'], 'I20 — Angina de pecho (angina estable probable)');
+  assert.match(f['Detalle del dictado'], /elegido por el médico: I20/);
+  assert.match(cap.telegram.at(-1), /Diagnóstico: I20 — Angina de pecho/);
+});
+
+test('Telegram CIE-10: "sí 1 y 2" guarda los dos códigos', async () => {
+  const cap = await webhook({ text: 'sí 1 y 2' }, { pendiente: pendienteConCie10() });
+  const f = postsA(cap, CONSULTAS, 'POST')[0].body.records[0].fields;
+  assert.match(f['Diagnóstico (CIE-10)'], /^I20 — .*; I25 — /);
+});
+
+test('Telegram CIE-10: "sí" a secas guarda el diagnóstico dictado sin código', async () => {
+  const cap = await webhook({ text: 'sí' }, { pendiente: pendienteConCie10() });
+  const f = postsA(cap, CONSULTAS, 'POST')[0].body.records[0].fields;
+  assert.strictEqual(f['Diagnóstico (CIE-10)'], 'angina estable probable');
+});
+
+test('Telegram CIE-10: un número que no está en la lista no guarda nada', async () => {
+  const cap = await webhook({ text: 'sí 5' }, { pendiente: pendienteConCie10() });
+  assert.ok(!postsA(cap, CONSULTAS).length);
+  assert.ok(!postsA(cap, `${PENDIENTES}/recPEND`, 'PATCH').length, 'retiró el pendiente');
+  assert.match(cap.telegram.at(-1), /No hay opción 5/);
+});
+
+test('Telegram: guardar ya no llama a la sugerencia CIE-10 que escribía sola', async () => {
+  const cap = await webhook({ text: 'sí' }, { pendiente: pendienteV2() });
+  assert.ok(!cap.llamadas.some((l) => l.includes('nova-asistente-clinico')));
 });
 
 test('Telegram: una nota de voz recibe instrucciones en vez de silencio', async () => {

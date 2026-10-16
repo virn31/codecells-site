@@ -30,6 +30,7 @@ try {
 const { generarCodigoUnico } = require('../lib/codigos');
 const usoNova = require('../lib/usoNova');
 const { MAX_TEXTO_DICTADO, procesarDictado, normalizarDictado, numerosEnPalabras, estructurarDictado } = require('../lib/dictado');
+const { sugerirCie10 } = require('../lib/cie10');
 
 // Sesión firmada (HMAC), la misma que ya exige api/airtable.js — HOTFIX
 // gate-sesion-nova: el modo médico del chat y los endpoints de labs abajo
@@ -1508,6 +1509,22 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] medico_dictado error:', err.message);
       return res.status(500).json({ ok: false, error: 'Error interno procesando el dictado. Tu texto no se perdió: intenta de nuevo.' });
+    }
+  }
+
+  // Sugerencia CIE-10 (lib/cie10.js): recibe SOLO el texto de diagnóstico que
+  // el médico escribió o dictó y devuelve categorías verificadas contra el
+  // catálogo. No lee ni escribe el expediente: el médico elige y guarda.
+  if (action === 'medico_sugerir_cie10') {
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ ok: false, error: 'Sesión médica requerida.' });
+      if (await denegarSiNoClinico(sesion, res, { pacienteCode: req.body.pacienteCode, endpoint: 'medico_sugerir_cie10', accion: 'Lectura' })) return;
+      const resultado = await sugerirCie10(req.body.texto);
+      if (!resultado.ok) return res.status(resultado.status).json({ ok: false, error: resultado.error });
+      return res.status(200).json(resultado);
+    } catch (err) {
+      console.error('[nova] medico_sugerir_cie10 error:', err.message);
+      return res.status(500).json({ ok: false, error: 'Error interno sugiriendo códigos CIE-10.' });
     }
   }
 

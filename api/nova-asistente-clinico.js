@@ -15,7 +15,6 @@ const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
 const CONSULTAS_TABLE_ID = 'tbl1Xp2IGxdV178Ky';
 const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
@@ -37,55 +36,15 @@ async function airtableGet(tableId, formula, sort) {
   return (data.records && data.records[0]) || null;
 }
 
-// ── accion: sugerir_cie10 ──────────────────────────────────────────
+// ── accion: sugerir_cie10 — RETIRADA (2026-10-16) ─────────────────
+// Escribía "Sugerido por NOVA: …" en el diagnóstico de una consulta YA
+// guardada: sin que el médico eligiera el código, sin verificarlo contra el
+// catálogo, sin revisar de quién era la consulta (cualquier médico con
+// sesión podía cambiar el diagnóstico de cualquier consulta por su id) y sin
+// respetar el congelamiento. La reemplaza nova.js medico_sugerir_cie10:
+// NOVA propone códigos verificados y el médico elige ANTES de guardar.
 async function sugerirCie10(req, res) {
-  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurado.' });
-
-  const { consultaRecordId, motivo, exploracion, patologiasActivas, valoresFueraDeRango } = req.body || {};
-  if (!consultaRecordId) return res.status(400).json({ error: 'Falta consultaRecordId.' });
-
-  const partes = [];
-  if (motivo) partes.push(`Motivo de consulta: ${motivo}`);
-  if (exploracion) partes.push(`Exploración física: ${exploracion}`);
-  if (patologiasActivas) partes.push(`Patologías activas del paciente: ${patologiasActivas}`);
-  if (valoresFueraDeRango) partes.push(`Valores de laboratorio fuera de rango: ${valoresFueraDeRango}`);
-
-  if (partes.length === 0) {
-    return res.status(200).json({ ok: true, sugerido: false, motivo: 'Sin información clínica suficiente en esta consulta.' });
-  }
-
-  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-5',
-      max_tokens: 200,
-      system:
-        'Eres un asistente clínico que sugiere códigos CIE-10 a partir de un cuadro clínico. ' +
-        'Responde ÚNICAMENTE en este formato exacto, sin texto adicional: "CÓDIGO — Descripción breve". ' +
-        'Si la información es insuficiente para una sugerencia razonable, responde exactamente: "INSUFICIENTE". ' +
-        'Nunca inventes certeza donde no la hay — esto es una sugerencia que el médico va a revisar, no un diagnóstico definitivo.',
-      messages: [{ role: 'user', content: partes.join('\n') }],
-    }),
-  });
-  const claudeData = await claudeRes.json();
-  const texto = claudeRes.ok && Array.isArray(claudeData.content)
-    ? claudeData.content.find(b => b?.type === 'text')?.text?.trim()
-    : null;
-
-  if (!texto || texto === 'INSUFICIENTE' || !/^[A-Z]\d/.test(texto)) {
-    return res.status(200).json({ ok: true, sugerido: false, motivo: 'NOVA no encontró suficiente claridad clínica para sugerir un código.' });
-  }
-
-  const valorGuardado = `Sugerido por NOVA: ${texto} (confirmar o corregir)`;
-  const patchRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${CONSULTAS_TABLE_ID}/${consultaRecordId}`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields: { 'Diagnóstico (CIE-10)': valorGuardado } }),
-  });
-
-  if (!patchRes.ok) return res.status(200).json({ ok: true, sugerido: true, guardado: false, sugerencia: texto });
-  return res.status(200).json({ ok: true, sugerido: true, guardado: true, sugerencia: texto });
+  return res.status(410).json({ error: 'Retirado: NOVA ya no escribe códigos CIE-10 en consultas guardadas. El médico elige el código al capturar la consulta.' });
 }
 
 // ── accion: completitud_expediente ───────────────────────────────

@@ -5,30 +5,27 @@
 > agrega al final): este archivo es el estado actual, no un diario. El
 > historial vive en git (`git log`) y en la memoria del proyecto.
 
-**Última actualización:** 2026-10-16 (SPEC de dictado — Fases 2 y 3 hechas)
-**Rama de trabajo:** `feat/paciente-unico` — 16 commits **sin push** (lo corre Víctor). Nada fusionado a `main`.
-**Pruebas:** `node --test test/*.test.js` → **342/342 en verde**.
-**Servidor local:** detenido. `node scripts/servidor-local.js` solo si se necesita navegador.
+**Última actualización:** 2026-10-16 (Guardar consulta sin reemplazo, micrófono en NOVA, CIE-10 sugerido con subcategorías)
+**Rama de trabajo:** `feat/paciente-unico` — 1 commit nuevo **sin push** (los 16 anteriores ya los subió Víctor). Nada fusionado a `main`.
+**Pruebas:** `node --test test/*.test.js` → **358/358 en verde**.
+**Servidor local:** puede haber quedado corriendo en 127.0.0.1:3077 (base de prueba). `node scripts/servidor-local.js` si se necesita navegador.
 
 ---
 
-## 1. Siguiente paso (empezar aquí): decidir con Víctor entre (a) arreglar que "Guardar consulta" del PORTAL reemplaza Historia Clínica, o (b) SPEC de dictado — FASE 4
+## 1. Siguiente paso (empezar aquí): SPEC de dictado — FASE 4 (Preview con Galván)
 
-**(a) — recomendado primero, borra datos clínicos:** el botón "Guardar consulta" de `portal-medico.html` hace PATCH a HISTORIA CLÍNICA con lo capturado en la consulta → REEMPLAZA los antecedentes previos (AHF, APP, alergias…). Telegram ya se corrigió (agrega en renglón nuevo); el portal no. Además esos PATCH y el de PACIENTES/labs no revisan `r.ok`.
+Generar enlace temporal de Preview para `feat/paciente-unico` y probar con el Dr. Galván en celular real: dictado por voz en Nueva consulta, micrófono del chat de NOVA, CIE-10 sugerido (portal y Telegram "sí 1 3"), Guardar consulta con antecedentes que se agregan, dictado por Telegram. Después: guía corta para médicos y revisión de los campos de auditoría.
 
-**Pendiente de Víctor:** probar la **voz real** en Chrome (sin micrófono no se pudo; el flujo con texto está probado de punta a punta). **Punto legal:** Web Speech de Chrome manda el audio a servidores de Google → llevar al abogado o limitar la voz a prueba mientras tanto.
+**Pendiente de Víctor:** **Punto legal:** Web Speech de Chrome manda el audio a servidores de Google (voz de la consulta y del chat) → llevar al abogado o limitar la voz a prueba mientras tanto. La voz real YA la probó Víctor en Chrome (2026-10-16): escucha, escribe y coloca bien.
 **Decisión abierta:** ¿emitir receta desde Telegram (p. ej. "sí, receta" cuando venga completa)? Hoy NO: queda como borrador y se emite desde el portal.
 
 **Decisiones de Víctor (2026-10-05):** 1) voz por el **navegador** (Web Speech API) en el portal; voz en Telegram solo cuando el abogado apruebe un proveedor en servidor; 2) lo dictado llena los **campos de la consulta** (no un texto suelto); 3) Telegram con **dictado libre** (comandos solo como atajo opcional).
-**Cambios a la SPEC (aprobados con el plan):** nada de CIE-10 sugerido ni dosis completadas; sin "confianza" numérica; médico siempre del token/chat; acción en nova.js, no archivo nuevo.
+**Cambios a la SPEC:** sin dosis completadas; sin "confianza" numérica; médico siempre del token/chat. **CIE-10: CAMBIÓ el 2026-10-16** — Víctor pidió que NOVA sugiera CIE-10 acertados y el médico elija uno o varios (antes: "nada de CIE-10 sugerido").
 
-**Fase 1 HECHA** (`medico_dictado` en nova.js): texto → campos verificados por cita literal (texto = la cita; números en cifras o palabras deben estar en la cita); descartados con motivo; faltantes; sin ubicar; no guarda nada. Probado en vivo con el modelo real.
+**Fases 1, 1b, 2 y 3 HECHAS** (ver §4): motor `lib/dictado.js` con verificación por cita literal (portal y Telegram), borrador de receta, voz en Nueva consulta con marcas NOVA/editado y campos de auditoría, Telegram con "Entendí:" + "sí"/"cancelar"/agregar, grupo sanguíneo y escolaridad.
 
-**Fase 1b HECHA** (`75b7a1b`): `medico_dictado` arma también un borrador de receta verificado por cita.
-
-**Fase 2 HECHA** (2026-10-16): caja "🎙️ Dictar a NOVA" en Nueva consulta (Web Speech es-MX, reanuda tras silencio; sin Web Speech → aviso y texto). "Estructurar" coloca cada campo con borde dorado persistente (gris si el médico lo edita); texto se AGREGA en renglón nuevo, números ya capturados NO se sobrescriben (se reporta). Panel: dónde quedó / no se colocó / descartado / sin ubicar / signos faltantes / borrador de receta → "Abrir receta con este borrador" (no se emite hasta completar lo faltante). Al guardar: `Transcripción dictada`, `Origen del registro` (Formulario / Dictado NOVA — portal / — Telegram), `Método`, `Detalle del dictado` (qué colocó NOVA y qué editó el médico). Prompt: síntomas referidos → motivo, no exploración.
-**Fase 3 HECHA** (2026-10-16): motor movido a `lib/dictado.js` (portal y Telegram, mismo código; `estructurarDictado(texto)`). Telegram ya no llama al chat de NOVA en producción sin sesión. "Entendí:" campo por campo con citas, descartados, sin ubicar, faltantes, borrador de receta (NO se emite desde Telegram). "sí" guarda (re-autoriza; retira el pendiente ANTES de guardar → sin duplicados; si falla, lo repone), "cancelar"/"no" descarta, otro texto se AGREGA y se re-estructura todo; código de otro paciente descarta el pendiente y lo dice; "sí" sin dictado no llama al modelo; pendiente v2 caduca a las 12 h; formato viejo no se guarda. Consulta con Origen "Dictado NOVA — Telegram", transcripción y detalle. Antecedentes se AGREGAN (antes reemplazaba). Fallos parciales se dicen. Notas de voz → instrucciones (teclado del celular). Motor ganó `grupo_sanguineo` (símbolo o palabras; "AB+" no prueba "B+") y `escolaridad` (opciones del portal; terminada/trunca solo si se dijo; cita con fragmentos "…" solo en estos dos campos). Grupo sanguíneo distinto al del expediente NO se sobrescribe (aviso + bitácora "NO aplicado"). Telegram perdió (deliberado, salen como "no encaja"): labs en texto y el cajón notas_internas→Razonamiento clínico.
-**Fase 4:** auditoría (campos de origen), guía para médicos, Preview con Galván (incluir dictado portal + Telegram).
+**CIE-10 (2026-10-16):** `lib/cie10.js` + acción `medico_sugerir_cie10` (nova.js). Solo codifica lo que el médico escribió/dictó como diagnóstico (frase literal verificada); cada código se comprueba contra `lib/cie10-catalogo.js` y se muestra la descripción DEL CATÁLOGO; prefiere subcategoría de 4 caracteres cuando el texto la sustenta, si no ".9"/categoría; subcategoría inexistente → se ofrece su categoría. Portal: panel con casillas (ninguna marcada), sale solo tras dictar un diagnóstico o con "🔎 Sugerir CIE-10"; el campo queda "I20.8 — … (angina estable probable); E11.2 — …". Telegram: códigos numerados en "Entendí:", "sí 1" / "sí 1 y 3" / "sí" sin código; número inexistente no guarda. Auditoría: línea "CIE-10: sugerido por NOVA y elegido por el médico: …". RETIRADA `nova-asistente-clinico` accion `sugerir_cie10` (410): escribía códigos sin elección, sin verificar y sobre CUALQUIER consulta por id.
+**Catálogo CIE-10 regenerado (2026-10-16) desde `Clasificación cie10.pdf`:** 1666 categorías + 8867 subcategorías = 10 533. `pdftotext -simple2` (Git trae xpdf; `-layout` separa códigos y títulos en ese PDF), verificado contra `-table`; títulos multirrenglón unidos con reglas estrictas; listas comunes de cuarto carácter (E10–E14, F10–F19, F70–F79, K25–K28, N00–N07, O03–O06, R83–R89) como "categoría, subdivisión"; 76 títulos de 3 caracteres truncados reparados (solo si el PDF EXTIENDE el texto). Excluidos: capítulos V–Y, H54.1, P59.2. El archivo sirve al navegador (`var`) y a Node (`module.exports`). Scripts de extracción NO están en el repo (vivían en el scratchpad de la sesión).
 
 ## 2. Pendientes (después de la SPEC)
 
@@ -81,7 +78,10 @@
 | Anti-duplicado del alta por dictado; series enlazadas al catálogo + idempotentes; "no graficable"; formatDate sin corrimiento | `ea71139` |
 | Dictado Fase 1 (motor, cita literal) + borrador de receta | `7d151d3`, `75b7a1b` |
 | **2026-10-16** Dictado Fase 2: voz/texto en Nueva consulta, marcas NOVA/editado, campos de auditoría en CONSULTAS | `4ffdff6` |
-| **2026-10-16** Dictado Fase 3: Telegram con el motor compartido (`lib/dictado.js`), grupo sanguíneo y escolaridad | (este commit) |
+| **2026-10-16** Dictado Fase 3: Telegram con el motor compartido (`lib/dictado.js`), grupo sanguíneo y escolaridad | `263a1d2` |
+| **2026-10-16** Guardar consulta: antecedentes se AGREGAN (relee la historia), orden idempotente, fallos parciales visibles, labs fallidos se conservan; Historia sin datos inventados, APP/quirúrgicos/AGO visibles y escapados; Editar historia revisa r.ok | (este commit) |
+| **2026-10-16** Micrófono en el chat de NOVA (no envía solo); fin tardío de Web Speech ya no reescribe la caja | (este commit) |
+| **2026-10-16** CIE-10 sugerido y elegido por el médico (portal + Telegram), catálogo con subcategorías desde el PDF; `sugerir_cie10` retirada | (este commit) |
 
 ## 5. Antes de fusionar a `main` (crear en producción "CODE CELLS CRM")
 
@@ -100,7 +100,7 @@ Revocar/reconectar Google Calendar de VIRN01 (§2.2).
 5. Entrevistas: `SPEC-PLANTILLAS-LISTA-ENTREVISTAS.md`.
 6. ¿Tope por persona para el chat público de la landing (sin sesión)? Hoy no tiene.
 
-**Ya decidido — no volver a discutir:** app por etapas MVP-1/2/3; Biological Map 0–10; NOVA no da consejos clínicos personalizados; VIP se fusiona en el paciente normal; el código CC-PAC- es identificador, no credencial; el paciente es dueño del expediente, no del criterio médico; colegas no ven notas privadas; producción congelada hasta el interruptor; la receta es el único acto médico que crea medicamentos; publicar el plan nutricional es acto del médico; embarazo solo con "Embarazo" en Patologías activas; **(2026-10-05)** NOVA no es chat prolongado: paciente 20/día, médico 40, con expediente abierto no cuenta, cierre cordial sin contadores; bitácora: reintento + Telegram, siempre hay registro; duplicados por nombre/teléfono/fecha de nacimiento y fecha+analito+valor; cada médico conecta su propio Google Calendar (state firmado de 15 min).
+**Ya decidido — no volver a discutir:** (2026-10-16) NOVA sugiere CIE-10 pero SIEMPRE elige el médico, nada marcado por defecto, nada se escribe sin su selección; app por etapas MVP-1/2/3; Biological Map 0–10; NOVA no da consejos clínicos personalizados; VIP se fusiona en el paciente normal; el código CC-PAC- es identificador, no credencial; el paciente es dueño del expediente, no del criterio médico; colegas no ven notas privadas; producción congelada hasta el interruptor; la receta es el único acto médico que crea medicamentos; publicar el plan nutricional es acto del médico; embarazo solo con "Embarazo" en Patologías activas; **(2026-10-05)** NOVA no es chat prolongado: paciente 20/día, médico 40, con expediente abierto no cuenta, cierre cordial sin contadores; bitácora: reintento + Telegram, siempre hay registro; duplicados por nombre/teléfono/fecha de nacimiento y fecha+analito+valor; cada médico conecta su propio Google Calendar (state firmado de 15 min).
 
 ## 7. Pendientes (no bloquean)
 
@@ -109,7 +109,8 @@ Revocar/reconectar Google Calendar de VIRN01 (§2.2).
 - Portal en móvil desborda horizontalmente.
 - Regex `pacienteCode` duplicada en ~14 sitios (extraer a constante).
 - Recordatorios de medicamentos con la app cerrada (push).
-- `Clasificación cie10.pdf` y `SPEC-NOVA-DICTACION-BIDIRECCIONAL.md` sin rastrear (no son de Claude).
+- `Clasificación cie10.pdf` y `SPEC-NOVA-DICTACION-BIDIRECCIONAL.md` sin rastrear (no son de Claude). El PDF es la fuente de `lib/cie10-catalogo.js`.
+- CIE-10: faltan capítulos V–Y (causas externas) y quintos caracteres (p. ej. sitio en capítulo M); el catálogo pesa ~870 KB y se carga en cada visita al portal.
 - Telegram: labs dictados ya no se guardan (salen "no encaja"); si se quieren, hacerlo con el flujo de series + catálogo, no texto libre. La sugerencia CIE-10 de Telegram sigue apuntando a `www.codecells.mx` aun en Preview.
 - Base de prueba: CC-PAC-9999901 quedó con grupo O+, "Licenciatura terminada" y ~5 consultas de prueba de dictado (2026-10-16); registro vacío de PENDIENTES del chat ficticio 990001117.
 - Dictado: un encabezado dicho sin dos puntos ("Diagnóstico angina…") queda literal en el campo (deliberado: quitarlo sin ":" rompería "Diagnóstico diferencial…").
