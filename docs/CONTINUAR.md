@@ -24,6 +24,8 @@
 4. **Agenda v1 = solicitud + respuesta del médico** (acepta / propone otro horario / rechaza), agenda interna, SIN Google Calendar. La solicitud **nunca se presenta como cita confirmada** hasta que el médico acepte (CLAUDE.md §6).
 5. **Perfiles:** 5–10 perfiles piloto de médicos colaboradores, datos verificados y autorización de publicación. En desarrollo, ficticios claramente marcados; en producción, solo autorizados. Antes de entregar: validar el flujo completo alta → revisión → consentimiento → publicación → búsqueda → solicitud de cita.
 
+**Dato de Víctor (2026-10-16, verificado en `origin/main`):** el directorio YA existe y es independiente del portal (`directorio/index.html` en `main`): el público busca al médico y desde ahí genera una consulta o toma sus datos para ir en persona. **Falta el acceso desde la home:** en `index.html` de `main` solo está el botón `nav-cta` "Acceso médico" → `/portal-medico.html`. Hay que agregar un botón **"Directorio médico"** muy vistoso y elegante, con la temática de CODE CELLS (misma tipografía/variables de `index.html`), más prominente que "Acceso médico".
+
 **Primera tarea de mañana:**
 1. Crear la rama del directorio desde `main` y traer este CONTINUAR adaptado.
 2. Inventario del directorio que YA existe en `main` (`/directorio`, buscador, perfiles, lead actual, `index.html`, tablas de Airtable que usa, qué escribe hoy y si esas escrituras respetan el congelamiento) y de lo reutilizable en `feat/paciente-unico` (p. ej. auth de médico, proxy `tabla=medicos` con lista blanca de `a72c134`).
