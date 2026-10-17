@@ -16,17 +16,22 @@
 
 **Decisión de Víctor (2026-10-16):** el directorio es la prioridad 1: es lo que se entrega en diciembre y lo que genera ingreso rápido (28 USD/mes por médico afiliado). El **portal clínico pasa a una SEGUNDA FASE**, cuando estén el **acta constitutiva** y el **registro de marca en el IMPI**.
 
-**Primera tarea de mañana:** revisar el directorio que YA existe (`/directorio`, buscador por ciudad/especialidad, perfiles, formulario de lead, `index.html`), cómo está en `main`/producción, y presentarle a Víctor un plan de entrega por etapas con fechas antes de construir.
+**Decisiones de Víctor (2026-10-16) — MVP CERRADO de diciembre:**
+1. **Incluye:** búsqueda y filtros de médicos · fichas públicas con consentimiento · formulario de contacto / solicitud de cita · flujo de alta y publicación del médico · definición del cobro de 28 USD · panel administrativo mínimo para revisar y publicar perfiles.
+   **Fuera (segunda etapa):** confirmación automática, sincronización con Google Calendar, funcionalidades avanzadas del portal.
+2. **Código:** rama EXCLUSIVA del directorio desde `main`. Revisar qué de `feat/paciente-unico` es reutilizable y traerlo de forma controlada (sin arrastrar dependencias); llevar CONTINUAR adaptado; `feat/paciente-unico` queda intacta; validar diferencias antes de integrar.
+3. **Privacidad — producción SIGUE CONGELADA** hasta auditar aviso de privacidad, consentimientos y flujos de datos. Búsqueda pública y tratamiento de datos personales = **flujos separados**. Ficha: solo datos profesionales autorizados por el médico, con **consentimiento verificable antes de publicar**. Contacto/cita: informar finalidad y obtener autorización ANTES de tratar datos; solo lo estrictamente necesario; **el motivo de salud nunca se convierte en expediente, lead clínico ni dato de marketing**.
+4. **Agenda v1 = solicitud + respuesta del médico** (acepta / propone otro horario / rechaza), agenda interna, SIN Google Calendar. La solicitud **nunca se presenta como cita confirmada** hasta que el médico acepte (CLAUDE.md §6).
+5. **Perfiles:** 5–10 perfiles piloto de médicos colaboradores, datos verificados y autorización de publicación. En desarrollo, ficticios claramente marcados; en producción, solo autorizados. Antes de entregar: validar el flujo completo alta → revisión → consentimiento → publicación → búsqueda → solicitud de cita.
 
-**Preguntas para Víctor (resolver al arrancar):**
-1. **Rama:** el directorio debe salir de una rama nueva desde `main` (p. ej. `feat/directorio`), NO de `feat/paciente-unico` — si no, entregarlo obliga a subir todo el portal sin probar. ¿De acuerdo?
-2. **¿Qué es exactamente "el directorio" que se entrega en diciembre?** ¿Búsqueda + fichas públicas + contacto? ¿Alta y pago del médico (28 USD/mes — ¿con qué cobro: Stripe, Mercado Pago, transferencia)? ¿Agenda?
-3. **"Sin restricciones" vale para buscar y ver fichas (públicas).** NO para lo que capture datos de pacientes (lead, solicitud de cita): eso exige aviso de privacidad vigente y producción descongelada para esas escrituras (hoy congelada, `DESCONGELAR_PRODUCCION`). Publicar la ficha del médico requiere su consentimiento.
-4. **Agenda automática con Google Calendar:** la pantalla de consentimiento OAuth puede requerir verificación de Google (semanas). Para llegar a diciembre, ¿v1 = "solicitar cita" (el médico confirma) y Calendar después?
-5. Datos de la ficha: todos menos el nivel interno (CLAUDE.md §10). Duración de consulta, anticipación, cancelar/reprogramar — solo si entra la agenda.
-6. Directorio en prueba: 1 perfil sin publicar → ciudades/contactos vacíos; hacen falta perfiles reales (o de prueba) para mostrarlo.
+**Primera tarea de mañana:**
+1. Crear la rama del directorio desde `main` y traer este CONTINUAR adaptado.
+2. Inventario del directorio que YA existe en `main` (`/directorio`, buscador, perfiles, lead actual, `index.html`, tablas de Airtable que usa, qué escribe hoy y si esas escrituras respetan el congelamiento) y de lo reutilizable en `feat/paciente-unico` (p. ej. auth de médico, proxy `tabla=medicos` con lista blanca de `a72c134`).
+3. Presentar a Víctor el plan por etapas con fechas hasta diciembre ANTES de construir.
 
-**Plan previo de la agenda (2026-10-04, referencia):** 1) fuga del refresh token — HECHA (`a72c134`); 2) revisar directorio + botón en `index.html`; 3) directorio en la app del paciente; 4) disponibilidad del médico; 5) espacios libres = horario − freeBusy de Google (solo libre/ocupado); 6) reservar (AGENDA real + evento + re-verificar el espacio antes de confirmar); 7) NOVA ayuda a agendar (nunca "agendada" sin confirmación del servidor); 8) pruebas + Preview. Los pasos 3 y 7 dependen del portal/app → ahora quedan para la fase 2 salvo que Víctor diga otra cosa.
+**Abierto (Víctor):** el cobro de 28 USD — quién paga, por qué concepto, medio de pago (Stripe / Mercado Pago / transferencia), si es recurrente y facturación. Cuál es el consentimiento "verificable" del médico (firma, casilla con registro de fecha/IP, contrato de afiliación). Quiénes son los 5–10 médicos piloto.
+
+**Plan previo de la agenda (2026-10-04, SUPERADO por las decisiones de arriba — solo referencia):** 1) fuga del refresh token — HECHA (`a72c134`); 2) revisar directorio + botón en `index.html`; 3) directorio en la app del paciente; 4) disponibilidad del médico; 5) espacios libres = horario − freeBusy de Google (solo libre/ocupado); 6) reservar (AGENDA real + evento + re-verificar el espacio antes de confirmar); 7) NOVA ayuda a agendar (nunca "agendada" sin confirmación del servidor); 8) pruebas + Preview. Los pasos 3 y 7 dependen del portal/app → ahora quedan para la fase 2 salvo que Víctor diga otra cosa.
 
 ## 2. Portal clínico — FASE 2 (EN PAUSA hasta acta constitutiva + IMPI)
 
