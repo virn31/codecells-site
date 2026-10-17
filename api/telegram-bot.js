@@ -16,7 +16,7 @@ const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPers
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico } = require('../lib/autorizacion');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { estructurarDictado } = require('../lib/dictado');
-const { sugerirCie10, diagnosticoConCodigos } = require('../lib/cie10');
+const { sugerirCie10, integrarCodigosEnDiagnostico } = require('../lib/cie10');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -229,7 +229,7 @@ async function guardarDictadoEnExpediente(pacienteRecord, dictado, medico, elegi
     'Temperatura en consulta (°C)': c.temperatura ?? undefined,
     'Motivo de consulta': c.motivo_consulta || undefined,
     'Exploración física': c.exploracion_fisica || undefined,
-    'Diagnóstico (CIE-10)': (elegidos.length ? diagnosticoConCodigos(elegidos) : c.diagnostico) || undefined,
+    'Diagnóstico (CIE-10)': (elegidos.length ? integrarCodigosEnDiagnostico(c.diagnostico, elegidos) : c.diagnostico) || undefined,
     'Plan terapéutico': c.plan_terapeutico || undefined,
     'Origen del registro': 'Dictado NOVA — Telegram',
     'Método': 'Texto',
@@ -802,7 +802,7 @@ module.exports = async (req, res) => {
         const pacienteRecord = puerta.pacienteRecord;
         const { falto, avisos } = await guardarDictadoEnExpediente(pacienteRecord, d, medicoVinculado, elegidos);
         let msg = `Consulta guardada en el expediente de ${pacienteRecord.fields['Nombre completo'] || codigoPend}. ✅`;
-        if (elegidos.length) msg += `\nDiagnóstico: ${diagnosticoConCodigos(elegidos)}`;
+        if (elegidos.length) msg += `\nDiagnóstico: ${integrarCodigosEnDiagnostico((d.resultado.campos || {}).diagnostico, elegidos)}`;
         if (falto.length) msg += `\n\n⚠️ Pero NO se guardó: ${falto.join('; ')}. Captúralo desde el portal.`;
         avisos.forEach((a) => { msg += `\n\n⚠️ ${a}`; });
         if (d.resultado.receta) msg += '\n\nLa receta no se emitió: emítela desde el portal (botón Receta).';

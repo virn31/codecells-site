@@ -81,6 +81,20 @@ test('cie10: el diagnóstico final conserva la frase del médico junto al códig
   );
 });
 
+test('cie10: varios diagnósticos — los códigos van dentro del texto y lo no codificado se conserva', () => {
+  const { integrarCodigosEnDiagnostico } = require('../lib/cie10');
+  const texto = 'DM2 descontrolada; Hipertensión arterial; gonartrosis derecha';
+  const r = integrarCodigosEnDiagnostico(texto, [
+    { codigo: 'E11.9', descripcion: 'Diabetes mellitus no insulinodependiente, sin mención de complicación', frase: 'DM2 descontrolada' },
+    { codigo: 'M17.1', descripcion: 'Otras gonartrosis primarias', frase: 'gonartrosis derecha' },
+    { codigo: 'M17.9', descripcion: 'Gonartrosis, no especificada', frase: 'gonartrosis derecha' },
+  ]);
+  assert.strictEqual(r, 'E11.9 — Diabetes mellitus no insulinodependiente, sin mención de complicación (DM2 descontrolada); Hipertensión arterial; M17.1 — Otras gonartrosis primarias (gonartrosis derecha); M17.9 — Gonartrosis, no especificada (gonartrosis derecha)');
+  // Sin mayúsculas iguales también se encuentra; una frase ausente se agrega al final.
+  assert.strictEqual(integrarCodigosEnDiagnostico('Asma', [{ codigo: 'J45.9', descripcion: 'Asma, no especificada', frase: 'asma' }, { codigo: 'I10', descripcion: 'Hipertensión esencial (primaria)', frase: 'HAS' }]),
+    'J45.9 — Asma, no especificada (asma); I10 — Hipertensión esencial (primaria) (HAS)');
+});
+
 function instalar(anthropic) {
   const original = global.fetch;
   const cap = { anthropic: [], escrituras: [] };

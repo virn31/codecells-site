@@ -2847,8 +2847,27 @@
         resultados = [];
       }
 
+      // Varios diagnósticos se separan con ";" (o renglón). El buscador
+      // trabaja solo sobre el diagnóstico donde está el cursor, y al elegir
+      // un código se reemplaza ESE tramo — los demás quedan intactos.
+      function tramoActual() {
+        const v = input.value;
+        const pos = input.selectionStart == null ? v.length : input.selectionStart;
+        const antes = v.slice(0, pos);
+        const ini = Math.max(antes.lastIndexOf(';'), antes.lastIndexOf('\n')) + 1;
+        const resto = v.slice(pos).search(/[;\n]/);
+        const fin = resto < 0 ? v.length : pos + resto;
+        return { ini, fin, texto: v.slice(ini, fin) };
+      }
+
       function seleccionar(entry) {
-        input.value = entry.codigo + ' — ' + entry.descripcion;
+        const { ini, fin } = tramoActual();
+        const v = input.value;
+        const previo = v.slice(0, ini);
+        const nuevo = (previo && !/\s$/.test(previo) ? ' ' : '') + entry.codigo + ' — ' + entry.descripcion;
+        input.value = previo + nuevo + v.slice(fin);
+        const cursor = (previo + nuevo).length;
+        input.setSelectionRange(cursor, cursor);
         cerrar();
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
@@ -2881,9 +2900,11 @@
       }
 
       input.addEventListener('input', () => {
-        resultados = buscarCie10(input.value, 8);
+        const q = tramoActual().texto;
+        resultados = buscarCie10(q, 8);
         activeIndex = -1;
-        if (input.value.trim().length < 3) { cerrar(); return; }
+        // Un tramo que ya es "código — descripción" no vuelve a abrir la lista.
+        if (q.trim().length < 3 || /^\s*[A-Z]\d\d(\.[0-9X])?\s+—/.test(q)) { cerrar(); return; }
         render();
       });
 
@@ -3941,7 +3962,7 @@
             <div class="form-row">
               <div class="form-group cie10-ac-wrap">
                 <label>Diagnóstico (CIE-10)</label>
-                <input type="text" id="f-diagnostico" placeholder="Ej. Z51.8 — Otra atención médica especificada" autocomplete="off">
+                <textarea id="f-diagnostico" rows="2" placeholder="Uno o varios, separados con «;» — escribe y elige el código. Ej. E11.9 — Diabetes…; I10 — Hipertensión…" autocomplete="off"></textarea>
                 <div class="cie10-ac-list" id="f-diagnostico-ac"></div>
               </div>
               <div class="form-group">
@@ -8334,6 +8355,26 @@ function diagnosticoConCodigos(elegidos) {
   return elegidos.map(e => `${e.codigo} — ${e.descripcion}${e.frase ? ` (${e.frase})` : ''}`).join('; ');
 }
 
+// Mismo algoritmo que lib/cie10.js integrarCodigosEnDiagnostico: cada frase
+// codificada se sustituye por su(s) código(s) dentro del texto del médico;
+// los diagnósticos sin código elegido NO se borran.
+function integrarCodigosEnDiagnostico(texto, elegidos) {
+  let t = String(texto || '').trim();
+  const porFrase = [];
+  for (const e of elegidos || []) {
+    const g = porFrase.find(x => x.frase === e.frase);
+    if (g) g.items.push(e); else porFrase.push({ frase: e.frase, items: [e] });
+  }
+  const sueltos = [];
+  for (const g of porFrase) {
+    const con = diagnosticoConCodigos(g.items);
+    const i = g.frase ? t.toLowerCase().indexOf(String(g.frase).toLowerCase()) : -1;
+    if (i >= 0) t = t.slice(0, i) + con + t.slice(i + g.frase.length);
+    else sueltos.push(con);
+  }
+  return [t, ...sueltos].filter(Boolean).join('; ');
+}
+
 async function sugerirCie10Portal() {
   if (!pacienteActual) { showToast('Selecciona un paciente primero.', 'error'); return; }
   const texto = document.getElementById('f-diagnostico').value.trim();
@@ -8389,16 +8430,19 @@ function cie10SugRender(d) {
       return { codigo: c.codigo, descripcion: c.descripcion, frase: g.frase };
     });
     const el = document.getElementById('f-diagnostico');
-    el.value = diagnosticoConCodigos(elegidos);
+    el.value = integrarCodigosEnDiagnostico(el.value, elegidos);
     // Si NOVA había colocado el diagnóstico desde el dictado, ahora lo
     // decidió el médico: la marca pasa a "editado por ti".
     if (dictado.aplicado && dictado.aplicado.colocados['f-diagnostico']) {
       el.classList.remove('campo-dictado-nova');
       el.classList.add('campo-dictado-editado');
     }
-    cie10Sug.elegidos = elegidos.map(e => e.codigo);
+    // Se suman a los que ya había elegido antes (y que siguen en el campo).
+    cie10Sug.elegidos = [...new Set([...cie10Sug.elegidos.filter(c => el.value.includes(c)), ...elegidos.map(e => e.codigo)])];
     panel.style.display = 'none';
-    cie10SugEstado(`✓ Diagnóstico con ${elegidos.length} código${elegidos.length === 1 ? '' : 's'} elegido${elegidos.length === 1 ? '' : 's'} por ti. Revísalo antes de guardar.`);
+    const sinCodigo = grupos.filter((g, gi) => !panel.querySelector(`input[data-g="${gi}"]:checked`)).length;
+    cie10SugEstado(`✓ ${elegidos.length} código${elegidos.length === 1 ? '' : 's'} elegido${elegidos.length === 1 ? '' : 's'} por ti.` +
+      (sinCodigo ? ` ${sinCodigo} diagnóstico${sinCodigo === 1 ? '' : 's'} sin código se ${sinCodigo === 1 ? 'queda' : 'quedan'} como lo escribiste.` : '') + ' Revísalo antes de guardar.');
   });
 }
 

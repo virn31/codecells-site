@@ -5,9 +5,9 @@
 > agrega al final): este archivo es el estado actual, no un diario. El
 > historial vive en git (`git log`) y en la memoria del proyecto.
 
-**Última actualización:** 2026-10-16 (Guardar consulta sin reemplazo, micrófono en NOVA, CIE-10 sugerido con subcategorías)
-**Rama de trabajo:** `feat/paciente-unico` — 1 commit nuevo **sin push** (los 16 anteriores ya los subió Víctor). Nada fusionado a `main`.
-**Pruebas:** `node --test test/*.test.js` → **358/358 en verde**.
+**Última actualización:** 2026-10-16 (varios diagnósticos CIE-10 por consulta sin perder los no codificados)
+**Rama de trabajo:** `feat/paciente-unico` — 1 commit nuevo **sin push** (los 17 anteriores ya los subió Víctor). Nada fusionado a `main`.
+**Pruebas:** `node --test test/*.test.js` → **360/360 en verde**.
 **Servidor local:** puede haber quedado corriendo en 127.0.0.1:3077 (base de prueba). `node scripts/servidor-local.js` si se necesita navegador.
 
 ---
@@ -24,7 +24,7 @@ Generar enlace temporal de Preview para `feat/paciente-unico` y probar con el Dr
 
 **Fases 1, 1b, 2 y 3 HECHAS** (ver §4): motor `lib/dictado.js` con verificación por cita literal (portal y Telegram), borrador de receta, voz en Nueva consulta con marcas NOVA/editado y campos de auditoría, Telegram con "Entendí:" + "sí"/"cancelar"/agregar, grupo sanguíneo y escolaridad.
 
-**CIE-10 (2026-10-16):** `lib/cie10.js` + acción `medico_sugerir_cie10` (nova.js). Solo codifica lo que el médico escribió/dictó como diagnóstico (frase literal verificada); cada código se comprueba contra `lib/cie10-catalogo.js` y se muestra la descripción DEL CATÁLOGO; prefiere subcategoría de 4 caracteres cuando el texto la sustenta, si no ".9"/categoría; subcategoría inexistente → se ofrece su categoría. Portal: panel con casillas (ninguna marcada), sale solo tras dictar un diagnóstico o con "🔎 Sugerir CIE-10"; el campo queda "I20.8 — … (angina estable probable); E11.2 — …". Telegram: códigos numerados en "Entendí:", "sí 1" / "sí 1 y 3" / "sí" sin código; número inexistente no guarda. Auditoría: línea "CIE-10: sugerido por NOVA y elegido por el médico: …". RETIRADA `nova-asistente-clinico` accion `sugerir_cie10` (410): escribía códigos sin elección, sin verificar y sobre CUALQUIER consulta por id.
+**CIE-10 (2026-10-16):** `lib/cie10.js` + acción `medico_sugerir_cie10` (nova.js). Solo codifica lo que el médico escribió/dictó como diagnóstico (frase literal verificada); cada código se comprueba contra `lib/cie10-catalogo.js` y se muestra la descripción DEL CATÁLOGO; prefiere subcategoría de 4 caracteres cuando el texto la sustenta, si no ".9"/categoría; subcategoría inexistente → se ofrece su categoría. Portal: panel con casillas (ninguna marcada), sale solo tras dictar un diagnóstico o con "🔎 Sugerir CIE-10"; el campo queda "I20.8 — … (angina estable probable); E11.2 — …". Telegram: códigos numerados en "Entendí:", "sí 1" / "sí 1 y 3" / "sí" sin código; número inexistente no guarda. Auditoría: línea "CIE-10: sugerido por NOVA y elegido por el médico: …". **Varios diagnósticos (2026-10-16, reporte de Víctor):** el campo es textarea; diagnósticos separados con «;»; el autocompletado busca y reemplaza SOLO el tramo donde está el cursor; "Usar los seleccionados" y Telegram "sí N" sustituyen cada frase codificada DENTRO del texto (`integrarCodigosEnDiagnostico`, lib/cie10.js + copia en el portal) y lo no codificado se conserva (antes se borraba en silencio). RETIRADA `nova-asistente-clinico` accion `sugerir_cie10` (410): escribía códigos sin elección, sin verificar y sobre CUALQUIER consulta por id.
 **Catálogo CIE-10 regenerado (2026-10-16) desde `Clasificación cie10.pdf`:** 1666 categorías + 8867 subcategorías = 10 533. `pdftotext -simple2` (Git trae xpdf; `-layout` separa códigos y títulos en ese PDF), verificado contra `-table`; títulos multirrenglón unidos con reglas estrictas; listas comunes de cuarto carácter (E10–E14, F10–F19, F70–F79, K25–K28, N00–N07, O03–O06, R83–R89) como "categoría, subdivisión"; 76 títulos de 3 caracteres truncados reparados (solo si el PDF EXTIENDE el texto). Excluidos: capítulos V–Y, H54.1, P59.2. El archivo sirve al navegador (`var`) y a Node (`module.exports`). Scripts de extracción NO están en el repo (vivían en el scratchpad de la sesión).
 
 ## 2. Pendientes (después de la SPEC)
@@ -79,9 +79,10 @@ Generar enlace temporal de Preview para `feat/paciente-unico` y probar con el Dr
 | Dictado Fase 1 (motor, cita literal) + borrador de receta | `7d151d3`, `75b7a1b` |
 | **2026-10-16** Dictado Fase 2: voz/texto en Nueva consulta, marcas NOVA/editado, campos de auditoría en CONSULTAS | `4ffdff6` |
 | **2026-10-16** Dictado Fase 3: Telegram con el motor compartido (`lib/dictado.js`), grupo sanguíneo y escolaridad | `263a1d2` |
-| **2026-10-16** Guardar consulta: antecedentes se AGREGAN (relee la historia), orden idempotente, fallos parciales visibles, labs fallidos se conservan; Historia sin datos inventados, APP/quirúrgicos/AGO visibles y escapados; Editar historia revisa r.ok | (este commit) |
-| **2026-10-16** Micrófono en el chat de NOVA (no envía solo); fin tardío de Web Speech ya no reescribe la caja | (este commit) |
-| **2026-10-16** CIE-10 sugerido y elegido por el médico (portal + Telegram), catálogo con subcategorías desde el PDF; `sugerir_cie10` retirada | (este commit) |
+| **2026-10-16** Guardar consulta: antecedentes se AGREGAN (relee la historia), orden idempotente, fallos parciales visibles, labs fallidos se conservan; Historia sin datos inventados, APP/quirúrgicos/AGO visibles y escapados; Editar historia revisa r.ok | `d2077e3` |
+| **2026-10-16** Micrófono en el chat de NOVA (no envía solo); fin tardío de Web Speech ya no reescribe la caja | `d2077e3` |
+| **2026-10-16** CIE-10 sugerido y elegido por el médico (portal + Telegram), catálogo con subcategorías desde el PDF; `sugerir_cie10` retirada | `d2077e3` |
+| **2026-10-16** Varios diagnósticos CIE-10 por consulta: autocompletado por tramo («;»), códigos integrados en el texto, diagnósticos sin código ya no se borran (portal y Telegram) | (este commit) |
 
 ## 5. Antes de fusionar a `main` (crear en producción "CODE CELLS CRM")
 

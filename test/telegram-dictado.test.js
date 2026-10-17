@@ -304,6 +304,20 @@ test('Telegram CIE-10: "sí 1 y 2" guarda los dos códigos', async () => {
   assert.match(f['Diagnóstico (CIE-10)'], /^I20 — .*; I25 — /);
 });
 
+test('Telegram CIE-10: con dos diagnósticos, "sí 1" codifica uno y NO borra el otro', async () => {
+  const p = pendienteV2();
+  const f = JSON.parse(p.fields['Ficha JSON']);
+  f.resultado.campos.diagnostico = 'angina estable probable. Hipertensión arterial sistémica';
+  f.resultado.cie10 = { opciones: [
+    { n: 1, codigo: 'I20.8', descripcion: 'Otras formas especificadas de angina de pecho', frase: 'angina estable probable' },
+    { n: 2, codigo: 'I10', descripcion: 'Hipertensión esencial (primaria)', frase: 'Hipertensión arterial sistémica' },
+  ] };
+  p.fields['Ficha JSON'] = JSON.stringify(f);
+  const cap = await webhook({ text: 'sí 1' }, { pendiente: p });
+  const campos = postsA(cap, CONSULTAS, 'POST')[0].body.records[0].fields;
+  assert.strictEqual(campos['Diagnóstico (CIE-10)'], 'I20.8 — Otras formas especificadas de angina de pecho (angina estable probable). Hipertensión arterial sistémica');
+});
+
 test('Telegram CIE-10: "sí" a secas guarda el diagnóstico dictado sin código', async () => {
   const cap = await webhook({ text: 'sí' }, { pendiente: pendienteConCie10() });
   const f = postsA(cap, CONSULTAS, 'POST')[0].body.records[0].fields;
