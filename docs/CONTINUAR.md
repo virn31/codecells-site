@@ -5,19 +5,40 @@
 > agrega al final): este archivo es el estado actual, no un diario. El
 > historial vive en git (`git log`) y en la memoria del proyecto.
 
-**Última actualización:** 2026-10-16 (varios diagnósticos CIE-10 por consulta sin perder los no codificados)
-**Rama de trabajo:** `feat/paciente-unico` — 1 commit nuevo **sin push** (los 17 anteriores ya los subió Víctor). Nada fusionado a `main`.
+**Última actualización:** 2026-10-16 — **CAMBIO DE PRIORIDADES (decisión de Víctor al cerrar)**
+**Rama del portal:** `feat/paciente-unico` — todo pusheado (último `9105b11`). Nada fusionado a `main`.
 **Pruebas:** `node --test test/*.test.js` → **360/360 en verde**.
-**Servidor local:** puede haber quedado corriendo en 127.0.0.1:3077 (base de prueba). `node scripts/servidor-local.js` si se necesita navegador.
+**Servidor local:** `node scripts/servidor-local.js` → 127.0.0.1:3077 (base de prueba).
 
 ---
 
-## 1. Siguiente paso (empezar aquí): SPEC de dictado — FASE 4 (Preview con Galván)
+## 1. Siguiente paso (empezar aquí): DIRECTORIO MÉDICO — entrega en DICIEMBRE 2026
 
-Generar enlace temporal de Preview para `feat/paciente-unico` y probar con el Dr. Galván en celular real: dictado por voz en Nueva consulta, micrófono del chat de NOVA, CIE-10 sugerido (portal y Telegram "sí 1 3"), Guardar consulta con antecedentes que se agregan, dictado por Telegram. Después: guía corta para médicos y revisión de los campos de auditoría.
+**Decisión de Víctor (2026-10-16):** el directorio es la prioridad 1: es lo que se entrega en diciembre y lo que genera ingreso rápido (28 USD/mes por médico afiliado). El **portal clínico pasa a una SEGUNDA FASE**, cuando estén el **acta constitutiva** y el **registro de marca en el IMPI**.
 
-**Pendiente de Víctor:** **Punto legal:** Web Speech de Chrome manda el audio a servidores de Google (voz de la consulta y del chat) → llevar al abogado o limitar la voz a prueba mientras tanto. La voz real YA la probó Víctor en Chrome (2026-10-16): escucha, escribe y coloca bien.
-**Decisión abierta:** ¿emitir receta desde Telegram (p. ej. "sí, receta" cuando venga completa)? Hoy NO: queda como borrador y se emite desde el portal.
+**Primera tarea de mañana:** revisar el directorio que YA existe (`/directorio`, buscador por ciudad/especialidad, perfiles, formulario de lead, `index.html`), cómo está en `main`/producción, y presentarle a Víctor un plan de entrega por etapas con fechas antes de construir.
+
+**Preguntas para Víctor (resolver al arrancar):**
+1. **Rama:** el directorio debe salir de una rama nueva desde `main` (p. ej. `feat/directorio`), NO de `feat/paciente-unico` — si no, entregarlo obliga a subir todo el portal sin probar. ¿De acuerdo?
+2. **¿Qué es exactamente "el directorio" que se entrega en diciembre?** ¿Búsqueda + fichas públicas + contacto? ¿Alta y pago del médico (28 USD/mes — ¿con qué cobro: Stripe, Mercado Pago, transferencia)? ¿Agenda?
+3. **"Sin restricciones" vale para buscar y ver fichas (públicas).** NO para lo que capture datos de pacientes (lead, solicitud de cita): eso exige aviso de privacidad vigente y producción descongelada para esas escrituras (hoy congelada, `DESCONGELAR_PRODUCCION`). Publicar la ficha del médico requiere su consentimiento.
+4. **Agenda automática con Google Calendar:** la pantalla de consentimiento OAuth puede requerir verificación de Google (semanas). Para llegar a diciembre, ¿v1 = "solicitar cita" (el médico confirma) y Calendar después?
+5. Datos de la ficha: todos menos el nivel interno (CLAUDE.md §10). Duración de consulta, anticipación, cancelar/reprogramar — solo si entra la agenda.
+6. Directorio en prueba: 1 perfil sin publicar → ciudades/contactos vacíos; hacen falta perfiles reales (o de prueba) para mostrarlo.
+
+**Plan previo de la agenda (2026-10-04, referencia):** 1) fuga del refresh token — HECHA (`a72c134`); 2) revisar directorio + botón en `index.html`; 3) directorio en la app del paciente; 4) disponibilidad del médico; 5) espacios libres = horario − freeBusy de Google (solo libre/ocupado); 6) reservar (AGENDA real + evento + re-verificar el espacio antes de confirmar); 7) NOVA ayuda a agendar (nunca "agendada" sin confirmación del servidor); 8) pruebas + Preview. Los pasos 3 y 7 dependen del portal/app → ahora quedan para la fase 2 salvo que Víctor diga otra cosa.
+
+## 2. Portal clínico — FASE 2 (EN PAUSA hasta acta constitutiva + IMPI)
+
+Al retomar: **Fase 4 de la SPEC de dictado** — enlace temporal de Preview para `feat/paciente-unico` y prueba con el Dr. Galván en celular real (dictado por voz, micrófono de NOVA, CIE-10 con varios diagnósticos, Guardar consulta, Telegram; además identidad/PIN, Biological Map, Mi equipo, Progreso, Medicamentos, embarazo, tope de NOVA, negritas Telegram, Google Calendar con state firmado, tabla de labs). Después: guía para médicos, revisión de campos de auditoría, fusión a `main`.
+
+**Pendiente legal (Víctor):** Web Speech de Chrome manda el audio a Google → abogado. Aviso de privacidad clínico.
+**Decisión abierta:** ¿emitir receta desde Telegram? Hoy NO (borrador → portal).
+**Al pasar a producción:** revocar y reconectar el Google Calendar de VIRN01; `DESCONGELAR_PRODUCCION`.
+
+Otros pendientes del portal: portar `dd357f0` (estado vacío de Historia Clínica, UI); "Tu última receta" de cualquier médico; Fase 3 de SPEC-PACIENTE-UNICO (retiro de VIP + redirecciones); documentos en la app; CIE-10 V–Y y quintos caracteres; peso del catálogo (~870 KB); limpiar consultas de prueba de `CC-PAC-9999901`.
+
+### Estado del dictado y CIE-10 (referencia para la fase 2)
 
 **Decisiones de Víctor (2026-10-05):** 1) voz por el **navegador** (Web Speech API) en el portal; voz en Telegram solo cuando el abogado apruebe un proveedor en servidor; 2) lo dictado llena los **campos de la consulta** (no un texto suelto); 3) Telegram con **dictado libre** (comandos solo como atajo opcional).
 **Cambios a la SPEC:** sin dosis completadas; sin "confianza" numérica; médico siempre del token/chat. **CIE-10: CAMBIÓ el 2026-10-16** — Víctor pidió que NOVA sugiera CIE-10 acertados y el médico elija uno o varios (antes: "nada de CIE-10 sugerido").
@@ -26,16 +47,6 @@ Generar enlace temporal de Preview para `feat/paciente-unico` y probar con el Dr
 
 **CIE-10 (2026-10-16):** `lib/cie10.js` + acción `medico_sugerir_cie10` (nova.js). Solo codifica lo que el médico escribió/dictó como diagnóstico (frase literal verificada); cada código se comprueba contra `lib/cie10-catalogo.js` y se muestra la descripción DEL CATÁLOGO; prefiere subcategoría de 4 caracteres cuando el texto la sustenta, si no ".9"/categoría; subcategoría inexistente → se ofrece su categoría. Portal: panel con casillas (ninguna marcada), sale solo tras dictar un diagnóstico o con "🔎 Sugerir CIE-10"; el campo queda "I20.8 — … (angina estable probable); E11.2 — …". Telegram: códigos numerados en "Entendí:", "sí 1" / "sí 1 y 3" / "sí" sin código; número inexistente no guarda. Auditoría: línea "CIE-10: sugerido por NOVA y elegido por el médico: …". **Varios diagnósticos (2026-10-16, reporte de Víctor):** el campo es textarea; diagnósticos separados con «;»; el autocompletado busca y reemplaza SOLO el tramo donde está el cursor; "Usar los seleccionados" y Telegram "sí N" sustituyen cada frase codificada DENTRO del texto (`integrarCodigosEnDiagnostico`, lib/cie10.js + copia en el portal) y lo no codificado se conserva (antes se borraba en silencio). RETIRADA `nova-asistente-clinico` accion `sugerir_cie10` (410): escribía códigos sin elección, sin verificar y sobre CUALQUIER consulta por id.
 **Catálogo CIE-10 regenerado (2026-10-16) desde `Clasificación cie10.pdf`:** 1666 categorías + 8867 subcategorías = 10 533. `pdftotext -simple2` (Git trae xpdf; `-layout` separa códigos y títulos en ese PDF), verificado contra `-table`; títulos multirrenglón unidos con reglas estrictas; listas comunes de cuarto carácter (E10–E14, F10–F19, F70–F79, K25–K28, N00–N07, O03–O06, R83–R89) como "categoría, subdivisión"; 76 títulos de 3 caracteres truncados reparados (solo si el PDF EXTIENDE el texto). Excluidos: capítulos V–Y, H54.1, P59.2. El archivo sirve al navegador (`var`) y a Node (`module.exports`). Scripts de extracción NO están en el repo (vivían en el scratchpad de la sesión).
-
-## 2. Pendientes (después de la SPEC)
-
-1. **Directorio médico + agenda automática** (decidido 2026-10-04): reutilizar el buscador de `/directorio`; tarjeta con todos los datos menos el nivel interno; botón "Agenda automática" (Google Calendar del médico + días/horarios; el paciente ve solo espacios libres; NOVA ayuda a agendar); botón al directorio en `index.html`. Etapa 1 (fuga del refresh token) **YA HECHA**. Plan de etapas 2–8 y preguntas abiertas: ver memoria "Siguiente: directorio + agenda automática".
-2. **Revocar y reconectar el Google Calendar de VIRN01** al pasar a producción (su refresh token estuvo expuesto; sin el client secret no se usa, pero hay que rotarlo). Decisión de Víctor: al entrar a producción.
-3. **Probar en Preview (celular real) con el Dr. Galván** lo de ayer y hoy: identidad/PIN, Biological Map, Mi equipo, Progreso, Plan, Medicamentos, embarazo, **aviso de cita en la app, tope de NOVA, dictado por Telegram, negritas de Telegram, conexión de Google Calendar (state firmado), tabla de labs con categorías y "no graficable"**. Su enlace temporal venció 2026-10-05 12:59 → generar uno nuevo para `feat/paciente-unico`.
-4. Rama de labs de agosto: solo falta portar `dd357f0` (estado vacío real en Historia Clínica + scroll a Consultas, UI).
-5. Mejora: "Tu última receta" muestra la más reciente de cualquier médico.
-6. **Fase 3 de SPEC-PACIENTE-UNICO:** retiro de VIP + redirecciones.
-7. Documentos en la app, fases del protocolo.
 
 ## 3. Ambientes
 
