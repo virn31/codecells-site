@@ -9,13 +9,19 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-19 — rama creada, inventario hecho, plan por etapas presentado a Víctor. **Nada construido todavía: esperando su visto bueno.**
+**Última actualización:** 2026-10-19 — el directorio quedó EN PAUSA para hacer primero la valuación y los precios.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-Si Víctor aprobó el plan de §3: arrancar la **Etapa 0** (portar ambientes y lecturas honestas, botón en la home). Si no ha respondido: recordarle las decisiones abiertas de §4.
+**Valuación y precios (Víctor, 2026-10-19).** `code_cells_auditoria_integral.json` (raíz, sin rastrear) es solo REFERENCIA para un orden propio. Víctor duda de que 28 USD/mes sea competitivo y quiere **precios estables** que no cambien con el mercado ni el tipo de cambio. Orden acordado:
+1. Inventario de lo construido — **HECHO**: `docs/INVENTARIO-2026-10-19.md`.
+2. Costos reales de operación y horas invertidas — **los da Víctor** (pendiente).
+3. Investigación de precios de la competencia en México, con fuente y fecha.
+4. Propuesta: niveles (directorio / directorio + portal clínico), precio en MXN con colchón cambiario, revisión anual con regla pública, pago anual, oferta para 100 fundadores con plazo definido, punto de equilibrio.
+
+Después se retoma el directorio (plan en §3, que espera aprobación; la etapa de cobro depende del paso 4).
 
 ## 2. Inventario de lo que YA existe en `main` (2026-10-19)
 
