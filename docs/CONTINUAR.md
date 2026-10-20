@@ -24,6 +24,7 @@
 
 **Decisiones de Víctor (2026-10-19):** plan Red **$600** y plan Clínico **$1 100** (incluye todo), con IVA; tope de NOVA **por paciente** (se queda como está); la **migración se cobra aparte**.
 **Propuestas en el modelo, pendientes de su visto bueno:** fundador $600 mientras solo hay Red y **$800 congelado** cuando tenga el Clínico (a $600 su contribución cae al 28 %); migración ~$50 + IVA por paciente; clínico en mayo-2027.
+**Agregado 2026-10-19 (Víctor):** almacenamiento **cobrado por GB** (propuesta: 20 GB incluidos en Clínico, 1 GB en Red, $2/GB adicional con IVA; paquete 1 TB ~$990; costo real ~0.022 USD/GB con 2 copias R2 + Backblaze; se conserva 5 años aunque el médico se vaya). **Canal Regene Global: ~2 500 médicos afiliados** (dato de Víctor) — en el modelo entran desde mayo-2027+1 con 15 % de descuento/comisión; 5/10/20 % de afiliación según escenario. Requisito previo: base clínica fuera de Airtable.
 **Siguiente:** que Víctor revise supuestos (contador, abogado, adquisición, sueldo); luego retomar el directorio (plan §3) — la etapa de cobro usa estos precios.
 
 **Hallazgos técnicos de la valuación (no arreglados, ramas de código):** NOVA sin caché de instrucciones (duplica el costo de IA); `medico_subir_estudio` no guarda el original y escribe "ver archivo adjunto" sin adjunto (viola CLAUDE.md §6); Airtable Team (50 000 registros/base) no aguanta migraciones de expedientes.

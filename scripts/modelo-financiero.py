@@ -86,7 +86,17 @@ entrada(f, 'infra0', 'Infraestructura actual (USD/mes)', 68.33, USD, 'Dato de V�
 entrada(f, 'infra1', 'Infraestructura nueva desde el lanzamiento Clínico (USD/mes)', 80, USD, 'Estimado: PostgreSQL ~25, respaldos, monitoreo 0–26, correo 0–20, Cloudflare R2. Ver docs/VALUACION-2026-10-19.md §4.'); f += 1
 entrada(f, 'ia_red', 'IA por médico en plan Red (USD/mes)', 0.5, USD, 'Estimado: el directorio casi no usa NOVA.'); f += 1
 entrada(f, 'ia_clin', 'IA por médico en plan Clínico (USD/mes)', 14.1, USD, 'Estimado con caché de instrucciones: mezcla 30% bajo (4) / 50% medio (13) / 20% alto (32). SIN caché se duplica (~28). Tope de NOVA por paciente (decisión de Víctor).', True); f += 1
-entrada(f, 'alm', 'Almacenamiento por médico Clínico (USD/mes)', 0.2, USD, 'Estimado: originales de estudios en Cloudflare R2 a 0.015 USD/GB.'); f += 1
+
+f += 1
+seccion(f, 'Almacenamiento de archivos (por GB)'); f += 1
+entrada(f, 'gb_inc', 'GB incluidos en el plan Clínico', 20, NUM, 'Propuesta. Ejemplo de Víctor: 4–6 fotos pre/post (~4 MB c/u) + consentimientos ≈ 26 MB por paciente quirúrgico → 100 pacientes al año ≈ 2.6 GB.', True); f += 1
+entrada(f, 'gb_inc_red', 'GB incluidos en el plan Red', 1, NUM, 'Propuesta: solo fotos de perfil y documentos del directorio.'); f += 1
+entrada(f, 'p_gb', 'Precio por GB adicional al mes (con IVA)', 2, MXN, 'Propuesta. Para volúmenes de TB (imagenología) ofrecer paquete, p. ej. 1 TB por ~$990/mes (costo ~$410).', True); f += 1
+entrada(f, 'gb_mes', 'GB nuevos por médico Clínico al mes (promedio)', 0.5, '0.00', 'Estimado: mezcla de especialidades. Muy variable: de MB a TB según la especialidad.', True); f += 1
+entrada(f, 'pct_heavy', '% de médicos que superan lo incluido', 0.10, PCT, 'Estimado: cirugía plástica, dermatología, imagen, oftalmología.', True); f += 1
+entrada(f, 'gb_heavy', 'GB adicionales promedio de esos médicos', 100, NUM, 'Estimado. Un médico de imagenología puede llegar a TB: cotizar paquete.', True); f += 1
+entrada(f, 'c_gb', 'Costo por GB al mes, copia principal (USD)', 0.015, '"US$"0.000', 'Verificado: Cloudflare R2 0.015 USD/GB, sin cargo por descarga.'); f += 1
+entrada(f, 'c_gb_resp', 'Costo por GB al mes, copia de respaldo (USD)', 0.00695, '"US$"0.00000', 'Secundario: Backblaze B2 ~6.95 USD/TB. Respaldo en otro proveedor.'); f += 1
 
 f += 1
 seccion(f, 'Cobro'); f += 1
@@ -114,12 +124,21 @@ entrada(f, 'mig_min', 'Minutos de revisión humana por página', 1.5, NUM1, 'Est
 entrada(f, 'mig_hora', 'Costo por hora de revisión (MXN)', 120, MXN, 'Estimado.'); f += 1
 
 f += 1
+seccion(f, 'Canal Regene Global'); f += 1
+entrada(f, 'rg_total', 'Médicos afiliados a Regene Global', 2500, NUM, 'Dato de Víctor 2026-10-19 (aproximado).'); f += 1
+entrada(f, 'rg_inicio', 'Mes en que arranca el canal Regene (1 = dic-2026)', 7, NUM, 'Supuesto: un mes después del lanzamiento Clínico, ya con la base clínica fuera de Airtable.', True); f += 1
+entrada(f, 'rg_desc', 'Descuento o comisión para el canal Regene', 0.15, PCT, 'Propuesta: 15% del precio Clínico (descuento al médico o comisión a Regene). Decisión de negocio.', True); f += 1
+entrada(f, 'rg_cac', 'Costo de incorporar a un médico Regene (MXN)', 300, MXN, 'Estimado: alta, capacitación grupal. Menor que el costo de adquisición normal.'); f += 1
+entrada(f, 'infra_100', 'Infraestructura adicional por cada 100 médicos (USD/mes)', 25, USD, 'Estimado: base de datos y cómputo más grandes al crecer.'); f += 1
+
+f += 1
 seccion(f, 'Escenarios', escenarios=True); f += 1
 entrada(f, 'nuevos', 'Médicos nuevos por mes', [3, 6, 10], NUM, 'Estimado. El piloto de diciembre es de 5–10 médicos.', True); f += 1
 entrada(f, 'churn', 'Cancelación mensual', [0.04, 0.03, 0.02], PCT, 'Estimado. SaaS para médicos pequeños: 2–5% mensual es un rango común.', True); f += 1
 entrada(f, 'pct_clin', '% de médicos nuevos (no fundadores) que eligen Clínico tras el lanzamiento', [0.4, 0.5, 0.6], PCT, 'Estimado.'); f += 1
 entrada(f, 'upg', '% de médicos Red que suben a Clínico cada mes tras el lanzamiento', [0.03, 0.05, 0.08], PCT, 'Estimado.'); f += 1
 entrada(f, 'pct_mig', '% de médicos que entran a Clínico y compran migración', [0.2, 0.3, 0.4], PCT, 'Estimado.'); f += 1
+entrada(f, 'rg_pct', '% de médicos Regene que se afilian (repartido del mes de arranque al mes 24)', [0.05, 0.10, 0.20], PCT, 'Estimado. 5% = 125 médicos; 20% = 500.', True); f += 1
 ULT_SUP = f
 
 MESES = ['dic-2026'] + [f'{m}-2027' for m in ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']] + \
@@ -149,13 +168,16 @@ def hoja(nombre, colesc):
         ('nuevos', 'Médicos nuevos'), ('fn', 'Fundadores nuevos'), ('fcum', 'Fundadores inscritos (acumulado)'),
         ('nf', 'Nuevos no fundadores'), ('nclin', 'Nuevos que eligen Clínico'), ('nred', 'Nuevos que eligen Red'),
         ('fund', 'Fundadores activos'), ('upg', 'Suben de Red a Clínico'), ('red', 'Red activos'),
-        ('clin', 'Clínico activos (precio completo)'), ('tot', 'Total médicos activos'),
+        ('clin', 'Clínico activos (precio completo)'), ('rgn', 'Médicos Regene nuevos'), ('rg', 'Médicos Regene activos (Clínico con descuento)'),
+        ('tot', 'Total médicos activos'),
         ('usoclin', 'Médicos usando el portal clínico'), ('usored', 'Médicos usando solo Red'), None,
         ('H', 'INGRESOS'),
-        ('i_fund', 'Fundadores'), ('i_red', 'Plan Red'), ('i_clin', 'Plan Clínico'), ('mrr', 'Ingreso recurrente mensual (MRR)'),
+        ('i_fund', 'Fundadores'), ('i_red', 'Plan Red'), ('i_clin', 'Plan Clínico'), ('i_rg', 'Canal Regene'),
+        ('gb_ext', 'GB adicionales cobrados (médicos de alto consumo)'), ('gb', 'GB guardados en total (se conservan 5 años, NOM-004)'), ('i_alm', 'Almacenamiento adicional'),
+        ('mrr', 'Ingreso recurrente mensual (MRR)'),
         ('migs', 'Migraciones vendidas'), ('i_mig', 'Ingreso por migraciones'), ('ing', 'INGRESO TOTAL'), None,
         ('H', 'COSTOS VARIABLES'),
-        ('c_ia', 'IA (NOVA) + almacenamiento'), ('c_com', 'Comisión de cobro (con IVA de la comisión)'), ('c_cfdi', 'Facturas CFDI'),
+        ('c_ia', 'IA (NOVA)'), ('c_alm', 'Almacenamiento (2 copias)'), ('c_com', 'Comisión de cobro (con IVA de la comisión)'), ('c_cfdi', 'Facturas CFDI'),
         ('c_sop', 'Soporte'), ('c_mig', 'Producción de migraciones'), ('c_var', 'Total costos variables'),
         ('mc', 'MARGEN DE CONTRIBUCIÓN'), ('mcp', 'Margen de contribución %'), None,
         ('H', 'COSTOS FIJOS Y DE CRECIMIENTO'),
@@ -200,18 +222,25 @@ def hoja(nombre, colesc):
         V['upg'] = '=0' if primero else f'={p}{fr["red"]}*{ret}*{c}{fr["lanz"]}*{e("upg")}'
         V['red'] = f'={c}{fr["nred"]}' if primero else f'={p}{fr["red"]}*{ret}-{c}{fr["upg"]}+{c}{fr["nred"]}'
         V['clin'] = f'={c}{fr["nclin"]}' if primero else f'={p}{fr["clin"]}*{ret}+{c}{fr["nclin"]}+{c}{fr["upg"]}'
-        V['tot'] = f'={c}{fr["fund"]}+{c}{fr["red"]}+{c}{fr["clin"]}'
-        V['usoclin'] = f'={c}{fr["clin"]}+{c}{fr["fund"]}*{c}{fr["lanz"]}'
+        V['rgn'] = f'=IF({c}{fr["mes"]}>={s("rg_inicio")},{s("rg_total")}*{e("rg_pct")}/MAX(1,25-{s("rg_inicio")}),0)'
+        V['rg'] = f'={c}{fr["rgn"]}' if primero else f'={p}{fr["rg"]}*{ret}+{c}{fr["rgn"]}'
+        V['tot'] = f'={c}{fr["fund"]}+{c}{fr["red"]}+{c}{fr["clin"]}+{c}{fr["rg"]}'
+        V['usoclin'] = f'={c}{fr["clin"]}+{c}{fr["rg"]}+{c}{fr["fund"]}*{c}{fr["lanz"]}'
         V['usored'] = f'={c}{fr["tot"]}-{c}{fr["usoclin"]}'
         iv = f'(1+{s("iva")})'
         V['i_fund'] = f'={c}{fr["fund"]}*IF({c}{fr["lanz"]}=1,{s("p_fund_clin")},{s("p_fund")})/{iv}'
         V['i_red'] = f'={c}{fr["red"]}*{s("p_red")}/{iv}'
         V['i_clin'] = f'={c}{fr["clin"]}*{s("p_clin")}/{iv}'
-        V['mrr'] = f'={c}{fr["i_fund"]}+{c}{fr["i_red"]}+{c}{fr["i_clin"]}'
-        V['migs'] = f'=({c}{fr["nclin"]}+{c}{fr["upg"]})*{e("pct_mig")}'
+        V['i_rg'] = f'={c}{fr["rg"]}*{s("p_clin")}*(1-{s("rg_desc")})/{iv}'
+        V['gb_ext'] = f'={c}{fr["usoclin"]}*{s("pct_heavy")}*{s("gb_heavy")}'
+        V['gb'] = (f'={c}{fr["usoclin"]}*{s("gb_mes")}' if primero else f'={p}{fr["gb"]}-{p}{fr["gb_ext"]}+{c}{fr["usoclin"]}*{s("gb_mes")}') + f'+{c}{fr["gb_ext"]}'
+        V['i_alm'] = f'={c}{fr["gb_ext"]}*{s("p_gb")}/{iv}'
+        V['mrr'] = f'={c}{fr["i_fund"]}+{c}{fr["i_red"]}+{c}{fr["i_clin"]}+{c}{fr["i_rg"]}+{c}{fr["i_alm"]}'
+        V['migs'] = f'=({c}{fr["nclin"]}+{c}{fr["upg"]}+{c}{fr["rgn"]})*{e("pct_mig")}'
         V['i_mig'] = f'={c}{fr["migs"]}*{s("mig_pac")}*{s("p_mig")}/{iv}'
         V['ing'] = f'={c}{fr["mrr"]}+{c}{fr["i_mig"]}'
-        V['c_ia'] = f'=({c}{fr["usored"]}*{s("ia_red")}+{c}{fr["usoclin"]}*({s("ia_clin")}+{s("alm")}))*{s("tc")}'
+        V['c_ia'] = f'=({c}{fr["usored"]}*{s("ia_red")}+{c}{fr["usoclin"]}*{s("ia_clin")})*{s("tc")}'
+        V['c_alm'] = f'={c}{fr["gb"]}*({s("c_gb")}+{s("c_gb_resp")})*{s("tc")}'
         V['c_com'] = f'=(({c}{fr["tot"]}+{c}{fr["migs"]})*{s("com_fija")}+{c}{fr["ing"]}*{iv}*{s("com_pct")})*{iv}'
         V['c_cfdi'] = f'=({c}{fr["tot"]}+{c}{fr["migs"]})*{s("cfdi")}'
         V['c_sop'] = f'={c}{fr["tot"]}*{s("sop_h")}*{s("sop_c")}'
@@ -219,9 +248,9 @@ def hoja(nombre, colesc):
         V['c_var'] = f'=SUM({c}{fr["c_ia"]}:{c}{fr["c_mig"]})'
         V['mc'] = f'={c}{fr["ing"]}-{c}{fr["c_var"]}'
         V['mcp'] = f'=IF({c}{fr["ing"]}=0,0,{c}{fr["mc"]}/{c}{fr["ing"]})'
-        V['c_inf'] = f'=({s("infra0")}+{s("infra1")}*{c}{fr["lanz"]})*{s("tc")}'
+        V['c_inf'] = f'=({s("infra0")}+{s("infra1")}*{c}{fr["lanz"]}+{s("infra_100")}*INT({c}{fr["tot"]}/100))*{s("tc")}'
         V['c_cont'] = f'={s("contador")}'
-        V['c_cac'] = f'={c}{fr["nuevos"]}*{s("cac")}'
+        V['c_cac'] = f'={c}{fr["nuevos"]}*{s("cac")}+{c}{fr["rgn"]}*{s("rg_cac")}'
         V['c_sue'] = f'={s("sueldo")}'
         V['c_uni'] = f'=IF({c}{fr["mes"]}=1,{s("abogado")},0)+IF({c}{fr["mes"]}={s("mes_clin")},{s("pentest")},0)'
         V['c_fij'] = f'=SUM({c}{fr["c_inf"]}:{c}{fr["c_uni"]})'
@@ -237,7 +266,7 @@ def hoja(nombre, colesc):
                 cell.alignment = Alignment(horizontal='center')
             elif k in ('lanz', 'pos'):
                 cell.number_format = '0'
-            elif k in ('nuevos', 'fn', 'fcum', 'nf', 'nclin', 'nred', 'fund', 'upg', 'red', 'clin', 'tot', 'usoclin', 'usored', 'migs'):
+            elif k in ('nuevos', 'fn', 'fcum', 'nf', 'nclin', 'nred', 'fund', 'upg', 'red', 'clin', 'rgn', 'rg', 'tot', 'usoclin', 'usored', 'migs', 'gb', 'gb_ext'):
                 cell.number_format = NUM1
             elif k == 'mcp':
                 cell.number_format = PCT
@@ -280,6 +309,10 @@ items = [
     ('Médicos activos al mes 12 (nov-2027)', lambda n: f"='{n}'!{COL12}{fila_fin(n,'tot')}", NUM, ''),
     ('Médicos activos al mes 24 (nov-2028)', lambda n: f"='{n}'!{COL24}{fila_fin(n,'tot')}", NUM, ''),
     ('   de ellos fundadores', lambda n: f"='{n}'!{COL24}{fila_fin(n,'fund')}", NUM, 'Los fundadores pagan el precio congelado.'),
+    ('   de ellos por el canal Regene', lambda n: f"='{n}'!{COL24}{fila_fin(n,'rg')}", NUM, 'Clínico con descuento/comisión del canal.'),
+    ('GB guardados al mes 24', lambda n: f"='{n}'!{COL24}{fila_fin(n,'gb')}", NUM, 'Se acumulan: la NOM-004 obliga a conservar 5 años aunque el médico se vaya.'),
+    ('Ingreso por almacenamiento adicional, mes 24', lambda n: f"='{n}'!{COL24}{fila_fin(n,'i_alm')}", MXN, ''),
+    ('Costo de almacenamiento (2 copias), mes 24', lambda n: f"='{n}'!{COL24}{fila_fin(n,'c_alm')}", MXN, ''),
     ('Ingreso recurrente mensual (MRR) mes 12', lambda n: f"='{n}'!{COL12}{fila_fin(n,'mrr')}", MXN, ''),
     ('Ingreso recurrente mensual (MRR) mes 24', lambda n: f"='{n}'!{COL24}{fila_fin(n,'mrr')}", MXN, ''),
     ('Ingreso recurrente anualizado (ARR) mes 24', lambda n: f"='{n}'!{COL24}{fila_fin(n,'arr')}", MXN, 'MRR × 12.'),
@@ -312,8 +345,8 @@ X.cell(r, 1, 'Ingreso sin IVA')
 X.cell(r, 2, f"={s('p_red')}/{iv}"); X.cell(r, 3, f"={s('p_clin')}/{iv}"); X.cell(r, 4, f"={s('p_fund_clin')}/{iv}")
 r += 1
 ue_ia = r
-X.cell(r, 1, 'IA + almacenamiento')
-X.cell(r, 2, f"={s('ia_red')}*{s('tc')}"); X.cell(r, 3, f"=({s('ia_clin')}+{s('alm')})*{s('tc')}"); X.cell(r, 4, f"=C{r}")
+X.cell(r, 1, 'IA (NOVA)')
+X.cell(r, 2, f"={s('ia_red')}*{s('tc')}"); X.cell(r, 3, f"={s('ia_clin')}*{s('tc')}"); X.cell(r, 4, f"=C{r}")
 r += 1
 ue_com = r
 X.cell(r, 1, 'Comisión de cobro + factura')
