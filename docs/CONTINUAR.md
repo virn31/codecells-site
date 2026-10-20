@@ -19,7 +19,10 @@
 1. Inventario de lo construido — **HECHO**: `docs/INVENTARIO-2026-10-19.md`.
 2. Costos y horas — **DADOS** (Airtable, Vercel y Anthropic 20 USD/mes c/u; dominio 100 USD/año; ~6 meses a 8–10 h/semana). Falta aclarar si Anthropic es suscripción o API.
 3. Investigación de mercado — **HECHA**: `docs/PRECIOS-MERCADO-2026-10-19.md` (con propuesta de planes Red $390 / Clínico $890 MXN y fundadores).
-4. Decisión de Víctor sobre la propuesta; luego valuación (valor de reposición con las horas) y modelo a 12/24 meses.
+4. Valuación, costo de IA por médico, migración y costos no contemplados — **HECHO**: `docs/VALUACION-2026-10-19.md` (Anthropic = API, confirmado por Víctor).
+5. **Siguiente:** modelo financiero a 12 y 24 meses (escenarios conservador/base/optimista, punto de equilibrio con soporte, abogado, contador y tiempo de Víctor) + decisiones de Víctor: precios, tope de NOVA para pacientes, migración como servicio.
+
+**Hallazgos técnicos de la valuación (no arreglados, ramas de código):** NOVA sin caché de instrucciones (duplica el costo de IA); `medico_subir_estudio` no guarda el original y escribe "ver archivo adjunto" sin adjunto (viola CLAUDE.md §6); Airtable Team (50 000 registros/base) no aguanta migraciones de expedientes.
 
 **Decisión de Víctor (2026-10-19):** se trabaja ACTUALIZANDO codecells.mx **sin quitar el congelamiento**. Implica: al fusionar a `main`, traer `6214dda` (congelamiento por base + `DESCONGELAR_PRODUCCION`) y NO definir ese interruptor; cerrar `api/buscar-medicos` (410) en el mismo cambio.
 
