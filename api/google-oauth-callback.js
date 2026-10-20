@@ -4,7 +4,7 @@
 // cuenta de Google conectó, y guardamos su refresh_token en su registro de
 // MÉDICOS (identificado por el "state", que es su código CCMED-).
 
-const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
+const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 

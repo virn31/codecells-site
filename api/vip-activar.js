@@ -12,7 +12,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 const { generarCodigoUnico } = require('../lib/codigos');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
-const BASE_ID = 'app6jyD9pDlTLpknA';
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TBL_PACIENTES_VIP = 'pacientes_vip'; // alias whitelisteado en api/airtable.js
 const TBL_TEMP = 'temp';                   // alias whitelisteado — ahí viven las invitaciones
 const TBL_MEDICOS_ID = 'tbl87DsuBMmb4DjFM';

@@ -24,7 +24,7 @@
 
 import { verificarToken, tokenDesdeRequest } from '../lib/auth.js';
 
-const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
+const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const AGENDA_TABLE_ID = 'tbl8s038fJ3qRFKD6';
 const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
 const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';

@@ -18,7 +18,7 @@ const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPers
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
 
-const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
+const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
 const DEDUPE_TABLE_ID = 'tblehEMlnMhPNVEBq';
 const HILOS_TABLE_ID = 'tblTW5X6f2UkuUFPT';

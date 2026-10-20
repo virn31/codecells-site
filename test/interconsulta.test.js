@@ -17,6 +17,10 @@
 
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret-no-es-real';
 process.env.AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN || 'test-airtable-token-no-es-real';
+// Estas pruebas cubren lógica de escritura, no el congelamiento legal: corren
+// contra una base que NO es producción, así que CONGELADO=false (ver
+// lib/congelamientoDatosPersonales.js). Los mocks enrutan por ID de tabla.
+process.env.AIRTABLE_BASE_ID = 'appBASEDEPRUEBAS';
 process.env.NODE_ENV = 'development'; // pasa el guard de origen CORS de nova.js
 
 const test = require('node:test');

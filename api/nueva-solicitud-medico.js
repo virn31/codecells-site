@@ -11,7 +11,7 @@
 const { sendTelegramMessage } = require('../lib/telegram');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
-const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
+const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';
 const MEDICOS_TABLE_ID = 'tbl87DsuBMmb4DjFM';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
@@ -22,6 +22,9 @@ async function buscarChatId(codigoMedico) {
   const formula = encodeURIComponent(`{Código de médico}="${codigoMedico}"`);
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${MEDICOS_TABLE_ID}?filterByFormula=${formula}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  // Un fallo no es "no tiene Telegram": se lanza y queda en el log con su
+  // causa real (antes el aviso al médico maestro se perdía en silencio).
+  if (!res.ok) throw new Error(`Airtable respondió ${res.status} al buscar a ${codigoMedico}`);
   const data = await res.json();
   const rec = data.records && data.records[0];
   return rec ? rec.fields['Telegram Chat ID'] : null;
@@ -104,6 +107,7 @@ module.exports = async (req, res) => {
         try {
           const chatId = await buscarChatId(codigo);
           if (chatId) await sendTelegramMessage(chatId, mensaje, botones);
+          else console.error(`[nueva-solicitud-medico] ${codigo} no tiene Telegram vinculado: no se le avisó de la solicitud.`);
         } catch (err) {
           console.error(`[nueva-solicitud-medico] error alertando a ${codigo}:`, err.message);
         }

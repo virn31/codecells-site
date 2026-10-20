@@ -12,7 +12,7 @@
 const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE_ID = 'app6jyD9pDlTLpknA';
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TABLE_ID = 'tbldxB4GK1vpnj7JR'; // CAPACITACIONES_MEDICO
 
 // Debe coincidir exactamente con las opciones reales del campo "Módulo" en

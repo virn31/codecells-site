@@ -8,7 +8,7 @@
 const { MENSAJE_NO_DISPONIBLE } = require('../lib/autorizacion');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
-const AIRTABLE_BASE_ID = 'app6jyD9pDlTLpknA';
+const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const PACIENTES_TABLE_ID = 'tblyUcCfueFLJuvIv';
 const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;

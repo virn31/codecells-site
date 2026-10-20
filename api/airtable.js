@@ -23,7 +23,7 @@ const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 
-const BASE_ID = 'app6jyD9pDlTLpknA';
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 
 const TABLAS_PERMITIDAS = {
   pacientes: 'tblyUcCfueFLJuvIv',
@@ -447,43 +447,35 @@ module.exports = async (req, res) => {
     if (!payload || payload.rol !== 'visitante') {
       return res.status(401).json({ error: 'Registro requerido.' });
     }
-    const params = new URLSearchParams();
-    params.set('filterByFormula', '{Publicado}=1');
-    params.append('fields[]', 'Teléfono de consultorio');
-    params.set('maxRecords', '200');
-    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
     try {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const data = await r.json();
+      // Todas las páginas y error ruidoso: antes un fallo se respondía como
+      // "sin teléfonos" a un visitante que ya dejó sus datos (lead perdido),
+      // y con más de 200 médicos se cortaban en silencio.
+      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, { filterByFormula: '{Publicado}=1', 'fields[]': 'Teléfono de consultorio' });
       const contactos = {};
-      (data.records || []).forEach(rec => {
+      registros.forEach(rec => {
         const tel = rec.fields?.['Teléfono de consultorio'];
         if (tel) contactos[rec.id] = tel;
       });
       return res.status(200).json({ contactos });
     } catch (err) {
-      return res.status(500).json({ error: 'Error al conectar con Airtable.' });
+      return res.status(502).json({ error: 'No pudimos cargar los teléfonos en este momento. Intenta de nuevo en unos segundos.' });
     }
   }
 
   if (esListaCiudadesPublica) {
     // Devolver array de ciudades únicas de médicos publicados
-    const params = new URLSearchParams();
-    params.set('filterByFormula', '{Publicado}=1');
-    params.append('fields[]', 'Ciudad de consulta');
-    params.set('maxRecords', '100');
-    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
     try {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const data = await r.json();
+      // Mismo criterio: todas las páginas; un fallo es error, no "sin ciudades".
+      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, { filterByFormula: '{Publicado}=1', 'fields[]': 'Ciudad de consulta' });
       const set = new Set();
-      (data.records || []).forEach(rec => {
+      registros.forEach(rec => {
         const c = rec.fields?.['Ciudad de consulta']?.trim();
         if (c) set.add(c);
       });
       return res.status(200).json({ ciudades: Array.from(set).sort() });
     } catch (err) {
-      return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
+      return res.status(502).json({ error: 'No pudimos cargar las ciudades en este momento.' });
     }
   }
 

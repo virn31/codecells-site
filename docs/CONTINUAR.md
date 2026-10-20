@@ -15,6 +15,14 @@
 
 ## 1. Siguiente paso (empezar aquí)
 
+**2026-10-20 — Víctor aprobó el plan del directorio (bandeja #4). ETAPA 0 HECHA (sin push):**
+- Base del ambiente en todos los endpoints de `main` (`process.env.AIRTABLE_BASE_ID || producción`); congelamiento por base (`lib/congelamientoDatosPersonales.js` de la rama clínica) → producción sigue congelada, Preview/local usan prueba.
+- `api/buscar-medicos.js` cerrado (410). Contactos/ciudades del directorio leen todas las páginas y fallan con 502 (no "vacío"); la tarjeta avisa si no cargó el teléfono; el formulario muestra el aviso real de congelamiento (503) en vez de "intenta de nuevo"; `nueva-solicitud-medico` ya no pierde el aviso en silencio.
+- Botón **"Directorio médico"** (dorado, con pulso) en la cabecera de `index.html` + "Encuentra a tu médico →" en el hero; traducido EN/PT; probado en 390/360/320 px sin desborde.
+- `scripts/servidor-local.js` + `test/congelamiento.test.js`; **80/80 pruebas en verde** (antes 69/76).
+- **8 perfiles ficticios "[PRUEBA] …" publicados en la base de prueba** (rec75QBLb37b3eM8a … receDNxLt2pHmTYvp), teléfonos +52 000 000 000X.
+**Siguiente:** Víctor sube la rama (`git push -u origin feat/directorio`) → revisar Preview → **Etapa 1** (alta → revisión → consentimiento verificable → publicación; el médico ya no se publica solo). OJO: una solicitud de prueba en Preview avisa al Telegram real de Víctor.
+
 **Valuación y precios (Víctor, 2026-10-19).** `code_cells_auditoria_integral.json` (raíz, sin rastrear) es solo REFERENCIA para un orden propio. Víctor duda de que 28 USD/mes sea competitivo y quiere **precios estables** que no cambien con el mercado ni el tipo de cambio. Orden acordado:
 1. Inventario de lo construido — **HECHO**: `docs/INVENTARIO-2026-10-19.md`.
 2. Costos y horas — **DADOS** (Airtable, Vercel y Anthropic 20 USD/mes c/u; dominio 100 USD/año; ~6 meses a 8–10 h/semana). Falta aclarar si Anthropic es suscripción o API.
@@ -48,6 +56,7 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 | 4 | Plan del directorio (§3) | A) Aprobar etapas 0–4 · B) Ajustar fechas | Etapa 0 del directorio | C |
 | 5 | Teléfonos del directorio | A) Visibles para todos · B) Tras enviar solicitud | Etapa 2 del directorio | B |
 | 6 | Congelamiento por flujo (abrir solo el directorio en dic) | A) Sí, interruptor por flujo · B) Interruptor global | Etapa 4 del directorio | C |
+| 8 | El directorio dice "Especialistas certificados" y "3 niveles de certificación": CODE CELLS no verifica competencias y el nivel nunca se muestra (CLAUDE.md §10) | A) Cambiar a "Médicos con cédula profesional verificada" (cuando exista esa verificación en el alta) · B) Dejarlo | Etapa 1–2 del directorio | C |
 | 7 | Supuestos del modelo por cotizar: contador, abogado, pentest, sueldo de migración, adquisición | Víctor da montos o se dejan los estimados | Nada (el modelo ya corre) | C |
 
 ## 2. Inventario de lo que YA existe en `main` (2026-10-19)
