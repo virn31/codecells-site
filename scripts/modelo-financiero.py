@@ -121,13 +121,17 @@ entrada(f, 'mig_pac', 'Pacientes promedio por migración', 200, NUM, 'Estimado.'
 entrada(f, 'mig_pag', 'Páginas por paciente', 10, NUM, 'Estimado.'); f += 1
 entrada(f, 'mig_ia', 'IA por página (USD)', 0.013, '"US$"0.000', 'Estimado (lectura de imagen con Claude Sonnet 5; la mitad en modo por lotes).'); f += 1
 entrada(f, 'mig_min', 'Minutos de revisión humana por página', 1.5, NUM1, 'Estimado: verificar identidad y valores (no se inventa nada).'); f += 1
-entrada(f, 'mig_hora', 'Costo por hora de revisión (MXN)', 120, MXN, 'Estimado.'); f += 1
+entrada(f, 'mig_sueldo', 'Sueldo mensual por persona de migración (MXN, con cargas)', 18000, MXN, 'Decisión de Víctor: se contrata personal. Monto COTIZAR.', True); f += 1
+entrada(f, 'mig_horas', 'Horas productivas al mes por persona', 140, NUM, 'Estimado.'); f += 1
+entrada(f, 'mig_contrata', 'Meses de anticipación para contratar y capacitar antes de Regene', 2, NUM, 'La primera persona entra este número de meses antes del canal Regene.', True); f += 1
+entrada(f, 'mig_capac', 'Capacitación inicial (pago único al contratar)', 15000, MXN, 'Estimado: NOM-004, LFPDPPP, identidad, uso del sistema. COTIZAR.', True); f += 1
 
 f += 1
 seccion(f, 'Canal Regene Global'); f += 1
 entrada(f, 'rg_total', 'Médicos afiliados a Regene Global', 2500, NUM, 'Dato de Víctor 2026-10-19 (aproximado).'); f += 1
-entrada(f, 'rg_inicio', 'Mes en que arranca el canal Regene (1 = dic-2026)', 7, NUM, 'Supuesto: un mes después del lanzamiento Clínico, ya con la base clínica fuera de Airtable.', True); f += 1
-entrada(f, 'rg_desc', 'Descuento o comisión para el canal Regene', 0.15, PCT, 'Propuesta: 15% del precio Clínico (descuento al médico o comisión a Regene). Decisión de negocio.', True); f += 1
+entrada(f, 'rg_inicio', 'Mes en que arranca el canal Regene (1 = dic-2026)', 13, NUM, 'Decisión de Víctor: primero arrancamos solos; Regene entra cuando haya infraestructura para 1 000 médicos y personal de migración capacitado. Supuesto: dic-2027 (el trabajo técnico pendiente es de 285–580 h).', True); f += 1
+entrada(f, 'rg_desc', 'Descuento o comisión para el canal Regene', 0, PCT, 'Dato de Víctor: Regene no cobra, solo refiere a los médicos. Precio de lista.'); f += 1
+entrada(f, 'infra_1000', 'Infraestructura para 1 000 médicos (USD/mes, desde el mes previo a Regene)', 150, USD, 'Estimado: base de datos y almacenamiento dimensionados para 1 000 médicos. Cotizar.', True); f += 1
 entrada(f, 'rg_cac', 'Costo de incorporar a un médico Regene (MXN)', 300, MXN, 'Estimado: alta, capacitación grupal. Menor que el costo de adquisición normal.'); f += 1
 entrada(f, 'infra_100', 'Infraestructura adicional por cada 100 médicos (USD/mes)', 25, USD, 'Estimado: base de datos y cómputo más grandes al crecer.'); f += 1
 
@@ -178,10 +182,10 @@ def hoja(nombre, colesc):
         ('migs', 'Migraciones vendidas'), ('i_mig', 'Ingreso por migraciones'), ('ing', 'INGRESO TOTAL'), None,
         ('H', 'COSTOS VARIABLES'),
         ('c_ia', 'IA (NOVA)'), ('c_alm', 'Almacenamiento (2 copias)'), ('c_com', 'Comisión de cobro (con IVA de la comisión)'), ('c_cfdi', 'Facturas CFDI'),
-        ('c_sop', 'Soporte'), ('c_mig', 'Producción de migraciones'), ('c_var', 'Total costos variables'),
+        ('c_sop', 'Soporte'), ('c_mig', 'IA de las migraciones'), ('c_var', 'Total costos variables'),
         ('mc', 'MARGEN DE CONTRIBUCIÓN'), ('mcp', 'Margen de contribución %'), None,
         ('H', 'COSTOS FIJOS Y DE CRECIMIENTO'),
-        ('c_inf', 'Infraestructura'), ('c_cont', 'Contador'), ('c_cac', 'Adquisición de médicos'), ('c_sue', 'Sueldo de Víctor'),
+        ('c_inf', 'Infraestructura'), ('c_cont', 'Contador'), ('c_cac', 'Adquisición de médicos'), ('pag', 'Páginas a revisar (migración asistida)'), ('fte', 'Personas de migración'), ('c_staff', 'Personal de migración + capacitación'), ('c_sue', 'Sueldo de Víctor'),
         ('c_uni', 'Pagos únicos (abogado, prueba de penetración)'), ('c_fij', 'Total fijos y crecimiento'), None,
         ('flujo', 'FLUJO NETO DEL MES'), ('acum', 'FLUJO ACUMULADO'), ('arr', 'Ingreso recurrente anualizado (ARR)'),
         ('pos', 'Ayuda: mes con flujo positivo (99 = no)'),
@@ -244,16 +248,20 @@ def hoja(nombre, colesc):
         V['c_com'] = f'=(({c}{fr["tot"]}+{c}{fr["migs"]})*{s("com_fija")}+{c}{fr["ing"]}*{iv}*{s("com_pct")})*{iv}'
         V['c_cfdi'] = f'=({c}{fr["tot"]}+{c}{fr["migs"]})*{s("cfdi")}'
         V['c_sop'] = f'={c}{fr["tot"]}*{s("sop_h")}*{s("sop_c")}'
-        V['c_mig'] = f'={c}{fr["migs"]}*{s("mig_pac")}*{s("mig_pag")}*({s("mig_ia")}*{s("tc")}+{s("mig_min")}/60*{s("mig_hora")})'
+        V['c_mig'] = f'={c}{fr["migs"]}*{s("mig_pac")}*{s("mig_pag")}*{s("mig_ia")}*{s("tc")}'
+        V['pag'] = f'={c}{fr["migs"]}*{s("mig_pac")}*{s("mig_pag")}'
+        V['fte'] = f'=IF({c}{fr["mes"]}>={s("rg_inicio")}-{s("mig_contrata")},MAX(1,ROUNDUP({c}{fr["pag"]}*{s("mig_min")}/60/{s("mig_horas")},0)),ROUNDUP({c}{fr["pag"]}*{s("mig_min")}/60/{s("mig_horas")},0))'
+        prev_fte = '0' if primero else f'{p}{fr["fte"]}'
+        V['c_staff'] = f'={c}{fr["fte"]}*{s("mig_sueldo")}+MAX(0,{c}{fr["fte"]}-{prev_fte})*{s("mig_capac")}'
         V['c_var'] = f'=SUM({c}{fr["c_ia"]}:{c}{fr["c_mig"]})'
         V['mc'] = f'={c}{fr["ing"]}-{c}{fr["c_var"]}'
         V['mcp'] = f'=IF({c}{fr["ing"]}=0,0,{c}{fr["mc"]}/{c}{fr["ing"]})'
-        V['c_inf'] = f'=({s("infra0")}+{s("infra1")}*{c}{fr["lanz"]}+{s("infra_100")}*INT({c}{fr["tot"]}/100))*{s("tc")}'
+        V['c_inf'] = f'=({s("infra0")}+{s("infra1")}*{c}{fr["lanz"]}+{s("infra_100")}*INT({c}{fr["tot"]}/100)+IF({c}{fr["mes"]}>={s("rg_inicio")}-1,{s("infra_1000")},0))*{s("tc")}'
         V['c_cont'] = f'={s("contador")}'
         V['c_cac'] = f'={c}{fr["nuevos"]}*{s("cac")}+{c}{fr["rgn"]}*{s("rg_cac")}'
         V['c_sue'] = f'={s("sueldo")}'
         V['c_uni'] = f'=IF({c}{fr["mes"]}=1,{s("abogado")},0)+IF({c}{fr["mes"]}={s("mes_clin")},{s("pentest")},0)'
-        V['c_fij'] = f'=SUM({c}{fr["c_inf"]}:{c}{fr["c_uni"]})'
+        V['c_fij'] = '=' + '+'.join(f'{c}{fr[k]}' for k in ('c_inf', 'c_cont', 'c_cac', 'c_staff', 'c_sue', 'c_uni'))
         V['flujo'] = f'={c}{fr["mc"]}-{c}{fr["c_fij"]}'
         V['acum'] = f'={c}{fr["flujo"]}' if primero else f'={p}{fr["acum"]}+{c}{fr["flujo"]}'
         V['arr'] = f'={c}{fr["mrr"]}*12'
@@ -266,6 +274,8 @@ def hoja(nombre, colesc):
                 cell.alignment = Alignment(horizontal='center')
             elif k in ('lanz', 'pos'):
                 cell.number_format = '0'
+            elif k in ('pag', 'fte'):
+                cell.number_format = NUM
             elif k in ('nuevos', 'fn', 'fcum', 'nf', 'nclin', 'nred', 'fund', 'upg', 'red', 'clin', 'rgn', 'rg', 'tot', 'usoclin', 'usored', 'migs', 'gb', 'gb_ext'):
                 cell.number_format = NUM1
             elif k == 'mcp':
