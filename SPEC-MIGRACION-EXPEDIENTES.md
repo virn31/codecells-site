@@ -2,7 +2,12 @@
 
 **Estado:** especificación, NO implementada. Escrita 2026-10-19 a partir de las decisiones de Víctor.
 **Fase:** portal clínico (fase 2). Requisito previo para el canal Regene Global.
-**Validar con el abogado antes de construir:** §5 (consentimiento y firma) y §7 (preguntas abiertas).
+**Validar con el abogado antes de construir:** §5 (responsiva del médico) y §7 (preguntas abiertas).
+
+**Reparto de responsabilidades (decisión de Víctor, 2026-10-20):**
+- **La migración es responsabilidad total del médico.** Él decide qué migra y **él informa a sus pacientes**; CODE CELLS no se comunica con ellos por la migración.
+- **Una vez dentro, CODE CELLS solo responde por el resguardo** (conservar, proteger, mantener disponible). **El contenido es responsabilidad del médico.**
+- En términos de la LFPDPPP: el médico es el **responsable** de los datos de sus pacientes y CODE CELLS actúa como **encargado** (los trata por cuenta del médico). Eso debe quedar escrito en el contrato de afiliación.
 
 ---
 
@@ -25,7 +30,7 @@ Hoy CLAUDE.md §7 dice que kiosco y consulta son las **dos únicas vías** de cr
 
 **Texto propuesto para CLAUDE.md §7** (pendiente de aprobación de Víctor):
 
-> **Regla dura — migración de expedientes: se conserva, no se reescribe.** La migración (manual o asistida) es la tercera vía autorizada de creación de expediente. El documento original se guarda sin modificar y con su huella digital (hash). Todo registro creado por migración lleva `Origen: Migración`, la fecha del documento original tal como aparece en él (vacía con aviso si no se lee; nunca la fecha de hoy) y la constancia de migración a la que pertenece. NOVA puede **proponer** valores leídos de un documento migrado, pero nada entra al expediente sin que el médico lo confirme. Ante discrepancia de identidad entre el documento y el paciente, la migración de ese documento **se detiene**.
+> **Regla dura — migración de expedientes: se conserva, no se reescribe.** La migración (manual o asistida) es la tercera vía autorizada de creación de expediente y es responsabilidad del médico, que firma una responsiva; CODE CELLS solo resguarda. El documento original se guarda sin modificar y con su huella digital (hash). Todo registro creado por migración lleva `Origen: Migración`, la fecha del documento original tal como aparece en él (vacía con aviso si no se lee; nunca la fecha de hoy) y la constancia de migración a la que pertenece. NOVA puede **proponer** valores leídos de un documento migrado, pero nada entra al expediente sin que el médico lo confirme. Ante discrepancia de identidad entre el documento y el paciente, la migración de ese documento **se detiene**.
 
 ## 3. El botón
 
@@ -36,7 +41,7 @@ Hoy CLAUDE.md §7 dice que kiosco y consulta son las **dos únicas vías** de cr
 ## 4. Flujo
 
 1. **Identidad del paciente.** Nombre completo y fecha de nacimiento (obligatorios), CURP y teléfono (opcionales). Si se parece a un paciente que ya existe, se muestra y el médico decide; nunca se fusiona por parecido.
-2. **Consentimiento de migración** (§5). Sin consentimiento firmado no se puede subir nada.
+2. **Responsiva de migración del médico** (§5). Sin responsiva firmada no se puede subir nada.
 3. **Carga de documentos.** Cada archivo se clasifica:
    - Nota clínica / historia clínica
    - Estudio de laboratorio
@@ -52,15 +57,20 @@ Hoy CLAUDE.md §7 dice que kiosco y consulta son las **dos únicas vías** de cr
 
 Se puede pausar y continuar después: la migración queda "En curso" hasta el cierre, y sus documentos no aparecen en el expediente hasta entonces.
 
-## 5. Consentimiento y constancia
+## 5. Responsiva y constancia
 
-### 5.1 Consentimiento del paciente
-- Texto versionado (por ejemplo, "Consentimiento de migración v1.0"). Explica qué se migra, a dónde, para qué, quién tendrá acceso, cuánto tiempo se conserva (NOM-004) y cómo ejercer sus derechos ARCO.
-- Se firma en el consultorio en pantalla (tableta o celular): trazo de la firma + nombre escrito.
-- Si el paciente no está presente (expedientes antiguos), lo decide el abogado (§7.1).
+### 5.1 Responsiva de migración del médico (firma obligatoria)
+Texto versionado (por ejemplo, "Responsiva de migración v1.0") que el médico firma en pantalla (trazo + nombre + cédula) al iniciar cada migración. Declara que:
+1. Los documentos que migra son copia fiel de los que obran en su poder y es responsable de su contenido.
+2. Tiene la base legal para tratarlos y **ha informado a sus pacientes** de que su expediente se resguardará en CODE CELLS, conforme a su propio aviso de privacidad.
+3. Entiende que CODE CELLS solo resguarda la información por su cuenta (encargado) y no modifica el contenido.
 
-### 5.2 Declaración del médico
-Casilla obligatoria con texto versionado: *"Declaro que los documentos que migro son copia fiel de los que obran en mi poder y que el paciente autorizó su migración."*
+Campo opcional para el médico: **cómo informó al paciente** (aviso en consultorio, mensaje, firma en papel) y, si quiere, adjuntar la constancia de ese aviso. Es evidencia del médico; CODE CELLS no la valida.
+
+### 5.2 Lo que CODE CELLS NO hace
+- No pide ni recaba consentimiento al paciente por la migración.
+- No contacta a los pacientes del médico por la migración.
+- No corrige el contenido migrado: solo lo conserva, lo protege y registra quién hizo qué.
 
 ### 5.3 Metadatos de la constancia (se guardan siempre)
 
@@ -74,8 +84,8 @@ Casilla obligatoria con texto versionado: *"Declaro que los documentos que migro
 | Inicio y cierre | Fecha y hora del **servidor**, zona America/Mazatlan |
 | Dispositivo | Navegador y sistema (user agent) |
 | Dirección IP | La de cada firma y del cierre |
-| Consentimiento | Versión del texto, imagen de la firma, nombre escrito, fecha y hora, hash |
-| Declaración del médico | Versión del texto, fecha y hora |
+| Responsiva del médico | Versión del texto, imagen de la firma, nombre, cédula, fecha y hora del servidor, IP, hash |
+| Aviso al paciente | Medio que declaró el médico y su constancia, si la adjuntó (opcional) |
 | Documentos | Por cada uno: tipo, nombre original, tamaño, **hash SHA-256**, fecha original capturada, quién lo subió |
 | NOVA | Qué valores propuso y cuáles aceptó el médico |
 | Resultado | Número de documentos y de registros creados (contados por lo que confirmó la base de datos, no por lo intentado) |
@@ -91,10 +101,11 @@ La constancia **no se edita ni se borra**. Una corrección posterior es un regis
 
 ## 7. Preguntas para el abogado
 
-1. Expedientes de pacientes que ya no acuden: ¿se pueden migrar sin firma nueva del paciente, bajo la obligación de conservación del médico, o hace falta su consentimiento?
-2. ¿Basta firma electrónica simple (trazo + metadatos + hash), o conviene una constancia de conservación con sello de tiempo de un prestador certificado (NOM-151-SCFI-2016)?
-3. Fotos clínicas (rostro, cuerpo): ¿requieren un consentimiento específico aparte?
-4. Contrato con el personal de migración (encargado del tratamiento) y transferencia a los proveedores de almacenamiento (Cloudflare, Backblaze).
+1. Contrato de afiliación con CODE CELLS como **encargado** y el médico como **responsable**: cláusulas mínimas (finalidad limitada, confidencialidad, seguridad, subencargados, devolución o conservación al terminar).
+2. ¿La responsiva firmada en pantalla (trazo + metadatos + hash) basta, o conviene una constancia con sello de tiempo de un prestador certificado (NOM-151-SCFI-2016)?
+3. Subencargados: Cloudflare, Backblaze, Anthropic (NOVA) y Airtable, con servidores fuera de México.
+4. Contrato y carta de confidencialidad del personal de migración (actúa por cuenta de CODE CELLS como encargado).
+5. Qué pasa con el resguardo cuando el médico cancela (NOM-004: 5 años) y quién lo paga.
 
 ## 8. Requisitos técnicos previos
 
@@ -105,7 +116,7 @@ La constancia **no se edita ni se borra**. Una corrección posterior es un regis
 
 ## 9. Pruebas mínimas antes de liberar
 
-- Sin consentimiento firmado → no se puede subir ningún documento.
+- Sin responsiva firmada por el médico → no se puede subir ningún documento.
 - Documento sin fecha legible → queda vacía con aviso; nunca la fecha de hoy.
 - Valor propuesto por NOVA y no aceptado → no existe en el expediente.
 - Hash guardado = hash del archivo descargado después.
