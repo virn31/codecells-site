@@ -17,9 +17,13 @@
 
 **Valuación y precios (Víctor, 2026-10-19).** `code_cells_auditoria_integral.json` (raíz, sin rastrear) es solo REFERENCIA para un orden propio. Víctor duda de que 28 USD/mes sea competitivo y quiere **precios estables** que no cambien con el mercado ni el tipo de cambio. Orden acordado:
 1. Inventario de lo construido — **HECHO**: `docs/INVENTARIO-2026-10-19.md`.
-2. Costos reales de operación y horas invertidas — **los da Víctor** (pendiente).
-3. Investigación de precios de la competencia en México, con fuente y fecha.
-4. Propuesta: niveles (directorio / directorio + portal clínico), precio en MXN con colchón cambiario, revisión anual con regla pública, pago anual, oferta para 100 fundadores con plazo definido, punto de equilibrio.
+2. Costos y horas — **DADOS** (Airtable, Vercel y Anthropic 20 USD/mes c/u; dominio 100 USD/año; ~6 meses a 8–10 h/semana). Falta aclarar si Anthropic es suscripción o API.
+3. Investigación de mercado — **HECHA**: `docs/PRECIOS-MERCADO-2026-10-19.md` (con propuesta de planes Red $390 / Clínico $890 MXN y fundadores).
+4. Decisión de Víctor sobre la propuesta; luego valuación (valor de reposición con las horas) y modelo a 12/24 meses.
+
+**Decisión de Víctor (2026-10-19):** se trabaja ACTUALIZANDO codecells.mx **sin quitar el congelamiento**. Implica: al fusionar a `main`, traer `6214dda` (congelamiento por base + `DESCONGELAR_PRODUCCION`) y NO definir ese interruptor; cerrar `api/buscar-medicos` (410) en el mismo cambio.
+
+Propuesta original (referencia): niveles (directorio / directorio + portal clínico), precio en MXN con colchón cambiario, revisión anual con regla pública, pago anual, oferta para 100 fundadores con plazo definido, punto de equilibrio.
 
 Después se retoma el directorio (plan en §3, que espera aprobación; la etapa de cobro depende del paso 4).
 
