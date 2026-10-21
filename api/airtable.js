@@ -22,6 +22,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const directorio = require('../lib/directorio');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 
@@ -885,13 +886,17 @@ module.exports = async (req, res) => {
           if (!recordIdMedico) {
             return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
           }
-          const fields = (req.body && req.body.fields) || {};
-          delete fields['Fecha de alta']; // solo se estampa al primer publish
+          // Publicar ya no es decisión del médico (etapa 1 del directorio):
+          // el perfil nace en Borrador y solo api/directorio.js lo mueve.
+          const fields = directorio.quitarCamposProtegidos((req.body && req.body.fields) || {});
+          const ahoraISO = new Date().toISOString();
           req.body.fields = {
             ...fields,
             'Médico': [recordIdMedico],
             'Publicado': false,
-            'Última actualización': new Date().toISOString(),
+            'Estado de publicación': directorio.ESTADOS.BORRADOR,
+            'Historial de publicación': directorio.agregarHistorial('', { fechaISO: ahoraISO, accion: 'Perfil creado', quien: codigo }),
+            'Última actualización': ahoraISO,
           };
         } else if (req.method === 'PATCH') {
           const { recordId } = req.query;
@@ -909,16 +914,19 @@ module.exports = async (req, res) => {
             if (!check.ok || !linkado.includes(recordIdMedico)) {
               return res.status(403).json({ error: 'No puedes modificar un perfil que no es tuyo.' });
             }
-            const fields = (req.body && req.body.fields) || {};
-            // Campos que el médico NO puede tocar por este endpoint
-            delete fields['Médico'];
-            delete fields['Fecha de alta'];
-            // Si va a publicar por primera vez, estampar Fecha de alta
-            const yaTieneFecha = !!checkData.fields?.['Fecha de alta'];
-            if (fields['Publicado'] === true && !yaTieneFecha) {
-              fields['Fecha de alta'] = new Date().toISOString();
+            // El médico edita su contenido; publicar, consentimiento y
+            // revisión los controla api/directorio.js (campos protegidos).
+            const fields = directorio.quitarCamposProtegidos((req.body && req.body.fields) || {});
+            const ahoraISO = new Date().toISOString();
+            // Editar lo que ve el público en un perfil YA publicado lo deja
+            // visible pero marcado para que un administrador lo revise.
+            if (checkData.fields?.['Publicado'] && directorio.tocaCamposPublicos(fields) && !checkData.fields?.['Cambios sin revisar']) {
+              fields['Cambios sin revisar'] = true;
+              fields['Historial de publicación'] = directorio.agregarHistorial(checkData.fields?.['Historial de publicación'], {
+                fechaISO: ahoraISO, accion: 'Cambios en perfil publicado', quien: codigo, detalle: Object.keys(fields).filter(k => directorio.CAMPOS_PUBLICOS.includes(k)).join(', '),
+              });
             }
-            fields['Última actualización'] = new Date().toISOString();
+            fields['Última actualización'] = ahoraISO;
             req.body.fields = fields;
           } catch (err) {
             return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });

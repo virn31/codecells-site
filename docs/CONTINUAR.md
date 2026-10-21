@@ -21,7 +21,16 @@
 - Botón **"Directorio médico"** (dorado, con pulso) en la cabecera de `index.html` + "Encuentra a tu médico →" en el hero; traducido EN/PT; probado en 390/360/320 px sin desborde.
 - `scripts/servidor-local.js` + `test/congelamiento.test.js`; **80/80 pruebas en verde** (antes 69/76).
 - **8 perfiles ficticios "[PRUEBA] …" publicados en la base de prueba** (rec75QBLb37b3eM8a … receDNxLt2pHmTYvp), teléfonos +52 000 000 000X.
-**Siguiente:** Víctor sube la rama (`git push -u origin feat/directorio`) → revisar Preview → **Etapa 1** (alta → revisión → consentimiento verificable → publicación; el médico ya no se publica solo). OJO: una solicitud de prueba en Preview avisa al Telegram real de Víctor.
+**2026-10-21 — ETAPA 1 HECHA (sin push): alta → solicitud con consentimiento → revisión → publicación.**
+- `lib/directorio.js` (reglas puras) + `api/directorio.js` (mi_estado, solicitar_publicacion, despublicar, admin_perfiles, admin_aprobar, admin_rechazar, admin_despublicar). Administradores: `ADMIN_DIRECTORIO` o, por defecto, VIRN01 y JCG01 (Jorge no).
+- El proxy genérico (`api/airtable.js`) ya NO deja que el médico mande `Publicado`, consentimiento ni campos de revisión; el perfil nace en Borrador; editar lo público de un perfil publicado lo deja visible con "Cambios sin revisar".
+- Consentimiento versionado (`v1.0-borrador 2026-10-21`, texto en `lib/directorio.js`, PENDIENTE abogado) con fecha del servidor, IP, navegador y huella SHA-256. Aprobar exige consentimiento. Despublicar es inmediato y se permite aun congelado.
+- Portal → "Mi directorio": el interruptor se cambió por Solicitar publicación / En revisión / Rechazado con motivo / Despublicar, modal de consentimiento con casilla; enlace al panel si es administrador. **No probado visualmente con sesión real del portal** (sí el panel y la API).
+- `admin-directorio.html`: solicitudes, publicados con cambios, publicados SIN consentimiento, resto; cédula de MÉDICOS con enlace a la SEP; aprobar / rechazar (motivo obligatorio) / despublicar; aviso al médico por Telegram si lo tiene.
+- Pruebas: **97/97** (17 nuevas en `test/directorio-publicacion.test.js`). Prueba de punta a punta en la base de prueba con CCMED-QACARD: OK (perfil `recVNUCiwPAxNR4w0`, quedó Despublicado).
+- Base de PRUEBA: 11 campos nuevos en DIRECTORIO_MEDICO (ver §5).
+**Siguiente:** Víctor sube la rama y revisa Preview (portal → Mi directorio con su sesión; `/admin-directorio.html`) → **Etapa 2** (ficha pública por médico + solicitud de cita aceptar/proponer/rechazar).
+OJO: una solicitud de contacto de prueba en Preview avisa al Telegram real de Víctor.
 
 **Valuación y precios (Víctor, 2026-10-19).** `code_cells_auditoria_integral.json` (raíz, sin rastrear) es solo REFERENCIA para un orden propio. Víctor duda de que 28 USD/mes sea competitivo y quiere **precios estables** que no cambien con el mercado ni el tipo de cambio. Orden acordado:
 1. Inventario de lo construido — **HECHO**: `docs/INVENTARIO-2026-10-19.md`.
@@ -57,6 +66,8 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 | 5 | Teléfonos del directorio | A) Visibles para todos · B) Tras enviar solicitud | Etapa 2 del directorio | B |
 | 6 | Congelamiento por flujo (abrir solo el directorio en dic) | A) Sí, interruptor por flujo · B) Interruptor global | Etapa 4 del directorio | C |
 | 8 | El directorio dice "Especialistas certificados" y "3 niveles de certificación": CODE CELLS no verifica competencias y el nivel nunca se muestra (CLAUDE.md §10) | A) Cambiar a "Médicos con cédula profesional verificada" (cuando exista esa verificación en el alta) · B) Dejarlo | Etapa 1–2 del directorio | C |
+| 9 | ¿El directorio público debe exigir consentimiento registrado además de `Publicado`? (hoy los perfiles viejos, como el tuyo en producción, siguen visibles sin consentimiento) | A) Sí: solo aparece con consentimiento; tú re-aceptas antes de lanzar · B) No | Lanzamiento | C |
+| 10 | Si un médico edita su perfil publicado | A) Sigue visible y queda marcado para revisión (así está hecho) · B) Se oculta hasta re-aprobar | Nada (ya implementado A) | B |
 | 7 | Supuestos del modelo por cotizar: contador, abogado, pentest, sueldo de migración, adquisición | Víctor da montos o se dejan los estimados | Nada (el modelo ya corre) | C |
 
 ## 2. Inventario de lo que YA existe en `main` (2026-10-19)
@@ -100,7 +111,14 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 4. ¿Descongelar solo el directorio en producción? Hoy el interruptor es global (`DESCONGELAR_PRODUCCION`); habría que hacerlo por flujo.
 5. Los 5–10 médicos piloto.
 
+## 4b. Antes de fusionar a `main`
+
+**Directorio (etapa 1) — crear en producción DIRECTORIO_MEDICO antes de fusionar** (ya existen en prueba, mismos nombres): `Estado de publicación` (selección: Borrador, En revisión, Publicado, Rechazado, Despublicado), `Cambios sin revisar` (casilla), `Consentimiento — versión`, `Consentimiento — fecha` (fecha y hora), `Consentimiento — IP`, `Consentimiento — navegador`, `Consentimiento — huella`, `Revisado por`, `Fecha de revisión` (fecha y hora), `Motivo de rechazo` (texto largo), `Historial de publicación` (texto largo). Sin ellos, crear o editar un perfil en producción falla (UNKNOWN_FIELD_NAME).
+- Cerrar en el mismo cambio: `api/buscar-medicos` ya está en 410 en esta rama.
+- Producción sigue congelada: NO definir `DESCONGELAR_PRODUCCION` al fusionar.
+
 ## 5. Trampas técnicas
+
 
 - `127.0.0.1`, no `localhost`. 1ª llamada a Airtable de cada proceso: ~10 s o falla, reintentar.
 - `git push` lo corre Víctor: `! cd /c/Users/virn3/Documents/codecells-site && git push -u origin feat/directorio`.

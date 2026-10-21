@@ -2523,7 +2523,8 @@
   gap: 12px;
   justify-content: flex-end;
 }
-.mi-dir-modal .mi-dir-btn-primary {
+.mi-dir-modal .mi-dir-btn-primary,
+#mi-directorio .mi-dir-btn-primary {
   padding: 10px 22px;
   background: var(--gold, #E8A33D);
   color: #0E1410;
@@ -2535,10 +2536,12 @@
   cursor: pointer;
   transition: transform 0.15s;
 }
-.mi-dir-modal .mi-dir-btn-primary:hover {
+.mi-dir-modal .mi-dir-btn-primary:hover,
+#mi-directorio .mi-dir-btn-primary:hover {
   transform: translateY(-1px);
 }
-.mi-dir-modal .mi-dir-btn-secondary {
+.mi-dir-modal .mi-dir-btn-secondary,
+#mi-directorio .mi-dir-btn-secondary {
   padding: 10px 22px;
   background: transparent;
   color: rgba(232, 228, 221, 0.7);
@@ -2549,9 +2552,16 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.mi-dir-modal .mi-dir-btn-secondary:hover {
+.mi-dir-modal .mi-dir-btn-secondary:hover,
+#mi-directorio .mi-dir-btn-secondary:hover {
   border-color: rgba(232, 228, 221, 0.4);
   color: var(--foreground, #E8E4DD);
+}
+.mi-dir-modal .mi-dir-btn-primary:disabled,
+#mi-directorio .mi-dir-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Contenido del preview */
@@ -3839,13 +3849,17 @@
         <!-- Modal confirmación publicar -->
         <div id="mi-dir-confirm-modal" class="mi-dir-modal" style="display:none;">
           <div class="mi-dir-modal-card">
-            <div class="mi-dir-modal-eyebrow">Publicar perfil</div>
-            <p style="margin: 12px 0 24px 0; line-height: 1.6; color: rgba(232,228,221,0.85); font-size: 14px;">
-              Al confirmar, tu perfil será visible para pacientes que busquen en la Red CODE CELLS™ — por ciudad, especialidad o herramienta. Puedes despublicar en cualquier momento.
-            </p>
+            <div class="mi-dir-modal-eyebrow">Consentimiento de publicación</div>
+            <p id="mi-dir-consent-texto" style="margin: 12px 0 8px 0; line-height: 1.6; color: rgba(232,228,221,0.85); font-size: 14px;"></p>
+            <div id="mi-dir-consent-version" style="font-size: 11px; color: rgba(232,228,221,0.5); margin-bottom: 16px;"></div>
+            <label style="display:flex; gap:10px; align-items:flex-start; font-size:14px; color: rgba(232,228,221,0.9); margin-bottom: 20px; cursor:pointer;">
+              <input type="checkbox" id="mi-dir-consent-acepto" onchange="document.getElementById('mi-dir-consent-enviar').disabled = !this.checked" style="margin-top:3px">
+              <span>Leí y acepto. Entiendo que un administrador revisará mi perfil antes de publicarlo.</span>
+            </label>
+            <div id="mi-dir-consent-error" style="color:#D4654A; font-size:13px; margin-bottom:12px;"></div>
             <div class="mi-dir-modal-actions">
               <button class="mi-dir-btn-secondary" onclick="cancelarPublicarMiDir()">Cancelar</button>
-              <button class="mi-dir-btn-primary" onclick="confirmarPublicarMiDir()">Publicar</button>
+              <button class="mi-dir-btn-primary" id="mi-dir-consent-enviar" onclick="confirmarPublicarMiDir()" disabled>Aceptar y solicitar</button>
             </div>
           </div>
         </div>
@@ -4142,7 +4156,7 @@ window.fetch = function(url, opts = {}) {
   // pacienteCode leía los labs de ese paciente sin sesión de ningún tipo.
   // Las acciones de /api/nova que no verifican Authorization simplemente
   // ignoran este header, así que agregarlo aquí no rompe nada existente.
-  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova')) {
+  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova') || urlStr.includes('/api/directorio')) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
       opts = { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } };
@@ -7354,6 +7368,8 @@ const MI_DIR_TRATAMIENTOS = [
 let miDirEstado = {
   recordId: null,
   campos: {},
+  flujo: null,       // respuesta de /api/directorio?accion=mi_estado
+  flujoError: null,  // texto si no se pudo leer el estado de publicación
   cargando: false,
   aborters: {} // AbortControllers activos por campo, para cancelar autosaves obsoletos
 };
@@ -7381,6 +7397,7 @@ async function cargarMiDirectorio() {
     } else {
       miDirEstado.recordId = data.records[0].id;
       miDirEstado.campos = data.records[0].fields || {};
+      await cargarFlujoMiDir();
       renderMiDirFormulario();
     }
   } catch (err) {
@@ -7388,6 +7405,21 @@ async function cargarMiDirectorio() {
     console.error('cargarMiDirectorio:', err);
   } finally {
     miDirEstado.cargando = false;
+  }
+}
+
+// Estado de publicación (etapa 1): lo decide el servidor, no el formulario.
+async function cargarFlujoMiDir() {
+  miDirEstado.flujoError = null;
+  try {
+    const r = await fetch('/api/directorio?accion=mi_estado');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ('Error ' + r.status));
+    miDirEstado.flujo = d;
+  } catch (e) {
+    miDirEstado.flujo = null;
+    miDirEstado.flujoError = 'No pudimos leer el estado de publicación de tu perfil. Recarga en unos segundos.';
+    console.error('cargarFlujoMiDir:', e);
   }
 }
 
@@ -7461,27 +7493,7 @@ function renderMiDirFormulario() {
   const puedePublicar = validarPuedePublicarMiDir(c);
   const fechaAltaFormateada = fechaAlta ? formatearFechaMiDir(fechaAlta) : '';
 
-  const statusHtml = `
-    <div class="mi-dir-status-block${publicado ? ' published' : ''}">
-      <div class="mi-dir-status-row">
-        <div class="mi-dir-status-dot"></div>
-        <div class="mi-dir-status-text">
-          ${publicado
-            ? `<strong>Publicado en la Red CODE CELLS™</strong><br><span class="mi-dir-status-sub">Visible desde: ${fechaAltaFormateada}</span>`
-            : `<strong>Solo tú ves este perfil</strong><br><span class="mi-dir-status-sub">Al activar el toggle, tu perfil será visible para pacientes que busquen en la Red.</span>`
-          }
-        </div>
-      </div>
-      <div class="mi-dir-toggle-row">
-        <label class="mi-dir-toggle${!puedePublicar.ok ? ' disabled' : ''}" title="${!puedePublicar.ok ? escaparHtml(puedePublicar.razon) : ''}">
-          <input type="checkbox" ${publicado ? 'checked' : ''} ${!puedePublicar.ok && !publicado ? 'disabled' : ''} onchange="alternarPublicadoMiDir(this)">
-          <span class="mi-dir-toggle-slider"></span>
-          <span class="mi-dir-toggle-label">Publicar en el directorio</span>
-        </label>
-        ${!puedePublicar.ok && !publicado ? `<div class="mi-dir-toggle-hint">${escaparHtml(puedePublicar.razon)}</div>` : ''}
-      </div>
-    </div>
-  `;
+  const statusHtml = htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar);
 
   content.innerHTML = `
     <div class="mi-dir-form">
@@ -7677,25 +7689,68 @@ salirMiDirectorio = function() {
   _origSalirMiDirectorio();
 };
 
-// ── Toggle publicar ──
-function alternarPublicadoMiDir(input) {
-  const quierePublicar = input.checked;
-  const yaEstabaPublicado = !!miDirEstado.campos['Publicado'];
-
-  // Publicando por primera vez o después de despublicar → mostrar modal de confirmación
-  if (quierePublicar && !yaEstabaPublicado) {
-    input.checked = false; // revertimos hasta que confirme
-    document.getElementById('mi-dir-confirm-modal').style.display = 'flex';
-    return;
+// ── Publicación (etapa 1): solicitar → revisión → publicado ──
+// El médico ya no se publica solo: acepta el consentimiento y un
+// administrador revisa. Despublicar sí es inmediato.
+function htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar) {
+  if (miDirEstado.flujoError) {
+    return `<div class="mi-dir-status-block"><div class="mi-dir-status-text" style="color:#D4654A">${escaparHtml(miDirEstado.flujoError)}</div></div>`;
   }
+  const p = (miDirEstado.flujo && miDirEstado.flujo.perfil) || {};
+  const estado = p.estado || 'Borrador';
+  const admin = miDirEstado.flujo && miDirEstado.flujo.esAdmin
+    ? `<div class="mi-dir-toggle-hint" style="margin-top:12px"><a href="/admin-directorio.html" style="color:#E8A33D">Revisar solicitudes del directorio →</a></div>` : '';
+  const btn = (txt, fn, primario, deshabilitado) =>
+    `<button class="${primario ? 'mi-dir-btn-primary' : 'mi-dir-btn-secondary'}" onclick="${fn}" ${deshabilitado ? 'disabled' : ''} style="margin-top:12px;margin-right:8px">${txt}</button>`;
+  const faltan = (p.faltantes && p.faltantes.length) ? p.faltantes : (puedePublicar.ok ? [] : [puedePublicar.razon]);
+  const pista = faltan.length ? `<div class="mi-dir-toggle-hint">Para solicitar falta: ${escaparHtml(faltan.join(', '))}</div>` : '';
+  let titulo, sub, acciones, clase = '';
 
-  // Despublicando → directo, sin modal
-  if (!quierePublicar) {
-    guardarValorMiDir('Publicado', false, null).then(() => {
-      miDirEstado.campos['Publicado'] = false;
-      renderMiDirFormulario();
-    });
+  if (estado === 'Publicado') {
+    clase = ' published';
+    titulo = 'Publicado en la Red CODE CELLS™';
+    sub = fechaAltaFormateada ? `Visible desde: ${fechaAltaFormateada}` : 'Visible para los pacientes.';
+    if (!p.tieneConsentimiento) {
+      sub += '<br><span style="color:#E8A33D">Tu perfil se publicó antes de que existiera el consentimiento registrado. Acéptalo para que siga publicado.</span>';
+    } else if (p.cambiosSinRevisar) {
+      sub += '<br>Tus cambios más recientes están pendientes de revisión; mientras tanto el perfil sigue visible.';
+    }
+    acciones = (!p.tieneConsentimiento ? btn('Aceptar consentimiento', 'abrirConsentimientoMiDir()', true, faltan.length) : '')
+      + btn('Despublicar', 'despublicarMiDir()', false, false);
+  } else if (estado === 'En revisión') {
+    titulo = 'Solicitud en revisión';
+    sub = 'Un administrador de CODE CELLS revisará tu perfil y tu cédula. Te avisaremos por Telegram si lo tienes vinculado. Todavía no es visible para los pacientes.';
+    acciones = btn('Retirar solicitud', 'despublicarMiDir()', false, false);
+  } else if (estado === 'Rechazado') {
+    titulo = 'Tu solicitud necesita cambios';
+    sub = `Motivo: ${escaparHtml(p.motivoRechazo || 'sin detalle')}. Corrige tu perfil y vuelve a solicitar la publicación.`;
+    acciones = btn('Volver a solicitar', 'abrirConsentimientoMiDir()', true, faltan.length) + pista;
+  } else {
+    titulo = estado === 'Despublicado' ? 'Perfil despublicado' : 'Solo tú ves este perfil';
+    sub = 'Cuando esté listo, solicita la publicación. Un administrador lo revisará antes de que sea visible para los pacientes.';
+    acciones = btn('Solicitar publicación', 'abrirConsentimientoMiDir()', true, faltan.length) + pista;
   }
+  return `
+    <div class="mi-dir-status-block${clase}">
+      <div class="mi-dir-status-row">
+        <div class="mi-dir-status-dot"></div>
+        <div class="mi-dir-status-text"><strong>${titulo}</strong><br><span class="mi-dir-status-sub">${sub}</span></div>
+      </div>
+      <div class="mi-dir-toggle-row" id="mi-dir-acciones">${acciones}</div>
+      <div class="mi-dir-toggle-hint" id="mi-dir-accion-error" style="color:#D4654A"></div>
+      ${admin}
+    </div>`;
+}
+
+function abrirConsentimientoMiDir() {
+  const c = miDirEstado.flujo && miDirEstado.flujo.consentimiento;
+  if (!c) return;
+  document.getElementById('mi-dir-consent-texto').textContent = c.texto;
+  document.getElementById('mi-dir-consent-version').textContent = 'Versión ' + c.version;
+  document.getElementById('mi-dir-consent-acepto').checked = false;
+  document.getElementById('mi-dir-consent-enviar').disabled = true;
+  document.getElementById('mi-dir-consent-error').textContent = '';
+  document.getElementById('mi-dir-confirm-modal').style.display = 'flex';
 }
 
 function cancelarPublicarMiDir() {
@@ -7703,11 +7758,42 @@ function cancelarPublicarMiDir() {
 }
 
 async function confirmarPublicarMiDir() {
-  document.getElementById('mi-dir-confirm-modal').style.display = 'none';
-  await guardarValorMiDir('Publicado', true, null);
-  miDirEstado.campos['Publicado'] = true;
-  // Recargar para pillar Fecha de alta que el backend estampó
-  await cargarMiDirectorio();
+  const c = miDirEstado.flujo && miDirEstado.flujo.consentimiento;
+  const btnEnviar = document.getElementById('mi-dir-consent-enviar');
+  const err = document.getElementById('mi-dir-consent-error');
+  if (!c || !document.getElementById('mi-dir-consent-acepto').checked) return;
+  btnEnviar.disabled = true;
+  btnEnviar.textContent = 'Enviando…';
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/directorio?accion=solicitar_publicacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acepto: true, version: c.version }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo enviar la solicitud.');
+    document.getElementById('mi-dir-confirm-modal').style.display = 'none';
+    await cargarMiDirectorio();
+  } catch (e) {
+    err.textContent = e.message;
+  } finally {
+    btnEnviar.textContent = 'Aceptar y solicitar';
+    btnEnviar.disabled = !document.getElementById('mi-dir-consent-acepto').checked;
+  }
+}
+
+async function despublicarMiDir() {
+  const err = document.getElementById('mi-dir-accion-error');
+  if (err) err.textContent = '';
+  try {
+    const r = await fetch('/api/directorio?accion=despublicar', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo despublicar.');
+    await cargarMiDirectorio();
+  } catch (e) {
+    if (err) err.textContent = e.message + ' Tu perfil puede seguir visible: intenta de nuevo.';
+  }
 }
 
 // ── Preview modal ──
