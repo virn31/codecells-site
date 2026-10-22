@@ -5,6 +5,8 @@
 //     GET  ?accion=mi_estado              → estado de su perfil + texto del consentimiento
 //     POST ?accion=solicitar_publicacion  → acepta el consentimiento → "En revisión"
 //     POST ?accion=despublicar            → retira su perfil de inmediato
+//     POST ?accion=subir_foto             → { contentType, base64 } foto/avatar/logo (reemplaza la anterior)
+//     POST ?accion=quitar_foto            → vuelve a mostrar sus iniciales
 //   Administrador del directorio (ADMIN_DIRECTORIO, por defecto VIRN01 y JCG01):
 //     GET  ?accion=admin_perfiles         → todos los perfiles con su estado y la cédula del médico
 //     POST ?accion=admin_aprobar          → { recordId } publica (exige consentimiento registrado)
@@ -52,6 +54,19 @@ async function leerTodo(tabla, params) {
   return registros;
 }
 
+// Airtable recibe el archivo en su servidor de contenido; el endpoint AGREGA
+// al campo (no reemplaza), así que después se deja solo el nuevo.
+async function subirAdjunto(recordId, campo, foto) {
+  const r = await fetch(`https://content.airtable.com/v0/${BASE_ID}/${recordId}/${encodeURIComponent(campo)}/uploadAttachment`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contentType: foto.tipo, file: foto.base64, filename: `foto-perfil.${foto.extension}` }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new ErrorAirtable(r.status, data);
+  return data;
+}
+
 const escapar = v => String(v).replace(/"/g, '\\"');
 
 async function medicoPorCodigo(codigo) {
@@ -78,6 +93,7 @@ function resumenPerfil(rec) {
     cambiosSinRevisar: !!c['Cambios sin revisar'],
     motivoRechazo: c['Motivo de rechazo'] || null,
     faltantes: D.faltantesParaPublicar(c),
+    foto: D.urlFotoPublica(c[D.CAMPO_FOTO]),
   };
 }
 
@@ -158,6 +174,47 @@ module.exports = async (req, res) => {
         'Cambios sin revisar': false,
         'Historial de publicación': D.agregarHistorial(perfil.fields['Historial de publicación'], {
           fechaISO: ahora, accion: 'Despublicado por el médico', quien: codigo,
+        }),
+      };
+      const act = await at(`${TBL_DIRECTORIO}/${perfil.id}`, { method: 'PATCH', body: JSON.stringify({ fields }) });
+      return res.status(200).json({ ok: true, perfil: resumenPerfil(act) });
+    }
+
+    if (accion === 'subir_foto' && req.method === 'POST') {
+      if (CONGELADO) return respuestaCongelada(res);
+      const foto = D.validarFoto(req.body);
+      if (!foto.ok) return res.status(400).json({ error: foto.error });
+      const med = await medicoPorCodigo(codigo);
+      if (!med) return res.status(404).json({ error: 'No encontramos tu registro de médico.' });
+      const perfil = await perfilDeMedico(med.id);
+      if (!perfil) return res.status(404).json({ error: 'Primero crea tu perfil.' });
+      const subida = await subirAdjunto(perfil.id, D.CAMPO_FOTO, foto);
+      // La respuesta trae los campos por ID; el de adjuntos es el único que regresa.
+      const lista = Object.values(subida.fields || {}).find(Array.isArray) || [];
+      const nueva = lista[lista.length - 1];
+      if (!nueva || !nueva.id) throw new ErrorAirtable(502, 'uploadAttachment sin adjunto en la respuesta');
+      const publicado = D.estadoEfectivo(perfil.fields) === D.ESTADOS.PUBLICADO;
+      const fields = {
+        [D.CAMPO_FOTO]: [{ id: nueva.id }],
+        ...(publicado ? { 'Cambios sin revisar': true } : {}),
+        'Historial de publicación': D.agregarHistorial(perfil.fields['Historial de publicación'], {
+          fechaISO: ahora, accion: 'Foto de perfil actualizada', quien: codigo, detalle: `${foto.tipo}, ${Math.round(foto.bytes / 1024)} KB`,
+        }),
+      };
+      const act = await at(`${TBL_DIRECTORIO}/${perfil.id}`, { method: 'PATCH', body: JSON.stringify({ fields }) });
+      return res.status(200).json({ ok: true, perfil: resumenPerfil(act) });
+    }
+
+    if (accion === 'quitar_foto' && req.method === 'POST') {
+      // Quitar la foto reduce lo que se expone: se permite aun congelado.
+      const med = await medicoPorCodigo(codigo);
+      if (!med) return res.status(404).json({ error: 'No encontramos tu registro de médico.' });
+      const perfil = await perfilDeMedico(med.id);
+      if (!perfil) return res.status(404).json({ error: 'No tienes perfil.' });
+      const fields = {
+        [D.CAMPO_FOTO]: [],
+        'Historial de publicación': D.agregarHistorial(perfil.fields['Historial de publicación'], {
+          fechaISO: ahora, accion: 'Foto de perfil retirada', quien: codigo,
         }),
       };
       const act = await at(`${TBL_DIRECTORIO}/${perfil.id}`, { method: 'PATCH', body: JSON.stringify({ fields }) });

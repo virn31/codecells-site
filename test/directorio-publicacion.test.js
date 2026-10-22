@@ -222,3 +222,36 @@ test('proxy PATCH en borrador: no marca cambios sin revisar', async () => {
   assert.strictEqual(r.status, 200, JSON.stringify(r.data));
   assert.ok(!('Cambios sin revisar' in at.patches[0]));
 });
+
+// ── Foto de perfil ────────────────────────────────────────────────────
+const JPEG = Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.alloc(60)]);
+const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), Buffer.alloc(60)]);
+
+test('validarFoto: acepta JPEG y PNG por sus bytes reales', () => {
+  const j = D.validarFoto({ contentType: 'image/jpeg', base64: JPEG.toString('base64') });
+  assert.strictEqual(j.ok, true); assert.strictEqual(j.extension, 'jpg');
+  const p = D.validarFoto({ base64: 'data:image/png;base64,' + PNG.toString('base64') });
+  assert.strictEqual(p.ok, true); assert.strictEqual(p.tipo, 'image/png');
+});
+
+test('validarFoto: rechaza lo que no es imagen, tipos que no coinciden y archivos grandes', () => {
+  assert.strictEqual(D.validarFoto({ base64: Buffer.from('<svg onload=alert(1)>xxxxxxxxx').toString('base64') }).ok, false);
+  assert.strictEqual(D.validarFoto({ contentType: 'image/png', base64: JPEG.toString('base64') }).ok, false);
+  assert.strictEqual(D.validarFoto({}).ok, false);
+  assert.strictEqual(D.validarFoto({ base64: 'no es base64 !!' }).ok, false);
+  const grande = Buffer.concat([JPEG, Buffer.alloc(D.FOTO_MAX_BYTES)]);
+  assert.strictEqual(D.validarFoto({ base64: grande.toString('base64') }).ok, false);
+});
+
+test('urlFotoPublica: solo https, prefiere la miniatura grande', () => {
+  assert.strictEqual(D.urlFotoPublica(null), null);
+  assert.strictEqual(D.urlFotoPublica([{ url: 'javascript:alert(1)' }]), null);
+  assert.strictEqual(D.urlFotoPublica([{ url: 'https://x/orig.jpg', thumbnails: { large: { url: 'https://x/l.jpg' } } }]), 'https://x/l.jpg');
+  assert.strictEqual(D.urlFotoPublica([{ url: 'https://x/orig.jpg' }]), 'https://x/orig.jpg');
+});
+
+test('la foto no se puede mandar por el proxy genérico (solo por subir_foto)', () => {
+  assert.deepStrictEqual(D.quitarCamposProtegidos({ 'Name': 'Dr. X', 'Foto de perfil': [{ url: 'https://stock/x.jpg' }] }), { 'Name': 'Dr. X' });
+  assert.ok(D.CAMPOS_PUBLICOS.includes('Foto de perfil'));
+  assert.ok(/fotografía/.test(D.TEXTO_CONSENTIMIENTO));
+});

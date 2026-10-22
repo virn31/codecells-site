@@ -315,7 +315,9 @@
       place-items: center;
       background: var(--surface-2);
     }
-    .pd-card__avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .pd-card__avatar { position: relative; }
+    /* La foto tapa las iniciales; si no carga, se quita y quedan las iniciales. */
+    .pd-card__avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .pd-card__initials {
       font-family: var(--font-display);
       font-style: italic;
@@ -929,6 +931,7 @@
         const tratamientos = f['Tratamientos que ofrece'] || [];
         const horarios = escaparHtml(f['Horarios'] || '');
         const wa = enlaceWhatsApp(f['WhatsApp público']);
+        const foto = /^https:\/\//.test(f['Foto de perfil'] || '') ? f['Foto de perfil'] : '';
         const tel = CONTACTOS[m.id] || null;
 
         // Teléfono y WhatsApp solo después de que el visitante dejó sus datos.
@@ -951,8 +954,9 @@
                 ${bio ? `<p class="pd-card__bio">${bio}</p>` : ''}
                 ${tratamientos.length ? `<ul class="pd-card__chips">${tratamientos.map((t, j) => `<li class="pd-chip" style="animation-delay: ${(i * 0.07) + 0.18 + (j * 0.025)}s">${escaparHtml(t)}</li>`).join('')}</ul>` : ''}
               </div>
-              <div class="pd-card__avatar" aria-hidden="true">
-                <span class="pd-card__initials">${escaparHtml(inicialesMedico(nombreCrudo))}</span>
+              <div class="pd-card__avatar">
+                <span class="pd-card__initials" aria-hidden="true">${escaparHtml(inicialesMedico(nombreCrudo))}</span>
+                ${foto ? `<img src="${escaparHtml(foto)}" alt="Foto de ${nombre}" loading="lazy" onerror="this.remove()">` : ''}
               </div>
             </div>
             <div class="pd-card__bar">

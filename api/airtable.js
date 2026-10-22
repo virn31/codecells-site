@@ -95,6 +95,7 @@ const DIRECTORIO_CAMPOS_PUBLICOS = [
   'Bio corta',
   'Horarios',
   'WhatsApp público',
+  'Foto de perfil',
 ];
 
 // Campos que solo se revelan a visitantes registrados (gate suave).
@@ -504,6 +505,15 @@ module.exports = async (req, res) => {
     try {
       const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       const data = await r.json();
+      // La foto sale al público solo como URL (sin nombre de archivo, tamaño
+      // ni id del adjunto).
+      (data.records || []).forEach(rec => {
+        const f = rec.fields || {};
+        if (directorio.CAMPO_FOTO in f) {
+          const url = directorio.urlFotoPublica(f[directorio.CAMPO_FOTO]);
+          if (url) f[directorio.CAMPO_FOTO] = url; else delete f[directorio.CAMPO_FOTO];
+        }
+      });
       return res.status(r.status).json(data);
     } catch (err) {
       return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });

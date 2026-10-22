@@ -29,6 +29,7 @@
 - `admin-directorio.html`: solicitudes, publicados con cambios, publicados SIN consentimiento, resto; cédula de MÉDICOS con enlace a la SEP; aprobar / rechazar (motivo obligatorio) / despublicar; aviso al médico por Telegram si lo tiene.
 - Pruebas: **97/97** (17 nuevas en `test/directorio-publicacion.test.js`). Prueba de punta a punta en la base de prueba con CCMED-QACARD: OK (perfil `recVNUCiwPAxNR4w0`, quedó Despublicado).
 - Base de PRUEBA: 11 campos nuevos en DIRECTORIO_MEDICO (ver §5).
+**2026-10-21 — tarjeta nueva + foto de perfil (sin push el segundo):** tarjeta con círculo dorado, filas con ícono y barra píldora (`fce8e46`). Luego: el médico sube foto/avatar/logo desde "Mi directorio" (se recorta a 400 px en el navegador y pierde metadatos; el servidor valida JPG/PNG/WebP por sus bytes, máx. 1 MB; acciones `subir_foto` / `quitar_foto` en `api/directorio.js`). Sin foto → iniciales. Cambiar la foto de un perfil publicado lo marca para revisión; el panel de admin muestra la foto. Consentimiento sube a `v1.1-borrador` (ahora menciona la fotografía). Campo `Foto de perfil` creado SOLO en la base de prueba. Pendiente: el número de WhatsApp público viaja en el JSON público antes de que el visitante deje datos (la tarjeta no lo muestra) — corregir antes del lanzamiento.
 **Siguiente:** Víctor sube la rama y revisa Preview (portal → Mi directorio con su sesión; `/admin-directorio.html`) → **Etapa 2** (ficha pública por médico + solicitud de cita aceptar/proponer/rechazar).
 OJO: una solicitud de contacto de prueba en Preview avisa al Telegram real de Víctor.
 
@@ -114,6 +115,7 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 ## 4b. Antes de fusionar a `main`
 
 **Directorio (etapa 1) — crear en producción DIRECTORIO_MEDICO antes de fusionar** (ya existen en prueba, mismos nombres): `Estado de publicación` (selección: Borrador, En revisión, Publicado, Rechazado, Despublicado), `Cambios sin revisar` (casilla), `Consentimiento — versión`, `Consentimiento — fecha` (fecha y hora), `Consentimiento — IP`, `Consentimiento — navegador`, `Consentimiento — huella`, `Revisado por`, `Fecha de revisión` (fecha y hora), `Motivo de rechazo` (texto largo), `Historial de publicación` (texto largo). Sin ellos, crear o editar un perfil en producción falla (UNKNOWN_FIELD_NAME).
+**Y `Foto de perfil` (adjunto) — CRÍTICO:** el directorio público lo pide con `fields[]`; si no existe en producción, Airtable responde 422 y **el directorio entero deja de cargar**.
 - Cerrar en el mismo cambio: `api/buscar-medicos` ya está en 410 en esta rama.
 - Producción sigue congelada: NO definir `DESCONGELAR_PRODUCCION` al fusionar.
 

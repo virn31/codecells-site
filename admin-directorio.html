@@ -28,6 +28,7 @@
   h2 .n{ color:var(--ink-dim); }
   .vacio{ color:var(--ink-dim); font-size:.9rem; }
   .tarjeta{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:1.25rem 1.4rem; margin-bottom:1rem; }
+  .foto-perfil{ width:72px; height:72px; border-radius:50%; object-fit:cover; border:2px solid var(--gold); display:block; }
   .fila{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:.5rem 1rem; align-items:baseline; }
   .nombre{ font-family:var(--display); font-size:1.25rem; }
   .chip{ font-family:var(--mono); font-size:.65rem; letter-spacing:.06em; text-transform:uppercase; padding:.3rem .6rem; border-radius:100px; border:1px solid var(--line-strong); color:var(--ink-muted); white-space:nowrap; }
@@ -111,6 +112,7 @@
         <dl>
           <dt>Médico</dt><dd>${m.nombre ? esc(m.nombre) : '<span class="error">Sin médico ligado</span>'} ${m.codigo ? '· ' + esc(m.codigo) : ''}</dd>
           <dt>Cédula</dt><dd>${m.cedula ? esc(m.cedula) + ' · <a href="https://www.cedulaprofesional.sep.gob.mx/" target="_blank" rel="noopener" style="color:var(--gold)">verificar en la SEP</a>' : '<span class="error">No registrada en MÉDICOS</span>'}</dd>
+          <dt>Foto</dt><dd>${p.foto ? `<a href="${esc(p.foto)}" target="_blank" rel="noopener"><img src="${esc(p.foto)}" alt="Foto del perfil" class="foto-perfil"></a>` : 'Sin foto (se muestran iniciales)'}</dd>
           <dt>Ciudad</dt><dd>${esc(p.ciudad) || '—'}</dd>
           <dt>Especialidades</dt><dd>${esc((p.especialidades || []).join(', ')) || '—'}</dd>
           <dt>Herramientas</dt><dd>${esc((p.tratamientos || []).join(', ')) || '—'}</dd>
