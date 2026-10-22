@@ -314,6 +314,28 @@
     flex-shrink: 0;
   }
   .btn-capacitacion-topbar:hover { background: rgba(18,150,138,0.18); }
+  /* Acceso visible a "Mi directorio" (antes solo era un engrane sin texto en
+     la barra lateral, que en celular está oculta). */
+  .btn-directorio-topbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(232,163,61,0.1);
+    border: 0.5px solid rgba(232,163,61,0.35);
+    border-radius: var(--radius);
+    color: #E8A33D;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 5px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .btn-directorio-topbar:hover { background: rgba(232,163,61,0.18); }
+  .btn-directorio-topbar .solo-movil { display: none; }
 
   /* ─── NOVA FLOTANTE (capa 2) ───
      El botón real vive donde antes estaba en el topbar, pero con
@@ -2031,6 +2053,14 @@
     .btn-nova-topbar { width: 52px; height: 52px; }
     .nova-teaser { width: 260px; }
     .btn-logout { padding: 5px 8px; font-size: 11px; }
+    .btn-directorio-topbar { padding: 5px 8px; font-size: 10px; letter-spacing: 0.04em; }
+    /* La topbar ya no cabía en celular (Salir quedaba fuera de pantalla):
+       se oculta la píldora del médico y el saludo se recorta con "…". */
+    .doc-pill { display: none; }
+    .topbar-brand { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .topbar-brand * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-directorio-topbar .solo-escritorio { display: none; }
+    .btn-directorio-topbar .solo-movil { display: inline; }
 
     .app-body { flex-direction: column; height: calc(100vh - 48px); overflow: hidden; }
     .nav-rail { display: none; }
@@ -2086,8 +2116,13 @@
     .login-logo-block { margin-bottom: 1rem; }
   }
 /* ── Mi directorio (perfil público del médico) ── */
+/* "Mi directorio" está diseñado sobre fondo oscuro (colores claros fijos).
+   En modo claro el texto quedaba casi invisible: el panel conserva su
+   propio fondo oscuro en ambos temas, como la tarjeta del directorio público. */
 #mi-directorio {
-  color: var(--foreground, #E8E4DD);
+  --foreground: #E8E4DD;
+  color: #E8E4DD;
+  background: rgba(14, 20, 16, 0.96);
   font-family: 'IBM Plex Sans', sans-serif;
 }
 #mi-directorio .mi-directorio-header {
@@ -2103,6 +2138,11 @@
   padding: 6px 12px;
   font-size: 13px;
   margin-bottom: 8px;
+  color: #E8E4DD;
+  background: transparent;
+  border: 1px solid rgba(232, 228, 221, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
 }
 #mi-directorio .mi-dir-subtitle {
   font-size: 13px;
@@ -3045,6 +3085,8 @@
     <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
     <!-- Botón conectar Google Calendar -->
     <button class="btn-topbar" id="btn-google-calendar" title="Conectar mi Google Calendar">📅</button>
+    <!-- Mi directorio: perfil público, foto y solicitud de publicación -->
+    <button class="btn-directorio-topbar" id="btn-mi-directorio" title="Mi perfil en el directorio público" onclick="mostrarMiDirectorio()">◉ <span class="solo-escritorio">Mi directorio</span><span class="solo-movil">Directorio</span></button>
     <!-- Botón Capacitación -->
     <a class="btn-capacitacion-topbar" id="link-capacitacion-topbar" href="/capacitacion/" target="_blank" title="Programa de certificación médica">
       ◈ Capacitación
@@ -3093,7 +3135,7 @@
       <a class="nav-rail-item" href="/agenda/" title="Agenda"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></a>
       <a class="nav-rail-item" href="/kiosco.html" target="_blank" title="Kiosco (tablet de sala de espera)"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg></a>
       <button class="nav-rail-item" title="NOVA" onclick="document.getElementById('btn-nova-open').click()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg></button>
-      <button class="nav-rail-item" title="Configuración" onclick="mostrarMiDirectorio()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
+      <button class="nav-rail-item" title="Mi directorio público" onclick="mostrarMiDirectorio()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
       <div class="nav-rail-foot">CLINICAL OS · v2.0</div>
     </nav>
 
