@@ -40,6 +40,10 @@
       --font-body: "IBM Plex Sans", sans-serif;
       --font-mono: "IBM Plex Mono", monospace;
       --ease: cubic-bezier(.16,.84,.44,1);
+      /* Tarjeta del directorio */
+      --cc-cream: #F4EFE3;
+      --cc-ink: #1A1F1C;
+      --cc-radius: 16px;
     }
 
     * { box-sizing: border-box; }
@@ -199,87 +203,189 @@
       margin: 24px auto 80px;
       padding: 0 40px;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
       gap: 20px;
     }
-    .medico-card {
-      background: var(--surface);
+    /* ── Tarjeta del directorio (pd-card) ──
+       Reutiliza los tokens de la página: dorado = --c-energy, turquesa =
+       --c-balance, serif = --font-display. Solo agrega crema y tinta para
+       la barra de contacto. */
+    .pd-card {
+      position: relative;
+      box-sizing: border-box;
+      min-width: 0;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(79,168,160,0.10), transparent 55%),
+        var(--surface);
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 24px;
+      border-radius: var(--cc-radius);
+      padding: 24px 24px 44px;
+      margin-bottom: 28px; /* espacio para la píldora que sobresale */
+      color: var(--ink);
       transition: transform 0.2s, border-color 0.2s;
       opacity: 0;
       animation: fadeUp 0.55s var(--ease) forwards;
     }
-    .medico-card:hover {
+    .pd-card:hover {
       transform: translateY(-2px);
-      border-color: rgba(232,163,61,0.3);
+      border-color: rgba(232,163,61,0.35);
     }
-    .medico-nombre {
+    .pd-card__body { display: flex; gap: 16px; align-items: flex-start; }
+    .pd-card__info { flex: 1; min-width: 0; }
+    .pd-card__name {
       font-family: var(--font-display);
-      font-size: 20px;
+      font-style: italic;
       font-weight: 500;
+      font-size: 1.3rem;
+      line-height: 1.2;
       color: var(--c-energy);
-      margin: 0 0 4px 0;
+      margin: 0 0 4px;
+      overflow-wrap: anywhere;
     }
-    .medico-ciudad {
+    .pd-card__city {
       font-family: var(--font-mono);
       font-size: 11px;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--ink-dim);
-      margin-bottom: 16px;
-    }
-    .medico-especialidad {
-      font-size: 13px;
       color: var(--ink-muted);
-      margin-bottom: 12px;
+      margin: 0 0 16px;
     }
-    .medico-bio {
+    .pd-card__rows {
+      list-style: none;
+      margin: 0 0 14px;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .pd-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--ink);
+      min-width: 0;
+    }
+    .pd-row > span:last-child { overflow-wrap: anywhere; }
+    .pd-row--aviso { color: var(--ink-muted); font-style: italic; font-size: 13px; }
+    .pd-row--tel { font-family: var(--font-mono); letter-spacing: 0.04em; }
+    .pd-row__icon {
+      flex: 0 0 28px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--c-balance);
+      color: var(--cc-ink);
+      display: grid;
+      place-items: center;
+    }
+    .pd-row__icon svg { width: 14px; height: 14px; }
+    .pd-card__bio {
       font-size: 13px;
       line-height: 1.55;
       color: var(--ink-muted);
-      margin-bottom: 16px;
-      border-left: 2px solid rgba(232,163,61,0.2);
+      margin: 0 0 14px;
+      border-left: 2px solid rgba(232,163,61,0.25);
       padding-left: 12px;
     }
-    .medico-tratamientos {
+    .pd-card__chips {
+      list-style: none;
+      padding: 0;
+      margin: 0;
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 16px;
+      gap: 8px;
     }
-    .medico-tratamiento {
-      padding: 4px 10px;
-      background: rgba(232,163,61,0.08);
-      border: 1px solid rgba(232,163,61,0.2);
+    .pd-chip {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(232,163,61,0.5);
       color: var(--c-energy);
-      border-radius: 12px;
-      font-size: 11px;
       opacity: 0;
       animation: chipIn 0.32s var(--ease) forwards;
     }
-    .medico-contacto {
+    .pd-card__avatar {
+      flex: 0 0 80px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 2px solid var(--c-energy);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: var(--surface-2);
+    }
+    .pd-card__avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .pd-card__initials {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1.6rem;
+      color: var(--c-energy);
+    }
+    /* Barra tipo píldora que sobresale por abajo */
+    .pd-card__bar {
+      position: absolute;
+      left: 50%;
+      bottom: -22px;
+      transform: translateX(-50%);
+      box-sizing: border-box;
+      width: calc(100% - 40px);
+      max-width: 420px;
       display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding-top: 16px;
-      border-top: 1px solid var(--line);
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 5px 5px 18px;
+      min-height: 46px;
+      background: var(--cc-cream);
+      border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    .pd-card__cta {
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+      background: none;
+      border: 0;
+      padding: 8px 0;
+      font-family: var(--font-body);
       font-size: 12px;
-    }
-    .medico-horarios {
-      color: var(--ink-muted);
-    }
-    .medico-wa {
-      color: var(--c-regen);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 0.05em;
+      font-weight: 600;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      transition: color 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #2E4A3F;
+      cursor: pointer;
     }
-    .medico-wa:hover {
-      color: #7BC99A;
+    .pd-card__cta:hover { text-decoration: underline; }
+    .pd-card__cta:focus-visible, .pd-card__wa:focus-visible { outline: 2px solid var(--c-energy); outline-offset: 2px; border-radius: 999px; }
+    .pd-card__wa {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: var(--c-balance);
+      color: var(--cc-ink);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .pd-card__wa:hover { filter: brightness(1.08); }
+    .pd-card__wa svg { width: 16px; height: 16px; }
+    /* Móvil: foto arriba, datos debajo */
+    @media (max-width: 639px) {
+      .pd-card__body { flex-direction: column; align-items: center; text-align: center; }
+      .pd-card__avatar { order: -1; flex-basis: 96px; width: 96px; height: 96px; }
+      .pd-card__info { width: 100%; }
+      .pd-card__rows { width: fit-content; max-width: 100%; margin-inline: auto; }
+      .pd-row { text-align: left; }
+      .pd-card__chips { justify-content: center; }
+      .pd-card__bio { text-align: left; }
     }
 
     /* Empty state */
@@ -330,32 +436,6 @@
       .filtros-wrap, .resumen, .medicos-grid { padding-left: 20px; padding-right: 20px; }
       .filtros { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
     }
-
-    .medico-tel {
-      color: var(--ink);
-      font-family: var(--font-mono);
-      font-size: 12px;
-      letter-spacing: 0.04em;
-    }
-    .medico-tel-lock {
-      color: var(--ink-dim);
-      font-size: 12px;
-      font-style: italic;
-    }
-    .btn-contacto {
-      margin-top: 10px;
-      width: 100%;
-      padding: 9px 14px;
-      background: transparent;
-      color: var(--c-energy);
-      border: 1px solid rgba(232,163,61,0.45);
-      border-radius: 6px;
-      font-family: var(--font-body);
-      font-size: 13px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn-contacto:hover { background: rgba(232,163,61,0.08); }
 
     .modal-fondo {
       display: none;
@@ -536,7 +616,7 @@
         transition-duration: 0.01ms !important;
       }
       .hero .eyebrow, .hero h1, .hero p,
-      .filtros-wrap, .credenciales, .medico-card {
+      .filtros-wrap, .credenciales, .pd-card {
         opacity: 1 !important;
         transform: none !important;
       }
@@ -789,6 +869,36 @@
         .replace(/"/g, '&quot;');
     }
 
+    // Íconos de línea (sin imágenes externas). currentColor = tinta oscura.
+    const SVG_ATR = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+    const ICONOS = {
+      especialidad: `<svg ${SVG_ATR}><path d="M12 5v14M5 12h14"/></svg>`,
+      ubicacion: `<svg ${SVG_ATR}><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
+      reloj: `<svg ${SVG_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
+      telefono: `<svg ${SVG_ATR}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>`,
+      candado: `<svg ${SVG_ATR}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+      whatsapp: `<svg ${SVG_ATR}><path d="M4 20l1.3-3.9A8.5 8.5 0 1 1 8 18.8z"/></svg>`,
+    };
+
+    function filaPd(icono, contenidoHtml, clase) {
+      return `<li class="pd-row${clase ? ' ' + clase : ''}"><span class="pd-row__icon">${icono}</span><span>${contenidoHtml}</span></li>`;
+    }
+
+    // Iniciales del nombre, sin "[PRUEBA]" ni títulos (Dr., Dra.).
+    function inicialesMedico(nombre) {
+      const palabras = String(nombre || '')
+        .replace(/\[[^\]]*\]/g, ' ')
+        .split(/\s+/)
+        .filter(p => p && !/^(dr|dra|doctor|doctora)\.?$/i.test(p));
+      return palabras.slice(0, 2).map(p => p[0].toUpperCase()).join('') || '·';
+    }
+
+    // Solo enlaces http(s); un valor raro no se convierte en enlace.
+    function enlaceWhatsApp(valor) {
+      const v = String(valor || '').trim();
+      return /^https?:\/\//i.test(v) ? v : '';
+    }
+
     function renderResultados(medicos) {
       const resultados = document.getElementById('resultados');
       const resumen = document.getElementById('resumen');
@@ -811,31 +921,45 @@
 
       resultados.innerHTML = '<div class="medicos-grid">' + medicos.map((m, i) => {
         const f = m.fields || {};
-        const nombre = escaparHtml(f['Name'] || 'Sin nombre');
+        const nombreCrudo = f['Name'] || 'Sin nombre';
+        const nombre = escaparHtml(nombreCrudo);
         const ciudad = escaparHtml(f['Ciudad de consulta'] || '');
         const especialidades = (f['Especialidades visibles'] || []).map(escaparHtml).join(' · ');
         const bio = escaparHtml(f['Bio corta'] || '');
         const tratamientos = f['Tratamientos que ofrece'] || [];
         const horarios = escaparHtml(f['Horarios'] || '');
-        const wa = f['WhatsApp público'] || '';
+        const wa = enlaceWhatsApp(f['WhatsApp público']);
         const tel = CONTACTOS[m.id] || null;
 
+        // Teléfono y WhatsApp solo después de que el visitante dejó sus datos.
+        const filas = [
+          especialidades && filaPd(ICONOS.especialidad, especialidades),
+          ciudad && filaPd(ICONOS.ubicacion, ciudad),
+          horarios && filaPd(ICONOS.reloj, horarios),
+          tel && filaPd(ICONOS.telefono, escaparHtml(tel), 'pd-row--tel'),
+          (!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) && filaPd(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga la página en unos segundos.', 'pd-row--aviso'),
+          !TOKEN_VISITANTE && filaPd(ICONOS.candado, 'Deja tus datos para ver los contactos', 'pd-row--aviso'),
+        ].filter(Boolean).join('');
+
         return `
-          <div class="medico-card" style="animation-delay: ${i * 0.07}s">
-            <h3 class="medico-nombre">${nombre}</h3>
-            <div class="medico-ciudad">${ciudad}</div>
-            ${especialidades ? `<div class="medico-especialidad">${especialidades}</div>` : ''}
-            ${bio ? `<div class="medico-bio">${bio}</div>` : ''}
-            ${tratamientos.length ? `<div class="medico-tratamientos">${tratamientos.map((t, j) => `<span class="medico-tratamiento" style="animation-delay: ${(i * 0.07) + 0.18 + (j * 0.025)}s">${escaparHtml(t)}</span>`).join('')}</div>` : ''}
-            <div class="medico-contacto">
-              ${horarios ? `<div class="medico-horarios">🕐 ${horarios}</div>` : ''}
-              ${tel ? `<div class="medico-tel">📞 ${escaparHtml(tel)}</div>` : ''}
-              ${(!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) ? `<div class="medico-tel-lock">No pudimos cargar el teléfono. Recarga la página en unos segundos.</div>` : ''}
-              ${wa && TOKEN_VISITANTE ? `<a class="medico-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">Contactar por WhatsApp →</a>` : ''}
-              ${!TOKEN_VISITANTE ? `<div class="medico-tel-lock">Deja tus datos para ver los contactos</div>` : ''}
-              <button class="btn-contacto" onclick="abrirModal('${m.id}', '${nombre.replace(/'/g, "\\'")}')">Solicitar contacto</button>
+          <article class="pd-card" style="animation-delay: ${i * 0.07}s">
+            <div class="pd-card__body">
+              <div class="pd-card__info">
+                <h3 class="pd-card__name">${nombre}</h3>
+                ${ciudad ? `<p class="pd-card__city">${ciudad}</p>` : ''}
+                ${filas ? `<ul class="pd-card__rows">${filas}</ul>` : ''}
+                ${bio ? `<p class="pd-card__bio">${bio}</p>` : ''}
+                ${tratamientos.length ? `<ul class="pd-card__chips">${tratamientos.map((t, j) => `<li class="pd-chip" style="animation-delay: ${(i * 0.07) + 0.18 + (j * 0.025)}s">${escaparHtml(t)}</li>`).join('')}</ul>` : ''}
+              </div>
+              <div class="pd-card__avatar" aria-hidden="true">
+                <span class="pd-card__initials">${escaparHtml(inicialesMedico(nombreCrudo))}</span>
+              </div>
             </div>
-          </div>
+            <div class="pd-card__bar">
+              <button type="button" class="pd-card__cta" onclick="abrirModal('${m.id}', '${nombre.replace(/'/g, "\\'")}')">Solicitar contacto</button>
+              ${wa && TOKEN_VISITANTE ? `<a class="pd-card__wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener" aria-label="Enviar WhatsApp a ${nombre}">${ICONOS.whatsapp}<span>WhatsApp</span></a>` : ''}
+            </div>
+          </article>
         `;
       }).join('') + '</div>';
     }
