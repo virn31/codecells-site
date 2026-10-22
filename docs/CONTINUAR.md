@@ -9,29 +9,42 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-19 — el directorio quedó EN PAUSA para hacer primero la valuación y los precios.
+**Última actualización:** 2026-10-22 — etapa 2 del directorio hecha (ficha por médico + solicitud de cita).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-**2026-10-20 — Víctor aprobó el plan del directorio (bandeja #4). ETAPA 0 HECHA (sin push):**
-- Base del ambiente en todos los endpoints de `main` (`process.env.AIRTABLE_BASE_ID || producción`); congelamiento por base (`lib/congelamientoDatosPersonales.js` de la rama clínica) → producción sigue congelada, Preview/local usan prueba.
-- `api/buscar-medicos.js` cerrado (410). Contactos/ciudades del directorio leen todas las páginas y fallan con 502 (no "vacío"); la tarjeta avisa si no cargó el teléfono; el formulario muestra el aviso real de congelamiento (503) en vez de "intenta de nuevo"; `nueva-solicitud-medico` ya no pierde el aviso en silencio.
-- Botón **"Directorio médico"** (dorado, con pulso) en la cabecera de `index.html` + "Encuentra a tu médico →" en el hero; traducido EN/PT; probado en 390/360/320 px sin desborde.
-- `scripts/servidor-local.js` + `test/congelamiento.test.js`; **80/80 pruebas en verde** (antes 69/76).
-- **8 perfiles ficticios "[PRUEBA] …" publicados en la base de prueba** (rec75QBLb37b3eM8a … receDNxLt2pHmTYvp), teléfonos +52 000 000 000X.
-**2026-10-21 — ETAPA 1 HECHA (sin push): alta → solicitud con consentimiento → revisión → publicación.**
-- `lib/directorio.js` (reglas puras) + `api/directorio.js` (mi_estado, solicitar_publicacion, despublicar, admin_perfiles, admin_aprobar, admin_rechazar, admin_despublicar). Administradores: `ADMIN_DIRECTORIO` o, por defecto, VIRN01 y JCG01 (Jorge no).
-- El proxy genérico (`api/airtable.js`) ya NO deja que el médico mande `Publicado`, consentimiento ni campos de revisión; el perfil nace en Borrador; editar lo público de un perfil publicado lo deja visible con "Cambios sin revisar".
-- Consentimiento versionado (`v1.0-borrador 2026-10-21`, texto en `lib/directorio.js`, PENDIENTE abogado) con fecha del servidor, IP, navegador y huella SHA-256. Aprobar exige consentimiento. Despublicar es inmediato y se permite aun congelado.
-- Portal → "Mi directorio": el interruptor se cambió por Solicitar publicación / En revisión / Rechazado con motivo / Despublicar, modal de consentimiento con casilla; enlace al panel si es administrador. **No probado visualmente con sesión real del portal** (sí el panel y la API).
-- `admin-directorio.html`: solicitudes, publicados con cambios, publicados SIN consentimiento, resto; cédula de MÉDICOS con enlace a la SEP; aprobar / rechazar (motivo obligatorio) / despublicar; aviso al médico por Telegram si lo tiene.
-- Pruebas: **97/97** (17 nuevas en `test/directorio-publicacion.test.js`). Prueba de punta a punta en la base de prueba con CCMED-QACARD: OK (perfil `recVNUCiwPAxNR4w0`, quedó Despublicado).
-- Base de PRUEBA: 11 campos nuevos en DIRECTORIO_MEDICO (ver §5).
-**2026-10-21 — tarjeta nueva + foto de perfil (sin push el segundo):** tarjeta con círculo dorado, filas con ícono y barra píldora (`fce8e46`). Luego: el médico sube foto/avatar/logo desde "Mi directorio" (se recorta a 400 px en el navegador y pierde metadatos; el servidor valida JPG/PNG/WebP por sus bytes, máx. 1 MB; acciones `subir_foto` / `quitar_foto` en `api/directorio.js`). Sin foto → iniciales. Cambiar la foto de un perfil publicado lo marca para revisión; el panel de admin muestra la foto. Consentimiento sube a `v1.1-borrador` (ahora menciona la fotografía). Campo `Foto de perfil` creado SOLO en la base de prueba. Pendiente: el número de WhatsApp público viaja en el JSON público antes de que el visitante deje datos (la tarjeta no lo muestra) — corregir antes del lanzamiento.
-**Siguiente:** Víctor sube la rama y revisa Preview (portal → Mi directorio con su sesión; `/admin-directorio.html`) → **Etapa 2** (ficha pública por médico + solicitud de cita aceptar/proponer/rechazar).
-OJO: una solicitud de contacto de prueba en Preview avisa al Telegram real de Víctor.
+**Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
+
+Siguiente: **Víctor prueba la etapa 2 en Preview** y luego **Etapa 3** (cobro + pruebas de punta a punta + abogado). Para la etapa 3 hacen falta sus decisiones #2 (precio fundador) y la forma de cobro (§4.1).
+
+Cómo probar en Preview (https://codecells-site-git-feat-directorio-codecells.vercel.app):
+- `/directorio/` → nombre o "Solicitar cita" → ficha `/directorio/medico.html?id=…` → formulario → liga de seguimiento `/directorio/solicitud.html#id=…&c=…`.
+- Portal → botón "◉ Mi directorio" (barra superior) → bloque "Solicitudes de cita": Aceptar (hora exacta) / Proponer otro horario / No puedo atenderle; insignia con pendientes.
+- El perfil ficticio `[PRUEBA] Dr. QA Cardiología` (CCMED-QACARD, `recVNUCiwPAxNR4w0`) quedó **Publicado** en la base de prueba con 3 solicitudes ficticias.
+- OJO: en Preview los avisos de Telegram son reales (bot real → chat de Víctor o del médico).
+
+**Lo hecho, por etapa:**
+- **Etapa 0** (`4131ad9`): base de Airtable por ambiente, congelamiento por base, `buscar-medicos` 410, lecturas honestas (502), botón "Directorio médico" en la home, servidor local, 8 perfiles "[PRUEBA]".
+- **Etapa 1** (`2eb18d5`): el médico ya no se publica solo. Solicita con consentimiento versionado (fecha, IP, navegador, huella SHA-256), un administrador (VIRN01/JCG01) aprueba/rechaza/despublica en `admin-directorio.html`. `api/directorio.js` + `lib/directorio.js`.
+- **Tarjeta y foto** (`fce8e46`, `69d4ddf`, `3dc0ec6`): tarjeta con círculo dorado, filas con ícono y barra píldora; foto/avatar/logo (`subir_foto`/`quitar_foto`, recorte 400 px sin metadatos, validación por bytes), iniciales si no hay foto; consentimiento `v1.1-borrador` menciona la foto; botón visible "Mi directorio" en el portal (antes solo un engrane oculto en celular) y panel legible en modo claro.
+- **Etapa 2** (2026-10-22):
+  - Ficha pública por médico `directorio/medico.html?id=rec…` (lectura pública de UN perfil publicado: `GET /api/airtable?tabla=directorio_medico&id=`).
+  - Solicitud de cita `api/citas.js` + `lib/citas.js`: fecha preferida (mañana a +90 días, hora de México) y turno; el médico acepta con hora exacta, propone otro horario o rechaza; el paciente confirma la propuesta o cancela desde su liga. Nunca se muestra como cita confirmada mientras esté Pendiente. Historial por solicitud.
+  - Paciente sin cuenta: clave aleatoria en el fragmento `#` de la liga; solo se guarda su huella SHA-256; la vista del paciente no expone teléfono ni motivo.
+  - **El motivo ya no viaja por Telegram** (ni en el formulario viejo): el aviso al médico solo dice que hay una solicitud.
+  - **El WhatsApp público ya no viaja en el JSON público**: sale con el teléfono, solo con token de visitante (decisión #5 sigue abierta).
+  - Se quitó el modal viejo "Solicitar contacto" de `/directorio/`; la tarjeta lleva a la ficha. `accion=registrar` sigue en el API (sin uso desde la página).
+  - Pruebas: **116/116** (15 nuevas en `test/citas.test.js`). Punta a punta en la base de prueba OK.
+
+**Pendientes conocidos del directorio:**
+- `api/nova.js` (~línea 3830) tiene su propia lista de campos públicos con `WhatsApp público` (recomendación de NOVA): revisar con la decisión #5.
+- `mis_solicitudes` lee toda la tabla SOLICITUDES_PACIENTE y filtra por id en el servidor (la liga no se puede filtrar por id en fórmula, CLAUDE.md §8): está bien para el piloto, no para miles de solicitudes.
+- El paciente no recibe aviso activo (SMS/correo): ve la respuesta en su liga o el médico lo contacta. Decidir si se agrega correo en la etapa 3.
+- Textos EN/PT de la ficha, la liga del paciente y el bloque de citas: no traducidos.
+
+### Valuación y precios (contexto)
 
 **Valuación y precios (Víctor, 2026-10-19).** `code_cells_auditoria_integral.json` (raíz, sin rastrear) es solo REFERENCIA para un orden propio. Víctor duda de que 28 USD/mes sea competitivo y quiere **precios estables** que no cambien con el mercado ni el tipo de cambio. Orden acordado:
 1. Inventario de lo construido — **HECHO**: `docs/INVENTARIO-2026-10-19.md`.
@@ -52,7 +65,7 @@ OJO: una solicitud de contacto de prueba en Preview avisa al Telegram real de V�
 
 Propuesta original (referencia): niveles (directorio / directorio + portal clínico), precio en MXN con colchón cambiario, revisión anual con regla pública, pago anual, oferta para 100 fundadores con plazo definido, punto de equilibrio.
 
-Después se retoma el directorio (plan en §3, que espera aprobación; la etapa de cobro depende del paso 4).
+Después se retoma el directorio (plan en §3, aprobado; la etapa de cobro depende del paso 4).
 
 ## 1b. Bandeja de decisiones (ver `docs/REGLAS-DE-DECISION.md`)
 
@@ -115,6 +128,7 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 ## 4b. Antes de fusionar a `main`
 
 **Directorio (etapa 1) — crear en producción DIRECTORIO_MEDICO antes de fusionar** (ya existen en prueba, mismos nombres): `Estado de publicación` (selección: Borrador, En revisión, Publicado, Rechazado, Despublicado), `Cambios sin revisar` (casilla), `Consentimiento — versión`, `Consentimiento — fecha` (fecha y hora), `Consentimiento — IP`, `Consentimiento — navegador`, `Consentimiento — huella`, `Revisado por`, `Fecha de revisión` (fecha y hora), `Motivo de rechazo` (texto largo), `Historial de publicación` (texto largo). Sin ellos, crear o editar un perfil en producción falla (UNKNOWN_FIELD_NAME).
+**Etapa 2 — crear en producción SOLICITUDES_PACIENTE** (ya existen en prueba): `Fecha preferida` (fecha ISO), `Turno preferido` (selección: Mañana, Tarde, Cualquiera), `Estado de cita` (selección: Pendiente, Aceptada, Otro horario propuesto, Confirmada por el paciente, Rechazada, Cancelada por el paciente), `Horario acordado` (texto de una línea), `Mensaje del médico` (texto largo), `Clave de seguimiento — huella` (texto de una línea), `Historial de la solicitud` (texto largo). Sin ellos, solicitar cita falla con 502.
 **Y `Foto de perfil` (adjunto) — CRÍTICO:** el directorio público lo pide con `fields[]`; si no existe en producción, Airtable responde 422 y **el directorio entero deja de cargar**.
 - Cerrar en el mismo cambio: `api/buscar-medicos` ya está en 410 en esta rama.
 - Producción sigue congelada: NO definir `DESCONGELAR_PRODUCCION` al fusionar.

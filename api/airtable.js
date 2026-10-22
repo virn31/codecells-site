@@ -94,13 +94,14 @@ const DIRECTORIO_CAMPOS_PUBLICOS = [
   'Ciudad de consulta',
   'Bio corta',
   'Horarios',
-  'WhatsApp público',
   'Foto de perfil',
 ];
 
 // Campos que solo se revelan a visitantes registrados (gate suave).
 // NUNCA fusionar con la lista de campos públicos de arriba.
-const DIRECTORIO_CAMPOS_PRIVADOS = ['Teléfono de consultorio'];
+// 2026-10-22: el WhatsApp también va aquí; antes viajaba en el JSON público
+// aunque la tarjeta lo ocultara hasta que el visitante dejara sus datos.
+const DIRECTORIO_CAMPOS_PRIVADOS = ['Teléfono de consultorio', 'WhatsApp público'];
 
 function escaparFormula(valor) {
   return String(valor).replace(/"/g, '\\"');
@@ -230,10 +231,10 @@ async function notificarSolicitudPaciente(registro, body) {
     `*Ciudad:* ${body.ciudad || '—'}`,
     `*Busca:* ${body.especialidad || '—'}`
   ];
+  // 2026-10-22: el motivo (dato de salud) ya no viaja por Telegram, aunque
+  // el paciente lo haya autorizado: queda solo en SOLICITUDES_PACIENTE.
   if (consintio && body.motivo) {
-    lineas.push(`*Motivo:* ${body.motivo}`);
-  } else {
-    lineas.push('_El paciente no autorizó compartir su motivo de consulta._');
+    lineas.push('_El paciente escribió un motivo de consulta: está en su registro, no se envía por aquí._');
   }
   lineas.push('', 'Contáctalo directamente. Registro en Airtable → SOLICITUDES_PACIENTE.');
 
@@ -453,13 +454,19 @@ module.exports = async (req, res) => {
       // Todas las páginas y error ruidoso: antes un fallo se respondía como
       // "sin teléfonos" a un visitante que ya dejó sus datos (lead perdido),
       // y con más de 200 médicos se cortaban en silencio.
-      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, { filterByFormula: '{Publicado}=1', 'fields[]': 'Teléfono de consultorio' });
+      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, [
+        ['filterByFormula', '{Publicado}=1'],
+        ...DIRECTORIO_CAMPOS_PRIVADOS.map(f => ['fields[]', f]),
+      ]);
       const contactos = {};
+      const whatsapp = {};
       registros.forEach(rec => {
         const tel = rec.fields?.['Teléfono de consultorio'];
         if (tel) contactos[rec.id] = tel;
+        const wa = rec.fields?.['WhatsApp público'];
+        if (wa && /^https:\/\//.test(wa)) whatsapp[rec.id] = wa;
       });
-      return res.status(200).json({ contactos });
+      return res.status(200).json({ contactos, whatsapp });
     } catch (err) {
       return res.status(502).json({ error: 'No pudimos cargar los teléfonos en este momento. Intenta de nuevo en unos segundos.' });
     }
@@ -484,7 +491,14 @@ module.exports = async (req, res) => {
   if (esLecturaDirectorioPublico) {
     const params = new URLSearchParams();
     const filtros = ['{Publicado}=1'];
-    const { ciudad, especialidad, tratamiento } = req.query;
+    const { ciudad, especialidad, tratamiento, id } = req.query;
+    // Ficha de UN médico (/directorio/medico.html?id=rec…): mismo filtro de
+    // publicado y misma lista blanca; un id que no es de un perfil publicado
+    // devuelve lista vacía.
+    if (id !== undefined) {
+      if (!/^rec[A-Za-z0-9]{14}$/.test(String(id))) return res.status(400).json({ error: 'Identificador inválido.' });
+      filtros.push(`RECORD_ID()="${id}"`);
+    }
     if (ciudad) {
       filtros.push(`{Ciudad de consulta}="${escaparFormula(ciudad)}"`);
     }

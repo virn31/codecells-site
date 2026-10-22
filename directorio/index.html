@@ -362,6 +362,9 @@
       cursor: pointer;
     }
     .pd-card__cta:hover { text-decoration: underline; }
+    a.pd-card__cta { display: block; text-decoration: none; }
+    .pd-card__name a { color: inherit; text-decoration: none; }
+    .pd-card__name a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
     .pd-card__cta:focus-visible, .pd-card__wa:focus-visible { outline: 2px solid var(--c-energy); outline-offset: 2px; border-radius: 999px; }
     .pd-card__wa {
       display: inline-flex;
@@ -439,107 +442,6 @@
       .filtros { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
     }
 
-    .modal-fondo {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.72);
-      backdrop-filter: blur(4px);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .modal-fondo.abierto { display: flex; }
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 28px;
-      max-width: 460px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-    .modal h3 {
-      font-family: var(--font-display);
-      font-size: 22px;
-      color: var(--c-energy);
-      margin: 0 0 6px 0;
-    }
-    .modal .sub {
-      color: var(--ink-muted);
-      font-size: 13px;
-      margin: 0 0 20px 0;
-    }
-    .campo { margin-bottom: 14px; }
-    .campo label {
-      display: block;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-dim);
-      margin-bottom: 5px;
-    }
-    .campo input, .campo textarea {
-      width: 100%;
-      padding: 10px 12px;
-      background: var(--bg-alt);
-      color: var(--ink);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      font-family: var(--font-body);
-      font-size: 14px;
-    }
-    .campo input:focus, .campo textarea:focus {
-      outline: none;
-      border-color: rgba(232,163,61,0.5);
-    }
-    .campo textarea { resize: vertical; min-height: 70px; }
-    .consent {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      background: var(--bg-alt);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin: 16px 0;
-    }
-    .consent input { margin-top: 3px; flex-shrink: 0; }
-    .consent label {
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--ink-muted);
-    }
-    .consent a { color: var(--c-energy); text-decoration: underline; }
-    .modal-acciones { display: flex; gap: 10px; margin-top: 20px; }
-    .modal-acciones button {
-      flex: 1;
-      padding: 11px;
-      border-radius: 6px;
-      font-family: var(--font-body);
-      font-size: 14px;
-      cursor: pointer;
-      border: 1px solid var(--line);
-      background: transparent;
-      color: var(--ink-muted);
-    }
-    .modal-acciones .primario {
-      background: var(--c-energy);
-      color: var(--bg);
-      border-color: var(--c-energy);
-      font-weight: 500;
-    }
-    .modal-acciones button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .modal-error {
-      color: var(--c-repair);
-      font-size: 13px;
-      margin-top: 12px;
-      min-height: 18px;
-    }
-
     /* ─── Capa cinemática (mini-brief 2.5) ─── */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(14px); }
@@ -599,12 +501,6 @@
       background: var(--c-energy);
       opacity: 0.65;
       flex-shrink: 0;
-    }
-
-    /* Scrollbar del modal acorde al tema */
-    .modal {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(232,163,61,0.35) transparent;
     }
 
     /* Accesibilidad: respeta "reducir movimiento". El opacity:1 es
@@ -722,10 +618,12 @@
 
     let TOKEN_VISITANTE = sessionStorage.getItem('cc_visitante') || null;
     let CONTACTOS = {};
+    // WhatsApp del consultorio: también solo después de dejar datos (antes
+    // venía en la lista pública).
+    let WHATSAPP = {};
     // true si el servidor no pudo leer los teléfonos: la tarjeta lo dice en
     // vez de quedarse en blanco (un fallo no es "sin teléfono").
     let CONTACTOS_ERROR = false;
-    let medicoSolicitado = null;
 
     async function cargarContactos() {
       if (!TOKEN_VISITANTE) return;
@@ -741,80 +639,10 @@
         const data = await r.json();
         CONTACTOS_ERROR = !r.ok;
         CONTACTOS = data.contactos || {};
+        WHATSAPP = data.whatsapp || {};
       } catch (err) {
         CONTACTOS_ERROR = true;
         console.error('Error cargando contactos:', err);
-      }
-    }
-
-    function abrirModal(medicoId, nombre) {
-      medicoSolicitado = medicoId || null;
-      document.getElementById('modal-titulo').textContent =
-        nombre ? 'Contactar a ' + nombre : 'Solicitar contacto';
-      document.getElementById('modal-error').textContent = '';
-      const fondo = document.getElementById('modal-fondo');
-      fondo.classList.add('abierto');
-      const caja = fondo.querySelector('.modal');
-      if (caja) caja.scrollTop = 0;
-      document.getElementById('m-nombre').focus({ preventScroll: true });
-    }
-
-    function cerrarModal() {
-      document.getElementById('modal-fondo').classList.remove('abierto');
-    }
-
-    async function enviarSolicitud() {
-      const btn = document.getElementById('btn-enviar');
-      const err = document.getElementById('modal-error');
-      const nombre = document.getElementById('m-nombre').value.trim();
-      const telefono = document.getElementById('m-telefono').value.trim();
-
-      if (!nombre || !telefono) {
-        err.textContent = 'Escribe tu nombre y teléfono para continuar.';
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Enviando…';
-      err.textContent = '';
-
-      try {
-        const r = await fetch('/api/airtable?tabla=solicitudes_paciente&accion=registrar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nombre,
-            telefono,
-            email: document.getElementById('m-email').value.trim(),
-            ciudad: document.getElementById('m-ciudad').value.trim() ||
-                    document.getElementById('f-ciudad').value.trim(),
-            especialidad: document.getElementById('f-especialidad').value.trim() ||
-                          document.getElementById('f-tratamiento').value.trim(),
-            motivo: document.getElementById('m-motivo').value.trim(),
-            consentimiento: document.getElementById('m-consent').checked,
-            medicoId: medicoSolicitado
-          })
-        });
-        const data = await r.json().catch(() => ({}));
-        if (r.status === 503 && data.error) {
-          // Congelamiento legal: reintentar no sirve; se dice tal cual.
-          err.textContent = data.error;
-          return;
-        }
-        if (!r.ok) throw new Error(data.error || 'Error');
-
-        if (data.token) {
-          TOKEN_VISITANTE = data.token;
-          sessionStorage.setItem('cc_visitante', data.token);
-          await cargarContactos();
-        }
-        cerrarModal();
-        buscarDirectorio();
-      } catch (e) {
-        err.textContent = 'No pudimos enviar tu solicitud. Intenta de nuevo.';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Enviar';
       }
     }
 
@@ -930,9 +758,10 @@
         const bio = escaparHtml(f['Bio corta'] || '');
         const tratamientos = f['Tratamientos que ofrece'] || [];
         const horarios = escaparHtml(f['Horarios'] || '');
-        const wa = enlaceWhatsApp(f['WhatsApp público']);
+        const wa = enlaceWhatsApp(WHATSAPP[m.id]);
         const foto = /^https:\/\//.test(f['Foto de perfil'] || '') ? f['Foto de perfil'] : '';
         const tel = CONTACTOS[m.id] || null;
+        const urlFicha = '/directorio/medico.html?id=' + encodeURIComponent(m.id);
 
         // Teléfono y WhatsApp solo después de que el visitante dejó sus datos.
         const filas = [
@@ -941,14 +770,14 @@
           horarios && filaPd(ICONOS.reloj, horarios),
           tel && filaPd(ICONOS.telefono, escaparHtml(tel), 'pd-row--tel'),
           (!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) && filaPd(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga la página en unos segundos.', 'pd-row--aviso'),
-          !TOKEN_VISITANTE && filaPd(ICONOS.candado, 'Deja tus datos para ver los contactos', 'pd-row--aviso'),
+          !TOKEN_VISITANTE && filaPd(ICONOS.candado, 'El teléfono se muestra después de solicitar cita', 'pd-row--aviso'),
         ].filter(Boolean).join('');
 
         return `
           <article class="pd-card" style="animation-delay: ${i * 0.07}s">
             <div class="pd-card__body">
               <div class="pd-card__info">
-                <h3 class="pd-card__name">${nombre}</h3>
+                <h3 class="pd-card__name"><a href="${urlFicha}">${nombre}</a></h3>
                 ${ciudad ? `<p class="pd-card__city">${ciudad}</p>` : ''}
                 ${filas ? `<ul class="pd-card__rows">${filas}</ul>` : ''}
                 ${bio ? `<p class="pd-card__bio">${bio}</p>` : ''}
@@ -960,7 +789,7 @@
               </div>
             </div>
             <div class="pd-card__bar">
-              <button type="button" class="pd-card__cta" onclick="abrirModal('${m.id}', '${nombre.replace(/'/g, "\\'")}')">Solicitar contacto</button>
+              <a class="pd-card__cta" href="${urlFicha}#solicitar">Solicitar cita</a>
               ${wa && TOKEN_VISITANTE ? `<a class="pd-card__wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener" aria-label="Enviar WhatsApp a ${nombre}">${ICONOS.whatsapp}<span>WhatsApp</span></a>` : ''}
             </div>
           </article>
@@ -975,74 +804,11 @@
       buscarDirectorio();
     }
 
-    // Cerrar el modal con Escape (document siempre existe, seguro aquí)
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const f = document.getElementById('modal-fondo');
-        if (f && f.classList.contains('abierto')) cerrarModal();
-      }
-    });
-
-    // Cerrar con clic FUERA de la caja. El #modal-fondo se define más abajo
-    // en el DOM que este script, así que se enlaza en DOMContentLoaded para
-    // no leer un elemento aún inexistente. El check de e.target.id evita que
-    // un clic DENTRO del modal lo cierre y borre lo escrito.
-    document.addEventListener('DOMContentLoaded', () => {
-      const mf = document.getElementById('modal-fondo');
-      if (mf) mf.addEventListener('click', (e) => {
-        if (e.target.id === 'modal-fondo') cerrarModal();
-      });
-    });
-
     // Arranque
     cargarCiudades();
     cargarContactos().then(buscarDirectorio);
   </script>
 
-  <div class="modal-fondo" id="modal-fondo">
-    <div class="modal">
-      <h3 id="modal-titulo">Solicitar contacto</h3>
-      <p class="sub" id="modal-sub">Déjanos tus datos y el médico te contactará. Es gratis y sin compromiso.</p>
-      <div class="campo">
-        <label for="m-nombre">Tu nombre *</label>
-        <input id="m-nombre" type="text" autocomplete="name">
-      </div>
-      <div class="campo">
-        <label for="m-telefono">Teléfono o WhatsApp *</label>
-        <input id="m-telefono" type="tel" autocomplete="tel">
-      </div>
-      <div class="campo">
-        <label for="m-email">Correo (opcional)</label>
-        <input id="m-email" type="email" autocomplete="email">
-      </div>
-      <div class="campo">
-        <label for="m-ciudad">Tu ciudad</label>
-        <input id="m-ciudad" type="text">
-      </div>
-      <div class="campo">
-        <label for="m-motivo">¿Qué te gustaría atender? (opcional)</label>
-        <textarea id="m-motivo" placeholder="Describe brevemente lo que buscas"></textarea>
-      </div>
-
-      <div class="consent">
-        <input type="checkbox" id="m-consent">
-        <label for="m-consent">
-          Autorizo que CODE CELLS™ trate mis datos, incluida la información
-          de salud que yo decida escribir, y la comparta con el médico que
-          seleccioné, conforme al
-          <a href="/aviso-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>.
-          Puedo enviar mi solicitud sin marcar esta casilla; en ese caso no
-          se guardará lo que escribí en el último campo.
-        </label>
-      </div>
-
-      <div class="modal-acciones">
-        <button onclick="cerrarModal()">Cancelar</button>
-        <button class="primario" id="btn-enviar" onclick="enviarSolicitud()">Enviar</button>
-      </div>
-      <div class="modal-error" id="modal-error"></div>
-    </div>
-  </div>
 
 </body>
 </html>

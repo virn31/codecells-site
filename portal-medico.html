@@ -2279,6 +2279,32 @@
   color: rgba(232, 228, 221, 0.4);
   font-style: italic;
 }
+/* Solicitudes de cita (etapa 2 del directorio) */
+#mi-directorio .mi-cita { border: 1px solid rgba(232,228,221,0.12); border-radius: 10px; padding: 14px 16px; background: rgba(232,228,221,0.03); }
+#mi-directorio .mi-cita + .mi-cita { margin-top: 10px; }
+#mi-directorio .mi-cita-cab { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between; }
+#mi-directorio .mi-cita-nombre { font-size: 15px; font-weight: 600; }
+#mi-directorio .mi-cita-chip { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(232,228,221,0.25); color: rgba(232,228,221,0.8); }
+#mi-directorio .mi-cita-chip.pendiente { border-color: #E8A33D; color: #E8A33D; }
+#mi-directorio .mi-cita-chip.ok { border-color: #5FAE6E; color: #7BC99A; }
+#mi-directorio .mi-cita-dato { font-size: 13px; color: rgba(232,228,221,0.75); margin-top: 6px; overflow-wrap: anywhere; }
+#mi-directorio .mi-cita-dato b { color: #E8E4DD; font-weight: 500; }
+#mi-directorio .mi-cita-dato a { color: #4FA8A0; }
+#mi-directorio .mi-cita-motivo { margin-top: 8px; font-size: 13px; padding: 8px 10px; border-left: 2px solid rgba(232,163,61,0.4); background: rgba(232,163,61,0.05); white-space: pre-line; }
+#mi-directorio .mi-cita-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#mi-directorio .mi-cita-acciones button, #mi-directorio .mi-cita-form button { margin: 0 !important; }
+#mi-directorio .mi-cita-form { margin-top: 12px; display: none; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px dashed rgba(232,228,221,0.15); }
+#mi-directorio .mi-cita-form.visible { display: flex; }
+#mi-directorio .mi-cita-form .fila { display: flex; gap: 8px; flex-wrap: wrap; }
+#mi-directorio .mi-cita-form input[type=date], #mi-directorio .mi-cita-form input[type=time], #mi-directorio .mi-cita-form textarea {
+  padding: 9px 10px; background: rgba(232,228,221,0.04); border: 1px solid rgba(232,228,221,0.15); border-radius: 6px; color: #E8E4DD; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; color-scheme: dark;
+}
+#mi-directorio .mi-cita-form textarea { min-height: 60px; resize: vertical; }
+#mi-directorio .mi-cita-error { color: #D4654A; font-size: 12px; min-height: 1em; }
+#mi-directorio .mi-citas-vacio { font-size: 13px; color: rgba(232,228,221,0.6); font-style: italic; }
+#mi-directorio details.mi-citas-cerradas summary { cursor: pointer; font-size: 13px; color: rgba(232,228,221,0.65); margin-top: 10px; }
+.btn-directorio-topbar .insignia { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #E8A33D; color: #1A1406; font-size: 10px; font-weight: 700; letter-spacing: 0; }
+
 /* Foto, avatar o logotipo del directorio */
 #mi-directorio .mi-dir-foto { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 #mi-directorio .mi-dir-foto-circulo {
@@ -4210,7 +4236,7 @@ window.fetch = function(url, opts = {}) {
   // pacienteCode leía los labs de ese paciente sin sesión de ningún tipo.
   // Las acciones de /api/nova que no verifican Authorization simplemente
   // ignoran este header, así que agregarlo aquí no rompe nada existente.
-  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova') || urlStr.includes('/api/directorio')) {
+  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova') || urlStr.includes('/api/directorio') || urlStr.includes('/api/citas')) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
       opts = { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } };
@@ -7548,10 +7574,16 @@ function renderMiDirFormulario() {
   const fechaAltaFormateada = fechaAlta ? formatearFechaMiDir(fechaAlta) : '';
 
   const statusHtml = htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar);
+  setTimeout(cargarCitasMiDir, 0);
 
   content.innerHTML = `
     <div class="mi-dir-form">
       ${statusHtml}
+
+      <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Solicitudes de cita</div>
+        <div id="mi-dir-citas-lista"><div class="mi-citas-vacio">Cargando solicitudes…</div></div>
+      </div>
 
       <div class="mi-dir-block">
         <div class="mi-dir-block-title">Cómo apareces</div>
@@ -7796,6 +7828,152 @@ function htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar) {
       ${admin}
     </div>`;
 }
+
+// ── Solicitudes de cita (etapa 2) ──
+// El paciente pide una fecha y un turno; el médico acepta (con hora exacta),
+// propone otro horario o no puede atenderle. El paciente ve la respuesta en
+// su liga. Nada se presenta como cita confirmada mientras siga "Pendiente".
+let miCitasEstado = { lista: [], nombrePublico: '' };
+const CITAS_ACTIVAS = ['Pendiente', 'Otro horario propuesto', 'Aceptada', 'Confirmada por el paciente'];
+
+function fechaCitaMiDir(ymd) {
+  if (!ymd) return '';
+  try { return new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }); }
+  catch (e) { return ymd; }
+}
+
+function enlaceWaPacienteMiDir(telefono, nombre) {
+  let d = String(telefono || '').replace(/\D/g, '');
+  if (d.length === 10) d = '52' + d;
+  if (d.length < 11) return '';
+  const texto = `Hola ${nombre || ''}, le escribe el consultorio de ${miCitasEstado.nombrePublico || 'su médico'} sobre su solicitud de cita en CODE CELLS.`;
+  return 'https://wa.me/' + d + '?text=' + encodeURIComponent(texto);
+}
+
+async function cargarCitasMiDir() {
+  const cont = document.getElementById('mi-dir-citas-lista');
+  try {
+    const r = await fetch('/api/citas?accion=mis_solicitudes');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ('Error ' + r.status));
+    miCitasEstado = { lista: d.solicitudes || [], nombrePublico: d.nombrePublico || '' };
+    renderCitasMiDir();
+  } catch (e) {
+    if (cont) cont.innerHTML = `<div class="mi-cita-error">No pudimos cargar tus solicitudes de cita (${escaparHtml(e.message)}). Recarga en unos segundos.</div>`;
+  }
+  actualizarInsigniaCitas();
+}
+
+function htmlCitaMiDir(s) {
+  const pendiente = s.estado === 'Pendiente';
+  const ok = s.estado === 'Aceptada' || s.estado === 'Confirmada por el paciente';
+  const wa = enlaceWaPacienteMiDir(s.telefono, s.nombre);
+  const btn = (txt, accion, primario) => `<button class="${primario ? 'mi-dir-btn-primary' : 'mi-dir-btn-secondary'}" onclick="abrirRespuestaCitaMiDir('${s.id}','${accion}')">${txt}</button>`;
+  let acciones = '';
+  if (s.esCita) {
+    if (pendiente) acciones = btn('Aceptar', 'aceptar', true) + btn('Proponer otro horario', 'proponer') + btn('No puedo atenderle', 'rechazar');
+    else if (s.estado === 'Otro horario propuesto') acciones = btn('Proponer otro horario', 'proponer') + btn('No puedo atenderle', 'rechazar');
+    else if (ok) acciones = btn('Cancelar la cita', 'rechazar');
+  }
+  const recibida = s.fechaSolicitud ? new Date(s.fechaSolicitud).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  return `
+    <div class="mi-cita" id="mi-cita-${s.id}">
+      <div class="mi-cita-cab">
+        <span class="mi-cita-nombre">${escaparHtml(s.nombre || 'Sin nombre')}</span>
+        <span class="mi-cita-chip${pendiente ? ' pendiente' : ok ? ' ok' : ''}">${escaparHtml(s.esCita ? s.estado : 'Contacto (formato anterior)')}</span>
+      </div>
+      ${s.fechaPreferida ? `<div class="mi-cita-dato">Prefiere: <b>${escaparHtml(fechaCitaMiDir(s.fechaPreferida))}</b>${s.turno ? ' · ' + escaparHtml(s.turno.toLowerCase()) : ''}</div>` : ''}
+      ${s.horario ? `<div class="mi-cita-dato">${s.estado === 'Otro horario propuesto' ? 'Propusiste' : 'Horario acordado'}: <b>${escaparHtml(s.horario)}</b></div>` : ''}
+      <div class="mi-cita-dato">Teléfono: <b>${escaparHtml(s.telefono || '—')}</b>${wa ? ` · <a href="${escaparHtml(wa)}" target="_blank" rel="noopener">Escribir por WhatsApp</a>` : ''}${s.email ? ' · ' + escaparHtml(s.email) : ''}</div>
+      ${s.motivo ? `<div class="mi-cita-motivo"><span style="opacity:.7;font-size:11px">Lo escribió el paciente (con su autorización):</span>\n${escaparHtml(s.motivo)}</div>` : ''}
+      ${s.mensaje ? `<div class="mi-cita-dato">Tu mensaje: ${escaparHtml(s.mensaje)}</div>` : ''}
+      <div class="mi-cita-dato" style="font-size:11px;opacity:.7">Recibida: ${escaparHtml(recibida)}</div>
+      ${acciones ? `<div class="mi-cita-acciones">${acciones}</div>` : ''}
+      <div class="mi-cita-form" id="mi-cita-form-${s.id}"></div>
+    </div>`;
+}
+
+function renderCitasMiDir() {
+  const cont = document.getElementById('mi-dir-citas-lista');
+  if (!cont) return;
+  const lista = miCitasEstado.lista;
+  if (!lista.length) {
+    cont.innerHTML = '<div class="mi-citas-vacio">Aún no tienes solicitudes. Cuando un paciente pida cita desde tu perfil, aparecerá aquí y te avisaremos por Telegram si lo tienes vinculado.</div>';
+    return;
+  }
+  const activas = lista.filter(s => s.esCita && CITAS_ACTIVAS.includes(s.estado));
+  const otras = lista.filter(s => !activas.includes(s));
+  cont.innerHTML = (activas.length ? activas.map(htmlCitaMiDir).join('') : '<div class="mi-citas-vacio">No tienes solicitudes abiertas.</div>')
+    + (otras.length ? `<details class="mi-citas-cerradas"><summary>Cerradas y anteriores (${otras.length})</summary>${otras.map(htmlCitaMiDir).join('')}</details>` : '');
+}
+
+function actualizarInsigniaCitas() {
+  const btn = document.getElementById('btn-mi-directorio');
+  if (!btn) return;
+  const n = (miCitasEstado.lista || []).filter(s => s.esCita && (s.estado === 'Pendiente' || s.estado === 'Confirmada por el paciente')).length;
+  let ins = btn.querySelector('.insignia');
+  if (!n) { if (ins) ins.remove(); return; }
+  if (!ins) { ins = document.createElement('span'); ins.className = 'insignia'; btn.appendChild(ins); }
+  ins.textContent = n;
+  ins.title = n === 1 ? '1 solicitud de cita por revisar' : `${n} solicitudes de cita por revisar`;
+}
+
+function abrirRespuestaCitaMiDir(id, respuesta) {
+  const s = miCitasEstado.lista.find(x => x.id === id);
+  const caja = document.getElementById('mi-cita-form-' + id);
+  if (!s || !caja) return;
+  const conHorario = respuesta === 'aceptar' || respuesta === 'proponer';
+  const fecha = respuesta === 'aceptar' ? (s.fechaPreferida || '') : '';
+  const abierta = s.estado === 'Pendiente' || s.estado === 'Otro horario propuesto';
+  const titulo = { aceptar: 'Aceptar: indica la hora exacta', proponer: 'Proponer otro horario', rechazar: abierta ? 'No puedo atenderle' : 'Cancelar la cita' }[respuesta];
+  const mensajeObligatorio = respuesta === 'rechazar' && !abierta;
+  caja.innerHTML = `
+    <div style="font-size:13px;font-weight:600">${titulo}</div>
+    ${conHorario ? `<div class="fila"><input type="date" id="mi-cita-fecha-${id}" value="${escaparHtml(fecha)}" aria-label="Fecha"><input type="time" id="mi-cita-hora-${id}" step="900" aria-label="Hora"></div>` : ''}
+    <textarea id="mi-cita-msg-${id}" maxlength="500" placeholder="Mensaje para el paciente${mensajeObligatorio ? ' (obligatorio)' : ' (opcional)'}. No escribas información clínica: el paciente lo ve en su liga."></textarea>
+    <div class="fila">
+      <button class="mi-dir-btn-primary" id="mi-cita-enviar-${id}" onclick="responderCitaMiDir('${id}','${respuesta}')">Enviar respuesta</button>
+      <button class="mi-dir-btn-secondary" onclick="document.getElementById('mi-cita-form-${id}').classList.remove('visible')">Cerrar</button>
+    </div>
+    <div class="mi-cita-error" id="mi-cita-error-${id}"></div>`;
+  caja.classList.add('visible');
+}
+
+async function responderCitaMiDir(id, respuesta) {
+  const err = document.getElementById('mi-cita-error-' + id);
+  const btn = document.getElementById('mi-cita-enviar-' + id);
+  const body = { id, respuesta, mensaje: (document.getElementById('mi-cita-msg-' + id) || {}).value || '' };
+  if (respuesta === 'aceptar' || respuesta === 'proponer') {
+    const f = (document.getElementById('mi-cita-fecha-' + id) || {}).value;
+    const h = (document.getElementById('mi-cita-hora-' + id) || {}).value;
+    if (!f || !h) { err.textContent = 'Indica fecha y hora.'; return; }
+    body.horario = f + ' ' + h;
+  }
+  err.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    const r = await fetch('/api/citas?accion=responder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo guardar la respuesta.');
+    miCitasEstado.lista = miCitasEstado.lista.map(x => x.id === id ? d.solicitud : x);
+    renderCitasMiDir();
+    actualizarInsigniaCitas();
+  } catch (e) {
+    err.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Enviar respuesta';
+  }
+}
+
+// La insignia del botón "Mi directorio" se calcula al abrir el portal.
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    try { if (sessionStorage.getItem('cc_medico_token')) cargarCitasMiDir(); } catch (e) { /* sin sesión */ }
+  }, 1500);
+});
 
 // ── Foto, avatar o logotipo ──
 // Se recorta en el navegador a un cuadrado de 400 px y se vuelve a codificar:
