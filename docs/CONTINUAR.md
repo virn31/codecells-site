@@ -17,6 +17,8 @@
 
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
 
+**Verificación de Google preparada (2026-10-23, `795ae88`):** ver `docs/VERIFICACION-GOOGLE.md`. Permisos reducidos a `calendar.freebusy` + `calendar.events` (falta reconectar una vez con /conectar para confirmarlos contra Google real); `privacidad.html` reescrita + enlace en la home. **Bloqueante:** antes de enviar, publicar en `main` un PR chico con privacidad.html + enlace + `c8184fe` (en producción `auth-login` aún devuelve el refresh token al navegador) — decisión de Víctor; quitar el redirect de Preview del cliente OAuth; TXT de Search Console en GoDaddy.
+
 **PRUEBA REAL 2026-10-23 — OK.** Bot de prueba **@CodeCellsPruebaBot** (token en `TELEGRAM_BOT_TOKEN_PRUEBA`, Preview, rama feat/directorio; webhook a Preview con el bypass de Vercel que creó Víctor). Víctor conectó su agenda real (correo de agenda) desde Telegram, configuró horario, agendó como paciente en su ficha ("Dr. Rodriguez") → cita Aceptada 2026-10-26 12:00, evento creado en su Google Calendar, aviso por Telegram. Confirmado por Víctor: "todo funcionando".
 - Hallazgo de la prueba (corregido en `0c31001`): Google deja la casilla del calendario SIN marcar → daba solo el correo (403 insufficient scopes). Ahora se detecta y el paso 3 del bot pide marcarla.
 - Falta probar en vivo: cancelar desde la liga del paciente (debe borrar el evento) y un bloqueo por texto libre.
