@@ -9,7 +9,7 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-23 — etapa 2 del directorio hecha y revisada por Víctor en Preview ("todo quedó muy bien").
+**Última actualización:** 2026-10-23 — etapa 2b (agenda automática con NOVA por Telegram) hecha en la rama; falta probar el Telegram en vivo.
 
 ---
 
@@ -17,14 +17,16 @@
 
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
 
-**NUEVO 2026-10-23 — visión de Víctor: agenda automática (propuesta "etapa 2b", antes del cobro).** El médico no debería hacer nada:
-- NOVA revisa la agenda del médico; al paciente se le muestran los **horarios libres** del día que pide y la cita queda agendada sola (sin "Pendiente").
-- El médico le escribe a NOVA por mensajería (Víctor dijo **Instagram**; se recomendó **Telegram**, que ya existe: bot + `api/telegram-bot.js`; Instagram exige API de Meta Business + revisión de app): "NOVA, estaré fuera del 5 al 10 de noviembre" → se registra el bloqueo.
-- Reglas propuestas: NOVA **repite lo que entendió y pide confirmación** antes de bloquear (fechas mal leídas = citas mal dadas); si ya hay citas en esas fechas, avisa y no las cancela sola; el modo manual actual queda como opción por médico.
-- Piezas: horario semanal por médico (días, horas, duración de consulta), tabla de bloqueos, cálculo de espacios libres, reserva sin choques, comandos de NOVA por Telegram. Google Calendar después (memoria agenda-modulo-no-funcional).
-- Pendiente de Víctor: confirmar Telegram vs Instagram, duración de consulta por defecto, y si la cita se confirma sola o el médico puede activar "revisar antes".
+**Estado 2026-10-23 — etapa 2b HECHA (agenda automática).** Decisiones de Víctor: Telegram (no Instagram), consulta de 30 min por defecto, la cita se confirma sola, configuración por cuestionario de botones en Telegram.
+- `lib/agenda.js` (espacios libres, bloqueos, choques), `lib/agenda-asistente.js` (cuestionario con botones = máquina de estados; lectura de bloqueos con Claude `claude-sonnet-5-5` + validación), `lib/agenda-telegram.js` (/agenda, /bloqueos, /citas, texto libre → confirmar con botón). `api/telegram-bot.js` solo enruta (botones `ag:` antes del filtro de médico maestro).
+- `api/citas.js`: `GET disponibilidad` (espacios del día + próximos días con lugar); `solicitar` con `hora` → **Aceptada** al momento si el perfil tiene agenda automática; recalcula el espacio en el servidor y resuelve dos pacientes al mismo tiempo (se queda el primero, al segundo 409).
+- Ficha del médico: con agenda → "Agendar cita" (día → horas libres → "Cita confirmada"); sin agenda → solicitud como antes. Liga del paciente: "Cita confirmada" / "Cancelar cita". Portal → Mi directorio → bloque "Agenda automática" (estado, horario, fechas bloqueadas; se cambia por Telegram).
+- Reglas: NOVA repite el bloqueo con fechas y días de la semana y SOLO bloquea con el botón "Sí"; si hay citas en esas fechas avisa y no las cancela; si duda, pregunta. Por Telegram nunca van datos de pacientes (solo fecha y hora).
+- Pruebas: 131/131 (15 nuevas en `test/agenda.test.js`). Punta a punta en base de prueba con Telegram simulado (cuestionario, bloqueo leído por Claude real, reserva, choque 409, cancelación libera el espacio, pausar/activar). El perfil QA (`recVNUCiwPAxNR4w0`) quedó con agenda Lun/Mié/Vie 9–14 y 16–18 y bloqueo 4–6 nov.
+- **Falta probar el Telegram en vivo:** el webhook del bot apunta (casi seguro) a producción, que no tiene este código; y Preview tiene Vercel Authentication, que bloquea a Telegram. Opciones: (a) bot de prueba creado por Víctor en @BotFather + token en variables de Preview + bypass de protección para el webhook; (b) probarlo al fusionar. La página del paciente SÍ se puede probar ya en Preview con el médico QA.
+- Lección: con `max_tokens` 300 el modelo se quedaba sin espacio pensando ("la otra semana") → 4000 y error explícito si `stop_reason` = max_tokens.
 
-Siguiente (después de 2b o si Víctor prefiere cobro primero): **Etapa 3** (cobro + pruebas de punta a punta + abogado). Víctor ya revisó la etapa 2 en Preview (2026-10-23) y la aprobó. Para arrancar la etapa 3 hacen falta sus decisiones #2 (precio fundador; recomendación $800 congelado) y la forma de cobro (Stripe / Mercado Pago / transferencia, ¿factura?) (§4.1).
+Siguiente: **Etapa 3** (cobro + pruebas de punta a punta + abogado). Víctor ya revisó la etapa 2 en Preview (2026-10-23) y la aprobó. Para arrancar la etapa 3 hacen falta sus decisiones #2 (precio fundador; recomendación $800 congelado) y la forma de cobro (Stripe / Mercado Pago / transferencia, ¿factura?) (§4.1).
 
 Nota: Víctor publicó él mismo su perfil en la base de prueba (`rec1upfZfkftncHii`, aparece como "Dr. Rodriguez", Culiacán, Medicina Regenerativa + Cirugía Plástica). Su primera solicitud de prueba (2026-10-22, `recudd3onYdDJJHYY`) quedó ligada al perfil ficticio de **Bruno** (`recDk9rLagIn3PVyK`, también Culiacán + Cirugía Plástica), no al suyo: el código manda el id correcto (verificado: tarjeta → ficha → POST con `rec1upf…`), así que fue la ficha que abrió. Por eso no la ve en su portal. Su registro de médico no tiene `Telegram Chat ID`: sus avisos van al chat de respaldo. Corregido el aviso "(mañana)" → "por la mañana" (se leía como "el día de mañana").
 
@@ -137,6 +139,8 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 ## 4b. Antes de fusionar a `main`
 
 **Directorio (etapa 1) — crear en producción DIRECTORIO_MEDICO antes de fusionar** (ya existen en prueba, mismos nombres): `Estado de publicación` (selección: Borrador, En revisión, Publicado, Rechazado, Despublicado), `Cambios sin revisar` (casilla), `Consentimiento — versión`, `Consentimiento — fecha` (fecha y hora), `Consentimiento — IP`, `Consentimiento — navegador`, `Consentimiento — huella`, `Revisado por`, `Fecha de revisión` (fecha y hora), `Motivo de rechazo` (texto largo), `Historial de publicación` (texto largo). Sin ellos, crear o editar un perfil en producción falla (UNKNOWN_FIELD_NAME).
+**Etapa 2b — crear en producción DIRECTORIO_MEDICO** (ya existen en prueba): `Agenda — horario` (texto largo), `Agenda — bloqueos` (texto largo), `Agenda — asistente` (texto largo), `Agenda — automática` (casilla). No están en la lista pública de campos (no rompen el directorio si faltan), pero sin ellos `/agenda` en Telegram falla al guardar.
+
 **Etapa 2 — crear en producción SOLICITUDES_PACIENTE** (ya existen en prueba): `Fecha preferida` (fecha ISO), `Turno preferido` (selección: Mañana, Tarde, Cualquiera), `Estado de cita` (selección: Pendiente, Aceptada, Otro horario propuesto, Confirmada por el paciente, Rechazada, Cancelada por el paciente), `Horario acordado` (texto de una línea), `Mensaje del médico` (texto largo), `Clave de seguimiento — huella` (texto de una línea), `Historial de la solicitud` (texto largo). Sin ellos, solicitar cita falla con 502.
 **Y `Foto de perfil` (adjunto) — CRÍTICO:** el directorio público lo pide con `fields[]`; si no existe en producción, Airtable responde 422 y **el directorio entero deja de cargar**.
 - Cerrar en el mismo cambio: `api/buscar-medicos` ya está en 410 en esta rama.

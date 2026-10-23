@@ -7586,6 +7586,11 @@ function renderMiDirFormulario() {
       </div>
 
       <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Agenda automática</div>
+        ${htmlAgendaMiDir(c)}
+      </div>
+
+      <div class="mi-dir-block">
         <div class="mi-dir-block-title">Cómo apareces</div>
         <div class="mi-dir-field" id="mi-dir-foto-bloque">${htmlBloqueFotoMiDir()}</div>
         <div class="mi-dir-field">
@@ -7842,6 +7847,41 @@ function fechaCitaMiDir(ymd) {
   if (!ymd) return '';
   try { return new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }); }
   catch (e) { return ymd; }
+}
+
+// ── Agenda automática (etapa 2b) ──
+// Se configura por Telegram (/agenda); aquí solo se muestra su estado.
+// Mismo formato que lib/agenda.js (horario JSON por día 0=dom … 6=sáb).
+function htmlAgendaMiDir(c) {
+  let h = null, bloqueos = [];
+  try { h = JSON.parse(c['Agenda — horario'] || 'null'); } catch (e) { h = null; }
+  try { bloqueos = JSON.parse(c['Agenda — bloqueos'] || '[]') || []; } catch (e) { bloqueos = []; }
+  const instruccion = 'En Telegram, escríbele <b>/agenda</b> a @Drvirnbot (si no lo has vinculado, mándale primero tu código de médico).';
+  if (!h || !h.dias || !Object.keys(h.dias).length) {
+    return `<p class="mi-citas-vacio" style="text-align:left">Sin configurar: los pacientes te envían <b>solicitudes</b> que tú respondes aquí.<br>Para que NOVA agende sola en tus horarios libres: ${instruccion} Son 4 preguntas con botones.</p>`;
+  }
+  const corto = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const hc = x => String(x).replace(/^0(\d)/, '$1');
+  const grupos = new Map(); const sin = [];
+  for (const d of [1, 2, 3, 4, 5, 6, 0]) {
+    const r = h.dias[String(d)];
+    if (!r || !r.length) { sin.push(corto[d]); continue; }
+    const k = r.map(([a, b]) => `${hc(a)}–${hc(b)}`).join(' y ');
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(corto[d]);
+  }
+  const lineas = [...grupos].map(([k, ds]) => `${ds.join(', ')}: ${k}`);
+  if (sin.length) lineas.push(`${sin.join(', ')}: sin consulta`);
+  lineas.push(`Cada consulta: ${Number(h.duracion) || 30} min`);
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const prox = bloqueos.filter(b => b && b.hasta >= hoy).sort((a, b) => String(a.desde).localeCompare(b.desde));
+  const activa = c['Agenda — automática'] === true;
+  return `
+    <p style="margin:0 0 8px"><b>${activa ? '● Activa' : '⏸ En pausa'}</b> — ${activa ? 'los pacientes eligen un horario libre y la cita se confirma sola.' : 'los pacientes envían solicitudes que tú respondes.'}</p>
+    <div style="white-space:pre-line;font-size:14px;line-height:1.6">${escaparHtml(lineas.join('\n'))}</div>
+    ${prox.length ? `<p style="margin:10px 0 4px"><b>Fechas sin citas:</b></p><ul style="margin:0;padding-left:18px;font-size:14px">${prox.map(b =>
+      `<li>${escaparHtml(fechaCitaMiDir(b.desde))}${b.hasta !== b.desde ? ' – ' + escaparHtml(fechaCitaMiDir(b.hasta)) : ''}${b.ini ? `, ${escaparHtml(hc(b.ini))}–${escaparHtml(hc(b.fin))}` : ''}${b.nota ? ' · ' + escaparHtml(b.nota) : ''}</li>`).join('')}</ul>` : ''}
+    <p class="mi-citas-vacio" style="text-align:left;margin-top:10px">Para cambiar tu horario, pausarla o bloquear días: ${instruccion} Para bloquear basta escribirle, por ejemplo, “estaré fuera del 5 al 10 de noviembre”.</p>`;
 }
 
 function enlaceWaPacienteMiDir(telefono, nombre) {

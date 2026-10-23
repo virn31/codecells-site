@@ -2,7 +2,11 @@
 // Solicitud de cita desde la ficha pública del médico (etapa 2, 2026-10-22).
 //
 //   Público (sin sesión):
-//     POST ?accion=solicitar   → crea la solicitud (Pendiente) y devuelve la clave de seguimiento
+//     GET  ?accion=disponibilidad&medicoId=rec…&fecha=YYYY-MM-DD
+//                              → espacios libres si el médico tiene agenda automática (etapa 2b)
+//     POST ?accion=solicitar   → crea la solicitud y devuelve la clave de seguimiento. Con agenda
+//                                automática y `hora`, la cita queda Aceptada al momento; sin
+//                                agenda, queda Pendiente hasta que el médico responda
 //     POST ?accion=estado      → { id, c } estado de SU solicitud (sin teléfono ni motivo).
 //                                POST para que la clave no quede en URLs ni bitácoras.
 //     POST ?accion=paciente    → { id, c, accion: confirmar | cancelar }
@@ -19,6 +23,7 @@ const { verificarToken, tokenDesdeRequest, generarTokenVisitante } = require('..
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 const { sendTelegramMessage } = require('../lib/telegram');
 const C = require('../lib/citas');
+const A = require('../lib/agenda');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TBL_SOLICITUDES = 'tblUsc72JO2BaqT6d';
@@ -112,6 +117,28 @@ function resumenParaMedico(rec) {
   };
 }
 
+// Agenda automática del perfil: solo cuenta si está activa Y el horario guardado es válido.
+function agendaDePerfil(perfil) {
+  const c = (perfil && perfil.fields) || {};
+  const v = A.validarHorarioSemanal(A.leerJSON(c[A.CAMPOS.HORARIO], null));
+  return {
+    automatica: c[A.CAMPOS.AUTOMATICA] === true && v.ok,
+    horario: v.ok ? v.horario : null,
+    bloqueos: A.leerJSON(c[A.CAMPOS.BLOQUEOS], []).filter(b => b && b.desde && b.hasta),
+  };
+}
+
+// Citas que ocupan agenda de ESTE perfil. La liga no se filtra por id en
+// fórmula (CLAUDE.md §8): se trae lo que ocupa y se filtra aquí.
+async function citasQueOcupan(perfilId) {
+  const estados = A.ESTADOS_QUE_OCUPAN.map(e => `{Estado de cita}="${escapar(e)}"`).join(',');
+  const regs = await leerTodo(TBL_SOLICITUDES, [
+    ['filterByFormula', `AND(OR(${estados}), {Horario acordado}!="")`],
+    ['fields[]', 'Médico solicitado'], ['fields[]', 'Estado de cita'], ['fields[]', 'Horario acordado'],
+  ]);
+  return regs.filter(r => (r.fields['Médico solicitado'] || []).includes(perfilId));
+}
+
 const fechaCorta = ymd => {
   try { return new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }); }
   catch { return ymd; }
@@ -124,9 +151,41 @@ module.exports = async (req, res) => {
 
   try {
     // ── Público ───────────────────────────────────────────────────────
+    if (accion === 'disponibilidad' && req.method === 'GET') {
+      const medicoId = String(req.query.medicoId || '');
+      const fecha = String(req.query.fecha || '');
+      if (!esRecId(medicoId)) return res.status(400).json({ error: 'Falta el médico.' });
+      let perfil;
+      try { perfil = await at(`${TBL_DIRECTORIO}/${medicoId}`); }
+      catch (e) { if (e instanceof ErrorAirtable && e.status === 404) perfil = null; else throw e; }
+      if (!perfil || !perfil.fields || perfil.fields['Publicado'] !== true) {
+        return res.status(404).json({ error: 'Este médico no está disponible en el directorio.' });
+      }
+      const ag = agendaDePerfil(perfil);
+      if (!ag.automatica) return res.status(200).json({ automatica: false });
+      const ocupadosMapa = A.ocupadosPorFecha(await citasQueOcupan(medicoId));
+      const manana = C.sumarDias(C.fechaMexico(ahora), 1);
+      const conFecha = A.fechaValida(fecha);
+      return res.status(200).json({
+        automatica: true,
+        duracion: ag.horario.duracion,
+        fecha: conFecha ? fecha : null,
+        espacios: conFecha ? A.espaciosLibres({ fecha, horario: ag.horario, bloqueos: ag.bloqueos, ocupados: ocupadosMapa[fecha], ahora }) : [],
+        siguientes: A.proximasFechasConEspacio({ desde: conFecha && fecha > manana ? fecha : manana, horario: ag.horario, bloqueos: ag.bloqueos, ocupadosMapa, ahora }),
+      });
+    }
+
     if (accion === 'solicitar' && req.method === 'POST') {
       if (CONGELADO) return respuestaCongelada(res);
-      const v = C.validarSolicitudCita(req.body, ahora);
+      const cuerpo = { ...(req.body || {}) };
+      const hora = String(cuerpo.hora || '');
+      if (hora) {
+        if (!A.horaValida(hora)) return res.status(400).json({ error: 'Elige uno de los horarios disponibles.' });
+        cuerpo.turno = A.turnoDeHora(hora);
+      }
+      const v = C.validarSolicitudCita(cuerpo, ahora);
+      // Sin hora ni turno, el error de "turno" confundiría al paciente con agenda automática.
+      if (!v.ok && !hora && !cuerpo.turno && /mañana, tarde/.test(v.error)) return res.status(400).json({ error: 'Elige un horario.' });
       if (!v.ok) return res.status(400).json({ error: v.error });
       const d = v.datos;
       let perfil;
@@ -134,6 +193,17 @@ module.exports = async (req, res) => {
       catch (e) { if (e instanceof ErrorAirtable && e.status === 404) perfil = null; else throw e; }
       if (!perfil || !perfil.fields || perfil.fields['Publicado'] !== true) {
         return res.status(404).json({ error: 'Este médico no está disponible en el directorio.' });
+      }
+      // Agenda automática: el espacio debe estar libre AHORA (se recalcula
+      // aquí; lo que mostró la página pudo cambiar).
+      const ag = agendaDePerfil(perfil);
+      let horarioAgendado = null;
+      if (ag.automatica) {
+        if (!hora) return res.status(400).json({ error: 'Elige uno de los horarios disponibles.' });
+        const ocupados = A.ocupadosPorFecha(await citasQueOcupan(d.medicoId))[d.fechaPreferida];
+        const libres = A.espaciosLibres({ fecha: d.fechaPreferida, horario: ag.horario, bloqueos: ag.bloqueos, ocupados, ahora });
+        if (!libres.includes(hora)) return res.status(409).json({ error: 'Ese horario ya no está disponible. Elige otro.', espacios: libres });
+        horarioAgendado = `${d.fechaPreferida} ${hora}`;
       }
       const clave = C.generarClave();
       const fields = {
@@ -149,19 +219,41 @@ module.exports = async (req, res) => {
         'Alerta enviada a': 'No enviada',
         'Fecha preferida': d.fechaPreferida,
         'Turno preferido': d.turno,
-        'Estado de cita': C.ESTADOS_CITA.PENDIENTE,
+        'Estado de cita': horarioAgendado ? C.ESTADOS_CITA.ACEPTADA : C.ESTADOS_CITA.PENDIENTE,
         'Clave de seguimiento — huella': C.huellaClave(clave),
-        'Historial de la solicitud': agregarHistorial('', ahoraISO, 'Solicitud enviada', 'paciente', `${d.fechaPreferida} · ${d.turno}`),
+        'Historial de la solicitud': horarioAgendado
+          ? agregarHistorial('', ahoraISO, 'Cita agendada automáticamente (agenda del médico)', 'paciente', horarioAgendado)
+          : agregarHistorial('', ahoraISO, 'Solicitud enviada', 'paciente', `${d.fechaPreferida} · ${d.turno}`),
       };
+      if (horarioAgendado) fields['Horario acordado'] = horarioAgendado;
       if (d.motivo) fields['Motivo declarado'] = d.motivo;
       const creado = await at(TBL_SOLICITUDES, { method: 'POST', body: JSON.stringify({ fields }) });
 
-      const destino = await avisarMedico(perfil,
-        `CODE CELLS: tienes una nueva solicitud de cita para el ${fechaCorta(d.fechaPreferida)}, ${C.textoTurno(d.turno)}. Revísala en tu portal → Mi directorio.`);
+      // Airtable no tiene transacciones: si dos pacientes tomaron el mismo
+      // espacio a la vez, se queda el primero y al segundo se le avisa.
+      if (horarioAgendado) {
+        const mismas = (await citasQueOcupan(d.medicoId))
+          .filter(r => r.fields['Horario acordado'] === horarioAgendado)
+          .sort((a, b) => a.createdTime.localeCompare(b.createdTime) || a.id.localeCompare(b.id));
+        if (mismas.length > 1 && mismas[0].id !== creado.id) {
+          await at(`${TBL_SOLICITUDES}/${creado.id}`, { method: 'PATCH', body: JSON.stringify({ fields: {
+            'Estado de cita': C.ESTADOS_CITA.RECHAZADA,
+            'Historial de la solicitud': agregarHistorial(fields['Historial de la solicitud'], new Date().toISOString(), 'Anulada: otro paciente tomó el mismo espacio al mismo tiempo', 'sistema'),
+          } }) });
+          const ocupados = A.ocupadosPorFecha(await citasQueOcupan(d.medicoId))[d.fechaPreferida];
+          return res.status(409).json({ error: 'Otro paciente acaba de tomar ese horario. Elige otro.',
+            espacios: A.espaciosLibres({ fecha: d.fechaPreferida, horario: ag.horario, bloqueos: ag.bloqueos, ocupados, ahora }) });
+        }
+      }
+
+      const destino = await avisarMedico(perfil, horarioAgendado
+        ? `CODE CELLS: NOVA agendó una cita el ${fechaCorta(d.fechaPreferida)} a las ${A.horaCorta(hora)}. Detalles en tu portal → Mi directorio.`
+        : `CODE CELLS: tienes una nueva solicitud de cita para el ${fechaCorta(d.fechaPreferida)}, ${C.textoTurno(d.turno)}. Revísala en tu portal → Mi directorio.`);
       try { await at(`${TBL_SOLICITUDES}/${creado.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { 'Alerta enviada a': destino } }) }); }
       catch (e) { console.error('[citas] no se registró el destino del aviso:', e.message); }
 
-      return res.status(200).json({ ok: true, id: creado.id, clave, token: generarTokenVisitante(), aviso: destino });
+      return res.status(200).json({ ok: true, id: creado.id, clave, token: generarTokenVisitante(), aviso: destino,
+        estado: fields['Estado de cita'], horario: horarioAgendado });
     }
 
     if (accion === 'estado' && req.method === 'POST') {

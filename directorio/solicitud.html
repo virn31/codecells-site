@@ -109,11 +109,11 @@
         case 'Pendiente':
           return { clase: 'estado--espera', titulo: 'Enviada, esperando respuesta', texto: `${quien} todavía no responde. <b>Esto aún no es una cita.</b> Vuelve a esta liga más tarde.` };
         case 'Aceptada':
-          return { clase: 'estado--ok', titulo: 'Cita aceptada por el médico', texto: `${quien} te espera:`, horario: s.horario };
+          return { clase: 'estado--ok', titulo: 'Cita confirmada', texto: `${quien} te espera:`, horario: s.horario, agendada: true };
         case 'Otro horario propuesto':
           return { clase: 'estado--accion', titulo: 'Te proponen otro horario', texto: `${quien} no puede en la fecha que pediste y te propone:`, horario: s.horario, confirmar: true };
         case 'Confirmada por el paciente':
-          return { clase: 'estado--ok', titulo: 'Cita acordada', texto: 'Confirmaste el horario que propuso el médico:', horario: s.horario };
+          return { clase: 'estado--ok', titulo: 'Cita acordada', texto: 'Confirmaste el horario que propuso el médico:', horario: s.horario, agendada: true };
         case 'Rechazada':
           return { clase: 'estado--cerrada', titulo: 'El médico no puede atenderte esta vez', texto: 'Puedes buscar otro médico en el directorio o intentar otra fecha.', cerrada: true };
         case 'Cancelada por el paciente':
@@ -142,7 +142,7 @@
         </dl>
         <div class="botones">
           ${t.confirmar ? '<button class="btn" id="b-confirmar">Confirmar este horario</button>' : ''}
-          ${!t.cerrada ? `<button class="btn-sec btn-peligro" id="b-cancelar">${t.confirmar ? 'No me funciona, cancelar' : 'Cancelar solicitud'}</button>` : ''}
+          ${!t.cerrada ? `<button class="btn-sec btn-peligro" id="b-cancelar">${t.confirmar ? 'No me funciona, cancelar' : t.agendada ? 'Cancelar cita' : 'Cancelar solicitud'}</button>` : ''}
           ${t.cerrada ? '<a class="btn-sec" href="/directorio/">Buscar otro médico</a>' : ''}
           ${medicoId && !t.cerrada ? `<a class="btn-sec" href="/directorio/medico.html?id=${encodeURIComponent(medicoId)}">Ver perfil del médico</a>` : ''}
         </div>

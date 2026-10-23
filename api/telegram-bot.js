@@ -14,6 +14,7 @@ const { generarPlanNutricional } = require('../lib/nutricion');
 const { generarToken } = require('../lib/auth');
 const { generarCodigoPorIniciales } = require('../lib/codigos');
 const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { manejarMensajeAgenda, manejarBotonAgenda } = require('../lib/agenda-telegram');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -578,6 +579,8 @@ module.exports = async (req, res) => {
 
     // ── Toque de botón (Autorizar/Rechazar solicitud de afiliación) ──────
     if (update.callback_query) {
+      // Botones de la agenda ("ag:…"): son del propio médico, no requieren ser maestro.
+      if (await manejarBotonAgenda(update.callback_query)) return res.status(200).json({ ok: true });
       return await manejarCallbackQuery(update.callback_query, res);
     }
 
@@ -602,6 +605,7 @@ module.exports = async (req, res) => {
         'Hola, soy el bot de notificaciones y apoyo clínico de CODE CELLS™ Red Médica.\n\n' +
           'Para vincular tu cuenta, envíame tu código de médico (formato CCMED-XXXXXX).\n\n' +
           'Una vez vinculado:\n' +
+          '• Escribe /agenda → configura tu horario para que NOVA agende tus citas sola.\n' +
           '• Escribe "plan" + datos del paciente → plan nutricional de 7 días.\n' +
           '• Escribe el código del paciente (CC-PAC-XXXXXX) + tu dictado → lo interpreto y, si confirmas, lo guardo en su expediente.'
       );
@@ -781,6 +785,13 @@ module.exports = async (req, res) => {
         console.error('[telegram-bot] error interpretando dictado:', err.message);
         await sendTelegramMessage(chatId, 'Hubo un error interpretando el dictado. Intenta de nuevo.');
       }
+      return res.status(200).json({ ok: true });
+    }
+
+    // Agenda (etapa 2b): /agenda, /bloqueos, /citas o texto libre del tipo
+    // "estaré fuera del 5 al 10 de noviembre". Va después de los flujos de
+    // expediente para no robarles un mensaje, y antes del plan nutricional.
+    if (!/^\/?plan\b/i.test(texto) && await manejarMensajeAgenda(chatId, texto)) {
       return res.status(200).json({ ok: true });
     }
 

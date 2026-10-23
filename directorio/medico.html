@@ -134,6 +134,9 @@
     }
     .turnos input { accent-color: var(--c-energy); }
     .turnos label:has(input:checked) { border-color: var(--c-energy); background: rgba(232,163,61,0.1); }
+    .nota-chica { margin: 0 0 8px; color: var(--ink-muted); font-size: 14px; }
+    .dias-lugar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-muted); }
+    .btn-dia { padding: 7px 12px; font-size: 13px; text-transform: capitalize; }
     .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--ink-muted); line-height: 1.55; margin-top: 4px; }
     .consent input { margin-top: 3px; accent-color: var(--c-energy); flex: 0 0 auto; }
@@ -210,6 +213,22 @@
 
     const ID = new URLSearchParams(location.search).get('id') || '';
     let MEDICO = null;
+    // Agenda automática (etapa 2b): { automatica, siguientes, … } | { error: true } si no se pudo leer.
+    let AGENDA = null;
+
+    const fechaLarga = ymd => new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    const horaCorta = h => String(h).replace(/^0(\d)/, '$1');
+
+    async function cargarDisponibilidad(fecha) {
+      try {
+        const r = await fetch('/api/citas?accion=disponibilidad&medicoId=' + encodeURIComponent(ID) + (fecha ? '&fecha=' + encodeURIComponent(fecha) : ''));
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'Error ' + r.status);
+        return d;
+      } catch (e) {
+        return { error: true };
+      }
+    }
 
     async function cargarContactos() {
       const token = leer('cc_visitante');
@@ -244,7 +263,8 @@
         cont.innerHTML = '<div class="estado-pagina"><h1>Este médico no está en el directorio</h1><p>Puede que haya retirado su perfil. <a href="/directorio/">Buscar otro médico</a></p></div>';
         return;
       }
-      const contactos = await cargarContactos();
+      const [contactos, agenda] = await Promise.all([cargarContactos(), cargarDisponibilidad()]);
+      AGENDA = agenda;
       render(contactos);
       if (location.hash === '#solicitar') document.getElementById('solicitar').scrollIntoView({ behavior: 'smooth' });
     }
@@ -291,15 +311,64 @@
         </section>`;
     }
 
+    // Campos comunes a los dos formularios (agenda automática y solicitud).
+    const camposPaciente = `
+            <div class="campo"><label for="c-nombre">Tu nombre *</label><input id="c-nombre" type="text" autocomplete="name" maxlength="120" required></div>
+            <div class="campo"><label for="c-telefono">Teléfono o WhatsApp *</label><input id="c-telefono" type="tel" autocomplete="tel" maxlength="30" required></div>
+            <div class="campo"><label for="c-email">Correo (opcional)</label><input id="c-email" type="email" autocomplete="email" maxlength="120"></div>`;
+
+    function htmlDiasConLugar(siguientes, excepto) {
+      const lista = (siguientes || []).filter(s => s.fecha !== excepto);
+      if (!lista.length) return '';
+      return `<div class="dias-lugar"><span>Días con lugar:</span>${lista.map(s =>
+        `<button type="button" class="btn-sec btn-dia" data-fecha="${esc(s.fecha)}">${esc(fechaLarga(s.fecha))}</button>`).join('')}</div>`;
+    }
+
+    function htmlEspacios(d, fecha) {
+      if (!fecha) return `<p class="nota-chica">Elige un día para ver los horarios libres.</p>${htmlDiasConLugar(AGENDA.siguientes)}`;
+      if (d.error) return '<p class="error">No pudimos cargar los horarios. Revisa tu conexión e intenta de nuevo.</p>';
+      if (!d.espacios || !d.espacios.length) return `<p class="nota-chica">No hay horarios libres el ${esc(fechaLarga(fecha))}.</p>${htmlDiasConLugar(d.siguientes, fecha)}`;
+      return `<div class="turnos">${d.espacios.map(h =>
+        `<label><input type="radio" name="hora" value="${esc(h)}"> ${esc(horaCorta(h))}</label>`).join('')}</div>`;
+    }
+
+    async function elegirFecha(fecha) {
+      const cont = document.getElementById('c-espacios');
+      const input = document.getElementById('c-fecha');
+      if (!cont) return;
+      if (input && input.value !== fecha) input.value = fecha;
+      cont.innerHTML = '<p class="nota-chica">Buscando horarios…</p>';
+      const d = await cargarDisponibilidad(fecha);
+      if (input && input.value !== fecha) return; // el paciente ya eligió otro día
+      cont.innerHTML = htmlEspacios(d, fecha);
+    }
+
     function htmlFormulario(nombre) {
+      if (AGENDA && AGENDA.error) {
+        return `<h2>Agendar cita</h2>
+          <p class="error">No pudimos cargar la agenda de ${esc(nombre)}. Recarga la página en unos segundos.</p>`;
+      }
+      if (AGENDA && AGENDA.automatica) {
+        return `
+        <h2>Agendar cita</h2>
+        <p class="nota">Elige el día y la hora: verás solo los horarios libres de ${esc(nombre)} y tu cita queda <strong>confirmada al momento</strong>.</p>
+        <form id="form-cita" novalidate>
+          <div class="rejilla">
+            ${camposPaciente}
+            <div class="campo"><label for="c-fecha">Día *</label><input id="c-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" required></div>
+            <fieldset class="campo campo--ancho">
+              <legend>Hora *</legend>
+              <div id="c-espacios">${htmlEspacios({}, '')}</div>
+            </fieldset>
+            ${camposFinales('Agendar cita')}
+        </form>`;
+      }
       return `
         <h2>Solicitar cita</h2>
         <p class="nota">Esto es una <strong>solicitud</strong>, todavía no una cita. ${esc(nombre)} la revisará y podrá aceptarla, proponerte otro horario o avisarte si no puede atenderte. Verás la respuesta en una liga que te daremos al enviar.</p>
         <form id="form-cita" novalidate>
           <div class="rejilla">
-            <div class="campo"><label for="c-nombre">Tu nombre *</label><input id="c-nombre" type="text" autocomplete="name" maxlength="120" required></div>
-            <div class="campo"><label for="c-telefono">Teléfono o WhatsApp *</label><input id="c-telefono" type="tel" autocomplete="tel" maxlength="30" required></div>
-            <div class="campo"><label for="c-email">Correo (opcional)</label><input id="c-email" type="email" autocomplete="email" maxlength="120"></div>
+            ${camposPaciente}
             <div class="campo"><label for="c-fecha">Fecha que prefieres *</label><input id="c-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" required></div>
             <fieldset class="campo campo--ancho">
               <legend>Horario que prefieres *</legend>
@@ -309,6 +378,13 @@
                 <label><input type="radio" name="turno" value="Cualquiera" checked> Cualquiera</label>
               </div>
             </fieldset>
+            ${camposFinales('Enviar solicitud')}
+        </form>`;
+    }
+
+    // Motivo, campo trampa, consentimiento y botón; cierra la rejilla.
+    function camposFinales(textoBoton) {
+      return `
             <div class="campo campo--ancho"><label for="c-motivo">¿Qué te gustaría atender? (opcional)</label><textarea id="c-motivo" maxlength="1000" placeholder="Describe brevemente lo que buscas"></textarea></div>
             <div class="trampa" aria-hidden="true"><label for="c-sitio">No llenar</label><input id="c-sitio" type="text" tabindex="-1" autocomplete="off"></div>
           </div>
@@ -316,37 +392,44 @@
             <input type="checkbox" id="c-consent">
             <label for="c-consent">Autorizo que CODE CELLS™ trate mis datos, incluida la información de salud que yo decida escribir, y la comparta con el médico que seleccioné, conforme al <a href="/aviso-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>. Puedo enviar mi solicitud sin marcar esta casilla; en ese caso no se guardará lo que escribí sobre lo que quiero atender.</label>
           </div>
-          <div class="acciones"><button type="submit" class="btn" id="c-enviar">Enviar solicitud</button></div>
-          <div class="error" id="c-error" role="alert"></div>
-        </form>`;
+          <div class="acciones"><button type="submit" class="btn" id="c-enviar">${textoBoton}</button></div>
+          <div class="error" id="c-error" role="alert"></div>`;
     }
 
     async function enviar(ev) {
       ev.preventDefault();
       const btn = document.getElementById('c-enviar');
       const err = document.getElementById('c-error');
+      const auto = !!(AGENDA && AGENDA.automatica);
+      const textoBoton = auto ? 'Agendar cita' : 'Enviar solicitud';
       const turno = (document.querySelector('input[name="turno"]:checked') || {}).value || '';
+      const hora = (document.querySelector('input[name="hora"]:checked') || {}).value || '';
       const datos = {
         medicoId: ID,
         nombre: document.getElementById('c-nombre').value.trim(),
         telefono: document.getElementById('c-telefono').value.trim(),
         email: document.getElementById('c-email').value.trim(),
         fechaPreferida: document.getElementById('c-fecha').value,
-        turno,
+        ...(auto ? { hora } : { turno }),
         motivo: document.getElementById('c-motivo').value.trim(),
         consentimiento: document.getElementById('c-consent').checked,
         sitio: document.getElementById('c-sitio').value,
       };
       if (!datos.nombre || !datos.telefono) { err.textContent = 'Escribe tu nombre y teléfono.'; return; }
-      if (!datos.fechaPreferida) { err.textContent = 'Elige la fecha que prefieres.'; return; }
+      if (!datos.fechaPreferida) { err.textContent = auto ? 'Elige el día.' : 'Elige la fecha que prefieres.'; return; }
+      if (auto && !hora) { err.textContent = 'Elige la hora.'; return; }
       err.textContent = '';
       btn.disabled = true;
-      btn.textContent = 'Enviando…';
+      btn.textContent = auto ? 'Agendando…' : 'Enviando…';
       try {
         const r = await fetch('/api/citas?accion=solicitar', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
         });
         const d = await r.json().catch(() => ({}));
+        // Alguien más tomó ese horario: se refrescan los espacios del día.
+        if (r.status === 409 && auto && Array.isArray(d.espacios)) {
+          document.getElementById('c-espacios').innerHTML = htmlEspacios({ espacios: d.espacios, siguientes: AGENDA.siguientes }, datos.fechaPreferida);
+        }
         if (!r.ok) throw new Error(d.error || 'No pudimos enviar tu solicitud. Intenta de nuevo.');
         if (d.token) guardar('cc_visitante', d.token);
         const liga = `${location.origin}/directorio/solicitud.html#id=${encodeURIComponent(d.id)}&c=${encodeURIComponent(d.clave)}`;
@@ -359,26 +442,33 @@
         // "enviada" reemplaza al formulario.
         const ct = await cargarContactos();
         render(ct);
-        mostrarEnviada(liga);
+        mostrarEnviada(liga, d);
         document.getElementById('solicitar').scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (e) {
         err.textContent = e.message;
         btn.disabled = false;
-        btn.textContent = 'Enviar solicitud';
+        btn.textContent = textoBoton;
       }
     }
 
-    function mostrarEnviada(liga) {
+    function mostrarEnviada(liga, d) {
       const nombre = (MEDICO.fields || {})['Name'] || 'el médico';
-      const textoWa = encodeURIComponent('Mi solicitud de cita en CODE CELLS: ' + liga);
+      // Solo se dice "confirmada" si el servidor la guardó como Aceptada con horario.
+      const confirmada = d && d.estado === 'Aceptada' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(d.horario || '');
+      const textoWa = encodeURIComponent((confirmada ? 'Mi cita en CODE CELLS: ' : 'Mi solicitud de cita en CODE CELLS: ') + liga);
+      const cabecera = confirmada
+        ? `<h2>Cita confirmada</h2>
+          <p class="nota">Tu cita con ${esc(nombre)} es el <strong>${esc(fechaLarga(d.horario.slice(0, 10)))} a las ${esc(horaCorta(d.horario.slice(11)))}</strong>. Si no puedes asistir, cancélala desde la liga de abajo para liberar el espacio.</p>
+          <p style="margin:0;color:var(--ink-muted);font-size:14px">Guarda esta liga. Es personal: quien la tenga puede ver y cancelar tu cita.</p>`
+        : `<h2>Solicitud enviada</h2>
+          <p class="nota">Tu solicitud llegó a ${esc(nombre)}. <strong>Todavía no es una cita confirmada.</strong> La respuesta del médico (aceptarla, proponerte otro horario o avisarte si no puede) aparecerá en la liga de abajo; el médico también puede llamarte o escribirte.</p>
+          <p style="margin:0;color:var(--ink-muted);font-size:14px">Guarda esta liga para ver la respuesta. Es personal: quien la tenga puede ver y cancelar tu solicitud.</p>`;
       document.getElementById('solicitar').innerHTML = `
         <div class="enviada">
-          <h2>Solicitud enviada</h2>
-          <p class="nota">Tu solicitud llegó a ${esc(nombre)}. <strong>Todavía no es una cita confirmada.</strong> La respuesta del médico (aceptarla, proponerte otro horario o avisarte si no puede) aparecerá en la liga de abajo; el médico también puede llamarte o escribirte.</p>
-          <p style="margin:0;color:var(--ink-muted);font-size:14px">Guarda esta liga para ver la respuesta. Es personal: quien la tenga puede ver y cancelar tu solicitud.</p>
+          ${cabecera}
           <div class="liga" id="liga-texto">${esc(liga)}</div>
           <div class="botones">
-            <a class="btn-sec" href="${esc(liga)}">Ver estado de mi solicitud</a>
+            <a class="btn-sec" href="${esc(liga)}">${confirmada ? 'Ver mi cita' : 'Ver estado de mi solicitud'}</a>
             <button type="button" class="btn-sec" id="btn-copiar">Copiar liga</button>
             <a class="btn-sec" href="https://wa.me/?text=${textoWa}" target="_blank" rel="noopener">${ICONOS.whatsapp} Enviármela por WhatsApp</a>
           </div>
@@ -390,6 +480,13 @@
     }
 
     document.addEventListener('submit', ev => { if (ev.target.id === 'form-cita') enviar(ev); });
+    document.addEventListener('change', ev => {
+      if (ev.target.id === 'c-fecha' && AGENDA && AGENDA.automatica && ev.target.value) elegirFecha(ev.target.value);
+    });
+    document.addEventListener('click', ev => {
+      const b = ev.target.closest('.btn-dia');
+      if (b) elegirFecha(b.dataset.fecha);
+    });
     cargar();
   </script>
 </body>
