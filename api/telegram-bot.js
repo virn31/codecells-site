@@ -529,7 +529,7 @@ module.exports = async (req, res) => {
     if (process.env.VERCEL_ENV !== 'preview' || !process.env.TELEGRAM_BOT_PRUEBA) {
       return res.status(403).json({ error: 'Solo disponible en Preview con bot de prueba.' });
     }
-    const api = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
+    const api = `https://api.telegram.org/bot${require('../lib/telegram').TOKEN_BOT}`;
     const yo = await fetch(`${api}/getMe`).then(r => r.json()).catch(() => ({}));
     const usuario = yo && yo.result && yo.result.username;
     if (!usuario || usuario.toLowerCase() !== String(process.env.TELEGRAM_BOT_PRUEBA).replace(/^@/, '').toLowerCase()) {
