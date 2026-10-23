@@ -9,7 +9,7 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-22 — etapa 2 del directorio hecha (ficha por médico + solicitud de cita).
+**Última actualización:** 2026-10-23 — etapa 2 del directorio hecha y revisada por Víctor en Preview ("todo quedó muy bien").
 
 ---
 
@@ -17,7 +17,9 @@
 
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
 
-Siguiente: **Víctor prueba la etapa 2 en Preview** y luego **Etapa 3** (cobro + pruebas de punta a punta + abogado). Para la etapa 3 hacen falta sus decisiones #2 (precio fundador) y la forma de cobro (§4.1).
+Siguiente: **Etapa 3** (cobro + pruebas de punta a punta + abogado). Víctor ya revisó la etapa 2 en Preview (2026-10-23) y la aprobó. Para arrancar la etapa 3 hacen falta sus decisiones #2 (precio fundador; recomendación $800 congelado) y la forma de cobro (Stripe / Mercado Pago / transferencia, ¿factura?) (§4.1).
+
+Nota: el perfil de Víctor en la base de prueba (`rec1upfZfkftncHii`, "Dr. Rodriguez") está en **Borrador**: le falta especialidad y su consentimiento. No se publicó por él (no se fabrica consentimiento ni especialidad); si quiere probar como médico con su código, lo hace él desde "Mi directorio" → Solicitar publicación → aprobar en `/admin-directorio.html`.
 
 Cómo probar en Preview (https://codecells-site-git-feat-directorio-codecells.vercel.app):
 - `/directorio/` → nombre o "Solicitar cita" → ficha `/directorio/medico.html?id=…` → formulario → liga de seguimiento `/directorio/solicitud.html#id=…&c=…`.
