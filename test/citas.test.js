@@ -215,3 +215,10 @@ test('responder: 401 sin sesión, 403 si la solicitud es de otro perfil, aceptar
   assert.strictEqual(ok.status, 200);
   assert.strictEqual(ok.data.solicitud.estado, 'Aceptada');
 });
+
+test('textoTurno: la franja nunca se confunde con "mañana" = día siguiente', () => {
+  const C = require('../lib/citas');
+  assert.equal(C.textoTurno('Mañana'), 'por la mañana');
+  assert.equal(C.textoTurno('Tarde'), 'por la tarde');
+  assert.equal(C.textoTurno('Cualquiera'), 'a cualquier hora');
+});

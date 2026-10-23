@@ -19,7 +19,7 @@
 
 Siguiente: **Etapa 3** (cobro + pruebas de punta a punta + abogado). Víctor ya revisó la etapa 2 en Preview (2026-10-23) y la aprobó. Para arrancar la etapa 3 hacen falta sus decisiones #2 (precio fundador; recomendación $800 congelado) y la forma de cobro (Stripe / Mercado Pago / transferencia, ¿factura?) (§4.1).
 
-Nota: el perfil de Víctor en la base de prueba (`rec1upfZfkftncHii`, "Dr. Rodriguez") está en **Borrador**: le falta especialidad y su consentimiento. No se publicó por él (no se fabrica consentimiento ni especialidad); si quiere probar como médico con su código, lo hace él desde "Mi directorio" → Solicitar publicación → aprobar en `/admin-directorio.html`.
+Nota: Víctor publicó él mismo su perfil en la base de prueba (`rec1upfZfkftncHii`, aparece como "Dr. Rodriguez", Culiacán, Medicina Regenerativa + Cirugía Plástica). Su primera solicitud de prueba (2026-10-22, `recudd3onYdDJJHYY`) quedó ligada al perfil ficticio de **Bruno** (`recDk9rLagIn3PVyK`, también Culiacán + Cirugía Plástica), no al suyo: el código manda el id correcto (verificado: tarjeta → ficha → POST con `rec1upf…`), así que fue la ficha que abrió. Por eso no la ve en su portal. Su registro de médico no tiene `Telegram Chat ID`: sus avisos van al chat de respaldo. Corregido el aviso "(mañana)" → "por la mañana" (se leía como "el día de mañana").
 
 Cómo probar en Preview (https://codecells-site-git-feat-directorio-codecells.vercel.app):
 - `/directorio/` → nombre o "Solicitar cita" → ficha `/directorio/medico.html?id=…` → formulario → liga de seguimiento `/directorio/solicitud.html#id=…&c=…`.

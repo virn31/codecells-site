@@ -7836,6 +7836,8 @@ function htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar) {
 let miCitasEstado = { lista: [], nombrePublico: '' };
 const CITAS_ACTIVAS = ['Pendiente', 'Otro horario propuesto', 'Aceptada', 'Confirmada por el paciente'];
 
+// Igual que lib/citas.js: "(mañana)" junto a una fecha se lee como "el día de mañana".
+function textoTurnoMiDir(t) { return ({ 'Mañana': 'por la mañana', 'Tarde': 'por la tarde', 'Cualquiera': 'a cualquier hora' })[t] || String(t || '').toLowerCase(); }
 function fechaCitaMiDir(ymd) {
   if (!ymd) return '';
   try { return new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }); }
@@ -7882,7 +7884,7 @@ function htmlCitaMiDir(s) {
         <span class="mi-cita-nombre">${escaparHtml(s.nombre || 'Sin nombre')}</span>
         <span class="mi-cita-chip${pendiente ? ' pendiente' : ok ? ' ok' : ''}">${escaparHtml(s.esCita ? s.estado : 'Contacto (formato anterior)')}</span>
       </div>
-      ${s.fechaPreferida ? `<div class="mi-cita-dato">Prefiere: <b>${escaparHtml(fechaCitaMiDir(s.fechaPreferida))}</b>${s.turno ? ' · ' + escaparHtml(s.turno.toLowerCase()) : ''}</div>` : ''}
+      ${s.fechaPreferida ? `<div class="mi-cita-dato">Prefiere: <b>${escaparHtml(fechaCitaMiDir(s.fechaPreferida))}</b>${s.turno ? ', ' + escaparHtml(textoTurnoMiDir(s.turno)) : ''}</div>` : ''}
       ${s.horario ? `<div class="mi-cita-dato">${s.estado === 'Otro horario propuesto' ? 'Propusiste' : 'Horario acordado'}: <b>${escaparHtml(s.horario)}</b></div>` : ''}
       <div class="mi-cita-dato">Teléfono: <b>${escaparHtml(s.telefono || '—')}</b>${wa ? ` · <a href="${escaparHtml(wa)}" target="_blank" rel="noopener">Escribir por WhatsApp</a>` : ''}${s.email ? ' · ' + escaparHtml(s.email) : ''}</div>
       ${s.motivo ? `<div class="mi-cita-motivo"><span style="opacity:.7;font-size:11px">Lo escribió el paciente (con su autorización):</span>\n${escaparHtml(s.motivo)}</div>` : ''}

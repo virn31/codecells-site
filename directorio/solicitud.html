@@ -81,6 +81,8 @@
     const CLAVE = params.get('c') || '';
 
     const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    // Igual que lib/citas.js: "(mañana)" junto a una fecha se lee como "el día de mañana".
+    function textoTurno(t) { return ({ 'Mañana': 'por la mañana', 'Tarde': 'por la tarde', 'Cualquiera': 'a cualquier hora' })[t] || String(t || '').toLowerCase(); }
     function fechaLarga(ymd) {
       if (!ymd) return '';
       try { return new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }); }
@@ -136,7 +138,7 @@
         </div>
         ${s.mensaje ? `<div class="mensaje"><small>Mensaje del médico</small>${esc(s.mensaje)}</div>` : ''}
         <dl>
-          <dt>Pediste</dt><dd>${esc(fechaLarga(s.fechaPreferida))}${s.turno ? ' · ' + esc(s.turno.toLowerCase()) : ''}</dd>
+          <dt>Pediste</dt><dd>${esc(fechaLarga(s.fechaPreferida))}${s.turno ? ', ' + esc(textoTurno(s.turno)) : ''}</dd>
         </dl>
         <div class="botones">
           ${t.confirmar ? '<button class="btn" id="b-confirmar">Confirmar este horario</button>' : ''}

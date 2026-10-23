@@ -157,7 +157,7 @@ module.exports = async (req, res) => {
       const creado = await at(TBL_SOLICITUDES, { method: 'POST', body: JSON.stringify({ fields }) });
 
       const destino = await avisarMedico(perfil,
-        `CODE CELLS: tienes una nueva solicitud de cita para el ${fechaCorta(d.fechaPreferida)} (${d.turno.toLowerCase()}). Revísala en tu portal → Mi directorio.`);
+        `CODE CELLS: tienes una nueva solicitud de cita para el ${fechaCorta(d.fechaPreferida)}, ${C.textoTurno(d.turno)}. Revísala en tu portal → Mi directorio.`);
       try { await at(`${TBL_SOLICITUDES}/${creado.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { 'Alerta enviada a': destino } }) }); }
       catch (e) { console.error('[citas] no se registró el destino del aviso:', e.message); }
 
