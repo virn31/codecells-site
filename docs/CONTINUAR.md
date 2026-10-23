@@ -9,13 +9,18 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-23 (noche) — agenda de Google conectada por enlace (OAuth) desde Telegram; prueba real con la agenda de Víctor pendiente de 4 pasos suyos.
+**Última actualización:** 2026-10-23 — PRUEBA REAL con la agenda de Víctor: FUNCIONÓ (Google Calendar conectado desde @CodeCellsPruebaBot, cita agendada y anotada en su calendario).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
+
+**PRUEBA REAL 2026-10-23 — OK.** Bot de prueba **@CodeCellsPruebaBot** (token en `TELEGRAM_BOT_TOKEN_PRUEBA`, Preview, rama feat/directorio; webhook a Preview con el bypass de Vercel que creó Víctor). Víctor conectó su agenda real (correo de agenda) desde Telegram, configuró horario, agendó como paciente en su ficha ("Dr. Rodriguez") → cita Aceptada 2026-10-26 12:00, evento creado en su Google Calendar, aviso por Telegram. Confirmado por Víctor: "todo funcionando".
+- Hallazgo de la prueba (corregido en `0c31001`): Google deja la casilla del calendario SIN marcar → daba solo el correo (403 insufficient scopes). Ahora se detecta y el paso 3 del bot pide marcarla.
+- Falta probar en vivo: cancelar desde la liga del paciente (debe borrar el evento) y un bloqueo por texto libre.
+- Antes de abrir a otros médicos: **verificación de Google** de la app (scope de calendario sensible: sin verificar sale aviso "app no verificada" y hay tope de 100 usuarios); al terminar pruebas, revocar el bypass de Vercel o dejarlo solo para Preview; el evento lleva nombre y teléfono del paciente (pendiente legal).
 
 **Estado 2026-10-23 (noche) — Google Calendar conectado a la agenda automática (para la prueba real de Víctor con SU agenda).**
 - Víctor quiere probar con su agenda diaria (correo exclusivo de agenda en Google). Se descartó pedir correo+contraseña (CODE CELLS nunca ve la contraseña; Google lo bloquea): el bot manda en mensajes cortos los pasos y un botón-enlace → página de Google → "Permitir" (OAuth). `/conectar` en Telegram; `/agenda` lo ofrece primero si no está conectada.
