@@ -22,7 +22,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { autorizarPaciente, ErrorAutorizacion } = require('../lib/autorizacion');
 const { camposParaColega } = require('../lib/camposMedico');
-const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { CONGELADO, congelado, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 const directorio = require('../lib/directorio');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
@@ -346,7 +346,8 @@ module.exports = async (req, res) => {
     // CONGELAMIENTO 2026-08-24 (instrucción legal): formulario de contacto
     // del directorio — el que estampa versión de aviso de privacidad. Se
     // rechaza antes de tocar Airtable. Ver lib/congelamientoDatosPersonales.js.
-    if (CONGELADO) return respuestaCongelada(res);
+    // Es del directorio: se abre con DESCONGELAR_AREAS=directorio.
+    if (congelado('directorio')) return respuestaCongelada(res);
     const b = req.body || {};
     const nombre = String(b.nombre || '').trim().slice(0, 120);
     const telefono = String(b.telefono || '').trim().slice(0, 30);
@@ -1236,7 +1237,10 @@ module.exports = async (req, res) => {
   // (esEscrituraPreAuth), que no tienen bloque propio y caen aquí. La
   // lectura (GET) sigue funcionando sin cambios. Ver
   // lib/congelamientoDatosPersonales.js.
-  if (CONGELADO && req.method !== 'GET') return respuestaCongelada(res);
+  // El perfil del médico en el directorio se abre con el área 'directorio';
+  // todo lo demás (pacientes, expediente, VIP…) sigue con CONGELADO.
+  const congeladoAqui = tabla === 'directorio_medico' ? congelado('directorio') : CONGELADO;
+  if (congeladoAqui && req.method !== 'GET') return respuestaCongelada(res);
 
   // ── Reenvío real a Airtable ──
   try {

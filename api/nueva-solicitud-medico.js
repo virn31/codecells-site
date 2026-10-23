@@ -9,7 +9,8 @@
 // acotados — no expone lectura ni el secreto de alertas.
 
 const { sendTelegramMessage } = require('../lib/telegram');
-const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { congelado, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const CONGELADO = congelado('afiliacion'); // área descongelable por separado
 
 const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';

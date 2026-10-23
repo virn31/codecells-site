@@ -14,6 +14,7 @@
 // registro de otro médico.
 
 const G = require('../lib/google-agenda');
+const { congelado } = require('../lib/congelamientoDatosPersonales');
 const { despuesDeConectarGoogle } = require('../lib/agenda-telegram');
 
 const AIRTABLE_BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
@@ -81,6 +82,10 @@ module.exports = async (req, res) => {
   }
   if (!code || !datos) {
     return responder(res, false, 'El enlace caducó o está incompleto. Pide uno nuevo: en Telegram escribe /conectar.', deTelegram);
+  }
+  // Guarda un permiso en el registro del médico: área 'directorio' del congelamiento.
+  if (congelado('directorio')) {
+    return responder(res, false, 'Estamos actualizando nuestro aviso de privacidad. La conexión de agendas no está disponible temporalmente.', deTelegram);
   }
 
   try {

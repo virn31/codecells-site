@@ -20,7 +20,8 @@
 // fallo de Airtable se responde como fallo (502).
 
 const { verificarToken, tokenDesdeRequest, generarTokenVisitante } = require('../lib/auth');
-const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { congelado, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const CONGELADO = congelado('directorio'); // área descongelable por separado
 const { sendTelegramMessage } = require('../lib/telegram');
 const C = require('../lib/citas');
 const A = require('../lib/agenda');

@@ -18,7 +18,8 @@
 // un fallo de Airtable se responde como fallo (502), nunca como "sin datos".
 
 const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
-const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { congelado, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const CONGELADO = congelado('directorio'); // área descongelable por separado
 const { sendTelegramMessage } = require('../lib/telegram');
 const D = require('../lib/directorio');
 
