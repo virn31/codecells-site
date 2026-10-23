@@ -17,7 +17,14 @@
 
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
 
-Siguiente: **Etapa 3** (cobro + pruebas de punta a punta + abogado). Víctor ya revisó la etapa 2 en Preview (2026-10-23) y la aprobó. Para arrancar la etapa 3 hacen falta sus decisiones #2 (precio fundador; recomendación $800 congelado) y la forma de cobro (Stripe / Mercado Pago / transferencia, ¿factura?) (§4.1).
+**NUEVO 2026-10-23 — visión de Víctor: agenda automática (propuesta "etapa 2b", antes del cobro).** El médico no debería hacer nada:
+- NOVA revisa la agenda del médico; al paciente se le muestran los **horarios libres** del día que pide y la cita queda agendada sola (sin "Pendiente").
+- El médico le escribe a NOVA por mensajería (Víctor dijo **Instagram**; se recomendó **Telegram**, que ya existe: bot + `api/telegram-bot.js`; Instagram exige API de Meta Business + revisión de app): "NOVA, estaré fuera del 5 al 10 de noviembre" → se registra el bloqueo.
+- Reglas propuestas: NOVA **repite lo que entendió y pide confirmación** antes de bloquear (fechas mal leídas = citas mal dadas); si ya hay citas en esas fechas, avisa y no las cancela sola; el modo manual actual queda como opción por médico.
+- Piezas: horario semanal por médico (días, horas, duración de consulta), tabla de bloqueos, cálculo de espacios libres, reserva sin choques, comandos de NOVA por Telegram. Google Calendar después (memoria agenda-modulo-no-funcional).
+- Pendiente de Víctor: confirmar Telegram vs Instagram, duración de consulta por defecto, y si la cita se confirma sola o el médico puede activar "revisar antes".
+
+Siguiente (después de 2b o si Víctor prefiere cobro primero): **Etapa 3** (cobro + pruebas de punta a punta + abogado). Víctor ya revisó la etapa 2 en Preview (2026-10-23) y la aprobó. Para arrancar la etapa 3 hacen falta sus decisiones #2 (precio fundador; recomendación $800 congelado) y la forma de cobro (Stripe / Mercado Pago / transferencia, ¿factura?) (§4.1).
 
 Nota: Víctor publicó él mismo su perfil en la base de prueba (`rec1upfZfkftncHii`, aparece como "Dr. Rodriguez", Culiacán, Medicina Regenerativa + Cirugía Plástica). Su primera solicitud de prueba (2026-10-22, `recudd3onYdDJJHYY`) quedó ligada al perfil ficticio de **Bruno** (`recDk9rLagIn3PVyK`, también Culiacán + Cirugía Plástica), no al suyo: el código manda el id correcto (verificado: tarjeta → ficha → POST con `rec1upf…`), así que fue la ficha que abrió. Por eso no la ve en su portal. Su registro de médico no tiene `Telegram Chat ID`: sus avisos van al chat de respaldo. Corregido el aviso "(mañana)" → "por la mañana" (se leía como "el día de mañana").
 
