@@ -9,13 +9,23 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-23 — etapa 2b (agenda automática con NOVA por Telegram) hecha en la rama; falta probar el Telegram en vivo.
+**Última actualización:** 2026-10-23 (noche) — agenda de Google conectada por enlace (OAuth) desde Telegram; prueba real con la agenda de Víctor pendiente de 4 pasos suyos.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
+
+**Estado 2026-10-23 (noche) — Google Calendar conectado a la agenda automática (para la prueba real de Víctor con SU agenda).**
+- Víctor quiere probar con su agenda diaria (correo exclusivo de agenda en Google). Se descartó pedir correo+contraseña (CODE CELLS nunca ve la contraseña; Google lo bloquea): el bot manda en mensajes cortos los pasos y un botón-enlace → página de Google → "Permitir" (OAuth). `/conectar` en Telegram; `/agenda` lo ofrece primero si no está conectada.
+- `lib/google-agenda.js`: state FIRMADO (HMAC con llave derivada; antes el state era el código CCMED- en claro → cualquiera podía ligar su Google a otro médico), freeBusy (solo horas ocupadas), crear/borrar evento, zonas horarias. `api/google-oauth-callback.js` reescrito (`?iniciar=` redirige a Google; regreso guarda el permiso y el bot sigue la conversación). Portal: el botón de Google pide el enlace firmado a `/api/directorio?accion=google_enlace`.
+- Agenda: lo ocupado en Google no se ofrece; cada cita (automática, aceptada a mano o confirmada por el paciente) se anota en su Google Calendar (`Evento Google` en SOLICITUDES); cancelar/rechazar la borra. Si Google no responde → 503 (no se ofrecen espacios a ciegas). Si el permiso se retiró → se borra, se PAUSA la agenda automática y se avisa al médico.
+- Cuestionario: nueva primera pregunta, zona horaria (Culiacán = Pacífico, UTC-7).
+- Seguridad traída de `feat/paciente-unico`: cherry-pick de `a72c134` (el refresh token y la passphrase nunca salen del servidor).
+- Pruebas 143/143; punta a punta con Google y Telegram simulados (14 pasos OK).
+- **Para la prueba real faltan 4 pasos de Víctor** (no los puedo hacer: permisos/cuentas suyas): (1) push; (2) Vercel → Settings → Deployment Protection → Protection Bypass for Automation → crear (la MCP dio 403); (3) Google Cloud Console → credencial OAuth → agregar redirect `https://codecells-site-git-feat-directorio-codecells.vercel.app/api/google-oauth-callback` (y si la pantalla de consentimiento está en "Testing", agregar su correo de agenda como usuario de prueba); (4) @BotFather → bot de prueba → su token en Vercel como `TELEGRAM_BOT_TOKEN` (Preview, rama feat/directorio, Sensitive) y decirme el @usuario del bot. Luego yo: `TELEGRAM_BOT_PRUEBA=@usuario`, redeploy y `GET /api/telegram-bot?accion=registrar_webhook` (vía MCP de Vercel). Ya creadas (rama feat/directorio): `GOOGLE_REDIRECT_URI`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_PRUEBA=1` (con "1" el registro se niega a propósito).
+- Pendiente legal: el evento en Google lleva nombre y teléfono del paciente (no el motivo) → agregar al expediente del abogado / aviso de privacidad.
 
 **Estado 2026-10-23 — etapa 2b HECHA (agenda automática).** Decisiones de Víctor: Telegram (no Instagram), consulta de 30 min por defecto, la cita se confirma sola, configuración por cuestionario de botones en Telegram.
 - `lib/agenda.js` (espacios libres, bloqueos, choques), `lib/agenda-asistente.js` (cuestionario con botones = máquina de estados; lectura de bloqueos con Claude `claude-sonnet-5-5` + validación), `lib/agenda-telegram.js` (/agenda, /bloqueos, /citas, texto libre → confirmar con botón). `api/telegram-bot.js` solo enruta (botones `ag:` antes del filtro de médico maestro).
@@ -139,6 +149,8 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 ## 4b. Antes de fusionar a `main`
 
 **Directorio (etapa 1) — crear en producción DIRECTORIO_MEDICO antes de fusionar** (ya existen en prueba, mismos nombres): `Estado de publicación` (selección: Borrador, En revisión, Publicado, Rechazado, Despublicado), `Cambios sin revisar` (casilla), `Consentimiento — versión`, `Consentimiento — fecha` (fecha y hora), `Consentimiento — IP`, `Consentimiento — navegador`, `Consentimiento — huella`, `Revisado por`, `Fecha de revisión` (fecha y hora), `Motivo de rechazo` (texto largo), `Historial de publicación` (texto largo). Sin ellos, crear o editar un perfil en producción falla (UNKNOWN_FIELD_NAME).
+**Google — crear en producción SOLICITUDES_PACIENTE `Evento Google`** (texto de una línea). Y en Google Cloud el redirect de producción ya existe (`https://www.codecells.mx/api/google-oauth-callback`).
+
 **Etapa 2b — crear en producción DIRECTORIO_MEDICO** (ya existen en prueba): `Agenda — horario` (texto largo), `Agenda — bloqueos` (texto largo), `Agenda — asistente` (texto largo), `Agenda — automática` (casilla). No están en la lista pública de campos (no rompen el directorio si faltan), pero sin ellos `/agenda` en Telegram falla al guardar.
 
 **Etapa 2 — crear en producción SOLICITUDES_PACIENTE** (ya existen en prueba): `Fecha preferida` (fecha ISO), `Turno preferido` (selección: Mañana, Tarde, Cualquiera), `Estado de cita` (selección: Pendiente, Aceptada, Otro horario propuesto, Confirmada por el paciente, Rechazada, Cancelada por el paciente), `Horario acordado` (texto de una línea), `Mensaje del médico` (texto largo), `Clave de seguimiento — huella` (texto de una línea), `Historial de la solicitud` (texto largo). Sin ellos, solicitar cita falla con 502.

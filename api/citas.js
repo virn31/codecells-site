@@ -24,6 +24,7 @@ const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPers
 const { sendTelegramMessage } = require('../lib/telegram');
 const C = require('../lib/citas');
 const A = require('../lib/agenda');
+const G = require('../lib/google-agenda');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TBL_SOLICITUDES = 'tblUsc72JO2BaqT6d';
@@ -128,6 +129,76 @@ function agendaDePerfil(perfil) {
   };
 }
 
+// Permiso de Google Calendar del médico dueño del perfil (solo servidor).
+async function googleDelPerfil(perfil) {
+  const medId = ((perfil && perfil.fields && perfil.fields['Médico']) || [])[0];
+  if (!medId) return null;
+  const m = await at(`${TBL_MEDICOS}/${medId}`);
+  const refresh = m.fields && m.fields['Google Calendar Refresh Token'];
+  return refresh ? { refresh, email: m.fields['Google Calendar Email'] || '' } : null;
+}
+
+// Bloques ocupados en el Google Calendar del médico. Si Google no responde,
+// se FALLA (no se ofrecen espacios que podrían estar ocupados).
+async function ocupadoEnGoogle(perfil, horario, desde, hasta) {
+  const g = await googleDelPerfil(perfil);
+  if (!g) return {};
+  try {
+    return await G.ocupadoGoogle(g.refresh, { desde, hasta, zona: horario.zona });
+  } catch (e) {
+    console.error('[citas] Google Calendar:', e.message);
+    if (e.revocado) {
+      // El médico (o Google) retiró el permiso: no se puede saber qué tiene
+      // ocupado. Se pausa la agenda automática (los pacientes vuelven a
+      // enviar solicitudes) y se le avisa UNA vez (al borrar el permiso, la
+      // siguiente consulta ya no entra aquí).
+      try {
+        await at(`${TBL_MEDICOS}/${perfil.fields['Médico'][0]}`, { method: 'PATCH', body: JSON.stringify({ fields: { 'Google Calendar Refresh Token': '', 'Google Calendar Email': '' } }) });
+        await at(`${TBL_DIRECTORIO}/${perfil.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { [A.CAMPOS.AUTOMATICA]: false } }) });
+        await avisarMedico(perfil, '⚠️ Tu Google Calendar se desconectó (se retiró el permiso). Pausé tu agenda automática para no darte citas encima: mientras tanto los pacientes te envían solicitudes. Escribe /conectar en Telegram para reconectarla y /agenda para reactivarla.');
+      } catch (e2) { console.error('[citas] al pausar por permiso retirado:', e2.message); }
+    }
+    const err = new Error('No pudimos consultar la agenda del médico en este momento. Intenta de nuevo en unos minutos.');
+    err.http = 503;
+    throw err;
+  }
+}
+
+// Evento en el Google Calendar del médico para una cita agendada. Un fallo
+// aquí NO deshace la cita (ya está confirmada al paciente): se anota en el
+// historial y se avisa al médico.
+async function anotarEnGoogle(perfil, horario, rec, datos) {
+  const g = await googleDelPerfil(perfil).catch(() => null);
+  if (!g) return null;
+  try {
+    const [fecha, hora] = datos.horario.split(' ');
+    const id = await G.crearEventoCita(g.refresh, {
+      fecha, hora, duracion: horario.duracion, zona: horario.zona,
+      titulo: `Cita: ${datos.nombre} (CODE CELLS)`,
+      descripcion: `Tel.: ${datos.telefono}\nAgendada por NOVA desde el directorio CODE CELLS.\nDetalles en tu portal → Mi directorio.`,
+    });
+    await at(`${TBL_SOLICITUDES}/${rec.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { 'Evento Google': id } }) });
+    return id;
+  } catch (e) {
+    console.error('[citas] no se pudo anotar en Google:', e.message);
+    await avisarMedico(perfil, `⚠️ NOVA agendó una cita el ${fechaCorta(datos.horario.slice(0, 10))} a las ${A.horaCorta(datos.horario.slice(11))}, pero NO pude anotarla en tu Google Calendar (${e.message}). Anótala tú o escribe /conectar.`);
+    return null;
+  }
+}
+
+async function quitarDeGoogle(rec) {
+  const evento = rec.fields && rec.fields['Evento Google'];
+  const perfilId = ((rec.fields && rec.fields['Médico solicitado']) || [])[0];
+  if (!evento || !perfilId) return;
+  try {
+    const perfil = await at(`${TBL_DIRECTORIO}/${perfilId}`);
+    const g = await googleDelPerfil(perfil);
+    if (g) await G.borrarEvento(g.refresh, evento);
+  } catch (e) {
+    console.error('[citas] no se pudo quitar el evento de Google:', e.message);
+  }
+}
+
 // Citas que ocupan agenda de ESTE perfil. La liga no se filtra por id en
 // fórmula (CLAUDE.md §8): se trae lo que ocupa y se filtra aquí.
 async function citasQueOcupan(perfilId) {
@@ -166,12 +237,14 @@ module.exports = async (req, res) => {
       const ocupadosMapa = A.ocupadosPorFecha(await citasQueOcupan(medicoId));
       const manana = C.sumarDias(C.fechaMexico(ahora), 1);
       const conFecha = A.fechaValida(fecha);
+      const desde = conFecha && fecha > manana ? fecha : manana;
+      const rangosMapa = await ocupadoEnGoogle(perfil, ag.horario, conFecha && fecha < desde ? fecha : desde, C.sumarDias(desde, 30));
       return res.status(200).json({
         automatica: true,
         duracion: ag.horario.duracion,
         fecha: conFecha ? fecha : null,
-        espacios: conFecha ? A.espaciosLibres({ fecha, horario: ag.horario, bloqueos: ag.bloqueos, ocupados: ocupadosMapa[fecha], ahora }) : [],
-        siguientes: A.proximasFechasConEspacio({ desde: conFecha && fecha > manana ? fecha : manana, horario: ag.horario, bloqueos: ag.bloqueos, ocupadosMapa, ahora }),
+        espacios: conFecha ? A.espaciosLibres({ fecha, horario: ag.horario, bloqueos: ag.bloqueos, ocupados: ocupadosMapa[fecha], rangosOcupados: rangosMapa[fecha], ahora }) : [],
+        siguientes: A.proximasFechasConEspacio({ desde, horario: ag.horario, bloqueos: ag.bloqueos, ocupadosMapa, rangosMapa, ahora }),
       });
     }
 
@@ -201,7 +274,8 @@ module.exports = async (req, res) => {
       if (ag.automatica) {
         if (!hora) return res.status(400).json({ error: 'Elige uno de los horarios disponibles.' });
         const ocupados = A.ocupadosPorFecha(await citasQueOcupan(d.medicoId))[d.fechaPreferida];
-        const libres = A.espaciosLibres({ fecha: d.fechaPreferida, horario: ag.horario, bloqueos: ag.bloqueos, ocupados, ahora });
+        const rangosOcupados = (await ocupadoEnGoogle(perfil, ag.horario, d.fechaPreferida, d.fechaPreferida))[d.fechaPreferida];
+        const libres = A.espaciosLibres({ fecha: d.fechaPreferida, horario: ag.horario, bloqueos: ag.bloqueos, ocupados, rangosOcupados, ahora });
         if (!libres.includes(hora)) return res.status(409).json({ error: 'Ese horario ya no está disponible. Elige otro.', espacios: libres });
         horarioAgendado = `${d.fechaPreferida} ${hora}`;
       }
@@ -244,6 +318,7 @@ module.exports = async (req, res) => {
           return res.status(409).json({ error: 'Otro paciente acaba de tomar ese horario. Elige otro.',
             espacios: A.espaciosLibres({ fecha: d.fechaPreferida, horario: ag.horario, bloqueos: ag.bloqueos, ocupados, ahora }) });
         }
+        await anotarEnGoogle(perfil, ag.horario, creado, { horario: horarioAgendado, nombre: d.nombre, telefono: d.telefono });
       }
 
       const destino = await avisarMedico(perfil, horarioAgendado
@@ -288,10 +363,15 @@ module.exports = async (req, res) => {
         'Historial de la solicitud': agregarHistorial(rec.fields['Historial de la solicitud'], ahoraISO, t.estado, 'paciente'),
       };
       const act = await at(`${TBL_SOLICITUDES}/${id}`, { method: 'PATCH', body: JSON.stringify({ fields }) });
+      if (t.estado === C.ESTADOS_CITA.CANCELADA) await quitarDeGoogle(rec);
       const idPerfil = (rec.fields['Médico solicitado'] || [])[0];
       if (idPerfil) {
         try {
           const perfil = await at(`${TBL_DIRECTORIO}/${idPerfil}`);
+          if (t.estado === C.ESTADOS_CITA.CONFIRMADA) {
+            const ag = agendaDePerfil(perfil);
+            await anotarEnGoogle(perfil, ag.horario || { duracion: A.DURACION_DEFECTO }, act, { horario: act.fields['Horario acordado'], nombre: act.fields['Nombre del paciente'], telefono: act.fields['Teléfono/WhatsApp'] });
+          }
           await avisarMedico(perfil, t.estado === C.ESTADOS_CITA.CONFIRMADA
             ? `CODE CELLS: un paciente confirmó el horario que propusiste (${rec.fields['Horario acordado'] || 's/h'}). Revísalo en tu portal → Mi directorio.`
             : 'CODE CELLS: un paciente canceló su solicitud de cita. Revísalo en tu portal → Mi directorio.');
@@ -343,12 +423,20 @@ module.exports = async (req, res) => {
           'Historial de la solicitud': agregarHistorial(rec.fields['Historial de la solicitud'], ahoraISO, t.estado, sesion.codigo, horario || ''),
         };
         const act = await at(`${TBL_SOLICITUDES}/${id}`, { method: 'PATCH', body: JSON.stringify({ fields }) });
+        // Google Calendar del médico: la cita aceptada a mano también se anota;
+        // la cancelada se quita.
+        if (t.estado === C.ESTADOS_CITA.RECHAZADA) await quitarDeGoogle(rec);
+        if (t.estado === C.ESTADOS_CITA.ACEPTADA) {
+          const ag = agendaDePerfil(perfil);
+          await anotarEnGoogle(perfil, ag.horario || { duracion: A.DURACION_DEFECTO }, act, { horario, nombre: act.fields['Nombre del paciente'], telefono: act.fields['Teléfono/WhatsApp'] });
+        }
         return res.status(200).json({ ok: true, solicitud: resumenParaMedico(act) });
       }
     }
 
     return res.status(400).json({ error: 'Acción no reconocida.' });
   } catch (e) {
+    if (e.http === 503) return res.status(503).json({ error: e.message });
     if (e instanceof ErrorAirtable) {
       console.error('[citas]', accion, e.status, JSON.stringify(e.detalle).slice(0, 300));
       return res.status(502).json({ error: 'No pudimos completar la operación con la base de datos. Intenta de nuevo en un momento.' });

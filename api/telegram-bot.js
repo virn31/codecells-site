@@ -521,6 +521,31 @@ async function verificarEsMedicoMaestro(chatId) {
 const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';
 
 module.exports = async (req, res) => {
+  // Solo Preview: registra el webhook del bot de PRUEBA hacia esta rama. Se
+  // llama una vez (detrás de Vercel Authentication). Exige que el bot del
+  // token sea exactamente el nombrado en TELEGRAM_BOT_PRUEBA: así nunca se
+  // puede desviar por error el bot real de producción hacia Preview.
+  if (req.method === 'GET' && req.query && req.query.accion === 'registrar_webhook') {
+    if (process.env.VERCEL_ENV !== 'preview' || !process.env.TELEGRAM_BOT_PRUEBA) {
+      return res.status(403).json({ error: 'Solo disponible en Preview con bot de prueba.' });
+    }
+    const api = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
+    const yo = await fetch(`${api}/getMe`).then(r => r.json()).catch(() => ({}));
+    const usuario = yo && yo.result && yo.result.username;
+    if (!usuario || usuario.toLowerCase() !== String(process.env.TELEGRAM_BOT_PRUEBA).replace(/^@/, '').toLowerCase()) {
+      return res.status(409).json({ error: `El token de esta rama es del bot @${usuario || '?'}, no del bot de prueba esperado (${process.env.TELEGRAM_BOT_PRUEBA}). No se registró nada.` });
+    }
+    if (!process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+      return res.status(409).json({ error: 'Falta "Protection Bypass for Automation" en Vercel (Settings → Deployment Protection). Sin él, Telegram no puede entrar a Preview.' });
+    }
+    const destino = `https://${process.env.VERCEL_BRANCH_URL}/api/telegram-bot?x-vercel-protection-bypass=${encodeURIComponent(process.env.VERCEL_AUTOMATION_BYPASS_SECRET)}`;
+    const r = await fetch(`${api}/setWebhook`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: destino, secret_token: process.env.TELEGRAM_WEBHOOK_SECRET, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true }),
+    }).then(x => x.json()).catch(e => ({ ok: false, description: e.message }));
+    return res.status(r.ok ? 200 : 502).json({ ok: !!r.ok, bot: '@' + usuario, webhook: `https://${process.env.VERCEL_BRANCH_URL}/api/telegram-bot`, detalle: r.description || null });
+  }
+
   if (req.method !== 'POST') {
     return res.status(200).send('CODE CELLS™ Telegram bot activo.');
   }

@@ -80,17 +80,17 @@ function tocar(estado, data) {
 
 test('cuestionario: mismo horario con descanso → horario completo y válido', () => {
   let e = W.inicio();
-  for (const d of ['dia:1', 'dia:3', 'dia:5', 'dias:ok', 'dur:30', 'mismo:1', 'ini:540', 'fin:1200', 'desc:1', 'dini:840', 'dfin:960']) e = tocar(e, d).estado;
+  for (const d of ['zona:1', 'dia:1', 'dia:3', 'dia:5', 'dias:ok', 'dur:30', 'mismo:1', 'ini:540', 'fin:1200', 'desc:1', 'dini:840', 'dfin:960']) e = tocar(e, d).estado;
   assert.equal(e.paso, 'conf');
   const r = tocar(e, 'conf:si');
   assert.equal(r.terminado, true);
   const esperado = [['09:00', '14:00'], ['16:00', '20:00']];
-  assert.deepStrictEqual(r.horario, { duracion: 30, dias: { '1': esperado, '3': esperado, '5': esperado } });
+  assert.deepStrictEqual(r.horario, { duracion: 30, dias: { '1': esperado, '3': esperado, '5': esperado }, zona: 'America/Mazatlan' });
 });
 
 test('cuestionario: horario distinto por día recorre TODOS los días elegidos', () => {
   let e = W.inicio();
-  for (const d of ['dia:2', 'dia:6', 'dias:ok', 'dur:60', 'mismo:0']) e = tocar(e, d).estado;
+  for (const d of ['zona:0', 'dia:2', 'dia:6', 'dias:ok', 'dur:60', 'mismo:0']) e = tocar(e, d).estado;
   assert.match(W.render(e).texto, /Horario de Mar/);
   for (const d of ['ini:600', 'fin:840', 'desc:0']) e = tocar(e, d).estado;
   assert.equal(e.paso, 'ini');
@@ -103,6 +103,8 @@ test('cuestionario: horario distinto por día recorre TODOS los días elegidos',
 
 test('cuestionario: botones viejos, de otro paso o con valores no ofrecidos se rechazan', () => {
   let e = W.inicio();
+  assert.equal(W.aplicar(e, 'zona', '9').ok, false); // zona que no se ofreció
+  e = tocar(e, 'zona:0').estado;
   assert.equal(W.aplicar(e, 'dias', 'ok').ok, false); // sin días marcados
   e = tocar(e, 'dia:1').estado;
   assert.equal(W.aplicar(e, 'ini', '540').ok, false); // botón de otro paso
@@ -137,4 +139,33 @@ test('interpretarBloqueo: valida la salida del modelo y no adivina', async () =>
   assert.equal(r3.ok, false);
   const r4 = await W.interpretarBloqueo('gracias', { ahora: AHORA, fetchImpl: falso({ es_bloqueo: false }) });
   assert.equal(r4.noEsBloqueo, true);
+});
+
+// ── Agenda de Google ──────────────────────────────────────────────────
+const G = require('../lib/google-agenda');
+
+test('google: el enlace de conexión va firmado y caduca; no se puede cambiar el médico', () => {
+  process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret-no-es-real';
+  const ahora = Date.now();
+  const s = G.firmarEstado({ codigo: 'CCMED-QACARD', chat: 123 }, ahora);
+  assert.deepStrictEqual(G.leerEstado(s, ahora), { codigo: 'CCMED-QACARD', chat: '123' });
+  assert.equal(G.leerEstado(s, ahora + 31 * 60000), null); // caducó
+  const [p, f] = s.split('.');
+  const otro = Buffer.from(Buffer.from(p, 'base64url').toString().replace('QACARD', 'VIRN01')).toString('base64url');
+  assert.equal(G.leerEstado(`${otro}.${f}`, ahora), null); // alterado
+  assert.equal(G.leerEstado('CCMED-VIRN01', ahora), null); // el formato viejo (código suelto) ya no vale
+});
+
+test('google: ocupado de Google se reparte por día en hora local, incluso cruzando medianoche', () => {
+  // Sinaloa (UTC-7): 2026-10-26 16:00Z = 9:00 local; 2026-10-27 06:00Z = 23:00 del 26 → 02:00 del 27.
+  const m = G.ocupadosPorDia([
+    { start: '2026-10-26T16:00:00Z', end: '2026-10-26T17:30:00Z' },
+    { start: '2026-10-27T06:00:00Z', end: '2026-10-27T09:00:00Z' },
+  ], 'America/Mazatlan');
+  assert.deepStrictEqual(m, { '2026-10-26': [[540, 630], [1380, 1440]], '2026-10-27': [[0, 120]] });
+});
+
+test('espaciosLibres: lo ocupado en Google no se ofrece', () => {
+  const libres = A.espaciosLibres({ fecha: '2026-10-26', horario: HORARIO, bloqueos: [], ocupados: [], rangosOcupados: [[540, 630]], ahora: AHORA });
+  assert.deepStrictEqual(libres, ['10:30', '16:00', '16:30']);
 });

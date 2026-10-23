@@ -117,6 +117,12 @@ module.exports = async (req, res) => {
 
   try {
     // ── Médico ────────────────────────────────────────────────────────
+    // Enlace firmado para conectar su agenda de Google desde el portal
+    // (desde Telegram el bot arma el suyo: lib/agenda-telegram.js).
+    if (accion === 'google_enlace' && req.method === 'GET') {
+      return res.status(200).json({ url: require('../lib/google-agenda').enlaceConexion({ codigo, chat: null }) });
+    }
+
     if (accion === 'mi_estado' && req.method === 'GET') {
       const med = await medicoPorCodigo(codigo);
       if (!med) return res.status(404).json({ error: 'No encontramos tu registro de médico.' });

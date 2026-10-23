@@ -6534,19 +6534,15 @@ document.getElementById('btn-google-calendar').addEventListener('click', () => {
     showToast(`Ya tienes conectado: ${medicoActual['Google Calendar Email']}`, 'success');
     return;
   }
-  const GOOGLE_CLIENT_ID = '741625233877-n4i5n224o0mq7h2ao7cbnru470co7m9b.apps.googleusercontent.com';
-  const redirectUri = 'https://www.codecells.mx/api/google-oauth-callback';
-  const codigoMedico = medicoActual['Código de médico'] || medicoActual['codigo'];
-  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email',
-    access_type: 'offline',
-    prompt: 'consent',
-    state: codigoMedico,
-  }).toString();
-  window.location.href = authUrl;
+  // El enlace lo arma el servidor con un "state" firmado (antes era el código
+  // CCMED- en claro y cualquiera podía ligar su Google al registro de otro).
+  fetch('/api/directorio?accion=google_enlace')
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok || !d.url) throw new Error(d.error || 'No se pudo preparar la conexión.');
+      window.location.href = d.url;
+    })
+    .catch(e => showToast(e.message, 'error'));
 });
 document.getElementById('btn-nova-close').addEventListener('click', cerrarNova);
 novaOverlay.addEventListener('click', cerrarNova);
