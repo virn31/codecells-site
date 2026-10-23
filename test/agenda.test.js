@@ -169,3 +169,11 @@ test('espaciosLibres: lo ocupado en Google no se ofrece', () => {
   const libres = A.espaciosLibres({ fecha: '2026-10-26', horario: HORARIO, bloqueos: [], ocupados: [], rangosOcupados: [[540, 630]], ahora: AHORA });
   assert.deepStrictEqual(libres, ['10:30', '16:00', '16:30']);
 });
+
+test('google: se piden permisos mínimos y se detecta si el médico desmarcó el calendario', () => {
+  assert.ok(!G.SCOPES.split(' ').includes('https://www.googleapis.com/auth/calendar'), 'ya no se pide el calendario completo');
+  assert.equal(G.permisosSuficientes('https://www.googleapis.com/auth/userinfo.email openid'), false);
+  assert.equal(G.permisosSuficientes('https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email'), false);
+  assert.equal(G.permisosSuficientes('https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.events'), true);
+  assert.equal(G.permisosSuficientes('https://www.googleapis.com/auth/calendar'), true); // conexiones anteriores
+});
