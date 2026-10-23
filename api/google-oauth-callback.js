@@ -105,6 +105,16 @@ module.exports = async (req, res) => {
       return responder(res, false, motivo, deTelegram);
     }
 
+    // Google deja desmarcar el permiso del calendario (casillas en la pantalla
+    // de consentimiento): entonces da el correo pero no el calendario. No se
+    // guarda nada y se pide repetir marcando la casilla.
+    const concedidos = String(tokenData.scope || '').split(/\s+/);
+    if (!concedidos.includes('https://www.googleapis.com/auth/calendar')) {
+      const motivo = 'Google no compartió tu calendario: en la pantalla de Google hay que MARCAR la casilla "Ver, editar, compartir y borrar todos tus calendarios" antes de tocar "Continuar".';
+      if (deTelegram) await despuesDeConectarGoogle({ chat: datos.chat, ok: false, motivo }).catch(() => {});
+      return responder(res, false, motivo, deTelegram);
+    }
+
     const info = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     }).then(r => r.json()).catch(() => ({}));
