@@ -17,6 +17,9 @@
 
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
 
+**⏸ ETAPA 3 (cobro) DETENIDA — 2026-10-23, decisión de Víctor:** sin acta constitutiva de GALONAVA GROUP no se pueden abrir cuentas bancarias ni de pagos, así que no se construye el cobro todavía. Al retomarla, decidir: quién cobra/factura, medio (Mercado Pago recomendado; Stripe; SPEI manual), CFDI (automático recomendado), qué pasa si no paga (7 días de gracia y se oculta, recomendado). Precio ya decidido: Red $600/mes con IVA.
+El directorio tampoco se abre en producción hasta cumplir LFPDPPP (aviso de privacidad con domicilio fiscal + abogado, consentimientos).
+
 **Reglas de Víctor 2026-10-23:**
 - **Nada a producción hasta que TODO esté listo y probado** (ni siquiera el PR chico de privacidad para Google). Se prepara y se prueba en Preview; se publica junto.
 - **Lanzamiento con congelamiento por área:** abrir el directorio (página principal + directorio médico) y dejar congelado expediente, kiosco, labs y capacitación. Ya implementado (`lib/congelamientoDatosPersonales.js` → `congelado(area)`): en Vercel/production poner `DESCONGELAR_AREAS=directorio` (y `,afiliacion` si se abren altas de médicos nuevos por unete.html). NO usar `DESCONGELAR_PRODUCCION=true` (abre todo). La página principal no necesita descongelar nada: es estática y su único formulario de alta (test → expediente) está pausado de forma permanente desde agosto por falta de consentimiento.
