@@ -108,6 +108,13 @@
       color: var(--c-energy);
       border-color: rgba(232,163,61,0.4);
     }
+    /* M9: un médico que llega al directorio tiene por dónde pedir su alta. */
+    header .header-nav { display: flex; align-items: center; gap: 10px; }
+    header .header-cta--unete {
+      color: var(--c-energy);
+      border-color: rgba(232,163,61,0.4);
+    }
+    header .header-cta--unete:hover { background: rgba(232,163,61,0.1); }
 
     /* Hero */
     .hero {
@@ -470,10 +477,24 @@
     }
 
     @media (max-width: 720px) {
-      header { padding: 16px 20px; }
+      header { padding: 16px 20px; gap: 10px; }
+      header .header-nav { gap: 6px; }
+      header .header-cta { padding: 7px 12px; letter-spacing: 0.06em; font-size: 11px; }
       .hero { padding: 60px 20px 30px; }
       .filtros-wrap, .resumen, .medicos-grid, .mis-citas { padding-left: 20px; padding-right: 20px; }
       .filtros { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
+    }
+
+    @media (max-width: 420px) {
+      header .solo-ancho { display: none; }
+      header .logo, header .header-cta { white-space: nowrap; }
+      header .logo { font-size: 17px; }
+      header .header-cta { padding: 6px 10px; letter-spacing: 0.04em; }
+    }
+    @media (max-width: 360px) {
+      header { padding-left: 12px; padding-right: 12px; gap: 6px; }
+      header .header-nav { gap: 4px; }
+      header .logo { font-size: 15px; }
     }
 
     /* ─── Capa cinemática (mini-brief 2.5) ─── */
@@ -559,7 +580,10 @@
 
   <header>
     <a href="/" class="logo">CODE CELLS™</a>
-    <a href="/portal-medico.html" class="header-cta">Acceso médico</a>
+    <nav class="header-nav" aria-label="Para médicos">
+      <a href="/unete.html" class="header-cta header-cta--unete">Únete<span class="solo-ancho"> a la red</span></a>
+      <a href="/portal-medico.html" class="header-cta">Acceso médico</a>
+    </nav>
   </header>
 
   <section class="hero">

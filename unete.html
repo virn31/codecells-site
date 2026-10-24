@@ -118,13 +118,27 @@ ESTILO: español, profesional, cálido, sin sonar a formulario, ágil (una pregu
     if(el) el.remove();
   }
 
+  // Devuelve {ok, error}. Antes el error se tragaba y NOVA decía "tu
+  // solicitud quedó registrada" aunque no se hubiera guardado (p. ej. 503
+  // mientras la afiliación sigue congelada en producción).
   function guardarSolicitud(datos){
     if(preRecordId) datos.recordId = preRecordId;
-    fetch('/api/nueva-solicitud-medico', {
+    return fetch('/api/nueva-solicitud-medico', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(datos)
-    }).catch(function(){ /* no bloquear la conversación por un error de guardado */ });
+    }).then(function(r){
+      if(r.ok) return { ok: true };
+      return r.json().catch(function(){ return {}; }).then(function(j){
+        return { ok: false, error: (j && j.error) || ('El servidor respondió ' + r.status + '.') };
+      });
+    }).catch(function(){
+      return { ok: false, error: 'Hubo un problema de conexión.' };
+    });
+  }
+
+  function avisoSolicitudNoGuardada(error){
+    return 'No pude registrar tu solicitud. ' + error + ' Tus datos NO se guardaron; inténtalo de nuevo más tarde.';
   }
 
   function extraerTextoNova(data){
@@ -191,16 +205,29 @@ ESTILO: español, profesional, cálido, sin sonar a formulario, ágil (una pregu
       if(!resultado.texto) console.error('[NOVA] sin texto tras reintento. data:', JSON.stringify(resultado.data));
 
       var match = reply.match(/\[\[SOLICITUD:(\{.*?\})\]\]/);
-      if(match){
-        reply = reply.replace(match[0], '').trim();
-        try {
-          var datos = JSON.parse(match[1]);
-          guardarSolicitud(datos);
-        } catch(e) { /* marcador mal formado, se ignora */ }
+      if(!match){
+        novaHistory.push({ role:'assistant', content: reply });
+        renderNovaMessage(reply, 'nova');
+        return;
       }
-
-      novaHistory.push({ role:'assistant', content: reply });
-      renderNovaMessage(reply, 'nova');
+      // El texto de NOVA ya dice "quedó registrada": solo se muestra si de
+      // verdad se guardó.
+      reply = reply.replace(match[0], '').trim();
+      var datos;
+      try { datos = JSON.parse(match[1]); } catch(e) { datos = null; }
+      var guardado = datos
+        ? guardarSolicitud(datos)
+        : Promise.resolve({ ok: false, error: 'Los datos llegaron incompletos.' });
+      novaShowTyping();
+      return guardado.then(function(res){
+        novaHideTyping();
+        if(!res.ok){
+          console.error('[unete] solicitud no guardada:', res.error);
+          reply = avisoSolicitudNoGuardada(res.error);
+        }
+        novaHistory.push({ role:'assistant', content: reply });
+        renderNovaMessage(reply, 'nova');
+      });
     }).catch(function(err){
       novaHideTyping();
       var msg = (err && err.name === 'AbortError')
