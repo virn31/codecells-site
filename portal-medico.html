@@ -7652,6 +7652,12 @@ function renderMiDirFormulario() {
           <span class="mi-dir-saved">✓ Guardado</span>
           <div class="mi-dir-hint">10 dígitos. El paciente lo ve como botón "Llamar" después de enviar su solicitud.</div>
         </div>
+        <div class="mi-dir-field">
+          <label>Costo de la consulta (opcional)</label>
+          <input type="text" data-campo="Costo de consulta" value="${c['Costo de consulta'] ? escaparHtml(String(c['Costo de consulta'])) : ''}" placeholder="Ej. 800" maxlength="12" inputmode="numeric" autocomplete="off">
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">En pesos, sin centavos. Se muestra en tu ficha como "se paga en el consultorio": CODE CELLS no cobra ni interviene en el pago. Déjalo vacío si prefieres no mostrarlo.</div>
+        </div>
       </div>
 
       <div class="mi-dir-block">
@@ -7749,8 +7755,8 @@ async function guardarValorMiDir(campo, valor, campoContainer) {
     // ciudad: "Culiacan" → "Culiacán").
     const guardado = (d.fields && campo in d.fields) ? d.fields[campo] : valor;
     miDirEstado.campos[campo] = guardado;
-    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"], textarea[data-campo="Dirección del consultorio"]');
-    if (input && document.activeElement !== input) input.value = guardado || '';
+    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"], input[data-campo="Costo de consulta"], textarea[data-campo="Dirección del consultorio"]');
+    if (input && document.activeElement !== input) input.value = guardado == null ? '' : String(guardado);
     mostrarErrorMiDir(campoContainer, '');
     mostrarGuardadoMiDir(campoContainer);
   } catch (err) {

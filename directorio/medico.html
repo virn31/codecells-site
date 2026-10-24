@@ -231,6 +231,7 @@
       reloj: `<svg ${ICONO_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
       telefono: `<svg ${ICONO_ATR}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>`,
       candado: `<svg ${ICONO_ATR}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+      costo: `<svg ${ICONO_ATR}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>`,
     };
     // Íconos de línea propios (sin cargar logos de terceros).
     const REDES = [
@@ -307,6 +308,12 @@
       return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : String(t || '');
     }
 
+    // Costo de la consulta (opcional; se paga en el consultorio): 1200 → "$1,200 MXN".
+    function costoLegible(v) {
+      const n = Number(v);
+      return Number.isInteger(n) && n > 0 ? '$' + n.toLocaleString('en-US') + ' MXN' : '';
+    }
+
     function enlaceMapa(direccion, ciudad) {
       const partes = [String(direccion || '').split(/\n+/).map(x => x.trim()).filter(Boolean).join(', '), ciudad, 'México'].filter(Boolean);
       return partes.length > 1 ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(partes.join(', ')) : '';
@@ -373,6 +380,7 @@
       const filas = [
         esp && fila(ICONOS.especialidad, esp),
         f['Horarios'] && fila(ICONOS.reloj, esc(f['Horarios'])),
+        costoLegible(f['Costo de consulta']) && fila(ICONOS.costo, `Consulta: ${esc(costoLegible(f['Costo de consulta']))} <span style="opacity:.7">· se paga en el consultorio</span>`),
         f['Dirección del consultorio'] && fila(ICONOS.ubicacion, `<span style="white-space:pre-line">${esc(f['Dirección del consultorio'])}</span>${enlaceMapa(f['Dirección del consultorio'], f['Ciudad de consulta']) ? ` · <a href="${esc(enlaceMapa(f['Dirección del consultorio'], f['Ciudad de consulta']))}" target="_blank" rel="noopener">Cómo llegar</a>` : ''}`),
         ct.tel && fila(ICONOS.telefono, enlaceTel(ct.tel) ? `<a href="${enlaceTel(ct.tel)}">${esc(telLegible(ct.tel))}</a>` : esc(ct.tel), 'fila--tel'),
         (tieneToken && ct.error) && fila(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga en unos segundos.', 'fila--aviso'),

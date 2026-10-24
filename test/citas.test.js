@@ -187,14 +187,14 @@ test('estado devuelve dónde es la consulta: dirección, mapa, teléfono del con
   const clave = C.generarClave();
   mundo({
     solicitudes: [{ id: 'recSOL0000000003A', fields: { 'Clave de seguimiento — huella': C.huellaClave(clave), 'Teléfono/WhatsApp': '6670000000', 'Médico solicitado': [PERFIL], 'Estado de cita': 'Aceptada', 'Horario acordado': MAÑANA + ' 10:00' } }],
-    perfilExtra: { 'Dirección del consultorio': 'Av. Obregón 123\nConsultorio 4', 'Ciudad de consulta': 'Culiacan', 'Teléfono de consultorio': '667 123 4567', 'Liga pública': 'dr-prueba' },
+    perfilExtra: { 'Dirección del consultorio': 'Av. Obregón 123\nConsultorio 4', 'Ciudad de consulta': 'Culiacan', 'Teléfono de consultorio': '667 123 4567', 'Liga pública': 'dr-prueba', 'Costo de consulta': 1200 },
   });
   const r = await llamar('estado', { metodo: 'POST', body: { id: 'recSOL0000000003A', c: clave } });
   assert.strictEqual(r.status, 200, JSON.stringify(r.data));
   assert.deepStrictEqual(r.data.consultorio, {
     direccion: 'Av. Obregón 123\nConsultorio 4', ciudad: 'Culiacán',
     mapa: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Av. Obregón 123, Consultorio 4, Culiacán, México'),
-    telefono: '6671234567', liga: 'dr-prueba',
+    telefono: '6671234567', liga: 'dr-prueba', costo: '$1,200 MXN',
   });
   assert.ok(!JSON.stringify(r.data).includes('6670000000'), 'el teléfono del paciente no sale');
 });

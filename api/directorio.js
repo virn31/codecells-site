@@ -254,6 +254,8 @@ module.exports = async (req, res) => {
             bio: c['Bio corta'] || '',
             horarios: c['Horarios'] || '',
             telefono: c['Teléfono de consultorio'] || '',
+            direccion: c[D.CAMPO_DIRECCION] || '',
+            costo: D.costoLegible(c[D.CAMPO_COSTO]),
             redes: D.redesPublicas(c),
             revisadoPor: c['Revisado por'] || null,
             fechaRevision: c['Fecha de revisión'] || null,

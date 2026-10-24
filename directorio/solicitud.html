@@ -152,6 +152,7 @@
         <dl>
           <dt>Pediste</dt><dd>${esc(fechaLarga(s.fechaPreferida))}${s.turno ? ', ' + esc(textoTurno(s.turno)) : ''}</dd>
           ${!t.cerrada && co.direccion ? `<dt>Dónde</dt><dd style="white-space:pre-line">${esc(co.direccion)}${co.ciudad ? '\n' + esc(co.ciudad) : ''}</dd>` : ''}
+          ${!t.cerrada && co.costo ? `<dt>Costo</dt><dd>${esc(co.costo)}, se paga en el consultorio</dd>` : ''}
           ${t.agendada && co.telefono ? `<dt>Teléfono</dt><dd><a href="${enlaceTel(co.telefono)}">${esc(telLegible(co.telefono))}</a></dd>` : ''}
         </dl>
         <div class="botones">

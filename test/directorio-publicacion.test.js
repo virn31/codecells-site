@@ -553,6 +553,30 @@ test('normalizarDireccion: limpia renglones y espacios; rechaza ligas y textos e
   assert.ok(D.CAMPOS_LECTURA_PUBLICA.includes('Dirección del consultorio'));
 });
 
+// ── P3: costo de la consulta ──
+test('normalizarCosto: pesos enteros con o sin $, comas o "MXN"; vacío borra; rangos, centavos y 0 se rechazan', () => {
+  for (const [entrada, valor] of [['800', 800], ['$1,200', 1200], ['1200 MXN', 1200], ['1,200.00', 1200], ['800 pesos', 800], [1500, 1500]]) {
+    assert.deepStrictEqual(D.normalizarCosto(entrada), { ok: true, valor }, String(entrada));
+  }
+  assert.deepStrictEqual(D.normalizarCosto(''), { ok: true, valor: null }, 'vacío = no mostrar');
+  assert.deepStrictEqual(D.normalizarCosto(null), { ok: true, valor: null });
+  for (const malo of ['0', '500-800', '12.50', '1,20', '200000', 'gratis']) assert.strictEqual(D.normalizarCosto(malo).ok, false, malo);
+  assert.strictEqual(D.costoLegible(1200), '$1,200 MXN');
+  assert.strictEqual(D.costoLegible(null), '');
+  assert.deepStrictEqual(D.normalizarContacto({ 'Costo de consulta': '$900' }).fields, { 'Costo de consulta': 900 });
+  assert.strictEqual(D.normalizarContacto({ 'Costo de consulta': '500 a 800' }).errores.length, 1);
+  assert.ok(D.CAMPOS_PUBLICOS.includes('Costo de consulta'), 'cambiarlo en un perfil publicado marca revisión');
+  assert.ok(D.CAMPOS_LECTURA_PUBLICA.includes('Costo de consulta'));
+  assert.ok(D.TEXTO_CONSENTIMIENTO.includes('costo de la consulta'), 'el consentimiento lo menciona');
+});
+
+test('limpiarPerfilPublico: un costo inválido guardado a mano en Airtable no sale al público', () => {
+  const bueno = D.limpiarPerfilPublico({ fields: { 'Costo de consulta': 800 } });
+  assert.strictEqual(bueno.fields['Costo de consulta'], 800);
+  const malo = D.limpiarPerfilPublico({ fields: { 'Costo de consulta': 0 } });
+  assert.ok(!('Costo de consulta' in malo.fields));
+});
+
 test('enlaceMapa: liga de mapas sin llave, con ciudad del catálogo; vacía sin dirección', () => {
   assert.strictEqual(D.enlaceMapa('Av. Obregón 123\nConsultorio 4', 'culiacan'),
     'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Av. Obregón 123, Consultorio 4, Culiacán, México'));

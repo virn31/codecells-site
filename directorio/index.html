@@ -747,6 +747,7 @@
       reloj: `<svg ${SVG_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
       telefono: `<svg ${SVG_ATR}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>`,
       candado: `<svg ${SVG_ATR}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+      costo: `<svg ${SVG_ATR}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>`,
     };
 
     function filaPd(icono, contenidoHtml, clase) {
@@ -773,6 +774,12 @@
     function telLegible(t) {
       const n = digitosTel(t).slice(-10);
       return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : String(t || '');
+    }
+
+    // Costo de la consulta (opcional; se paga en el consultorio): 1200 → "$1,200 MXN".
+    function costoLegible(v) {
+      const n = Number(v);
+      return Number.isInteger(n) && n > 0 ? '$' + n.toLocaleString('en-US') + ' MXN' : '';
     }
 
     function renderResultados(medicos, q) {
@@ -818,6 +825,7 @@
         const filas = [
           especialidades && filaPd(ICONOS.especialidad, especialidades),
           horarios && filaPd(ICONOS.reloj, horarios),
+          costoLegible(f['Costo de consulta']) && filaPd(ICONOS.costo, 'Consulta: ' + escaparHtml(costoLegible(f['Costo de consulta']))),
           tel && filaPd(ICONOS.telefono, hrefTel ? `<a href="${hrefTel}">${escaparHtml(telLegible(tel))}</a>` : escaparHtml(tel), 'pd-row--tel'),
           (!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) && filaPd(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga la página en unos segundos.', 'pd-row--aviso'),
           !TOKEN_VISITANTE && filaPd(ICONOS.candado, 'El teléfono se muestra después de solicitar cita', 'pd-row--aviso'),

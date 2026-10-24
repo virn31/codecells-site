@@ -411,6 +411,7 @@ module.exports = async (req, res) => {
             mapa: direccion.ok ? D.enlaceMapa(direccion.valor, f['Ciudad de consulta']) : '',
             telefono: tel.ok ? tel.valor : '',
             liga: D.esLigaValida(f[D.CAMPO_LIGA]) ? f[D.CAMPO_LIGA] : null,
+            costo: D.costoLegible(f[D.CAMPO_COSTO]),
           };
           const ag = agendaDePerfil(perfil);
           // Para "Agregar a mi calendario". Sin horario configurado no se
