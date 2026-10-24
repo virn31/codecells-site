@@ -9,13 +9,13 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-24 (noche) — P3 costo (`6c12e6b`), encuadre de foto (`65672ea`), consulta en línea (`97b64a5`), presencial/en línea en la solicitud (`9dd5eac`) y NOVA con precios reales (`9a8a6cb`). 12 commits SIN PUSH. Todos los campos nuevos (directorio y `Modalidad` de SOLICITUDES) YA están en producción (vacíos; ver §4b).
+**Última actualización:** 2026-10-24 (noche) — P3 costo (`6c12e6b`), encuadre de foto (`65672ea`), consulta en línea (`97b64a5`), presencial/en línea en la solicitud (`9dd5eac`) y NOVA con precios reales (`9a8a6cb`). Push hecho (`bafbd6a`, 2026-10-24); Vercel arma el Preview solo. Todos los campos nuevos (directorio y `Modalidad` de SOLICITUDES) YA están en producción (vacíos; ver §4b).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** (12 commits): `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
+1. ~~Push~~ hecho (`bafbd6a`, 2026-10-24).
 2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
