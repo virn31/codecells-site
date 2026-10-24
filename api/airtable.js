@@ -96,6 +96,9 @@ const DIRECTORIO_CAMPOS_PUBLICOS = [
   'Bio corta',
   'Horarios',
   'Foto de perfil',
+  // Redes sociales y sitio web (2026-10-23): públicas, revisadas por
+  // directorio.redesPublicas() antes de salir.
+  ...directorio.CAMPOS_REDES,
 ];
 
 // Campos que solo se revelan a visitantes registrados (gate suave).
@@ -529,6 +532,9 @@ module.exports = async (req, res) => {
           const url = directorio.urlFotoPublica(f[directorio.CAMPO_FOTO]);
           if (url) f[directorio.CAMPO_FOTO] = url; else delete f[directorio.CAMPO_FOTO];
         }
+        // Una liga que no pasa la regla de su red no sale al público.
+        const redes = directorio.redesPublicas(f);
+        directorio.CAMPOS_REDES.forEach(c => { if (redes[c]) f[c] = redes[c]; else delete f[c]; });
       });
       return res.status(r.status).json(data);
     } catch (err) {
@@ -929,7 +935,9 @@ module.exports = async (req, res) => {
           }
           // Publicar ya no es decisión del médico (etapa 1 del directorio):
           // el perfil nace en Borrador y solo api/directorio.js lo mueve.
-          const fields = directorio.quitarCamposProtegidos((req.body && req.body.fields) || {});
+          const redesPost = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
+          if (redesPost.errores.length) return res.status(400).json({ error: redesPost.errores.join(' ') });
+          const fields = redesPost.fields;
           const ahoraISO = new Date().toISOString();
           req.body.fields = {
             ...fields,
@@ -957,7 +965,10 @@ module.exports = async (req, res) => {
             }
             // El médico edita su contenido; publicar, consentimiento y
             // revisión los controla api/directorio.js (campos protegidos).
-            const fields = directorio.quitarCamposProtegidos((req.body && req.body.fields) || {});
+            // Redes: solo ligas de la red correcta, guardadas como https completo.
+            const redesPatch = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
+            if (redesPatch.errores.length) return res.status(400).json({ error: redesPatch.errores.join(' ') });
+            const fields = redesPatch.fields;
             const ahoraISO = new Date().toISOString();
             // Editar lo que ve el público en un perfil YA publicado lo deja
             // visible pero marcado para que un administrador lo revise.

@@ -2274,6 +2274,9 @@
   resize: vertical;
   font-family: 'IBM Plex Sans', sans-serif;
 }
+#mi-directorio .mi-dir-field .mi-dir-error {
+  margin-top: 6px; font-size: 12px; color: #E2574B; line-height: 1.4;
+}
 #mi-directorio .mi-dir-field .mi-dir-hint {
   font-size: 11px;
   color: rgba(232, 228, 221, 0.4);
@@ -7644,6 +7647,12 @@ function renderMiDirFormulario() {
           <div class="mi-dir-hint">Se convierte a https://wa.me/52... automáticamente</div>
         </div>
       </div>
+
+      <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Redes sociales</div>
+        <div style="margin:-4px 0 14px;font-size:12px;line-height:1.5;color:rgba(232,228,221,0.6)">Aparecen como botones en tu ficha para que el paciente vaya directo. Pega la liga de tu perfil o escribe solo tu usuario (por ejemplo @dr.rodriguez). Déjalo vacío si no la usas.</div>
+        ${htmlRedesMiDir(c)}
+      </div>
     </div>
   `;
 
@@ -7652,6 +7661,25 @@ function renderMiDirFormulario() {
     el.addEventListener('input', () => programarGuardadoMiDir(el));
     el.addEventListener('blur', () => guardarCampoMiDir(el)); // forzar guardado al desenfocar
   });
+}
+
+// Redes sociales del perfil público. El servidor (lib/directorio.js)
+// valida que cada liga sea de su red y la guarda como https completo.
+const REDES_MI_DIR = [
+  { campo: 'Instagram', ejemplo: '@tuconsultorio o instagram.com/tuconsultorio' },
+  { campo: 'Facebook', ejemplo: 'facebook.com/tuconsultorio' },
+  { campo: 'TikTok', ejemplo: '@tuconsultorio' },
+  { campo: 'YouTube', ejemplo: '@tucanal o youtube.com/@tucanal' },
+  { campo: 'LinkedIn', ejemplo: 'linkedin.com/in/tu-nombre' },
+  { campo: 'Sitio web', ejemplo: 'tuconsultorio.com' },
+];
+function htmlRedesMiDir(c) {
+  return REDES_MI_DIR.map(r => `
+        <div class="mi-dir-field">
+          <label>${r.campo}</label>
+          <input type="text" data-campo="${r.campo}" data-red="1" value="${escaparHtml(c[r.campo] || '')}" placeholder="${escaparHtml(r.ejemplo)}" autocomplete="off" inputmode="url">
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>`).join('');
 }
 
 // Helper HTML escape
@@ -7720,13 +7748,36 @@ async function guardarValorMiDir(campo, valor, campoContainer) {
       body: JSON.stringify(body),
       signal: ctrl.signal
     });
-    if (!r.ok) throw new Error('Error ' + r.status);
-    miDirEstado.campos[campo] = valor;
+    const d = await r.json().catch(() => ({}));
+    // Nuestro servidor manda error como texto; Airtable, como objeto.
+    if (!r.ok) throw new Error(typeof d.error === 'string' ? d.error : 'No se pudo guardar (error ' + r.status + '). Intenta de nuevo.');
+    // El servidor puede normalizar el valor (redes: @usuario → liga completa).
+    const guardado = (d.fields && campo in d.fields) ? d.fields[campo] : valor;
+    miDirEstado.campos[campo] = guardado;
+    const input = campoContainer && campoContainer.querySelector('input[data-red]');
+    if (input && document.activeElement !== input) input.value = guardado || '';
+    mostrarErrorMiDir(campoContainer, '');
     mostrarGuardadoMiDir(campoContainer);
   } catch (err) {
     if (err.name === 'AbortError') return; // canceled — expected
     console.error('guardarValorMiDir:', campo, err);
+    // Un fallo se ve como fallo: antes solo iba a la consola y el médico
+    // creía que su cambio se había guardado.
+    mostrarErrorMiDir(campoContainer, err.message);
   }
+}
+
+function mostrarErrorMiDir(campoContainer, texto) {
+  if (!campoContainer) return;
+  let caja = campoContainer.querySelector('.mi-dir-error');
+  if (!texto) { if (caja) caja.remove(); return; }
+  if (!caja) {
+    caja = document.createElement('div');
+    caja.className = 'mi-dir-error';
+    caja.setAttribute('role', 'alert');
+    campoContainer.appendChild(caja);
+  }
+  caja.textContent = texto;
 }
 
 function mostrarGuardadoMiDir(campoContainer) {

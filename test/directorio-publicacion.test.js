@@ -255,3 +255,82 @@ test('la foto no se puede mandar por el proxy genérico (solo por subir_foto)', 
   assert.ok(D.CAMPOS_PUBLICOS.includes('Foto de perfil'));
   assert.ok(/fotografía/.test(D.TEXTO_CONSENTIMIENTO));
 });
+
+// ── Redes sociales (2026-10-23) ───────────────────────────────────────
+test('normalizarRed: @usuario y ligas sin https se guardan como liga https completa', () => {
+  const casos = [
+    ['Instagram', '@dr.rodriguez', 'https://www.instagram.com/dr.rodriguez'],
+    ['Instagram', 'instagram.com/dr.rodriguez/', 'https://instagram.com/dr.rodriguez/'],
+    ['Instagram', 'https://www.instagram.com/dr.rodriguez?igsh=abc#x', 'https://www.instagram.com/dr.rodriguez?igsh=abc'],
+    ['Facebook', 'fb.com/consultorio', 'https://fb.com/consultorio'],
+    ['Facebook', 'm.facebook.com/consultorio', 'https://m.facebook.com/consultorio'],
+    ['TikTok', '@consultorio', 'https://www.tiktok.com/@consultorio'],
+    ['YouTube', 'canal', 'https://www.youtube.com/@canal'],
+    ['YouTube', 'http://youtu.be/abc', 'https://youtu.be/abc'],
+    ['LinkedIn', 'linkedin.com/in/dr-x', 'https://linkedin.com/in/dr-x'],
+    ['Sitio web', 'consultorio.mx', 'https://consultorio.mx/'],
+    ['Sitio web', '  ', ''],
+  ];
+  for (const [campo, entrada, esperado] of casos) {
+    const r = D.normalizarRed(campo, entrada);
+    assert.strictEqual(r.ok, true, `${campo} ${entrada}: ${r.error}`);
+    assert.strictEqual(r.valor, esperado, `${campo} ${entrada}`);
+  }
+});
+
+test('normalizarRed: rechaza ligas de otra red, esquemas peligrosos, IPs y credenciales', () => {
+  const malos = [
+    ['Instagram', 'https://instagram.com.sitio-falso.com/x'],
+    ['Instagram', 'https://facebook.com/x'],
+    ['Facebook', 'https://notfacebook.com/x'],
+    ['Instagram', 'javascript:alert(1)'],
+    ['Sitio web', 'javascript:alert(1)'],
+    ['Sitio web', 'data:text/html,hola'],
+    ['Sitio web', 'http://192.168.0.1/admin'],
+    ['Sitio web', 'http://localhost:3000'],
+    ['Sitio web', 'https://usuario:clave@consultorio.mx'],
+    ['LinkedIn', '@dr-x'],
+    ['Twitter', 'https://x.com/dr'],
+  ];
+  for (const [campo, entrada] of malos) {
+    assert.strictEqual(D.normalizarRed(campo, entrada).ok, false, `${campo} ${entrada} debió rechazarse`);
+  }
+});
+
+test('las redes son campos públicos (editarlas en un perfil publicado pide revisión) y el consentimiento las menciona', () => {
+  for (const c of D.CAMPOS_REDES) assert.ok(D.CAMPOS_PUBLICOS.includes(c), c);
+  assert.ok(/redes sociales/.test(D.TEXTO_CONSENTIMIENTO));
+});
+
+test('proxy PATCH: un @usuario se guarda como liga completa', async () => {
+  const at = airtableFalsa(perfilCompleto({ 'Estado de publicación': 'Borrador' }));
+  const r = await llamarProxy({ metodo: 'PATCH', query: { tabla: 'directorio_medico', recordId: REC_PERFIL },
+    body: { fields: { 'Instagram': '@dr.prueba' } } });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.strictEqual(at.patches[0]['Instagram'], 'https://www.instagram.com/dr.prueba');
+  assert.strictEqual(r.data.fields['Instagram'], 'https://www.instagram.com/dr.prueba', 'el portal recibe el valor guardado');
+});
+
+test('proxy PATCH: una liga que no es de su red → 400 con mensaje y no escribe nada', async () => {
+  const at = airtableFalsa(perfilCompleto({ 'Estado de publicación': 'Borrador' }));
+  const r = await llamarProxy({ metodo: 'PATCH', query: { tabla: 'directorio_medico', recordId: REC_PERFIL },
+    body: { fields: { 'Facebook': 'https://sitio-falso.com/facebook' } } });
+  assert.strictEqual(r.status, 400);
+  assert.match(r.data.error, /no es de Facebook/);
+  assert.strictEqual(at.patches.length, 0);
+});
+
+test('directorio público: las redes válidas salen; una liga mala escrita directo en Airtable no sale', async () => {
+  airtableFalsa(perfilCompleto({ 'Publicado': true, 'Instagram': 'https://www.instagram.com/dr.prueba', 'Facebook': 'javascript:alert(1)', 'Sitio web': 'https://otro.com' }));
+  delete require.cache[require.resolve('../api/airtable.js')];
+  const handler = require('../api/airtable.js');
+  const r = await new Promise(resolve => handler({ method: 'GET', query: { tabla: 'directorio_medico', id: REC_PERFIL }, headers: {} }, {
+    statusCode: 200, setHeader() {}, status(c) { this.statusCode = c; return this; },
+    json(d) { resolve({ status: this.statusCode, data: d }); return this; }, end() { resolve({ status: this.statusCode }); },
+  }));
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  const f = r.data.records[0].fields;
+  assert.strictEqual(f['Instagram'], 'https://www.instagram.com/dr.prueba');
+  assert.ok(!('Facebook' in f), 'javascript: nunca sale al público');
+  assert.strictEqual(f['Sitio web'], 'https://otro.com/');
+});
