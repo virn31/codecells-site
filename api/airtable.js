@@ -508,7 +508,7 @@ module.exports = async (req, res) => {
   if (esLecturaDirectorioPublico) {
     const params = new URLSearchParams();
     const filtros = ['{Publicado}=1'];
-    const { ciudad, especialidad, tratamiento, id } = req.query;
+    const { ciudad, especialidad, tratamiento, id, q } = req.query;
     // Ficha de UN médico (/directorio/medico.html?id=rec…): mismo filtro de
     // publicado y misma lista blanca; un id que no es de un perfil publicado
     // devuelve lista vacía.
@@ -537,6 +537,10 @@ module.exports = async (req, res) => {
         const clave = directorio.claveCiudad(directorio.normalizarCiudad(ciudad));
         registros = registros.filter(rec => directorio.claveCiudad(directorio.normalizarCiudad(rec.fields?.['Ciudad de consulta'])) === clave);
       }
+      // Caja de búsqueda (nombre o lo que quiere atender): también aquí y no
+      // en la fórmula, para comparar sin acentos y antes del tope de 50.
+      const palabras = directorio.palabrasBusqueda(q);
+      if (palabras.length) registros = registros.filter(rec => directorio.coincideBusqueda(rec.fields, palabras));
       const data = { records: registros.slice(0, 50) };
       // La foto sale al público solo como URL (sin nombre de archivo, tamaño
       // ni id del adjunto).

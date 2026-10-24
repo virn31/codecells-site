@@ -184,6 +184,20 @@
       outline: none;
       border-color: rgba(232,163,61,0.5);
     }
+    .filtro--busqueda { grid-column: 1 / -1; }
+    .filtro input[type="search"] {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg-alt);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 16px;
+      transition: border-color 0.15s;
+    }
+    .filtro input[type="search"]::placeholder { color: var(--ink-dim); }
+    .filtro input[type="search"]:focus { outline: none; border-color: rgba(232,163,61,0.5); }
 
     /* Resumen resultados */
     .resumen {
@@ -551,7 +565,7 @@
   <section class="hero">
     <div class="eyebrow">Red CODE CELLS™</div>
     <h1>Encuentra a tu médico</h1>
-    <p>Especialistas certificados en medicina regenerativa en toda la República. Filtra por ciudad, especialidad o herramienta específica.</p>
+    <p>Especialistas certificados en medicina regenerativa en toda la República. Busca por nombre o por lo que quieres atender, o filtra por ciudad, especialidad o herramienta.</p>
   </section>
 
   <div class="credenciales">
@@ -562,6 +576,11 @@
 
   <div class="filtros-wrap">
     <div class="filtros">
+      <div class="filtro filtro--busqueda">
+        <label for="f-q">Buscar</label>
+        <input type="search" id="f-q" maxlength="100" autocomplete="off" enterkeyhint="search"
+          placeholder="Nombre, especialidad o lo que quieres atender (ej. rodilla, hormonas)">
+      </div>
       <div class="filtro">
         <label for="f-ciudad">Ciudad</label>
         <select id="f-ciudad" onchange="buscarDirectorio()">
@@ -673,11 +692,23 @@
       }
     }
 
+    let PETICION_BUSQUEDA = 0;
+    let ULTIMA_Q = null; // lo último que se buscó con la caja
     async function buscarDirectorio() {
       const ciudad = document.getElementById('f-ciudad').value.trim();
       const especialidad = document.getElementById('f-especialidad').value.trim();
       const tratamiento = document.getElementById('f-tratamiento').value.trim();
+      const q = document.getElementById('f-q').value.trim();
 
+      // La búsqueda queda en la dirección (?q=…) para poder compartirla.
+      try {
+        const url = new URL(location.href);
+        if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
+        history.replaceState(null, '', url);
+      } catch (e) { /* sin history */ }
+
+      ULTIMA_Q = q;
+      const mia = ++PETICION_BUSQUEDA;
       const resultados = document.getElementById('resultados');
       const resumen = document.getElementById('resumen');
       resultados.innerHTML = '<div class="cargando">Buscando médicos…</div>';
@@ -688,14 +719,17 @@
       if (ciudad) params.set('ciudad', ciudad);
       if (especialidad) params.set('especialidad', especialidad);
       if (tratamiento) params.set('tratamiento', tratamiento);
+      if (q) params.set('q', q);
 
       try {
         const r = await fetch('/api/airtable?' + params.toString());
         if (!r.ok) throw new Error('Error ' + r.status);
         const data = await r.json();
+        if (mia !== PETICION_BUSQUEDA) return; // el paciente siguió escribiendo
         const medicos = shuffleConSeed(data.records || [], SEED);
-        renderResultados(medicos);
+        renderResultados(medicos, q);
       } catch (err) {
+        if (mia !== PETICION_BUSQUEDA) return;
         resultados.innerHTML = '<div class="empty"><h3>Error al buscar</h3><p>No pudimos consultar el directorio. Intenta de nuevo en un momento.</p></div>';
         console.error(err);
       }
@@ -739,7 +773,7 @@
       return /^https?:\/\//i.test(v) ? v : '';
     }
 
-    function renderResultados(medicos) {
+    function renderResultados(medicos, q) {
       const resultados = document.getElementById('resultados');
       const resumen = document.getElementById('resumen');
 
@@ -747,17 +781,19 @@
         resumen.textContent = '';
         resultados.innerHTML = `
           <div class="empty">
-            <h3>Ningún médico coincide con esos filtros</h3>
-            <p>Prueba con menos filtros o cambia la ciudad. Nuestra red sigue creciendo.</p>
+            <h3>${q ? `Ningún médico menciona «${escaparHtml(q)}»` : 'Ningún médico coincide con esos filtros'}</h3>
+            <p>${q
+              ? 'Buscamos en lo que cada médico escribió en su perfil. Prueba con menos palabras o con la especialidad (por ejemplo, «ortopedia» en vez de «rodilla»).'
+              : 'Prueba con menos filtros o cambia la ciudad. Nuestra red sigue creciendo.'}</p>
             <button onclick="limpiarFiltros()">Limpiar filtros</button>
           </div>
         `;
         return;
       }
 
-      resumen.textContent = medicos.length === 1
+      resumen.textContent = (medicos.length === 1
         ? '1 médico encontrado'
-        : medicos.length + ' médicos encontrados';
+        : medicos.length + ' médicos encontrados') + (q ? ` para «${q}»` : '');
 
       resultados.innerHTML = '<div class="medicos-grid">' + medicos.map((m, i) => {
         const f = m.fields || {};
@@ -894,11 +930,26 @@
     });
 
     function limpiarFiltros() {
+      document.getElementById('f-q').value = '';
       document.getElementById('f-ciudad').value = '';
       document.getElementById('f-especialidad').value = '';
       document.getElementById('f-tratamiento').value = '';
       buscarDirectorio();
     }
+
+    // Caja de búsqueda: busca al dejar de escribir (0.4 s) o con Enter.
+    (function () {
+      const caja = document.getElementById('f-q');
+      try { caja.value = (new URLSearchParams(location.search).get('q') || '').slice(0, 100); } catch (e) { /* sin URL */ }
+      let espera = null;
+      const lanzar = () => {
+        clearTimeout(espera);
+        if (caja.value.trim() === ULTIMA_Q) return;
+        buscarDirectorio();
+      };
+      caja.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(lanzar, 400); });
+      caja.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); lanzar(); caja.blur(); } });
+    })();
 
     // Arranque
     cargarFiltros();

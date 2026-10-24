@@ -356,6 +356,33 @@ test('opcionesFiltros: solo lo publicado, con conteo y ciudades agrupadas', () =
   assert.deepStrictEqual(o.tratamientos, [{ nombre: 'Exosomas', n: 1 }]);
 });
 
+test('palabrasBusqueda: sin acentos, sin palabras vacías, plural simple, máximo 8', () => {
+  assert.deepStrictEqual(D.palabrasBusqueda('Busco un Dr. para la  RODILLA'), ['rodilla']);
+  assert.deepStrictEqual(D.palabrasBusqueda('terapias hormonales'), ['terapia', 'hormonal']);
+  assert.deepStrictEqual(D.palabrasBusqueda('Cardiología, Culiacán'), ['cardiologia', 'culiacan']);
+  assert.deepStrictEqual(D.palabrasBusqueda('  '), []);
+  assert.deepStrictEqual(D.palabrasBusqueda(undefined), []);
+  assert.strictEqual(D.palabrasBusqueda('a1 b2 c3 d4 e5 f6 g7 h8 i9 j10').length, 8);
+});
+
+test('coincideBusqueda: cada palabra debe estar en lo publicado; no inventa sinónimos', () => {
+  const f = {
+    'Name': 'Dra. Ana Pérez', 'Especialidades visibles': ['Cardiología'], 'Tratamientos que ofrece': ['Exosomas'],
+    'Otras terapias': 'Sueroterapia', 'Ciudad de consulta': 'Culiacan', 'Bio corta': 'Atiendo hipertensión y arritmias.',
+  };
+  const ok = q => D.coincideBusqueda(f, D.palabrasBusqueda(q));
+  assert.ok(ok('perez'), 'nombre sin acento');
+  assert.ok(ok('cardiologia culiacán'), 'especialidad + ciudad');
+  assert.ok(ok('Hipertension'), 'bio');
+  assert.ok(ok('arritmia'), 'singular encuentra plural');
+  assert.ok(ok('exosomas'));
+  assert.ok(ok(''), 'sin texto no filtra');
+  assert.ok(!ok('rodilla'), 'lo que el médico no escribió no aparece');
+  assert.ok(!ok('cardiologia mazatlan'), 'todas las palabras cuentan');
+  assert.ok(D.coincideBusqueda({}, []), 'campos vacíos sin búsqueda');
+  assert.ok(!D.coincideBusqueda({}, ['ana']));
+});
+
 function llamarPublico(query) {
   delete require.cache[require.resolve('../api/airtable.js')];
   const handler = require('../api/airtable.js');
@@ -374,6 +401,17 @@ test('directorio público: buscar "Culiacán" encuentra al perfil que dice "Culi
   airtableFalsa(perfilCompleto({ 'Publicado': true, 'Ciudad de consulta': 'Culiacan' }));
   const otra = await llamarPublico({ tabla: 'directorio_medico', ciudad: 'Mazatlán' });
   assert.strictEqual(otra.data.records.length, 0);
+});
+
+test('directorio público: ?q= filtra en el servidor sin acentos', async () => {
+  airtableFalsa(perfilCompleto({ 'Publicado': true, 'Bio corta': 'Manejo de dolor articular y rodilla.' }));
+  const r = await llamarPublico({ tabla: 'directorio_medico', q: 'Rodilla' });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.strictEqual(r.data.records.length, 1);
+  airtableFalsa(perfilCompleto({ 'Publicado': true, 'Bio corta': 'Manejo de dolor articular y rodilla.' }));
+  const nada = await llamarPublico({ tabla: 'directorio_medico', q: 'migraña' });
+  assert.strictEqual(nada.status, 200);
+  assert.strictEqual(nada.data.records.length, 0);
 });
 
 test('directorio público: si Airtable falla → 502 con mensaje, nunca lista vacía', async () => {
