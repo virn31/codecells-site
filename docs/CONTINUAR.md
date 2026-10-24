@@ -9,13 +9,13 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-24 (noche) — P3 costo (`6c12e6b`), encuadre de foto (`65672ea`) y consulta en línea (`97b64a5`). 9 commits SIN PUSH. **Todos los campos nuevos del directorio YA están en producción** (vacíos; ver §4b).
+**Última actualización:** 2026-10-24 (noche) — P3 costo (`6c12e6b`), encuadre de foto (`65672ea`), consulta en línea (`97b64a5`), presencial/en línea en la solicitud (`9dd5eac`) y NOVA con precios reales (`9a8a6cb`). 12 commits SIN PUSH. Todos los campos nuevos (directorio y `Modalidad` de SOLICITUDES) YA están en producción (vacíos; ver §4b).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** (9 commits): `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
+1. **Que Víctor haga push** (12 commits): `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
 2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
@@ -23,6 +23,8 @@
    - Portal → Mi directorio: capturar tu **dirección** ("Cómo te contactan"); una liga de Maps debe dar error. **Teléfono del consultorio: antes no se guardaba** (autosave ignoraba `type=tel`, arreglado en `d4fa945`) — confirmar que ahora sí.
    - **Costo** (P3): el Dr. QA tiene $800 de prueba → ficha "Consulta: $800 MXN · se paga en el consultorio", tarjeta "Consulta: $800 MXN", y renglón Costo en la liga de la cita. En el portal ("Cómo te contactan") probar "$1,200" (se guarda 1200), "500-800" (error) y vaciarlo (desaparece de la ficha). Admin: la tarjeta de revisión ahora muestra dirección y costo.
    - **Consulta en línea** (`97b64a5`): el Dr. QA (base de prueba) la tiene marcada con $600 → tarjeta "En línea: $600 MXN", ficha con la nota "Horario y pago se acuerdan directamente con el médico… CODE CELLS no cobra ni interviene", y en `/directorio/` el filtro **Modalidad → Solo en línea** deja solo a él (probado en navegador local). Portal: casilla "Ofrezco consulta en línea" (se guarda al marcar) + costo en línea; desmarcarla oculta el costo de la ficha.
+   - **Solicitud presencial / en línea** (`9dd5eac`): en la ficha del Dr. QA aparece "¿Cómo quieres tu consulta?"; "En línea" cambia a "Solicitar consulta en línea" (fecha y turno preferidos, sin horas aunque tenga agenda automática; costo $600 y nota de pago directo). Probado en navegador local SIN enviar (enviar manda Telegram real). En Preview: enviar una en línea → aviso de Telegram dice "EN LÍNEA", queda Pendiente; en el portal sale la etiqueta "En línea"; la liga de la cita no muestra "Dónde" ni "Cómo llegar".
+   - **NOVA** (`9a8a6cb`): preguntarle "¿cuánto cuesta la consulta con el Dr. QA?" (debe decir $800 / en línea $600 y que se paga directo al médico) y por un médico sin precio (debe decir que no lo publicó). **No probado con la IA real**: solo la herramienta, con pruebas automáticas. Ya NO dice "$1,500".
    - **Foto** (`65672ea`, lo pidió Víctor): "Cambiar imagen" abre "Centra tu imagen"; arrastrar con el dedo, acercar con el control, Guardar → la ficha muestra ese encuadre. Probado en navegador local con imagen generada (centro, arrastre hasta el borde, acercar, cancelar); falta probarlo con el dedo en un celular. Una foto ya subida no se puede reencuadrar: hay que volver a elegir el archivo.
    - Portal → Mi directorio: aparece "Tu liga para compartir" + Copiar (perfil publicado). Campo **Teléfono del consultorio** (10 dígitos; "123" debe dar error). En "Redes sociales", **WhatsApp** (número o liga wa.me) → sale como botón en la ficha.
    - Ficha: con datos dejados, botón **"Llamar al consultorio"** (tel:). Ya no hay "Enviármela por WhatsApp".
@@ -40,7 +42,9 @@
 - `d4fa945` **P1 + M8**: `Dirección del consultorio` (opcional, pública, `normalizarDireccion` rechaza ligas, máx. 300; editarla publicado marca revisión); ficha y liga de la cita con "Cómo llegar" (`enlaceMapa`: liga normal a Google Maps, sin llave); `/api/citas?accion=estado` devuelve `consultorio {direccion, ciudad, mapa, telefono, liga}`; con cita confirmada se ve teléfono + Llamar; `.ics` con `LOCATION`. Consentimiento **v1.4-borrador 2026-10-24** (menciona dirección). Arreglo: autosave del portal no escuchaba `input[type=tel]` → el teléfono del consultorio de `0d13bcd` no se guardaba.
 - `6c12e6b` **P3 costo de consulta**: `Costo de consulta` (moneda, pesos enteros, opcional, público; `normalizarCosto`/`costoLegible`; vacío lo borra; rangos/centavos/0 se rechazan). Ficha, tarjeta y liga de la cita (`consultorio.costo`). Solo informa: "se paga en el consultorio". NOVA no lo conoce todavía (su lista pública en `api/nova.js` es aparte; agregarlo es decisión B). Admin muestra dirección (faltaba desde P1) y costo. Consentimiento **v1.5-borrador 2026-10-24**. Probado en navegador local: ficha y tarjeta; portal y admin solo con pruebas automáticas.
 - `97b64a5` **Consulta en línea** (Víctor 2026-10-24: algunos médicos la dan; precio, horario y pago los arregla el médico, **cobro directo por transferencia personal, CODE CELLS no interviene**): `Consulta en línea` (casilla) + `Costo de consulta en línea`; el costo solo se publica con la casilla marcada; filtro `?enlinea=1`. La solicitud de cita NO tiene campo de modalidad: el paciente lo escribe en "¿Qué te gustaría atender?". Si se quiere una opción "presencial / en línea" en la solicitud, hace falta un campo nuevo en SOLICITUDES (decisión B). Arreglo de paso: el teléfono del consultorio (`type=tel`) no tenía estilo en el portal.
-- Pruebas: **185/185**.
+- `9dd5eac` **Modalidad en la solicitud**: campo `Modalidad` (Presencial / En línea) en SOLICITUDES (`tblUsc72JO2BaqT6d`; prueba `fldW0hLhSp3myFeb8`, prod `fldCn4y6dWnLnmylM`). Se escribe SIEMPRE (también "Presencial"); vacío en solicitudes viejas = presencial. En línea nunca usa la agenda automática; 400 si el médico no la ofrece.
+- `9a8a6cb` **NOVA con precios**: se quitó del prompt "Primera consulta: $1,500 MXN" y la cobertura escrita a mano; la herramienta `buscar_medicos_directorio` devuelve costos (null = no publicado), consulta en línea y liga; filtro `en_linea`; ciudad sin acentos. Botón del home ahora aparece cuando NOVA menciona el directorio.
+- Pruebas: **192/192**.
 - **WhatsApp que queda fuera de esta rama** (fase 2, `feat/paciente-unico`): portal VIP y `dezawavip.html` (verificación con "últimos 4 dígitos de tu WhatsApp", botones "Enviar por WhatsApp"), portal clínico ("Enviar por WhatsApp"/"Copiar para WhatsApp" de planes y recetas), `api/nova.js` (Canal 'WhatsApp' en solicitudes de cita, firma "📲 WhatsApp"). `aviso-privacidad.html` dice "Número telefónico o de WhatsApp": cambiarlo con la revisión del abogado.
 
 ### Lo hecho el 2026-10-23 (tarde)
@@ -135,6 +139,8 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 5. Los 5–10 médicos piloto.
 
 ## 4b. Antes de fusionar a `main`
+
+**Campo `Modalidad` (SOLICITUDES) YA CREADO EN PRODUCCIÓN** (2026-10-24, autorizado por Víctor; `fldCn4y6dWnLnmylM`). Sin él, crear CUALQUIER solicitud daría 422.
 
 **Campos `Costo de consulta`, `Consulta en línea` y `Costo de consulta en línea` YA CREADOS EN PRODUCCIÓN** (2026-10-24, autorizados por Víctor; prod `fld2o194je2Ts4NkT`, `fldSPAh4CM5l8Eb4y`, `fldbZ502g3XpvMxeE`; prueba `fldkRPbdEGtyV4puu`, `fld81if2lMX7xpdzL`, `fldgaYL5ZWypD8j9H`). Vacíos. Regla: cualquier campo nuevo en `CAMPOS_LECTURA_PUBLICA` debe existir en producción antes de fusionar, o el directorio da 422.
 
