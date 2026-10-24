@@ -163,14 +163,9 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 
 ## 4b. Antes de fusionar a `main`
 
-**Directorio (etapa 1) — crear en producción DIRECTORIO_MEDICO antes de fusionar** (ya existen en prueba, mismos nombres): `Estado de publicación` (selección: Borrador, En revisión, Publicado, Rechazado, Despublicado), `Cambios sin revisar` (casilla), `Consentimiento — versión`, `Consentimiento — fecha` (fecha y hora), `Consentimiento — IP`, `Consentimiento — navegador`, `Consentimiento — huella`, `Revisado por`, `Fecha de revisión` (fecha y hora), `Motivo de rechazo` (texto largo), `Historial de publicación` (texto largo). Sin ellos, crear o editar un perfil en producción falla (UNKNOWN_FIELD_NAME).
-**Redes sociales (2026-10-23) — YA CREADOS en producción y en prueba** (DIRECTORIO_MEDICO, texto de una línea): `Instagram`, `Facebook`, `TikTok`, `YouTube`, `LinkedIn`, `Sitio web`. No borrarlos ni renombrarlos: el directorio público los pide con `fields[]` y si falta uno Airtable responde 422 y **el directorio entero deja de cargar**.
-**Google — crear en producción SOLICITUDES_PACIENTE `Evento Google`** (texto de una línea). Y en Google Cloud el redirect de producción ya existe (`https://www.codecells.mx/api/google-oauth-callback`).
-
-**Etapa 2b — crear en producción DIRECTORIO_MEDICO** (ya existen en prueba): `Agenda — horario` (texto largo), `Agenda — bloqueos` (texto largo), `Agenda — asistente` (texto largo), `Agenda — automática` (casilla). No están en la lista pública de campos (no rompen el directorio si faltan), pero sin ellos `/agenda` en Telegram falla al guardar.
-
-**Etapa 2 — crear en producción SOLICITUDES_PACIENTE** (ya existen en prueba): `Fecha preferida` (fecha ISO), `Turno preferido` (selección: Mañana, Tarde, Cualquiera), `Estado de cita` (selección: Pendiente, Aceptada, Otro horario propuesto, Confirmada por el paciente, Rechazada, Cancelada por el paciente), `Horario acordado` (texto de una línea), `Mensaje del médico` (texto largo), `Clave de seguimiento — huella` (texto de una línea), `Historial de la solicitud` (texto largo). Sin ellos, solicitar cita falla con 502.
-**Y `Foto de perfil` (adjunto) — CRÍTICO:** el directorio público lo pide con `fields[]`; si no existe en producción, Airtable responde 422 y **el directorio entero deja de cargar**.
+**Campos de Airtable del directorio — YA CREADOS EN PRODUCCIÓN (2026-10-23, autorizado por Víctor).** DIRECTORIO_MEDICO (16: publicación, consentimiento, revisión, `Foto de perfil`, `Agenda — *`; más las 6 redes) y SOLICITUDES_PACIENTE (8: `Fecha preferida`, `Turno preferido`, `Estado de cita`, `Horario acordado`, `Mensaje del médico`, `Clave de seguimiento — huella`, `Historial de la solicitud`, `Evento Google`). Verificado comparando el esquema de ambas bases: mismos nombres y tipos. No borrar ni renombrar: el directorio público pide varios por `fields[]` y uno faltante da 422 (el directorio entero deja de cargar). Los perfiles viejos de producción (VIRN01, JCG01) no tienen `Estado de publicación`: `estadoEfectivo()` los trata como Publicado/Borrador según `Publicado`.
+Las diferencias restantes entre bases son del portal clínico (fase 2: antecedentes, recetas, medicamentos, planes nutricionales, etc.) y NO se crearon.
+En Google Cloud el redirect de producción ya existe (`https://www.codecells.mx/api/google-oauth-callback`).
 - Cerrar en el mismo cambio: `api/buscar-medicos` ya está en 410 en esta rama.
 - Producción sigue congelada: NO definir `DESCONGELAR_PRODUCCION` al fusionar.
 
