@@ -9,21 +9,25 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-23 (cierre) — mejoras del directorio con el cobro detenido: redes sociales, ciudad sin acentos, agendar con el horario primero, calendario y "mis citas". Campos del directorio creados en producción. 8 commits SIN PUSH.
+**Última actualización:** 2026-10-24 — M5 hecho: caja de búsqueda por nombre o lo que se quiere atender (`3241ff7`). Push del 2026-10-23 ya hecho; 2 commits nuevos SIN PUSH (`3241ff7` y este).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** (8 commits, `7e86b85`…`a02a96c` y este):
+1. **Que Víctor haga push** (2 commits: `3241ff7` y este):
    `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
 2. **Revisar en Preview, desde un celular** (lo hecho hoy solo se probó en local contra la base de prueba):
-   - `/directorio/`: menús con conteo, "Culiacán" agrupa a Víctor, insignia "Agenda en línea · próximo…" en las tarjetas (la de Víctor depende de Google: en local no hay llaves y no salía).
+   - `/directorio/`: caja **Buscar** (prueba "cardiología", "Culiacan", "rodriguez", algo que no exista → mensaje «Ningún médico menciona…»; la búsqueda queda en la dirección `?q=`), menús con conteo, "Culiacán" agrupa a Víctor, insignia "Agenda en línea · próximo…" en las tarjetas (la de Víctor depende de Google: en local no hay llaves y no salía).
    - Ficha del Dr. QA (`recVNUCiwPAxNR4w0`): tira de días → hora → datos → "Cita confirmada" → "Agregar a mi calendario" (revisar que la hora salga bien en el teléfono) → "Tus citas en este teléfono" en `/directorio/`.
    - Ficha de Víctor (`rec1upfZfkftncHii`): redes sociales (capturarlas en portal → Mi directorio → "Redes sociales").
    - Ojo: una cita real en Preview manda aviso de Telegram real.
-3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): M5 búsqueda por nombre/síntoma · M6 ficha que se comparte bien (vista previa en WhatsApp + liga bonita `/directorio/dr-…`) · P1 dirección del consultorio + M8 "Cómo llegar" en la liga de la cita · P3 costo de consulta (opcional) · M9 "Únete a la red" en el encabezado · resumen semanal al médico por Telegram.
+3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ (hecho) · **M6 (empezar aquí)** ficha que se comparte bien (vista previa en WhatsApp + liga bonita `/directorio/dr-…`) · P1 dirección del consultorio + M8 "Cómo llegar" en la liga de la cita · P3 costo de consulta (opcional) · M9 "Únete a la red" en el encabezado · resumen semanal al médico por Telegram.
 4. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1: usa `CC-PAC-DEMO01` si no encuentra el código, rellena "CONTINUUM™"/"Evaluación", "Confirmar" hace PATCH a CONSULTAS → 403, botones que no hacen nada, error = "no tienes citas"). Rehacerla es categoría A. Lo demás de la app (notificaciones, pantalla "Hoy", un solo diseño) es fase 2.
+
+### Lo hecho el 2026-10-24
+- `3241ff7` M5 búsqueda: `?q=` en la lectura pública del directorio; `lib/directorio.js` `palabrasBusqueda()` (sin acentos, sin palabras vacías, plural simple, máx. 8) y `coincideBusqueda()` (cada palabra debe estar en nombre, especialidades, herramientas, otras terapias, ciudad o bio). **Sin sinónimos a propósito**: "rodilla" no encuentra "Ortopedia" salvo que el médico lo escriba; el estado vacío lo sugiere. Se filtra antes del tope de 50. Probado en local contra la base de prueba. Pruebas: **169/169**. No probado en navegador todavía (solo la API).
+- Decisión posible para Víctor (B): si se quiere que síntomas comunes lleven a especialidades ("rodilla" → Ortopedia), habría que escribir y revisar una tabla de sinónimos; hoy no existe.
 
 ### Lo hecho el 2026-10-23 (tarde)
 - `7e86b85` redes sociales y sitio web en la ficha: el médico pega liga o `@usuario`; el servidor solo acepta el dominio de cada red y guarda https completo; lo público se revalida (`lib/directorio.js` `normalizarRed`). Cambiarlas en un perfil publicado lo marca para revisión. Consentimiento sube a **v1.2-borrador 2026-10-23** (menciona redes). Errores al guardar en "Mi directorio" ya se muestran al médico.
