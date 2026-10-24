@@ -607,3 +607,43 @@ test('enlaceMapa: liga de mapas sin llave, con ciudad del catálogo; vacía sin 
     'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Av. Obregón 123, Consultorio 4, Culiacán, México'));
   assert.strictEqual(D.enlaceMapa('', 'Culiacán'), '', 'solo con ciudad no se promete un lugar');
 });
+
+// ── NOVA: precios y consulta en línea desde el directorio ──
+test('NOVA buscar_medicos_directorio: devuelve el costo publicado o null, en línea solo con casilla, ciudad sin acentos y ?en_linea', async () => {
+  const { ejecutarBuscarMedicosDirectorio } = require('../api/nova.js');
+  let formula = '';
+  let campos = [];
+  global.fetch = async url => {
+    const u = new URL(url);
+    formula = u.searchParams.get('filterByFormula');
+    campos = u.searchParams.getAll('fields[]');
+    return { ok: true, status: 200, json: async () => ({ records: [
+      { id: 'recA', fields: { 'Name': 'Dra. Con precio', 'Ciudad de consulta': 'Culiacan', 'Costo de consulta': 900, 'Consulta en línea': true, 'Costo de consulta en línea': 700, 'Liga pública': 'dra-con-precio' } },
+      { id: 'recB', fields: { 'Name': 'Dr. Sin precio', 'Ciudad de consulta': 'Culiacán', 'Costo de consulta en línea': 500 } },
+      { id: 'recC', fields: { 'Name': 'Dr. Otra ciudad', 'Ciudad de consulta': 'Mazatlán', 'Costo de consulta': 800 } },
+    ] }) };
+  };
+  const r = await ejecutarBuscarMedicosDirectorio({ ciudad: 'culiacán' });
+  assert.deepStrictEqual(r.medicos.map(m => m.nombre), ['Dra. Con precio', 'Dr. Sin precio'], 'Culiacan = Culiacán; Mazatlán fuera');
+  const [a, b] = r.medicos;
+  assert.strictEqual(a.costo_consulta, '$900 MXN');
+  assert.strictEqual(a.consulta_en_linea, true);
+  assert.strictEqual(a.costo_consulta_en_linea, '$700 MXN');
+  assert.strictEqual(a.perfil, '/directorio/dra-con-precio');
+  assert.match(a.pago, /Directo al médico/);
+  assert.strictEqual(b.costo_consulta, null, 'no publicado = null, nunca un precio inventado');
+  assert.strictEqual(b.consulta_en_linea, false);
+  assert.strictEqual(b.costo_consulta_en_linea, null, 'costo en línea sin casilla no sale');
+  assert.ok(!formula.includes('Ciudad de consulta'), 'la ciudad ya no va en la fórmula (acentos)');
+  for (const c of ['Costo de consulta', 'Consulta en línea', 'Costo de consulta en línea', 'Liga pública']) assert.ok(campos.includes(c), c);
+
+  await ejecutarBuscarMedicosDirectorio({ en_linea: true });
+  assert.ok(formula.includes('{Consulta en línea}=1'), formula);
+});
+
+test('NOVA: el prompt ya no trae un precio fijo de consulta y dice que el pago es directo al médico', () => {
+  const fuente = require('fs').readFileSync(require('path').join(__dirname, '..', 'api', 'nova.js'), 'utf8');
+  assert.ok(!/1,500 MXN/.test(fuente), 'sin "$1,500" fijo');
+  assert.match(fuente, /CODE CELLS™ no cobra\s+consultas ni interviene en el pago/);
+  assert.match(fuente, /Nunca inventes, promedies ni\s+estimes un precio/);
+});

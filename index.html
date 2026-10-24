@@ -1809,8 +1809,8 @@
     // Al cerrar el flujo, NOVA lleva al directorio para elegir médico
     // (antes era un botón de WhatsApp a CODE CELLS).
     if (who === 'nova' && (
-      text.indexOf('$1,500') !== -1 ||
-      text.indexOf('1,500 MXN') !== -1 ||
+      text.indexOf('/directorio') !== -1 ||
+      text.toLowerCase().indexOf('directorio') !== -1 ||
       (text.indexOf('primera consulta') !== -1 && text.indexOf('costo') !== -1) ||
       (text.indexOf('Nos vemos pronto') !== -1)
     )) {
