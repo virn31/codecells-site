@@ -124,8 +124,19 @@
       }
     }
 
+    // Teléfono del consultorio como enlace tel: (10 dígitos = México).
+    function enlaceTel(t) {
+      const d = String(t || '').replace(/\D/g, '');
+      return d.length < 10 ? '' : 'tel:+' + (d.length === 10 ? '52' + d : d);
+    }
+    function telLegible(t) {
+      const n = String(t || '').replace(/\D/g, '').slice(-10);
+      return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : String(t || '');
+    }
+
     function render(s, medicoId) {
       const t = textoEstado(s);
+      const co = CONSULTORIO || {};
       document.getElementById('caja').innerHTML = `
         <div class="eyebrow">Solicitud de cita</div>
         <h1>${esc(s.medico || 'Médico de la Red')}</h1>
@@ -140,13 +151,17 @@
         ${s.mensaje ? `<div class="mensaje"><small>Mensaje del médico</small>${esc(s.mensaje)}</div>` : ''}
         <dl>
           <dt>Pediste</dt><dd>${esc(fechaLarga(s.fechaPreferida))}${s.turno ? ', ' + esc(textoTurno(s.turno)) : ''}</dd>
+          ${!t.cerrada && co.direccion ? `<dt>Dónde</dt><dd style="white-space:pre-line">${esc(co.direccion)}${co.ciudad ? '\n' + esc(co.ciudad) : ''}</dd>` : ''}
+          ${t.agendada && co.telefono ? `<dt>Teléfono</dt><dd><a href="${enlaceTel(co.telefono)}">${esc(telLegible(co.telefono))}</a></dd>` : ''}
         </dl>
         <div class="botones">
           ${t.confirmar ? '<button class="btn" id="b-confirmar">Confirmar este horario</button>' : ''}
           ${t.agendada && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s.horario || '') ? '<button class="btn" id="b-calendario">Agregar a mi calendario</button>' : ''}
+          ${!t.cerrada && /^https:\/\/www\.google\.com\/maps\//.test(co.mapa || '') ? `<a class="btn-sec" href="${esc(co.mapa)}" target="_blank" rel="noopener">Cómo llegar</a>` : ''}
+          ${t.agendada && enlaceTel(co.telefono) ? `<a class="btn-sec" href="${enlaceTel(co.telefono)}">Llamar al consultorio</a>` : ''}
           ${!t.cerrada ? `<button class="btn-sec btn-peligro" id="b-cancelar">${t.confirmar ? 'No me funciona, cancelar' : t.agendada ? 'Cancelar cita' : 'Cancelar solicitud'}</button>` : ''}
           ${t.cerrada ? '<a class="btn-sec" href="/directorio/">Buscar otro médico</a>' : ''}
-          ${medicoId && !t.cerrada ? `<a class="btn-sec" href="/directorio/medico.html?id=${encodeURIComponent(medicoId)}">Ver perfil del médico</a>` : ''}
+          ${medicoId && !t.cerrada ? `<a class="btn-sec" href="${co.liga ? '/directorio/' + encodeURIComponent(co.liga) : '/directorio/medico.html?id=' + encodeURIComponent(medicoId)}">Ver perfil del médico</a>` : ''}
         </div>
         <div class="confirmar-cancelar" id="caja-cancelar">
           <p style="margin:0 0 10px">¿Seguro que quieres cancelar? El médico será avisado y no podrás reactivarla.</p>
@@ -166,7 +181,8 @@
             fecha: s.horario.slice(0, 10), hora: s.horario.slice(11), uid: s.id,
             duracion: AGENDA && AGENDA.duracion, zona: AGENDA && AGENDA.zona,
             titulo: `Cita con ${s.medico || 'tu médico'}`,
-            descripcion: `Cita en el directorio CODE CELLS.
+            lugar: [String(co.direccion || '').replace(/\n+/g, ', '), co.ciudad].filter(Boolean).join(', '),
+            descripcion: `Cita en el directorio CODE CELLS.${co.telefono ? '\nTeléfono del consultorio: ' + telLegible(co.telefono) : ''}${co.mapa ? '\nCómo llegar: ' + co.mapa : ''}
 Para ver o cancelar tu cita: ${location.href}`,
           });
         } catch (e) { ev.target.textContent = 'No pudimos crear el archivo de calendario'; }
@@ -176,6 +192,8 @@ Para ver o cancelar tu cita: ${location.href}`,
     let MEDICO_ID = null;
     // Zona y duración de la consulta (para el calendario); null si el médico no tiene agenda configurada.
     let AGENDA = null;
+    // Dirección, mapa, teléfono y liga del perfil (de /api/citas?accion=estado).
+    let CONSULTORIO = null;
     async function actuar(accion) {
       const err = document.getElementById('error');
       document.querySelectorAll('#caja button').forEach(b => { b.disabled = true; });
@@ -200,6 +218,7 @@ Para ver o cancelar tu cita: ${location.href}`,
         const d = await api('estado');
         MEDICO_ID = d.medicoId;
         AGENDA = d.agenda || null;
+        CONSULTORIO = d.consultorio || null;
         render(d.solicitud, d.medicoId);
       } catch (e) {
         caja.innerHTML = `<h1>No pudimos mostrar tu solicitud</h1><p>${esc(e.message)}</p>`;

@@ -31,6 +31,7 @@ const { sendTelegramMessage } = require('../lib/telegram');
 const C = require('../lib/citas');
 const A = require('../lib/agenda');
 const G = require('../lib/google-agenda');
+const D = require('../lib/directorio');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TBL_SOLICITUDES = 'tblUsc72JO2BaqT6d';
@@ -394,17 +395,30 @@ module.exports = async (req, res) => {
       const idPerfil = (rec.fields['Médico solicitado'] || [])[0];
       let nombreMedico = null;
       let agenda = null;
+      let consultorio = null;
       if (idPerfil) {
         try {
           const perfil = await at(`${TBL_DIRECTORIO}/${idPerfil}`);
           nombreMedico = perfil.fields['Name'] || null;
+          // Dónde es la consulta: la dirección es pública en la ficha; el
+          // teléfono ya se le mostró al paciente al enviar su solicitud.
+          const f = perfil.fields || {};
+          const direccion = D.normalizarDireccion(f[D.CAMPO_DIRECCION]);
+          const tel = D.normalizarTelefono(f['Teléfono de consultorio']);
+          consultorio = {
+            direccion: direccion.ok ? direccion.valor : '',
+            ciudad: D.normalizarCiudad(f['Ciudad de consulta']),
+            mapa: direccion.ok ? D.enlaceMapa(direccion.valor, f['Ciudad de consulta']) : '',
+            telefono: tel.ok ? tel.valor : '',
+            liga: D.esLigaValida(f[D.CAMPO_LIGA]) ? f[D.CAMPO_LIGA] : null,
+          };
           const ag = agendaDePerfil(perfil);
           // Para "Agregar a mi calendario". Sin horario configurado no se
           // sabe la zona: el navegador usa la hora local del teléfono.
           if (ag.horario) agenda = { zona: ag.horario.zona || null, duracion: ag.horario.duracion || null };
         } catch (e) { /* el nombre y la zona son opcionales */ }
       }
-      return res.status(200).json({ solicitud: C.vistaPaciente(rec, nombreMedico), medicoId: idPerfil || null, agenda });
+      return res.status(200).json({ solicitud: C.vistaPaciente(rec, nombreMedico), medicoId: idPerfil || null, agenda, consultorio });
     }
 
     if (accion === 'paciente' && req.method === 'POST') {

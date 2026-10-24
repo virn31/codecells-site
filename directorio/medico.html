@@ -307,6 +307,11 @@
       return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : String(t || '');
     }
 
+    function enlaceMapa(direccion, ciudad) {
+      const partes = [String(direccion || '').split(/\n+/).map(x => x.trim()).filter(Boolean).join(', '), ciudad, 'México'].filter(Boolean);
+      return partes.length > 1 ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(partes.join(', ')) : '';
+    }
+
     async function cargarContactos() {
       const token = leer('cc_visitante');
       if (!token) return { tel: null, error: false };
@@ -368,6 +373,7 @@
       const filas = [
         esp && fila(ICONOS.especialidad, esp),
         f['Horarios'] && fila(ICONOS.reloj, esc(f['Horarios'])),
+        f['Dirección del consultorio'] && fila(ICONOS.ubicacion, `<span style="white-space:pre-line">${esc(f['Dirección del consultorio'])}</span>${enlaceMapa(f['Dirección del consultorio'], f['Ciudad de consulta']) ? ` · <a href="${esc(enlaceMapa(f['Dirección del consultorio'], f['Ciudad de consulta']))}" target="_blank" rel="noopener">Cómo llegar</a>` : ''}`),
         ct.tel && fila(ICONOS.telefono, enlaceTel(ct.tel) ? `<a href="${enlaceTel(ct.tel)}">${esc(telLegible(ct.tel))}</a>` : esc(ct.tel), 'fila--tel'),
         (tieneToken && ct.error) && fila(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga en unos segundos.', 'fila--aviso'),
         !tieneToken && fila(ICONOS.candado, 'El teléfono se muestra después de enviar tu solicitud.', 'fila--aviso'),
@@ -607,6 +613,7 @@
           CalendarioCita.descargarIcs({
             fecha: d.horario.slice(0, 10), hora: d.horario.slice(11), duracion: d.duracion, zona: d.zona,
             titulo: `Cita con ${nombre}`, uid: d.id,
+            lugar: [String((MEDICO.fields || {})['Dirección del consultorio'] || '').replace(/\n+/g, ', '), (MEDICO.fields || {})['Ciudad de consulta']].filter(Boolean).join(', '),
             descripcion: `Cita agendada en el directorio CODE CELLS.\nPara ver o cancelar tu cita: ${liga}`,
           });
         } catch (e) { botonCal.textContent = 'No pudimos crear el archivo de calendario'; }

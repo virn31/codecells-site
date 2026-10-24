@@ -7641,6 +7641,12 @@ function renderMiDirFormulario() {
           <span class="mi-dir-saved">✓ Guardado</span>
         </div>
         <div class="mi-dir-field">
+          <label>Dirección del consultorio</label>
+          <textarea data-campo="Dirección del consultorio" maxlength="300" rows="3" placeholder="Ej. Av. Obregón 123, Col. Centro&#10;Torre Médica, consultorio 405">${escaparHtml(c['Dirección del consultorio'] || '')}</textarea>
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">Se muestra en tu ficha y en la cita del paciente con un botón "Cómo llegar". La ciudad se agrega sola.</div>
+        </div>
+        <div class="mi-dir-field">
           <label>Teléfono del consultorio</label>
           <input type="tel" data-campo="Teléfono de consultorio" value="${escaparHtml(c['Teléfono de consultorio'] || '')}" placeholder="Ej. 667 123 4567" maxlength="20" autocomplete="tel">
           <span class="mi-dir-saved">✓ Guardado</span>
@@ -7657,7 +7663,8 @@ function renderMiDirFormulario() {
   `;
 
   // Conectar autosave a inputs de texto
-  content.querySelectorAll('input[type="text"], input[type="url"], textarea').forEach(el => {
+  // type="tel" incluido: sin él, el teléfono del consultorio no se guardaba.
+  content.querySelectorAll('input[type="text"], input[type="url"], input[type="tel"], textarea').forEach(el => {
     el.addEventListener('input', () => programarGuardadoMiDir(el));
     el.addEventListener('blur', () => guardarCampoMiDir(el)); // forzar guardado al desenfocar
   });
@@ -7742,7 +7749,7 @@ async function guardarValorMiDir(campo, valor, campoContainer) {
     // ciudad: "Culiacan" → "Culiacán").
     const guardado = (d.fields && campo in d.fields) ? d.fields[campo] : valor;
     miDirEstado.campos[campo] = guardado;
-    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"]');
+    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"], textarea[data-campo="Dirección del consultorio"]');
     if (input && document.activeElement !== input) input.value = guardado || '';
     mostrarErrorMiDir(campoContainer, '');
     mostrarGuardadoMiDir(campoContainer);

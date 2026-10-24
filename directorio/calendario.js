@@ -49,7 +49,7 @@
     return partes.join('\r\n');
   }
 
-  // { fecha:'YYYY-MM-DD', hora:'HH:mm', duracion:min, zona:'America/…'|null, titulo, descripcion, uid, ahora }
+  // { fecha:'YYYY-MM-DD', hora:'HH:mm', duracion:min, zona:'America/…'|null, titulo, descripcion, lugar, uid, ahora }
   function armarIcs(c) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(c.fecha || '') || !/^\d{2}:\d{2}$/.test(c.hora || '')) throw new Error('Fecha u hora inválida');
     const dur = Number(c.duracion) > 0 ? Number(c.duracion) : 30;
@@ -74,6 +74,7 @@
       inicio, fin,
       `SUMMARY:${textoIcs(c.titulo || 'Cita médica')}`,
       `DESCRIPTION:${textoIcs(c.descripcion || '')}`,
+      ...(c.lugar ? [`LOCATION:${textoIcs(c.lugar)}`] : []),
       ...alarma('-P1D', 'Mañana: ' + (c.titulo || 'cita médica')),
       ...alarma('-PT2H', 'En 2 horas: ' + (c.titulo || 'cita médica')),
       'END:VEVENT', 'END:VCALENDAR',

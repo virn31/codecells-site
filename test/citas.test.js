@@ -97,7 +97,7 @@ const PERFIL = 'recPERFIL00000001';
 const MED = 'recMEDICO00000001';
 const COD = 'CCMED-PRUEBA01';
 
-function mundo({ publicado = true, solicitudes = [] } = {}) {
+function mundo({ publicado = true, solicitudes = [], perfilExtra = {} } = {}) {
   const m = { creados: [], patches: [], telegram: [], solicitudes: JSON.parse(JSON.stringify(solicitudes)) };
   global.fetch = async (url, opts = {}) => {
     const u = new URL(url);
@@ -109,7 +109,7 @@ function mundo({ publicado = true, solicitudes = [] } = {}) {
       return ok({ records: [{ id: MED, fields: { 'Código de médico': COD } }] });
     }
     if (u.pathname.includes(TBL_DIR)) {
-      const perfil = { id: PERFIL, fields: { 'Name': 'Dr. Prueba', 'Médico': [MED], 'Publicado': publicado } };
+      const perfil = { id: PERFIL, fields: { 'Name': 'Dr. Prueba', 'Médico': [MED], 'Publicado': publicado, ...perfilExtra } };
       if (u.pathname.endsWith(PERFIL)) return ok(perfil);
       return ok({ records: [perfil] });
     }
@@ -181,6 +181,22 @@ test('estado con clave equivocada → 404; con la correcta no expone teléfono n
   assert.strictEqual(bien.status, 200);
   assert.strictEqual(bien.data.solicitud.medico, 'Dr. Prueba');
   assert.ok(!/6671234567|rodilla/.test(JSON.stringify(bien.data)));
+});
+
+test('estado devuelve dónde es la consulta: dirección, mapa, teléfono del consultorio y liga del perfil', async () => {
+  const clave = C.generarClave();
+  mundo({
+    solicitudes: [{ id: 'recSOL0000000003A', fields: { 'Clave de seguimiento — huella': C.huellaClave(clave), 'Teléfono/WhatsApp': '6670000000', 'Médico solicitado': [PERFIL], 'Estado de cita': 'Aceptada', 'Horario acordado': MAÑANA + ' 10:00' } }],
+    perfilExtra: { 'Dirección del consultorio': 'Av. Obregón 123\nConsultorio 4', 'Ciudad de consulta': 'Culiacan', 'Teléfono de consultorio': '667 123 4567', 'Liga pública': 'dr-prueba' },
+  });
+  const r = await llamar('estado', { metodo: 'POST', body: { id: 'recSOL0000000003A', c: clave } });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.deepStrictEqual(r.data.consultorio, {
+    direccion: 'Av. Obregón 123\nConsultorio 4', ciudad: 'Culiacán',
+    mapa: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Av. Obregón 123, Consultorio 4, Culiacán, México'),
+    telefono: '6671234567', liga: 'dr-prueba',
+  });
+  assert.ok(!JSON.stringify(r.data).includes('6670000000'), 'el teléfono del paciente no sale');
 });
 
 test('estado de una solicitud que no existe → 404 "no encontramos" (Airtable responde 403 MODEL_NOT_FOUND), no 502', async () => {

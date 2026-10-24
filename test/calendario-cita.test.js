@@ -33,3 +33,10 @@ test('armarIcs: fecha u hora inválida → error (no se arma un evento a ciegas)
   assert.throws(() => Cal.armarIcs({ fecha: '26/10/2026', hora: '10:00' }));
   assert.throws(() => Cal.armarIcs({ fecha: '2026-10-26', hora: '' }));
 });
+
+test('armarIcs: el lugar va en LOCATION (escapado); sin lugar no hay LOCATION', () => {
+  const con = Cal.armarIcs({ fecha: '2026-11-02', hora: '10:00', zona: null, titulo: 'Cita', lugar: 'Av. Obregón 123, Col. Centro; Culiacán', ahora: new Date('2026-10-24T00:00:00Z') });
+  assert.match(con, /LOCATION:Av\. Obregón 123\\, Col\. Centro\\; Culiacán/);
+  const sin = Cal.armarIcs({ fecha: '2026-11-02', hora: '10:00', zona: null, titulo: 'Cita', ahora: new Date('2026-10-24T00:00:00Z') });
+  assert.ok(!/LOCATION/.test(sin));
+});

@@ -541,3 +541,20 @@ test('ficha: liga inexistente → 404 noindex; liga inválida no consulta Airtab
   assert.strictEqual(r.status, 502, 'un fallo no se disfraza de "no existe"');
   assert.match(r.headers['Cache-Control'], /no-store/);
 });
+
+// ── P1: dirección del consultorio ──
+test('normalizarDireccion: limpia renglones y espacios; rechaza ligas y textos enormes', () => {
+  assert.deepStrictEqual(D.normalizarDireccion('  Av. Obregón   123 \n\n  Col. Centro  '), { ok: true, valor: 'Av. Obregón 123\nCol. Centro' });
+  assert.deepStrictEqual(D.normalizarDireccion(''), { ok: true, valor: '' });
+  assert.strictEqual(D.normalizarDireccion('https://maps.app.goo.gl/xyz').ok, false);
+  assert.strictEqual(D.normalizarDireccion('x'.repeat(301)).ok, false);
+  assert.strictEqual(D.normalizarContacto({ 'Dirección del consultorio': 'www.mapa.com' }).errores.length, 1);
+  assert.ok(D.CAMPOS_PUBLICOS.includes('Dirección del consultorio'), 'cambiarla en un perfil publicado marca revisión');
+  assert.ok(D.CAMPOS_LECTURA_PUBLICA.includes('Dirección del consultorio'));
+});
+
+test('enlaceMapa: liga de mapas sin llave, con ciudad del catálogo; vacía sin dirección', () => {
+  assert.strictEqual(D.enlaceMapa('Av. Obregón 123\nConsultorio 4', 'culiacan'),
+    'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Av. Obregón 123, Consultorio 4, Culiacán, México'));
+  assert.strictEqual(D.enlaceMapa('', 'Culiacán'), '', 'solo con ciudad no se promete un lugar');
+});
