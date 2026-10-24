@@ -9,14 +9,13 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-24 (cierre) — M5 búsqueda, WhatsApp fuera de la plataforma (solo como red social del médico) y M6 liga bonita + vista previa. 6 commits SIN PUSH (`3241ff7`…`66345ea` y este).
+**Última actualización:** 2026-10-24 (cierre) — M5 búsqueda, WhatsApp fuera de la plataforma (solo como red social del médico) y M6 liga bonita + vista previa. Push hecho por Víctor (`6d0a466`); solo este ajuste de docs queda sin push.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** (6 commits):
-   `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
+1. ~~Push~~ hecho (`6d0a466`, 2026-10-24). Vercel arma el Preview solo.
 2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
