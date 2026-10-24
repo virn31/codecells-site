@@ -338,6 +338,10 @@ module.exports = async (req, res) => {
     !sesion && req.method === 'GET' && tabla === 'directorio_medico';
   const esListaCiudadesPublica =
     !sesion && req.method === 'GET' && tabla === 'directorio_medico' && req.query.accion === 'ciudades';
+  // Opciones de los filtros (ciudades, especialidades, herramientas) con lo
+  // que de verdad hay publicado, con conteo.
+  const esFiltrosPublicos =
+    !sesion && req.method === 'GET' && tabla === 'directorio_medico' && req.query.accion === 'filtros';
 
   // ── Registro público de un lead del directorio (crea el lead + token) ──
   const esRegistroPacientePublico =
@@ -481,15 +485,23 @@ module.exports = async (req, res) => {
     // Devolver array de ciudades únicas de médicos publicados
     try {
       // Mismo criterio: todas las páginas; un fallo es error, no "sin ciudades".
+      // "Culiacan" y "Culiacán" son la misma ciudad (se agrupan por clave).
       const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, { filterByFormula: '{Publicado}=1', 'fields[]': 'Ciudad de consulta' });
-      const set = new Set();
-      registros.forEach(rec => {
-        const c = rec.fields?.['Ciudad de consulta']?.trim();
-        if (c) set.add(c);
-      });
-      return res.status(200).json({ ciudades: Array.from(set).sort() });
+      return res.status(200).json({ ciudades: directorio.opcionesFiltros(registros).ciudades.map(c => c.nombre) });
     } catch (err) {
       return res.status(502).json({ error: 'No pudimos cargar las ciudades en este momento.' });
+    }
+  }
+
+  if (esFiltrosPublicos) {
+    try {
+      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, [
+        ['filterByFormula', '{Publicado}=1'],
+        ['fields[]', 'Ciudad de consulta'], ['fields[]', 'Especialidades visibles'], ['fields[]', 'Tratamientos que ofrece'],
+      ]);
+      return res.status(200).json(directorio.opcionesFiltros(registros));
+    } catch (err) {
+      return res.status(502).json({ error: 'No pudimos cargar los filtros en este momento.' });
     }
   }
 
@@ -504,9 +516,8 @@ module.exports = async (req, res) => {
       if (!/^rec[A-Za-z0-9]{14}$/.test(String(id))) return res.status(400).json({ error: 'Identificador inválido.' });
       filtros.push(`RECORD_ID()="${id}"`);
     }
-    if (ciudad) {
-      filtros.push(`{Ciudad de consulta}="${escaparFormula(ciudad)}"`);
-    }
+    // La ciudad NO va en la fórmula: se compara abajo por clave (sin
+    // acentos ni mayúsculas), porque es texto libre.
     if (especialidad) {
       filtros.push(`FIND("${escaparFormula(especialidad)}", ARRAYJOIN({Especialidades visibles}, ", "))>0`);
     }
@@ -518,12 +529,15 @@ module.exports = async (req, res) => {
       filtros.length === 1 ? filtros[0] : `AND(${filtros.join(',')})`
     );
     DIRECTORIO_CAMPOS_PUBLICOS.forEach(f => params.append('fields[]', f));
-    params.set('maxRecords', '50');
 
-    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
     try {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const data = await r.json();
+      // Todas las páginas: un fallo es error (502), nunca "sin médicos".
+      let registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, [...params.entries()]);
+      if (ciudad) {
+        const clave = directorio.claveCiudad(directorio.normalizarCiudad(ciudad));
+        registros = registros.filter(rec => directorio.claveCiudad(directorio.normalizarCiudad(rec.fields?.['Ciudad de consulta'])) === clave);
+      }
+      const data = { records: registros.slice(0, 50) };
       // La foto sale al público solo como URL (sin nombre de archivo, tamaño
       // ni id del adjunto).
       (data.records || []).forEach(rec => {
@@ -535,10 +549,12 @@ module.exports = async (req, res) => {
         // Una liga que no pasa la regla de su red no sale al público.
         const redes = directorio.redesPublicas(f);
         directorio.CAMPOS_REDES.forEach(c => { if (redes[c]) f[c] = redes[c]; else delete f[c]; });
+        // Ortografía del catálogo ("Culiacan" → "Culiacán").
+        if (f['Ciudad de consulta']) f['Ciudad de consulta'] = directorio.normalizarCiudad(f['Ciudad de consulta']);
       });
-      return res.status(r.status).json(data);
+      return res.status(200).json(data);
     } catch (err) {
-      return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
+      return res.status(502).json({ error: 'No pudimos consultar el directorio en este momento. Intenta de nuevo en unos segundos.' });
     }
   }
 
@@ -938,6 +954,7 @@ module.exports = async (req, res) => {
           const redesPost = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
           if (redesPost.errores.length) return res.status(400).json({ error: redesPost.errores.join(' ') });
           const fields = redesPost.fields;
+          if ('Ciudad de consulta' in fields) fields['Ciudad de consulta'] = directorio.normalizarCiudad(fields['Ciudad de consulta']);
           const ahoraISO = new Date().toISOString();
           req.body.fields = {
             ...fields,
@@ -969,6 +986,7 @@ module.exports = async (req, res) => {
             const redesPatch = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
             if (redesPatch.errores.length) return res.status(400).json({ error: redesPatch.errores.join(' ') });
             const fields = redesPatch.fields;
+            if ('Ciudad de consulta' in fields) fields['Ciudad de consulta'] = directorio.normalizarCiudad(fields['Ciudad de consulta']);
             const ahoraISO = new Date().toISOString();
             // Editar lo que ve el público en un perfil YA publicado lo deja
             // visible pero marcado para que un administrador lo revise.

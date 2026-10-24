@@ -334,3 +334,69 @@ test('directorio público: las redes válidas salen; una liga mala escrita direc
   assert.ok(!('Facebook' in f), 'javascript: nunca sale al público');
   assert.strictEqual(f['Sitio web'], 'https://otro.com/');
 });
+
+// ── Ciudad y filtros (2026-10-23) ─────────────────────────────────────
+test('normalizarCiudad: "Culiacan", "  culiacán " y "CULIACAN" son Culiacán; alias CDMX; ciudad desconocida se respeta', () => {
+  for (const x of ['Culiacan', '  culiacán ', 'CULIACAN', 'Culiacán']) assert.strictEqual(D.normalizarCiudad(x), 'Culiacán', x);
+  assert.strictEqual(D.normalizarCiudad('cdmx'), 'Ciudad de México');
+  assert.strictEqual(D.normalizarCiudad('Mazatlan'), 'Mazatlán');
+  assert.strictEqual(D.normalizarCiudad('  Pueblo   Mágico  '), 'Pueblo Mágico', 'no se inventa una ciudad');
+  assert.strictEqual(D.normalizarCiudad(''), '');
+  assert.strictEqual(D.claveCiudad('Culiacán'), D.claveCiudad('culiacan'));
+});
+
+test('opcionesFiltros: solo lo publicado, con conteo y ciudades agrupadas', () => {
+  const o = D.opcionesFiltros([
+    { fields: { 'Ciudad de consulta': 'Culiacan', 'Especialidades visibles': ['Cardiología'], 'Tratamientos que ofrece': ['Exosomas'] } },
+    { fields: { 'Ciudad de consulta': 'Culiacán', 'Especialidades visibles': ['Cardiología', 'Nutriología'] } },
+    { fields: { 'Ciudad de consulta': 'Mazatlán' } },
+  ]);
+  assert.deepStrictEqual(o.ciudades, [{ nombre: 'Culiacán', n: 2 }, { nombre: 'Mazatlán', n: 1 }]);
+  assert.deepStrictEqual(o.especialidades, [{ nombre: 'Cardiología', n: 2 }, { nombre: 'Nutriología', n: 1 }]);
+  assert.deepStrictEqual(o.tratamientos, [{ nombre: 'Exosomas', n: 1 }]);
+});
+
+function llamarPublico(query) {
+  delete require.cache[require.resolve('../api/airtable.js')];
+  const handler = require('../api/airtable.js');
+  return new Promise(resolve => handler({ method: 'GET', query, headers: {} }, {
+    statusCode: 200, setHeader() {}, status(c) { this.statusCode = c; return this; },
+    json(d) { resolve({ status: this.statusCode, data: d }); return this; }, end() { resolve({ status: this.statusCode }); },
+  }));
+}
+
+test('directorio público: buscar "Culiacán" encuentra al perfil que dice "Culiacan" y lo muestra con acento', async () => {
+  airtableFalsa(perfilCompleto({ 'Publicado': true, 'Ciudad de consulta': 'Culiacan' }));
+  const r = await llamarPublico({ tabla: 'directorio_medico', ciudad: 'Culiacán' });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.strictEqual(r.data.records.length, 1);
+  assert.strictEqual(r.data.records[0].fields['Ciudad de consulta'], 'Culiacán');
+  airtableFalsa(perfilCompleto({ 'Publicado': true, 'Ciudad de consulta': 'Culiacan' }));
+  const otra = await llamarPublico({ tabla: 'directorio_medico', ciudad: 'Mazatlán' });
+  assert.strictEqual(otra.data.records.length, 0);
+});
+
+test('directorio público: si Airtable falla → 502 con mensaje, nunca lista vacía', async () => {
+  global.fetch = async () => ({ ok: false, status: 503, json: async () => ({ error: 'caído' }) });
+  const r = await llamarPublico({ tabla: 'directorio_medico' });
+  assert.strictEqual(r.status, 502);
+  assert.ok(!r.data.records);
+  const f = await llamarPublico({ tabla: 'directorio_medico', accion: 'filtros' });
+  assert.strictEqual(f.status, 502);
+});
+
+test('accion=filtros devuelve opciones con conteo', async () => {
+  airtableFalsa(perfilCompleto({ 'Publicado': true, 'Ciudad de consulta': 'culiacan', 'Tratamientos que ofrece': ['DEZAWA (VIP)'] }));
+  const r = await llamarPublico({ tabla: 'directorio_medico', accion: 'filtros' });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.deepStrictEqual(r.data.ciudades, [{ nombre: 'Culiacán', n: 1 }]);
+  assert.deepStrictEqual(r.data.especialidades, [{ nombre: 'Cardiología', n: 1 }]);
+});
+
+test('proxy PATCH: la ciudad se guarda con la ortografía del catálogo', async () => {
+  const at = airtableFalsa(perfilCompleto({ 'Estado de publicación': 'Borrador' }));
+  const r = await llamarProxy({ metodo: 'PATCH', query: { tabla: 'directorio_medico', recordId: REC_PERFIL },
+    body: { fields: { 'Ciudad de consulta': ' culiacan ' } } });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.strictEqual(at.patches[0]['Ciudad de consulta'], 'Culiacán');
+});

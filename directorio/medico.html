@@ -145,7 +145,7 @@
     .turnos label:has(input:checked) { border-color: var(--c-energy); background: rgba(232,163,61,0.1); }
     .nota-chica { margin: 0 0 8px; color: var(--ink-muted); font-size: 14px; }
     .dias-lugar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-muted); }
-    .btn-dia { padding: 7px 12px; font-size: 13px; text-transform: capitalize; }
+    .btn-dia { padding: 7px 12px; font-size: 13px; }
     .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--ink-muted); line-height: 1.55; margin-top: 4px; }
     .consent input { margin-top: 3px; accent-color: var(--c-energy); flex: 0 0 auto; }
@@ -242,6 +242,10 @@
 
     const fechaLarga = ymd => new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
     const horaCorta = h => String(h).replace(/^0(\d)/, '$1');
+    // "Sábado, 24 de octubre": solo la primera letra (antes el CSS ponía "De Octubre").
+    const mayusculaInicial = t => String(t).charAt(0).toUpperCase() + String(t).slice(1);
+    // "DEZAWA (VIP)" es el valor guardado; al paciente no se le habla de VIP.
+    const etiquetaHerramienta = t => String(t || '').replace(/\s*\(VIP\)\s*$/i, '');
 
     async function cargarDisponibilidad(fecha) {
       try {
@@ -303,7 +307,6 @@
       const tieneToken = !!leer('cc_visitante') && !ct.vencido;
       const filas = [
         esp && fila(ICONOS.especialidad, esp),
-        f['Ciudad de consulta'] && fila(ICONOS.ubicacion, esc(f['Ciudad de consulta'])),
         f['Horarios'] && fila(ICONOS.reloj, esc(f['Horarios'])),
         ct.tel && fila(ICONOS.telefono, esc(ct.tel), 'fila--tel'),
         (tieneToken && ct.error) && fila(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga en unos segundos.', 'fila--aviso'),
@@ -326,7 +329,7 @@
           ${htmlRedes(f, nombre)}
           ${ct.wa && tieneToken ? `<a class="wa" href="${esc(ct.wa)}" target="_blank" rel="noopener">${ICONOS.whatsapp} WhatsApp del consultorio</a>` : ''}
           ${f['Bio corta'] ? `<section class="seccion"><h2>Presentación</h2><p class="bio">${esc(f['Bio corta'])}</p></section>` : ''}
-          ${trat.length ? `<section class="seccion"><h2>Herramientas que ofrece</h2><ul class="chips">${trat.map(t => `<li class="chip">${esc(t)}</li>`).join('')}</ul></section>` : ''}
+          ${trat.length ? `<section class="seccion"><h2>Herramientas que ofrece</h2><ul class="chips">${trat.map(t => `<li class="chip">${esc(etiquetaHerramienta(t))}</li>`).join('')}</ul></section>` : ''}
           ${f['Otras terapias'] ? `<section class="seccion"><h2>Otras terapias</h2><p class="bio">${esc(f['Otras terapias'])}</p></section>` : ''}
           <p class="legal">Este perfil no sustituye la consulta médica. El médico declara bajo su responsabilidad las herramientas que ofrece.</p>
         </article>
@@ -346,7 +349,7 @@
       const lista = (siguientes || []).filter(s => s.fecha !== excepto);
       if (!lista.length) return '';
       return `<div class="dias-lugar"><span>Días con lugar:</span>${lista.map(s =>
-        `<button type="button" class="btn-sec btn-dia" data-fecha="${esc(s.fecha)}">${esc(fechaLarga(s.fecha))}</button>`).join('')}</div>`;
+        `<button type="button" class="btn-sec btn-dia" data-fecha="${esc(s.fecha)}">${esc(mayusculaInicial(fechaLarga(s.fecha)))}</button>`).join('')}</div>`;
     }
 
     function htmlEspacios(d, fecha) {

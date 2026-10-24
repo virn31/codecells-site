@@ -7751,10 +7751,11 @@ async function guardarValorMiDir(campo, valor, campoContainer) {
     const d = await r.json().catch(() => ({}));
     // Nuestro servidor manda error como texto; Airtable, como objeto.
     if (!r.ok) throw new Error(typeof d.error === 'string' ? d.error : 'No se pudo guardar (error ' + r.status + '). Intenta de nuevo.');
-    // El servidor puede normalizar el valor (redes: @usuario → liga completa).
+    // El servidor puede normalizar el valor (redes: @usuario → liga completa;
+    // ciudad: "Culiacan" → "Culiacán").
     const guardado = (d.fields && campo in d.fields) ? d.fields[campo] : valor;
     miDirEstado.campos[campo] = guardado;
-    const input = campoContainer && campoContainer.querySelector('input[data-red]');
+    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"]');
     if (input && document.activeElement !== input) input.value = guardado || '';
     mostrarErrorMiDir(campoContainer, '');
     mostrarGuardadoMiDir(campoContainer);

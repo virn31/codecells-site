@@ -242,6 +242,7 @@
       margin: 0 0 4px;
       overflow-wrap: anywhere;
     }
+    .filtros-aviso { color: #E2574B; text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-size: 14px; }
     .pd-card__city {
       font-family: var(--font-mono);
       font-size: 11px;
@@ -552,47 +553,18 @@
         <label for="f-especialidad">Especialidad</label>
         <select id="f-especialidad" onchange="buscarDirectorio()">
           <option value="">Todas las especialidades</option>
-          <option>Medicina Regenerativa</option>
-          <option>Medicina Interna</option>
-          <option>Endocrinología</option>
-          <option>Ginecología y Obstetricia</option>
-          <option>Gastroenterología</option>
-          <option>Otorrinolaringología</option>
-          <option>Nutriología</option>
-          <option>Cardiología</option>
-          <option>Nefrología</option>
-          <option>Reumatología</option>
-          <option>Dermatología</option>
-          <option>Neumología</option>
-          <option>Psiquiatría</option>
-          <option>Urología</option>
-          <option>Oftalmología</option>
-          <option>Cirugía Plástica</option>
         </select>
       </div>
       <div class="filtro">
         <label for="f-tratamiento">Herramienta</label>
         <select id="f-tratamiento" onchange="buscarDirectorio()">
           <option value="">Todas las herramientas</option>
-          <option>Células madre</option>
-          <option>Exosomas</option>
-          <option>Sueroterapia IV</option>
-          <option>Peptidoterapia</option>
-          <option>GLP-1 / Pérdida de peso</option>
-          <option>MUSE Cells</option>
-          <option>Rejuvenecimiento facial</option>
-          <option>Terapia hormonal</option>
-          <option>Ozonoterapia</option>
-          <option>Homotoxicología</option>
-          <option>Biohacking / Longevidad</option>
-          <option>NK Cells</option>
-          <option>MSC Placental</option>
-          <option>DEZAWA (VIP)</option>
         </select>
       </div>
     </div>
   </div>
 
+  <div id="filtros-aviso" class="resumen filtros-aviso" role="alert" hidden></div>
   <div id="resumen" class="resumen"></div>
 
   <div id="resultados">
@@ -646,20 +618,35 @@
       }
     }
 
-    async function cargarCiudades() {
+    // "DEZAWA (VIP)" es el valor guardado; al paciente no se le habla de VIP.
+    const etiquetaHerramienta = t => String(t || '').replace(/\s*\(VIP\)\s*$/i, '');
+
+    // Opciones de los 3 filtros con lo que de verdad hay publicado (con
+    // conteo). Antes eran listas fijas y se podía elegir una especialidad sin
+    // ningún médico. Si fallan, se dice: la búsqueda sigue funcionando.
+    async function cargarFiltros() {
+      const aviso = document.getElementById('filtros-aviso');
       try {
-        const r = await fetch('/api/airtable?tabla=directorio_medico&accion=ciudades');
-        if (!r.ok) return;
-        const data = await r.json();
-        const sel = document.getElementById('f-ciudad');
-        (data.ciudades || []).forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c;
-          opt.textContent = c;
-          sel.appendChild(opt);
-        });
+        const r = await fetch('/api/airtable?tabla=directorio_medico&accion=filtros');
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Error ' + r.status);
+        const llenar = (id, lista, etiqueta) => {
+          const sel = document.getElementById(id);
+          (lista || []).forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.nombre;
+            opt.textContent = `${etiqueta(o.nombre)} (${o.n})`;
+            sel.appendChild(opt);
+          });
+        };
+        llenar('f-ciudad', data.ciudades, x => x);
+        llenar('f-especialidad', data.especialidades, x => x);
+        llenar('f-tratamiento', data.tratamientos, etiquetaHerramienta);
+        aviso.hidden = true;
       } catch (err) {
-        console.error('Error cargando ciudades:', err);
+        console.error('Error cargando filtros:', err);
+        aviso.textContent = 'No pudimos cargar las opciones de búsqueda. Puedes ver a todos los médicos abajo; recarga la página para filtrar.';
+        aviso.hidden = false;
       }
     }
 
@@ -766,7 +753,6 @@
         // Teléfono y WhatsApp solo después de que el visitante dejó sus datos.
         const filas = [
           especialidades && filaPd(ICONOS.especialidad, especialidades),
-          ciudad && filaPd(ICONOS.ubicacion, ciudad),
           horarios && filaPd(ICONOS.reloj, horarios),
           tel && filaPd(ICONOS.telefono, escaparHtml(tel), 'pd-row--tel'),
           (!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) && filaPd(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga la página en unos segundos.', 'pd-row--aviso'),
@@ -781,7 +767,7 @@
                 ${ciudad ? `<p class="pd-card__city">${ciudad}</p>` : ''}
                 ${filas ? `<ul class="pd-card__rows">${filas}</ul>` : ''}
                 ${bio ? `<p class="pd-card__bio">${bio}</p>` : ''}
-                ${tratamientos.length ? `<ul class="pd-card__chips">${tratamientos.map((t, j) => `<li class="pd-chip" style="animation-delay: ${(i * 0.07) + 0.18 + (j * 0.025)}s">${escaparHtml(t)}</li>`).join('')}</ul>` : ''}
+                ${tratamientos.length ? `<ul class="pd-card__chips">${tratamientos.map((t, j) => `<li class="pd-chip" style="animation-delay: ${(i * 0.07) + 0.18 + (j * 0.025)}s">${escaparHtml(etiquetaHerramienta(t))}</li>`).join('')}</ul>` : ''}
               </div>
               <div class="pd-card__avatar">
                 <span class="pd-card__initials" aria-hidden="true">${escaparHtml(inicialesMedico(nombreCrudo))}</span>
@@ -805,7 +791,7 @@
     }
 
     // Arranque
-    cargarCiudades();
+    cargarFiltros();
     cargarContactos().then(buscarDirectorio);
   </script>
 
