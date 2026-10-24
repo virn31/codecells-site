@@ -9,22 +9,24 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-24 (cierre) — M5 búsqueda, WhatsApp fuera de la plataforma (solo como red social del médico) y M6 liga bonita + vista previa. Push hecho por Víctor (`6d0a466`); solo este ajuste de docs queda sin push.
+**Última actualización:** 2026-10-24 (noche) — P1 + M8 hechos (`d4fa945`): dirección del consultorio y "Cómo llegar"; arreglo del teléfono que no se guardaba. 3 commits SIN PUSH (`8bcf2a4`, `d4fa945` y este). `Liga pública` ya creada en producción; **`Dirección del consultorio` NO** (ver §4b).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. ~~Push~~ hecho (`6d0a466`, 2026-10-24). Vercel arma el Preview solo.
+1. **Que Víctor haga push** (3 commits): `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
 2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
+   - **Dirección**: ficha del Dr. QA (`/directorio/prueba-dr-qa-cardiologia`) ya tiene dirección ficticia `[PRUEBA] Av. Álvaro Obregón 123…` y teléfono `6670000000` (base de prueba) → renglón con "Cómo llegar" (abre mapas). Pedir una cita ahí → en la liga de la cita: "Dónde", "Cómo llegar", y con cita confirmada "Teléfono" + "Llamar al consultorio"; el archivo de calendario debe traer el lugar.
+   - Portal → Mi directorio: capturar tu **dirección** ("Cómo te contactan"); una liga de Maps debe dar error. **Teléfono del consultorio: antes no se guardaba** (autosave ignoraba `type=tel`, arreglado en `d4fa945`) — confirmar que ahora sí.
    - Portal → Mi directorio: aparece "Tu liga para compartir" + Copiar (perfil publicado). Campo **Teléfono del consultorio** (10 dígitos; "123" debe dar error). En "Redes sociales", **WhatsApp** (número o liga wa.me) → sale como botón en la ficha.
    - Ficha: con datos dejados, botón **"Llamar al consultorio"** (tel:). Ya no hay "Enviármela por WhatsApp".
    - Home: "Encuentra a tu médico" lleva al directorio; al terminar la evaluación **NOVA debe abrirse sola** (antes la abría un parche que interceptaba WhatsApp; ahora se llama directo) y al final de la plática sale "Encuentra a tu médico en el directorio".
    - `code-cells-network`: el botón final dice "Solicitar afiliación" y va a `unete.html`.
    - Ojo: una cita real en Preview manda aviso de Telegram real.
-3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ · **P1 dirección del consultorio + M8 "Cómo llegar" (empezar aquí)** — el paciente necesita saber a dónde ir; liga a mapas sin depender de una API de pago (una liga `https://www.google.com/maps/search/?api=1&query=…` no requiere cuenta ni llave) · P3 costo de consulta (opcional) · M9 "Únete a la red" en el encabezado · resumen semanal al médico por Telegram.
+3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ ~~P1~~ ~~M8~~ · **P3 costo de consulta (empezar aquí; opcional para el médico)** · M9 "Únete a la red" en el encabezado · resumen semanal al médico por Telegram.
 4. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1). Rehacerla es categoría A. Lo demás de la app es fase 2.
 
 ### Lo hecho el 2026-10-24
@@ -32,7 +34,8 @@
 - `0d13bcd` **WhatsApp fuera de la plataforma** (Víctor: "no depender de otras empresas"). No había Twilio en el código; eran ligas `wa.me`. Directorio: teléfono del consultorio validado (`normalizarTelefono`) con botón Llamar (tel:); home → directorio; NOVA del test se activa directo (`window.novaActivar`) y se quitó el parche de `window.open`; afiliación → `unete.html`, se pide "teléfono celular". Campos de Airtable NO renombrados (`WhatsApp`, `Teléfono/WhatsApp` siguen guardando un teléfono).
 - `d797fae` **WhatsApp del médico como red social** (Víctor lo pidió así): opcional y **público**, en "Redes sociales"; se guarda `https://wa.me/<número>` sin mensaje pre-escrito (`normalizarWhatsApp`); editarlo en un perfil publicado marca revisión. Campo `WhatsApp público` (ya existía en ambas bases). Consentimiento **v1.3-borrador 2026-10-24** (menciona WhatsApp). La plataforma sigue sin pedir ni mandar nada por WhatsApp.
 - `66345ea` **M6 liga bonita + vista previa**: `/directorio/<liga>` → `api/ficha.js` (vercel.json, con `includeFiles`) arma `directorio/medico.html` con título, descripción, `og:*` y canonical; la página recibe el id en `window.FICHA`. `Liga pública` se asigna UNA vez al aprobar (`ligaDisponible`, -2 si existe) y es campo protegido (no cambia si el médico edita su nombre). Lista blanca pública movida a `lib/directorio.js` (`CAMPOS_LECTURA_PUBLICA`, `limpiarPerfilPublico`). 404 noindex si no existe, 502 si Airtable falla. Caché 5 min (un cambio o despublicación tarda eso en verse en la liga bonita). `scripts/asignar-ligas-directorio.js` (solo muestra; `--aplicar`; `--produccion` para prod) — ya aplicado en la base de prueba (10 perfiles).
-- Pruebas: **177/177**.
+- `d4fa945` **P1 + M8**: `Dirección del consultorio` (opcional, pública, `normalizarDireccion` rechaza ligas, máx. 300; editarla publicado marca revisión); ficha y liga de la cita con "Cómo llegar" (`enlaceMapa`: liga normal a Google Maps, sin llave); `/api/citas?accion=estado` devuelve `consultorio {direccion, ciudad, mapa, telefono, liga}`; con cita confirmada se ve teléfono + Llamar; `.ics` con `LOCATION`. Consentimiento **v1.4-borrador 2026-10-24** (menciona dirección). Arreglo: autosave del portal no escuchaba `input[type=tel]` → el teléfono del consultorio de `0d13bcd` no se guardaba.
+- Pruebas: **181/181**.
 - **WhatsApp que queda fuera de esta rama** (fase 2, `feat/paciente-unico`): portal VIP y `dezawavip.html` (verificación con "últimos 4 dígitos de tu WhatsApp", botones "Enviar por WhatsApp"), portal clínico ("Enviar por WhatsApp"/"Copiar para WhatsApp" de planes y recetas), `api/nova.js` (Canal 'WhatsApp' en solicitudes de cita, firma "📲 WhatsApp"). `aviso-privacidad.html` dice "Número telefónico o de WhatsApp": cambiarlo con la revisión del abogado.
 
 ### Lo hecho el 2026-10-23 (tarde)
@@ -128,7 +131,9 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 
 ## 4b. Antes de fusionar a `main`
 
-**⚠ FALTA EN PRODUCCIÓN: campo `Liga pública` (texto de una línea) en DIRECTORIO_MEDICO** (creado solo en la base de prueba el 2026-10-24, `fldsLC3D0dcf3d4yb`). El directorio público lo pide en `fields[]`: **sin él, el directorio entero da 422 y deja de cargar**. Crearlo en producción ANTES de fusionar (pedir autorización a Víctor) y después correr `node scripts/asignar-ligas-directorio.js --aplicar --produccion` con la base de producción en `.env.local` (asigna liga a VIRN01 y a cualquier publicado).
+**⚠ FALTA EN PRODUCCIÓN: campo `Dirección del consultorio` (texto largo / multilineText) en DIRECTORIO_MEDICO** (creado solo en prueba el 2026-10-24, `fld0CGoXHJeZC0MJI`). Está en `CAMPOS_LECTURA_PUBLICA`: **sin él el directorio público da 422 y no carga**. Pedir autorización a Víctor y crearlo antes de fusionar.
+
+**Campo `Liga pública` YA CREADO EN PRODUCCIÓN** (2026-10-24, autorizado por Víctor; `fld6Ea6HyTvWeelPF` en prod, `fldsLC3D0dcf3d4yb` en prueba — los ids de campo difieren entre bases, el código usa el nombre). Víctor pidió NO tocar datos de producción aún: **al lanzar**, correr `node scripts/asignar-ligas-directorio.js --aplicar --produccion` con la base de producción en `.env.local` (asigna liga a VIRN01 y a cualquier publicado).
 
 **Campos de Airtable del directorio — YA CREADOS EN PRODUCCIÓN (2026-10-23, autorizado por Víctor).** DIRECTORIO_MEDICO (16: publicación, consentimiento, revisión, `Foto de perfil`, `Agenda — *`; más las 6 redes) y SOLICITUDES_PACIENTE (8: `Fecha preferida`, `Turno preferido`, `Estado de cita`, `Horario acordado`, `Mensaje del médico`, `Clave de seguimiento — huella`, `Historial de la solicitud`, `Evento Google`). Verificado comparando el esquema de ambas bases: mismos nombres y tipos. No borrar ni renombrar: el directorio público pide varios por `fields[]` y uno faltante da 422 (el directorio entero deja de cargar). Los perfiles viejos de producción (VIRN01, JCG01) no tienen `Estado de publicación`: `estadoEfectivo()` los trata como Publicado/Borrador según `Publicado`.
 Las diferencias restantes entre bases son del portal clínico (fase 2: antecedentes, recetas, medicamentos, planes nutricionales, etc.) y NO se crearon.
