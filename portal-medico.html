@@ -7672,12 +7672,13 @@ const REDES_MI_DIR = [
   { campo: 'YouTube', ejemplo: '@tucanal o youtube.com/@tucanal' },
   { campo: 'LinkedIn', ejemplo: 'linkedin.com/in/tu-nombre' },
   { campo: 'Sitio web', ejemplo: 'tuconsultorio.com' },
+  { campo: 'WhatsApp público', etiqueta: 'WhatsApp', ejemplo: '667 123 4567 o wa.me/526671234567', tipo: 'tel' },
 ];
 function htmlRedesMiDir(c) {
   return REDES_MI_DIR.map(r => `
         <div class="mi-dir-field">
-          <label>${r.campo}</label>
-          <input type="text" data-campo="${r.campo}" data-red="1" value="${escaparHtml(c[r.campo] || '')}" placeholder="${escaparHtml(r.ejemplo)}" autocomplete="off" inputmode="url">
+          <label>${r.etiqueta || r.campo}</label>
+          <input type="text" data-campo="${r.campo}" data-red="1" value="${escaparHtml(c[r.campo] || '')}" placeholder="${escaparHtml(r.ejemplo)}" autocomplete="off" inputmode="${r.tipo || 'url'}">
           <span class="mi-dir-saved">✓ Guardado</span>
         </div>`).join('');
 }
@@ -7741,7 +7742,7 @@ async function guardarValorMiDir(campo, valor, campoContainer) {
     // ciudad: "Culiacan" → "Culiacán").
     const guardado = (d.fields && campo in d.fields) ? d.fields[campo] : valor;
     miDirEstado.campos[campo] = guardado;
-    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"]');
+    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"]');
     if (input && document.activeElement !== input) input.value = guardado || '';
     mostrarErrorMiDir(campoContainer, '');
     mostrarGuardadoMiDir(campoContainer);

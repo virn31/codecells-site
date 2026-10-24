@@ -447,9 +447,24 @@ test('normalizarTelefono: 10 dígitos o con +52; guarda solo dígitos; rechaza l
   assert.strictEqual(D.normalizarTelefono('https://wa.me/5216671234567').ok, false, 'una liga no es teléfono');
 });
 
-test('normalizarContacto: WhatsApp público ya no se escribe; teléfono inválido es error', () => {
-  const r = D.normalizarContacto({ 'WhatsApp público': '6671234567', 'Teléfono de consultorio': '667-123-4567', 'Bio corta': 'x' });
+test('normalizarContacto: valida el teléfono y deja el WhatsApp a normalizarRedes', () => {
+  const r = D.normalizarContacto({ 'Teléfono de consultorio': '667-123-4567', 'Bio corta': 'x' });
   assert.deepStrictEqual(r, { fields: { 'Teléfono de consultorio': '6671234567', 'Bio corta': 'x' }, errores: [] });
   assert.strictEqual(D.normalizarContacto({ 'Teléfono de consultorio': '123' }).errores.length, 1);
-  assert.ok(!D.CAMPOS_PUBLICOS.includes('WhatsApp público'));
+});
+
+test('WhatsApp del médico como red social: número o liga → https://wa.me/<número>, sin mensaje', () => {
+  const wa = x => D.normalizarRed('WhatsApp público', x);
+  assert.deepStrictEqual(wa('667 123 4567'), { ok: true, valor: 'https://wa.me/526671234567' });
+  assert.deepStrictEqual(wa('+52 1 667 123 4567'), { ok: true, valor: 'https://wa.me/526671234567' }, 'quita el 1 viejo');
+  assert.deepStrictEqual(wa('https://wa.me/5216671234567?text=Hola'), { ok: true, valor: 'https://wa.me/526671234567' }, 'sin texto pre-escrito');
+  assert.deepStrictEqual(wa('https://api.whatsapp.com/send?phone=526671234567'), { ok: true, valor: 'https://wa.me/526671234567' });
+  assert.deepStrictEqual(wa('wa.me/message/ABCDEF123'), { ok: true, valor: 'https://wa.me/message/ABCDEF123' });
+  assert.deepStrictEqual(wa(''), { ok: true, valor: '' });
+  for (const malo of ['123', 'instagram.com/dr', 'https://chat.whatsapp.com/abc', 'https://wa.me.evil.com/526671234567', 'javascript:alert(1)']) {
+    assert.strictEqual(wa(malo).ok, false, malo);
+  }
+  assert.ok(D.CAMPOS_REDES.includes('WhatsApp público'));
+  assert.ok(D.CAMPOS_PUBLICOS.includes('WhatsApp público'), 'editarlo en un perfil publicado marca revisión');
+  assert.deepStrictEqual(D.redesPublicas({ 'WhatsApp público': 'https://wa.me/5216671234567' }), { 'WhatsApp público': 'https://wa.me/526671234567' }, 'lo viejo sale limpio');
 });
