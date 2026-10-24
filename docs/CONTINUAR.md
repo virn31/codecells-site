@@ -9,25 +9,32 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-24 — M5 hecho: caja de búsqueda por nombre o lo que se quiere atender (`3241ff7`). Push del 2026-10-23 ya hecho; 2 commits nuevos SIN PUSH (`3241ff7` y este).
+**Última actualización:** 2026-10-24 (cierre) — M5 búsqueda, WhatsApp fuera de la plataforma (solo como red social del médico) y M6 liga bonita + vista previa. 6 commits SIN PUSH (`3241ff7`…`66345ea` y este).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** (2 commits: `3241ff7` y este):
+1. **Que Víctor haga push** (6 commits):
    `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
-2. **Revisar en Preview, desde un celular** (lo hecho hoy solo se probó en local contra la base de prueba):
-   - `/directorio/`: caja **Buscar** (prueba "cardiología", "Culiacan", "rodriguez", algo que no exista → mensaje «Ningún médico menciona…»; la búsqueda queda en la dirección `?q=`), menús con conteo, "Culiacán" agrupa a Víctor, insignia "Agenda en línea · próximo…" en las tarjetas (la de Víctor depende de Google: en local no hay llaves y no salía).
-   - Ficha del Dr. QA (`recVNUCiwPAxNR4w0`): tira de días → hora → datos → "Cita confirmada" → "Agregar a mi calendario" (revisar que la hora salga bien en el teléfono) → "Tus citas en este teléfono" en `/directorio/`.
-   - Ficha de Víctor (`rec1upfZfkftncHii`): redes sociales (capturarlas en portal → Mi directorio → "Redes sociales").
+2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
+   - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
+   - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
+   - Portal → Mi directorio: aparece "Tu liga para compartir" + Copiar (perfil publicado). Campo **Teléfono del consultorio** (10 dígitos; "123" debe dar error). En "Redes sociales", **WhatsApp** (número o liga wa.me) → sale como botón en la ficha.
+   - Ficha: con datos dejados, botón **"Llamar al consultorio"** (tel:). Ya no hay "Enviármela por WhatsApp".
+   - Home: "Encuentra a tu médico" lleva al directorio; al terminar la evaluación **NOVA debe abrirse sola** (antes la abría un parche que interceptaba WhatsApp; ahora se llama directo) y al final de la plática sale "Encuentra a tu médico en el directorio".
+   - `code-cells-network`: el botón final dice "Solicitar afiliación" y va a `unete.html`.
    - Ojo: una cita real en Preview manda aviso de Telegram real.
-3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ (hecho) · **M6 (empezar aquí)** ficha que se comparte bien (vista previa en WhatsApp + liga bonita `/directorio/dr-…`) · P1 dirección del consultorio + M8 "Cómo llegar" en la liga de la cita · P3 costo de consulta (opcional) · M9 "Únete a la red" en el encabezado · resumen semanal al médico por Telegram.
-4. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1: usa `CC-PAC-DEMO01` si no encuentra el código, rellena "CONTINUUM™"/"Evaluación", "Confirmar" hace PATCH a CONSULTAS → 403, botones que no hacen nada, error = "no tienes citas"). Rehacerla es categoría A. Lo demás de la app (notificaciones, pantalla "Hoy", un solo diseño) es fase 2.
+3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ · **P1 dirección del consultorio + M8 "Cómo llegar" (empezar aquí)** — el paciente necesita saber a dónde ir; liga a mapas sin depender de una API de pago (una liga `https://www.google.com/maps/search/?api=1&query=…` no requiere cuenta ni llave) · P3 costo de consulta (opcional) · M9 "Únete a la red" en el encabezado · resumen semanal al médico por Telegram.
+4. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1). Rehacerla es categoría A. Lo demás de la app es fase 2.
 
 ### Lo hecho el 2026-10-24
-- `3241ff7` M5 búsqueda: `?q=` en la lectura pública del directorio; `lib/directorio.js` `palabrasBusqueda()` (sin acentos, sin palabras vacías, plural simple, máx. 8) y `coincideBusqueda()` (cada palabra debe estar en nombre, especialidades, herramientas, otras terapias, ciudad o bio). **Sin sinónimos a propósito**: "rodilla" no encuentra "Ortopedia" salvo que el médico lo escriba; el estado vacío lo sugiere. Se filtra antes del tope de 50. Probado en local contra la base de prueba. Pruebas: **169/169**. No probado en navegador todavía (solo la API).
-- Decisión posible para Víctor (B): si se quiere que síntomas comunes lleven a especialidades ("rodilla" → Ortopedia), habría que escribir y revisar una tabla de sinónimos; hoy no existe.
+- `3241ff7` **M5 búsqueda**: `?q=` en la lectura pública; `palabrasBusqueda()` / `coincideBusqueda()` en `lib/directorio.js` (sin acentos, cada palabra debe estar en lo publicado). **Sin sinónimos a propósito** ("rodilla" no encuentra "Ortopedia" salvo que el médico lo escriba). Decisión posible (B): tabla de sinónimos revisada a mano.
+- `0d13bcd` **WhatsApp fuera de la plataforma** (Víctor: "no depender de otras empresas"). No había Twilio en el código; eran ligas `wa.me`. Directorio: teléfono del consultorio validado (`normalizarTelefono`) con botón Llamar (tel:); home → directorio; NOVA del test se activa directo (`window.novaActivar`) y se quitó el parche de `window.open`; afiliación → `unete.html`, se pide "teléfono celular". Campos de Airtable NO renombrados (`WhatsApp`, `Teléfono/WhatsApp` siguen guardando un teléfono).
+- `d797fae` **WhatsApp del médico como red social** (Víctor lo pidió así): opcional y **público**, en "Redes sociales"; se guarda `https://wa.me/<número>` sin mensaje pre-escrito (`normalizarWhatsApp`); editarlo en un perfil publicado marca revisión. Campo `WhatsApp público` (ya existía en ambas bases). Consentimiento **v1.3-borrador 2026-10-24** (menciona WhatsApp). La plataforma sigue sin pedir ni mandar nada por WhatsApp.
+- `66345ea` **M6 liga bonita + vista previa**: `/directorio/<liga>` → `api/ficha.js` (vercel.json, con `includeFiles`) arma `directorio/medico.html` con título, descripción, `og:*` y canonical; la página recibe el id en `window.FICHA`. `Liga pública` se asigna UNA vez al aprobar (`ligaDisponible`, -2 si existe) y es campo protegido (no cambia si el médico edita su nombre). Lista blanca pública movida a `lib/directorio.js` (`CAMPOS_LECTURA_PUBLICA`, `limpiarPerfilPublico`). 404 noindex si no existe, 502 si Airtable falla. Caché 5 min (un cambio o despublicación tarda eso en verse en la liga bonita). `scripts/asignar-ligas-directorio.js` (solo muestra; `--aplicar`; `--produccion` para prod) — ya aplicado en la base de prueba (10 perfiles).
+- Pruebas: **177/177**.
+- **WhatsApp que queda fuera de esta rama** (fase 2, `feat/paciente-unico`): portal VIP y `dezawavip.html` (verificación con "últimos 4 dígitos de tu WhatsApp", botones "Enviar por WhatsApp"), portal clínico ("Enviar por WhatsApp"/"Copiar para WhatsApp" de planes y recetas), `api/nova.js` (Canal 'WhatsApp' en solicitudes de cita, firma "📲 WhatsApp"). `aviso-privacidad.html` dice "Número telefónico o de WhatsApp": cambiarlo con la revisión del abogado.
 
 ### Lo hecho el 2026-10-23 (tarde)
 - `7e86b85` redes sociales y sitio web en la ficha: el médico pega liga o `@usuario`; el servidor solo acepta el dominio de cada red y guarda https completo; lo público se revalida (`lib/directorio.js` `normalizarRed`). Cambiarlas en un perfil publicado lo marca para revisión. Consentimiento sube a **v1.2-borrador 2026-10-23** (menciona redes). Errores al guardar en "Mi directorio" ya se muestran al médico.
@@ -51,7 +58,7 @@
 - Local: `node scripts/servidor-local.js` → http://127.0.0.1:3077 (base de prueba; sin llaves de Google: la agenda de Víctor responde 503, lo cual es correcto). Reiniciar el servidor tras cambiar archivos de `api/` (cachea módulos).
 
 ### Pendientes conocidos del directorio
-- `api/nova.js` (~línea 3830) tiene su propia lista de campos públicos con `WhatsApp público`: revisar con la decisión #5.
+- `api/nova.js` (~línea 3790) tiene su propia lista de campos públicos (ya sin WhatsApp); podría usar `CAMPOS_LECTURA_PUBLICA` de `lib/directorio.js`.
 - `mis_solicitudes` y `proximos` leen toda la tabla SOLICITUDES_PACIENTE de citas que ocupan (la liga no se filtra por id en fórmula, CLAUDE.md §8): bien para el piloto, no para miles.
 - `proximos` consulta Google por cada médico con agenda en cada carga del directorio: bien para el piloto; con muchos médicos, poner caché.
 - El directorio público devuelve máximo 50 médicos (sin paginación).
@@ -121,6 +128,8 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 5. Los 5–10 médicos piloto.
 
 ## 4b. Antes de fusionar a `main`
+
+**⚠ FALTA EN PRODUCCIÓN: campo `Liga pública` (texto de una línea) en DIRECTORIO_MEDICO** (creado solo en la base de prueba el 2026-10-24, `fldsLC3D0dcf3d4yb`). El directorio público lo pide en `fields[]`: **sin él, el directorio entero da 422 y deja de cargar**. Crearlo en producción ANTES de fusionar (pedir autorización a Víctor) y después correr `node scripts/asignar-ligas-directorio.js --aplicar --produccion` con la base de producción en `.env.local` (asigna liga a VIRN01 y a cualquier publicado).
 
 **Campos de Airtable del directorio — YA CREADOS EN PRODUCCIÓN (2026-10-23, autorizado por Víctor).** DIRECTORIO_MEDICO (16: publicación, consentimiento, revisión, `Foto de perfil`, `Agenda — *`; más las 6 redes) y SOLICITUDES_PACIENTE (8: `Fecha preferida`, `Turno preferido`, `Estado de cita`, `Horario acordado`, `Mensaje del médico`, `Clave de seguimiento — huella`, `Historial de la solicitud`, `Evento Google`). Verificado comparando el esquema de ambas bases: mismos nombres y tipos. No borrar ni renombrar: el directorio público pide varios por `fields[]` y uno faltante da 422 (el directorio entero deja de cargar). Los perfiles viejos de producción (VIRN01, JCG01) no tienen `Estado de publicación`: `estadoEfectivo()` los trata como Publicado/Borrador según `Publicado`.
 Las diferencias restantes entre bases son del portal clínico (fase 2: antecedentes, recetas, medicamentos, planes nutricionales, etc.) y NO se crearon.
