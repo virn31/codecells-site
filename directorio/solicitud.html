@@ -137,6 +137,7 @@
     function render(s, medicoId) {
       const t = textoEstado(s);
       const co = CONSULTORIO || {};
+      const enLinea = s.modalidad === 'En línea'; // sin dirección ni "Cómo llegar"
       document.getElementById('caja').innerHTML = `
         <div class="eyebrow">Solicitud de cita</div>
         <h1>${esc(s.medico || 'Médico de la Red')}</h1>
@@ -151,14 +152,16 @@
         ${s.mensaje ? `<div class="mensaje"><small>Mensaje del médico</small>${esc(s.mensaje)}</div>` : ''}
         <dl>
           <dt>Pediste</dt><dd>${esc(fechaLarga(s.fechaPreferida))}${s.turno ? ', ' + esc(textoTurno(s.turno)) : ''}</dd>
-          ${!t.cerrada && co.direccion ? `<dt>Dónde</dt><dd style="white-space:pre-line">${esc(co.direccion)}${co.ciudad ? '\n' + esc(co.ciudad) : ''}</dd>` : ''}
-          ${!t.cerrada && co.costo ? `<dt>Costo</dt><dd>${esc(co.costo)}, se paga en el consultorio</dd>` : ''}
+          ${enLinea ? `<dt>Modalidad</dt><dd>En línea. El médico te contactará para acordar cómo se conectan. El pago lo acuerdas directamente con el médico (por ejemplo, por transferencia); CODE CELLS no cobra ni interviene.</dd>` : ''}
+          ${!t.cerrada && !enLinea && co.direccion ? `<dt>Dónde</dt><dd style="white-space:pre-line">${esc(co.direccion)}${co.ciudad ? '\n' + esc(co.ciudad) : ''}</dd>` : ''}
+          ${!t.cerrada && !enLinea && co.costo ? `<dt>Costo</dt><dd>${esc(co.costo)}, se paga en el consultorio</dd>` : ''}
+          ${!t.cerrada && enLinea && co.costoEnLinea ? `<dt>Costo</dt><dd>${esc(co.costoEnLinea)}</dd>` : ''}
           ${t.agendada && co.telefono ? `<dt>Teléfono</dt><dd><a href="${enlaceTel(co.telefono)}">${esc(telLegible(co.telefono))}</a></dd>` : ''}
         </dl>
         <div class="botones">
           ${t.confirmar ? '<button class="btn" id="b-confirmar">Confirmar este horario</button>' : ''}
           ${t.agendada && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s.horario || '') ? '<button class="btn" id="b-calendario">Agregar a mi calendario</button>' : ''}
-          ${!t.cerrada && /^https:\/\/www\.google\.com\/maps\//.test(co.mapa || '') ? `<a class="btn-sec" href="${esc(co.mapa)}" target="_blank" rel="noopener">Cómo llegar</a>` : ''}
+          ${!t.cerrada && !enLinea && /^https:\/\/www\.google\.com\/maps\//.test(co.mapa || '') ? `<a class="btn-sec" href="${esc(co.mapa)}" target="_blank" rel="noopener">Cómo llegar</a>` : ''}
           ${t.agendada && enlaceTel(co.telefono) ? `<a class="btn-sec" href="${enlaceTel(co.telefono)}">Llamar al consultorio</a>` : ''}
           ${!t.cerrada ? `<button class="btn-sec btn-peligro" id="b-cancelar">${t.confirmar ? 'No me funciona, cancelar' : t.agendada ? 'Cancelar cita' : 'Cancelar solicitud'}</button>` : ''}
           ${t.cerrada ? '<a class="btn-sec" href="/directorio/">Buscar otro médico</a>' : ''}
@@ -181,8 +184,8 @@
           CalendarioCita.descargarIcs({
             fecha: s.horario.slice(0, 10), hora: s.horario.slice(11), uid: s.id,
             duracion: AGENDA && AGENDA.duracion, zona: AGENDA && AGENDA.zona,
-            titulo: `Cita con ${s.medico || 'tu médico'}`,
-            lugar: [String(co.direccion || '').replace(/\n+/g, ', '), co.ciudad].filter(Boolean).join(', '),
+            titulo: `${enLinea ? 'Consulta en línea' : 'Cita'} con ${s.medico || 'tu médico'}`,
+            lugar: enLinea ? 'Consulta en línea' : [String(co.direccion || '').replace(/\n+/g, ', '), co.ciudad].filter(Boolean).join(', '),
             descripcion: `Cita en el directorio CODE CELLS.${co.telefono ? '\nTeléfono del consultorio: ' + telLegible(co.telefono) : ''}${co.mapa ? '\nCómo llegar: ' + co.mapa : ''}
 Para ver o cancelar tu cita: ${location.href}`,
           });

@@ -123,6 +123,7 @@ function resumenParaMedico(rec) {
     email: c['Email'] || '',
     fechaPreferida: c['Fecha preferida'] || null,
     turno: c['Turno preferido'] || null,
+    modalidad: c['Modalidad'] || 'Presencial',
     horario: c['Horario acordado'] || null,
     mensaje: c['Mensaje del médico'] || null,
     motivo: c['Consentimiento datos sensibles'] ? (c['Motivo declarado'] || null) : null,
@@ -185,10 +186,11 @@ async function anotarEnGoogle(perfil, horario, rec, datos) {
   if (!g) return null;
   try {
     const [fecha, hora] = datos.horario.split(' ');
+    const enLinea = ((rec && rec.fields) || {})['Modalidad'] === 'En línea';
     const id = await G.crearEventoCita(g.refresh, {
       fecha, hora, duracion: horario.duracion, zona: horario.zona,
-      titulo: `Cita: ${datos.nombre} (CODE CELLS)`,
-      descripcion: `Tel.: ${datos.telefono}\nAgendada por NOVA desde el directorio CODE CELLS.\nDetalles en tu portal → Mi directorio.`,
+      titulo: `Cita${enLinea ? ' en línea' : ''}: ${datos.nombre} (CODE CELLS)`,
+      descripcion: `Tel.: ${datos.telefono}${enLinea ? '\nConsulta EN LÍNEA: acuerda con el paciente cómo se conectan y el pago.' : ''}\nAgendada por NOVA desde el directorio CODE CELLS.\nDetalles en tu portal → Mi directorio.`,
     });
     await at(`${TBL_SOLICITUDES}/${rec.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { 'Evento Google': id } }) });
     return id;
@@ -318,11 +320,16 @@ module.exports = async (req, res) => {
       if (!perfil || !perfil.fields || perfil.fields['Publicado'] !== true) {
         return res.status(404).json({ error: 'Este médico no está disponible en el directorio.' });
       }
+      const enLinea = d.modalidad === 'En línea';
+      if (enLinea && perfil.fields[D.CAMPO_EN_LINEA] !== true) {
+        return res.status(400).json({ error: 'Este médico no ofrece consulta en línea. Elige consulta en el consultorio.' });
+      }
       // Agenda automática: el espacio debe estar libre AHORA (se recalcula
-      // aquí; lo que mostró la página pudo cambiar).
+      // aquí; lo que mostró la página pudo cambiar). La consulta en línea no
+      // la usa: el horario se acuerda con el médico.
       const ag = agendaDePerfil(perfil);
       let horarioAgendado = null;
-      if (ag.automatica) {
+      if (ag.automatica && !enLinea) {
         if (!hora) return res.status(400).json({ error: 'Elige uno de los horarios disponibles.' });
         const ocupados = A.ocupadosPorFecha(await citasQueOcupan(d.medicoId))[d.fechaPreferida];
         const rangosOcupados = (await ocupadoEnGoogle(perfil, ag.horario, d.fechaPreferida, d.fechaPreferida))[d.fechaPreferida];
@@ -344,11 +351,12 @@ module.exports = async (req, res) => {
         'Alerta enviada a': 'No enviada',
         'Fecha preferida': d.fechaPreferida,
         'Turno preferido': d.turno,
+        'Modalidad': d.modalidad,
         'Estado de cita': horarioAgendado ? C.ESTADOS_CITA.ACEPTADA : C.ESTADOS_CITA.PENDIENTE,
         'Clave de seguimiento — huella': C.huellaClave(clave),
         'Historial de la solicitud': horarioAgendado
           ? agregarHistorial('', ahoraISO, 'Cita agendada automáticamente (agenda del médico)', 'paciente', horarioAgendado)
-          : agregarHistorial('', ahoraISO, 'Solicitud enviada', 'paciente', `${d.fechaPreferida} · ${d.turno}`),
+          : agregarHistorial('', ahoraISO, 'Solicitud enviada', 'paciente', `${d.fechaPreferida} · ${d.turno}${enLinea ? ' · en línea' : ''}`),
       };
       if (horarioAgendado) fields['Horario acordado'] = horarioAgendado;
       if (d.motivo) fields['Motivo declarado'] = d.motivo;
@@ -374,7 +382,7 @@ module.exports = async (req, res) => {
 
       const destino = await avisarMedico(perfil, horarioAgendado
         ? `CODE CELLS: NOVA agendó una cita el ${fechaCorta(d.fechaPreferida)} a las ${A.horaCorta(hora)}. Detalles en tu portal → Mi directorio.`
-        : `CODE CELLS: tienes una nueva solicitud de cita para el ${fechaCorta(d.fechaPreferida)}, ${C.textoTurno(d.turno)}. Revísala en tu portal → Mi directorio.`);
+        : `CODE CELLS: tienes una nueva solicitud de ${enLinea ? 'consulta EN LÍNEA' : 'cita'} para el ${fechaCorta(d.fechaPreferida)}, ${C.textoTurno(d.turno)}. Revísala en tu portal → Mi directorio.`);
       try { await at(`${TBL_SOLICITUDES}/${creado.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { 'Alerta enviada a': destino } }) }); }
       catch (e) { console.error('[citas] no se registró el destino del aviso:', e.message); }
 
@@ -412,6 +420,7 @@ module.exports = async (req, res) => {
             telefono: tel.ok ? tel.valor : '',
             liga: D.esLigaValida(f[D.CAMPO_LIGA]) ? f[D.CAMPO_LIGA] : null,
             costo: D.costoLegible(f[D.CAMPO_COSTO]),
+            costoEnLinea: f[D.CAMPO_EN_LINEA] === true ? D.costoLegible(f[D.CAMPO_COSTO_EN_LINEA]) : '',
           };
           const ag = agendaDePerfil(perfil);
           // Para "Agregar a mi calendario". Sin horario configurado no se

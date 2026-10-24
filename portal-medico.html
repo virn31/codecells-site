@@ -8021,9 +8021,10 @@ function htmlCitaMiDir(s) {
   return `
     <div class="mi-cita" id="mi-cita-${s.id}">
       <div class="mi-cita-cab">
-        <span class="mi-cita-nombre">${escaparHtml(s.nombre || 'Sin nombre')}</span>
+        <span class="mi-cita-nombre">${escaparHtml(s.nombre || 'Sin nombre')}${s.modalidad === 'En línea' ? ' <span class="mi-cita-chip ok" style="margin-left:6px">En línea</span>' : ''}</span>
         <span class="mi-cita-chip${pendiente ? ' pendiente' : ok ? ' ok' : ''}">${escaparHtml(s.esCita ? s.estado : 'Contacto (formato anterior)')}</span>
       </div>
+      ${s.modalidad === 'En línea' ? `<div class="mi-cita-dato" style="opacity:.8">Consulta en línea: acuerda con el paciente el horario, cómo se conectan y el pago (directo contigo; CODE CELLS no interviene).</div>` : ''}
       ${s.fechaPreferida ? `<div class="mi-cita-dato">Prefiere: <b>${escaparHtml(fechaCitaMiDir(s.fechaPreferida))}</b>${s.turno ? ', ' + escaparHtml(textoTurnoMiDir(s.turno)) : ''}</div>` : ''}
       ${s.horario ? `<div class="mi-cita-dato">${s.estado === 'Otro horario propuesto' ? 'Propusiste' : 'Horario acordado'}: <b>${escaparHtml(s.horario)}</b></div>` : ''}
       <div class="mi-cita-dato">Teléfono: <b>${escaparHtml(s.telefono || '—')}</b>${wa ? ` · <a href="${escaparHtml(wa)}" target="_blank" rel="noopener">Escribir por WhatsApp</a>` : ''}${s.email ? ' · ' + escaparHtml(s.email) : ''}</div>

@@ -475,7 +475,45 @@
       }
     }
 
+    // Presencial o en línea (solo si el médico ofrece consulta en línea). En
+    // línea no usa la agenda automática: el horario se acuerda con el médico.
+    let MODALIDAD = 'Presencial';
+    const ofreceEnLinea = () => ((MEDICO && MEDICO.fields) || {})['Consulta en línea'] === true;
+    const agendaAutomatica = () => !!(AGENDA && AGENDA.automatica) && MODALIDAD !== 'En línea';
+
     function htmlFormulario(nombre) {
+      if (!ofreceEnLinea()) return htmlFormularioPresencial(nombre);
+      const selector = `
+        <div class="paso" style="margin-top:0">¿Cómo quieres tu consulta?</div>
+        <div class="turnos" role="radiogroup" aria-label="Modalidad de la consulta" style="margin-bottom:18px">
+          <label><input type="radio" name="modalidad" value="Presencial" ${MODALIDAD === 'Presencial' ? 'checked' : ''}> En el consultorio</label>
+          <label><input type="radio" name="modalidad" value="En línea" ${MODALIDAD === 'En línea' ? 'checked' : ''}> En línea</label>
+        </div>`;
+      return selector + (MODALIDAD === 'En línea' ? htmlFormularioEnLinea(nombre) : htmlFormularioPresencial(nombre));
+    }
+
+    function htmlFormularioEnLinea(nombre) {
+      const costo = costoLegible((MEDICO.fields || {})['Costo de consulta en línea']);
+      return `
+        <h2>Solicitar consulta en línea</h2>
+        <p class="nota">Esto es una <strong>solicitud</strong>. ${esc(nombre)} la revisará y te contactará para acordar el día, la hora y cómo se conectan. ${costo ? `Costo: <strong>${esc(costo)}</strong>. ` : ''}El pago lo acuerdas directamente con el médico (por ejemplo, por transferencia); CODE CELLS no cobra ni interviene.</p>
+        <form id="form-cita" novalidate>
+          <div class="rejilla">
+            ${camposPaciente}
+            <div class="campo"><label for="c-fecha">Fecha que prefieres *</label><input id="c-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" required></div>
+            <fieldset class="campo campo--ancho">
+              <legend>Horario que prefieres *</legend>
+              <div class="turnos">
+                <label><input type="radio" name="turno" value="Mañana"> Mañana</label>
+                <label><input type="radio" name="turno" value="Tarde"> Tarde</label>
+                <label><input type="radio" name="turno" value="Cualquiera" checked> Cualquiera</label>
+              </div>
+            </fieldset>
+            ${camposFinales('Enviar solicitud')}
+        </form>`;
+    }
+
+    function htmlFormularioPresencial(nombre) {
       if (AGENDA && AGENDA.error) {
         return `<h2>Agendar cita</h2>
           <p class="error">No pudimos cargar la agenda de ${esc(nombre)}. Recarga la página en unos segundos.</p>`;
@@ -544,7 +582,7 @@
       ev.preventDefault();
       const btn = document.getElementById('c-enviar');
       const err = document.getElementById('c-error');
-      const auto = !!(AGENDA && AGENDA.automatica);
+      const auto = agendaAutomatica();
       const textoBoton = auto ? 'Confirmar cita' : 'Enviar solicitud';
       const turno = (document.querySelector('input[name="turno"]:checked') || {}).value || '';
       const hora = (document.querySelector('input[name="hora"]:checked') || {}).value || '';
@@ -557,6 +595,7 @@
         ...(auto ? { hora } : { turno }),
         motivo: document.getElementById('c-motivo').value.trim(),
         consentimiento: document.getElementById('c-consent').checked,
+        ...(ofreceEnLinea() ? { modalidad: MODALIDAD } : {}),
         sitio: document.getElementById('c-sitio').value,
       };
       if (!datos.nombre || !datos.telefono) { err.textContent = 'Escribe tu nombre y teléfono.'; return; }
@@ -587,7 +626,7 @@
         // "enviada" reemplaza al formulario.
         const ct = await cargarContactos();
         render(ct);
-        mostrarEnviada(liga, d);
+        mostrarEnviada(liga, { ...d, modalidad: datos.modalidad });
         document.getElementById('solicitar').scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (e) {
         err.textContent = e.message;
@@ -605,6 +644,7 @@
           <p class="nota">Tu cita con ${esc(nombre)} es el <strong>${esc(fechaLarga(d.horario.slice(0, 10)))} a las ${esc(horaCorta(d.horario.slice(11)))}</strong>. Si no puedes asistir, cancélala desde la liga de abajo para liberar el espacio.</p>
           <p style="margin:0;color:var(--ink-muted);font-size:14px">Guarda esta liga. Es personal: quien la tenga puede ver y cancelar tu cita.</p>`
         : `<h2>Solicitud enviada</h2>
+          ${d && d.modalidad === 'En línea' ? `<p class="nota"><strong>Consulta en línea:</strong> ${esc(nombre)} te contactará para acordar el día, la hora y cómo se conectan. El pago lo acuerdas directamente con el médico (por ejemplo, por transferencia); CODE CELLS no cobra ni interviene.</p>` : ''}
           <p class="nota">Tu solicitud llegó a ${esc(nombre)}. <strong>Todavía no es una cita confirmada.</strong> La respuesta del médico (aceptarla, proponerte otro horario o avisarte si no puede) aparecerá en la liga de abajo; el médico también puede llamarte o escribirte.</p>
           <p style="margin:0;color:var(--ink-muted);font-size:14px">Guarda esta liga para ver la respuesta. Es personal: quien la tenga puede ver y cancelar tu solicitud.</p>`;
       document.getElementById('solicitar').innerHTML = `
@@ -638,6 +678,13 @@
     document.addEventListener('change', ev => {
       if (ev.target.id === 'c-otra-fecha' && ev.target.value) elegirFecha(ev.target.value);
       if (ev.target.name === 'hora' && ev.target.checked) mostrarDatos(true, ev.target.value);
+      if (ev.target.name === 'modalidad' && ev.target.checked) {
+        MODALIDAD = ev.target.value;
+        document.getElementById('solicitar').innerHTML = htmlFormulario((MEDICO.fields || {})['Name'] || 'el médico');
+        const elegido = document.querySelector(`input[name="modalidad"][value="${MODALIDAD}"]`);
+        if (elegido) elegido.focus();
+        if (agendaAutomatica() && (AGENDA.siguientes || []).length) elegirFecha(AGENDA.siguientes[0].fecha);
+      }
     });
     document.addEventListener('click', ev => {
       const b = ev.target.closest('.dia-chip');

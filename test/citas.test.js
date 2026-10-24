@@ -84,7 +84,7 @@ test('clave de seguimiento: solo se guarda la huella y se compara exacta', () =>
 
 test('vistaPaciente no expone teléfono, correo ni motivo', () => {
   const v = C.vistaPaciente({ id: 'recX', fields: { 'Teléfono/WhatsApp': '667', 'Email': 'a@b.c', 'Motivo declarado': 'dolor', 'Estado de cita': 'Aceptada', 'Horario acordado': '2026-10-24 09:30' } }, 'Dr. X');
-  assert.deepStrictEqual(Object.keys(v).sort(), ['estado', 'fechaPreferida', 'fechaSolicitud', 'horario', 'id', 'medico', 'mensaje', 'turno']);
+  assert.deepStrictEqual(Object.keys(v).sort(), ['estado', 'fechaPreferida', 'fechaSolicitud', 'horario', 'id', 'medico', 'mensaje', 'modalidad', 'turno']);
   assert.ok(!JSON.stringify(v).includes('667'));
   assert.ok(!JSON.stringify(v).includes('dolor'));
 });
@@ -194,7 +194,7 @@ test('estado devuelve dónde es la consulta: dirección, mapa, teléfono del con
   assert.deepStrictEqual(r.data.consultorio, {
     direccion: 'Av. Obregón 123\nConsultorio 4', ciudad: 'Culiacán',
     mapa: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Av. Obregón 123, Consultorio 4, Culiacán, México'),
-    telefono: '6671234567', liga: 'dr-prueba', costo: '$1,200 MXN',
+    telefono: '6671234567', liga: 'dr-prueba', costo: '$1,200 MXN', costoEnLinea: '',
   });
   assert.ok(!JSON.stringify(r.data).includes('6670000000'), 'el teléfono del paciente no sale');
 });
@@ -245,4 +245,56 @@ test('textoTurno: la franja nunca se confunde con "mañana" = día siguiente', (
   assert.equal(C.textoTurno('Mañana'), 'por la mañana');
   assert.equal(C.textoTurno('Tarde'), 'por la tarde');
   assert.equal(C.textoTurno('Cualquiera'), 'a cualquier hora');
+});
+
+// ── Modalidad: presencial / en línea ──
+test('validarSolicitudCita: sin modalidad = Presencial; "En línea" pasa; otra cosa → error', () => {
+  const b = { ...base, fechaPreferida: C.sumarDias(C.fechaMexico(), 2) };
+  assert.strictEqual(C.validarSolicitudCita(b).datos.modalidad, 'Presencial');
+  assert.strictEqual(C.validarSolicitudCita({ ...b, modalidad: 'En línea' }).datos.modalidad, 'En línea');
+  assert.strictEqual(C.validarSolicitudCita({ ...b, modalidad: 'Telepatía' }).ok, false);
+});
+
+test('solicitar en línea a un médico que no la ofrece → 400 y no crea nada', async () => {
+  const m = mundo();
+  const r = await llamar('solicitar', { metodo: 'POST', body: { ...solicitudValida(), modalidad: 'En línea' } });
+  assert.strictEqual(r.status, 400, JSON.stringify(r.data));
+  assert.match(r.data.error, /no ofrece consulta en línea/);
+  assert.strictEqual(m.creados.length, 0);
+});
+
+test('solicitar en línea con agenda automática: NO se agenda sola, queda Pendiente con Modalidad "En línea" y el aviso lo dice', async () => {
+  const horario = JSON.stringify({ duracion: 30, zona: 'America/Mazatlan', dias: { 0: [['09:00', '18:00']], 1: [['09:00', '18:00']], 2: [['09:00', '18:00']], 3: [['09:00', '18:00']], 4: [['09:00', '18:00']], 5: [['09:00', '18:00']], 6: [['09:00', '18:00']] } });
+  const m = mundo({ perfilExtra: { 'Consulta en línea': true, 'Agenda — automática': true, 'Agenda — horario': horario } });
+  // Control: la agenda automática SÍ está activa (presencial sin hora → la pide).
+  const control = await llamar('solicitar', { metodo: 'POST', body: { ...solicitudValida(), turno: 'Tarde' } });
+  assert.strictEqual(control.status, 400, JSON.stringify(control.data));
+  assert.match(control.data.error, /horarios disponibles/);
+  const r = await llamar('solicitar', { metodo: 'POST', body: { ...solicitudValida(), turno: 'Tarde', modalidad: 'En línea' } });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  const f = m.creados[0];
+  assert.strictEqual(f['Modalidad'], 'En línea');
+  assert.strictEqual(f['Estado de cita'], 'Pendiente', 'el horario se acuerda con el médico');
+  assert.ok(!f['Horario acordado']);
+  assert.match(m.telegram[0].text, /EN LÍNEA/);
+});
+
+test('solicitar presencial guarda Modalidad "Presencial" (explícita, no vacía)', async () => {
+  const m = mundo();
+  const r = await llamar('solicitar', { metodo: 'POST', body: solicitudValida() });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.strictEqual(m.creados[0]['Modalidad'], 'Presencial');
+  assert.ok(!/EN LÍNEA/.test(m.telegram[0].text));
+});
+
+test('estado de una solicitud en línea: modalidad y costo en línea para el paciente', async () => {
+  const clave = C.generarClave();
+  mundo({
+    solicitudes: [{ id: 'recSOL0000000004A', fields: { 'Clave de seguimiento — huella': C.huellaClave(clave), 'Médico solicitado': [PERFIL], 'Estado de cita': 'Pendiente', 'Modalidad': 'En línea' } }],
+    perfilExtra: { 'Consulta en línea': true, 'Costo de consulta en línea': 600 },
+  });
+  const r = await llamar('estado', { metodo: 'POST', body: { id: 'recSOL0000000004A', c: clave } });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.data));
+  assert.strictEqual(r.data.solicitud.modalidad, 'En línea');
+  assert.strictEqual(r.data.consultorio.costoEnLinea, '$600 MXN');
 });
