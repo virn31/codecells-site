@@ -9,19 +9,20 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-24 (noche) — P3 costo de consulta hecho (`6c12e6b`). 5 commits SIN PUSH (`8bcf2a4`, `d4fa945`, `d3b8a9d`, `6c12e6b` y este). En producción ya están `Liga pública` y `Dirección del consultorio`; **falta `Costo de consulta`** (ver §4b).
+**Última actualización:** 2026-10-24 (noche) — P3 costo de consulta hecho (`6c12e6b`) y encuadre de la foto (`65672ea`). 7 commits SIN PUSH (`8bcf2a4`, `d4fa945`, `d3b8a9d`, `6c12e6b`, `e34d62b`, `65672ea` y este). En producción ya están `Liga pública` y `Dirección del consultorio`; **falta `Costo de consulta`** (ver §4b).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** (5 commits): `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
+1. **Que Víctor haga push** (7 commits): `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
 2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
    - **Dirección**: ficha del Dr. QA (`/directorio/prueba-dr-qa-cardiologia`) ya tiene dirección ficticia `[PRUEBA] Av. Álvaro Obregón 123…` y teléfono `6670000000` (base de prueba) → renglón con "Cómo llegar" (abre mapas). Pedir una cita ahí → en la liga de la cita: "Dónde", "Cómo llegar", y con cita confirmada "Teléfono" + "Llamar al consultorio"; el archivo de calendario debe traer el lugar.
    - Portal → Mi directorio: capturar tu **dirección** ("Cómo te contactan"); una liga de Maps debe dar error. **Teléfono del consultorio: antes no se guardaba** (autosave ignoraba `type=tel`, arreglado en `d4fa945`) — confirmar que ahora sí.
    - **Costo** (P3): el Dr. QA tiene $800 de prueba → ficha "Consulta: $800 MXN · se paga en el consultorio", tarjeta "Consulta: $800 MXN", y renglón Costo en la liga de la cita. En el portal ("Cómo te contactan") probar "$1,200" (se guarda 1200), "500-800" (error) y vaciarlo (desaparece de la ficha). Admin: la tarjeta de revisión ahora muestra dirección y costo.
+   - **Foto** (`65672ea`, lo pidió Víctor): "Cambiar imagen" abre "Centra tu imagen"; arrastrar con el dedo, acercar con el control, Guardar → la ficha muestra ese encuadre. Probado en navegador local con imagen generada (centro, arrastre hasta el borde, acercar, cancelar); falta probarlo con el dedo en un celular. Una foto ya subida no se puede reencuadrar: hay que volver a elegir el archivo.
    - Portal → Mi directorio: aparece "Tu liga para compartir" + Copiar (perfil publicado). Campo **Teléfono del consultorio** (10 dígitos; "123" debe dar error). En "Redes sociales", **WhatsApp** (número o liga wa.me) → sale como botón en la ficha.
    - Ficha: con datos dejados, botón **"Llamar al consultorio"** (tel:). Ya no hay "Enviármela por WhatsApp".
    - Home: "Encuentra a tu médico" lleva al directorio; al terminar la evaluación **NOVA debe abrirse sola** (antes la abría un parche que interceptaba WhatsApp; ahora se llama directo) y al final de la plática sale "Encuentra a tu médico en el directorio".
