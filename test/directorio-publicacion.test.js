@@ -438,3 +438,18 @@ test('proxy PATCH: la ciudad se guarda con la ortografía del catálogo', async 
   assert.strictEqual(r.status, 200, JSON.stringify(r.data));
   assert.strictEqual(at.patches[0]['Ciudad de consulta'], 'Culiacán');
 });
+
+test('normalizarTelefono: 10 dígitos o con +52; guarda solo dígitos; rechaza lo demás', () => {
+  assert.deepStrictEqual(D.normalizarTelefono('667 123 4567'), { ok: true, valor: '6671234567' });
+  assert.deepStrictEqual(D.normalizarTelefono('+52 (667) 123-4567'), { ok: true, valor: '+526671234567' });
+  assert.deepStrictEqual(D.normalizarTelefono(''), { ok: true, valor: '' }, 'vacío borra');
+  assert.strictEqual(D.normalizarTelefono('12345').ok, false);
+  assert.strictEqual(D.normalizarTelefono('https://wa.me/5216671234567').ok, false, 'una liga no es teléfono');
+});
+
+test('normalizarContacto: WhatsApp público ya no se escribe; teléfono inválido es error', () => {
+  const r = D.normalizarContacto({ 'WhatsApp público': '6671234567', 'Teléfono de consultorio': '667-123-4567', 'Bio corta': 'x' });
+  assert.deepStrictEqual(r, { fields: { 'Teléfono de consultorio': '6671234567', 'Bio corta': 'x' }, errores: [] });
+  assert.strictEqual(D.normalizarContacto({ 'Teléfono de consultorio': '123' }).errores.length, 1);
+  assert.ok(!D.CAMPOS_PUBLICOS.includes('WhatsApp público'));
+});

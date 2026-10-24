@@ -2704,7 +2704,7 @@
   color: rgba(232, 228, 221, 0.8);
   line-height: 1.7;
 }
-.mi-dir-preview-render .mi-dir-preview-wa {
+.mi-dir-preview-render .mi-dir-preview-tel {
   color: #5FAE6E;
   text-decoration: none;
   word-break: break-all;
@@ -7641,10 +7641,10 @@ function renderMiDirFormulario() {
           <span class="mi-dir-saved">✓ Guardado</span>
         </div>
         <div class="mi-dir-field">
-          <label>WhatsApp (solo número, se normaliza a wa.me)</label>
-          <input type="text" data-campo="WhatsApp público" value="${escaparHtml(c['WhatsApp público'] || '')}" placeholder="Ej. 6671234567" data-normalizar="whatsapp">
+          <label>Teléfono del consultorio</label>
+          <input type="tel" data-campo="Teléfono de consultorio" value="${escaparHtml(c['Teléfono de consultorio'] || '')}" placeholder="Ej. 667 123 4567" maxlength="20" autocomplete="tel">
           <span class="mi-dir-saved">✓ Guardado</span>
-          <div class="mi-dir-hint">Se convierte a https://wa.me/52... automáticamente</div>
+          <div class="mi-dir-hint">10 dígitos. El paciente lo ve como botón "Llamar" después de enviar su solicitud.</div>
         </div>
       </div>
 
@@ -7709,24 +7709,10 @@ function programarGuardadoMiDir(el) {
   _miDirDebounce[campo] = setTimeout(() => guardarCampoMiDir(el), 800);
 }
 
-function normalizarWhatsApp(valor) {
-  const soloNumeros = String(valor || '').replace(/\D/g, '');
-  if (!soloNumeros) return '';
-  // Si empieza con 52, dejarlo; si no, anteponer 521 (formato MX WhatsApp)
-  let n = soloNumeros;
-  if (n.startsWith('521')) { /* ok */ }
-  else if (n.startsWith('52')) { n = '521' + n.substring(2); }
-  else { n = '521' + n; }
-  return 'https://wa.me/' + n;
-}
-
 async function guardarCampoMiDir(el) {
   const campo = el.dataset.campo;
   if (!campo) return;
-  let valor = el.value;
-  if (el.dataset.normalizar === 'whatsapp' && valor.trim()) {
-    valor = normalizarWhatsApp(valor);
-  }
+  const valor = el.value;
   await guardarValorMiDir(campo, valor, el.closest('.mi-dir-field'));
 }
 
@@ -8239,7 +8225,7 @@ function abrirPreviewMiDir() {
   const trat = c['Tratamientos que ofrece'] || [];
   const otras = c['Otras terapias'] || '';
   const horarios = c['Horarios'] || '';
-  const wa = c['WhatsApp público'] || '';
+  const tel = c['Teléfono de consultorio'] || '';
 
   if (!nombre && !ciudad && !esp.length) {
     body.innerHTML = '<div class="mi-dir-preview-empty">Completa al menos tu nombre público y ciudad para ver el preview.</div>';
@@ -8276,12 +8262,12 @@ function abrirPreviewMiDir() {
           <div class="mi-dir-preview-otras">${escaparHtml(otras)}</div>
         </div>` : ''}
 
-      ${(horarios || wa) ? `
+      ${(horarios || tel) ? `
         <div class="mi-dir-preview-section">
           <div class="mi-dir-preview-section-title">Contacto</div>
           <div class="mi-dir-preview-contact">
             ${horarios ? escaparHtml(horarios) + '<br>' : ''}
-            ${wa ? `<a class="mi-dir-preview-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">${escaparHtml(wa)}</a>` : ''}
+            ${tel ? `<span class="mi-dir-preview-tel">Tel. ${escaparHtml(tel)}</span>` : ''}
           </div>
         </div>` : ''}
 

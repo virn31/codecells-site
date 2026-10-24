@@ -101,7 +101,7 @@
     .bio { color: var(--ink-muted); line-height: 1.65; margin: 0; white-space: pre-line; }
     .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
     .chip { font-size: 13px; padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(232,163,61,0.5); color: var(--c-energy); }
-    .wa {
+    .llamar {
       display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 10px 18px; border-radius: 999px;
       background: var(--c-balance); color: var(--cc-ink); font-weight: 600; text-decoration: none;
     }
@@ -231,7 +231,6 @@
       reloj: `<svg ${ICONO_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
       telefono: `<svg ${ICONO_ATR}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>`,
       candado: `<svg ${ICONO_ATR}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
-      whatsapp: `<svg ${ICONO_ATR} width="16" height="16"><path d="M4 20l1.3-3.9A8.5 8.5 0 1 1 8 18.8z"/></svg>`,
     };
     // Íconos de línea propios (sin cargar logos de terceros).
     const REDES = [
@@ -291,17 +290,30 @@
       }
     }
 
+    // Teléfono del consultorio como enlace tel: (sin WhatsApp ni otra
+    // empresa de por medio). 10 dígitos = México (+52).
+    function digitosTel(t) { return String(t || '').replace(/\D/g, ''); }
+    function enlaceTel(t) {
+      const d = digitosTel(t);
+      if (d.length < 10) return '';
+      return 'tel:+' + (d.length === 10 ? '52' + d : d);
+    }
+    function telLegible(t) {
+      const n = digitosTel(t).slice(-10);
+      return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : String(t || '');
+    }
+
     async function cargarContactos() {
       const token = leer('cc_visitante');
-      if (!token) return { tel: null, wa: null, error: false };
+      if (!token) return { tel: null, error: false };
       try {
         const r = await fetch('/api/airtable?tabla=directorio_medico&accion=contactos', { headers: { Authorization: 'Bearer ' + token } });
-        if (r.status === 401) return { tel: null, wa: null, error: false, vencido: true };
+        if (r.status === 401) return { tel: null, error: false, vencido: true };
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) return { tel: null, wa: null, error: true };
-        return { tel: (d.contactos || {})[ID] || null, wa: (d.whatsapp || {})[ID] || null, error: false };
+        if (!r.ok) return { tel: null, error: true };
+        return { tel: (d.contactos || {})[ID] || null, error: false };
       } catch (e) {
-        return { tel: null, wa: null, error: true };
+        return { tel: null, error: true };
       }
     }
 
@@ -343,7 +355,7 @@
       const filas = [
         esp && fila(ICONOS.especialidad, esp),
         f['Horarios'] && fila(ICONOS.reloj, esc(f['Horarios'])),
-        ct.tel && fila(ICONOS.telefono, esc(ct.tel), 'fila--tel'),
+        ct.tel && fila(ICONOS.telefono, enlaceTel(ct.tel) ? `<a href="${enlaceTel(ct.tel)}">${esc(telLegible(ct.tel))}</a>` : esc(ct.tel), 'fila--tel'),
         (tieneToken && ct.error) && fila(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga en unos segundos.', 'fila--aviso'),
         !tieneToken && fila(ICONOS.candado, 'El teléfono se muestra después de enviar tu solicitud.', 'fila--aviso'),
       ].filter(Boolean).join('');
@@ -362,7 +374,7 @@
           </div>
           ${filas ? `<ul class="filas">${filas}</ul>` : ''}
           ${htmlRedes(f, nombre)}
-          ${ct.wa && tieneToken ? `<a class="wa" href="${esc(ct.wa)}" target="_blank" rel="noopener">${ICONOS.whatsapp} WhatsApp del consultorio</a>` : ''}
+          ${enlaceTel(ct.tel) && tieneToken ? `<a class="llamar" href="${enlaceTel(ct.tel)}">${ICONOS.telefono} Llamar al consultorio</a>` : ''}
           ${f['Bio corta'] ? `<section class="seccion"><h2>Presentación</h2><p class="bio">${esc(f['Bio corta'])}</p></section>` : ''}
           ${trat.length ? `<section class="seccion"><h2>Herramientas que ofrece</h2><ul class="chips">${trat.map(t => `<li class="chip">${esc(etiquetaHerramienta(t))}</li>`).join('')}</ul></section>` : ''}
           ${f['Otras terapias'] ? `<section class="seccion"><h2>Otras terapias</h2><p class="bio">${esc(f['Otras terapias'])}</p></section>` : ''}
@@ -377,7 +389,7 @@
     // Campos comunes a los dos formularios (agenda automática y solicitud).
     const camposPaciente = `
             <div class="campo"><label for="c-nombre">Tu nombre *</label><input id="c-nombre" type="text" autocomplete="name" maxlength="120" required></div>
-            <div class="campo"><label for="c-telefono">Teléfono o WhatsApp *</label><input id="c-telefono" type="tel" autocomplete="tel" maxlength="30" required></div>
+            <div class="campo"><label for="c-telefono">Teléfono *</label><input id="c-telefono" type="tel" autocomplete="tel" maxlength="30" required></div>
             <div class="campo"><label for="c-email">Correo (opcional)</label><input id="c-email" type="email" autocomplete="email" maxlength="120"></div>`;
 
     // ── Agenda automática: primero el día y la hora, después los datos ──
@@ -559,7 +571,6 @@
       const nombre = (MEDICO.fields || {})['Name'] || 'el médico';
       // Solo se dice "confirmada" si el servidor la guardó como Aceptada con horario.
       const confirmada = d && d.estado === 'Aceptada' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(d.horario || '');
-      const textoWa = encodeURIComponent((confirmada ? 'Mi cita en CODE CELLS: ' : 'Mi solicitud de cita en CODE CELLS: ') + liga);
       const cabecera = confirmada
         ? `<h2>Cita confirmada</h2>
           <p class="nota">Tu cita con ${esc(nombre)} es el <strong>${esc(fechaLarga(d.horario.slice(0, 10)))} a las ${esc(horaCorta(d.horario.slice(11)))}</strong>. Si no puedes asistir, cancélala desde la liga de abajo para liberar el espacio.</p>
@@ -575,7 +586,6 @@
             ${confirmada ? `<button type="button" class="btn" id="btn-calendario">Agregar a mi calendario</button>` : ''}
             <a class="btn-sec" href="${esc(liga)}">${confirmada ? 'Ver mi cita' : 'Ver estado de mi solicitud'}</a>
             <button type="button" class="btn-sec" id="btn-copiar">Copiar liga</button>
-            <a class="btn-sec" href="https://wa.me/?text=${textoWa}" target="_blank" rel="noopener">${ICONOS.whatsapp} Enviármela por WhatsApp</a>
           </div>
         </div>`;
       const botonCal = document.getElementById('btn-calendario');

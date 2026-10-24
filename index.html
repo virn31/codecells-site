@@ -284,22 +284,6 @@
   }
   .btn-ghost:hover{ color: var(--ink); border-color: var(--ink); }
 
-  .btn-whatsapp{
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    background: #25D366;
-    color: #06200F;
-    padding: 1rem 1.7rem;
-    border-radius: 100px;
-    display:inline-flex;
-    align-items:center;
-    gap: 0.6rem;
-    transition: transform .35s var(--ease), background .35s var(--ease);
-  }
-  .btn-whatsapp:hover{ transform: translateY(-2px); background: #2FE077; }
-  .btn-whatsapp svg{ width: 16px; height: 16px; flex-shrink:0; }
 
   .scroll-cue{
     margin-top: 4.5rem;
@@ -981,10 +965,7 @@
       <p class="sub reveal">Da el primer paso para entender qué sistema de tu biología necesita atención primero.</p>
       <div class="actions reveal">
         <button class="btn-primary" type="button" data-open-test>Realiza tu evaluación</button>
-        <a class="btn-whatsapp" href="https://wa.me/526671264060?text=Hola%2C%20quiero%20agendar%20una%20consulta%20con%20CODE%20CELLS%E2%84%A2" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.27-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.93 6.45 17.5 2 12.04 2zm5.84 13.91c-.25.7-1.25 1.32-1.93 1.42-.55.08-1.25.11-2.01-.13-.46-.15-1.06-.34-1.83-.67-3.22-1.39-5.32-4.62-5.48-4.84-.16-.22-1.31-1.74-1.31-3.32 0-1.58.83-2.36 1.12-2.68.3-.32.65-.4.87-.4.22 0 .43 0 .62.01.2.01.46-.08.72.55.27.65.91 2.24.99 2.4.08.16.13.35.03.57-.11.22-.16.35-.32.54-.16.19-.34.42-.49.56-.16.16-.33.33-.14.65.19.32.85 1.4 1.83 2.27 1.26 1.12 2.32 1.47 2.64 1.63.32.16.51.14.7-.08.19-.22.81-.94 1.03-1.27.22-.32.43-.27.73-.16.3.11 1.9.9 2.22 1.06.32.16.54.24.62.38.08.13.08.78-.17 1.48z"/></svg>
-          Agenda por WhatsApp
-        </a>
+        <a class="btn-ghost" href="/directorio/">Encuentra a tu médico</a>
       </div>
       <p class="note reveal">5 sistemas · 9 preguntas · menos de 3 minutos.</p>
     </div>
@@ -1280,8 +1261,6 @@
         '</div>';
       }).join('');
 
-      var whatsappMsg = 'Hola, hice la evaluación CODE CELLS\u2122 y mi sistema prioritario es ' + top.sys.name + ' (' + top.pct + '%). Me gustar\u00eda que un especialista revise mi mapa biol\u00f3gico.';
-      var waIcon = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.27-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.93 6.45 17.5 2 12.04 2zm5.84 13.91c-.25.7-1.25 1.32-1.93 1.42-.55.08-1.25.11-2.01-.13-.46-.15-1.06-.34-1.83-.67-3.22-1.39-5.32-4.62-5.48-4.84-.16-.22-1.31-1.74-1.31-3.32 0-1.58.83-2.36 1.12-2.68.3-.32.65-.4.87-.4.22 0 .43 0 .62.01.2.01.46-.08.72.55.27.65.91 2.24.99 2.4.08.16.13.35.03.57-.11.22-.16.35-.32.54-.16.19-.34.42-.49.56-.16.16-.33.33-.14.65.19.32.85 1.4 1.83 2.27 1.26 1.12 2.32 1.47 2.64 1.63.32.16.51.14.7-.08.19-.22.81-.94 1.03-1.27.22-.32.43-.27.73-.16.3.11 1.9.9 2.22 1.06.32.16.54.24.62.38.08.13.08.78-.17 1.48z"/></svg>';
 
       content.innerHTML =
         '<div class="test-result">' +
@@ -1299,15 +1278,16 @@
             '<div class="capture-form" id="captureForm">' +
               '<div class="capture-row">' +
                 '<div class="capture-field"><label>Nombre *</label><input type="text" id="cf-nombre" placeholder="Tu nombre" autocomplete="given-name"></div>' +
-                '<div class="capture-field"><label>WhatsApp *</label><input type="tel" id="cf-wa" placeholder="+52 667 000 0000" autocomplete="tel"></div>' +
+                '<div class="capture-field"><label>Teléfono *</label><input type="tel" id="cf-wa" placeholder="+52 667 000 0000" autocomplete="tel"></div>' +
               '</div>' +
-              '<p class="capture-error" id="captureError">Por favor completa tu nombre y WhatsApp.</p>' +
+              '<p class="capture-error" id="captureError">Por favor completa tu nombre y teléfono.</p>' +
               '<p class="nova-pre-note">Completa tus datos para iniciar con NOVA, nuestra asistente IA que preparará tu consulta.</p>' +
               '<div class="capture-submit">' +
-                '<button class="btn-whatsapp" type="button" id="captureSubmit">' + waIcon + 'Enviar y continuar</button>' +
+                '<button class="btn-primary" type="button" id="captureSubmit">Enviar y continuar</button>' +
                 '<span class="capture-note">Tus datos solo se usan para contactarte.</span>' +
               '</div>' +
             '</div>' +
+            '<p style="margin-top:1rem;"><a class="btn-ghost" href="/directorio/">Buscar un m\u00e9dico en el directorio</a></p>' +
             '<button class="btn-ghost" type="button" id="testRestartBtn" style="margin-top:1.2rem;">Repetir evaluaci\u00f3n</button>' +
           '</div>' +
           '<p class="test-disclaimer">Este resultado es un mapa orientativo, no un diagn\u00f3stico m\u00e9dico. CODE CELLS\u2122 identifica posibilidades de mejora, no enfermedades.</p>' +
@@ -1321,7 +1301,7 @@
         errorEl.classList.remove('show');
         var btn = document.getElementById('captureSubmit');
         btn.disabled = true;
-        btn.innerHTML = waIcon + 'Guardando\u2026';
+        btn.innerHTML = 'Guardando\u2026';
 
         // Ya no se llama a saveToAirtable()/tabla=temp aquí (hotfix
         // 2026-08-15): escribía Nombre + WhatsApp + scores sin
@@ -1332,12 +1312,6 @@
         var _nombre = nombre;
         var _wa     = wa;
         var _sistema = top.sys.name + ' (' + top.pct + '%)';
-        var _waMsg = 'Hola, hice la evaluación CODE CELLS™ y mi sistema prioritario es ' + _sistema + '. Me gustaría que un especialista revise mi mapa biológico.';
-
-        // Abrir WhatsApp en background
-        setTimeout(function(){
-          window.open('https://wa.me/526671264060?text=' + encodeURIComponent(_waMsg), '_blank');
-        }, 800);
 
         // Si llegó por la vía influencer (descubre.html / bienestar.html),
         // lo mandamos directo al Portal VIP en modo demo para que explore NOVA ahí,
@@ -1355,6 +1329,12 @@
             window.location.href = 'portal-vip.html?demo=1';
           }, 1400);
           return;
+        }
+
+        // NOVA se abre aquí mismo. Antes la abría un parche que interceptaba
+        // la apertura de WhatsApp; sin WhatsApp (2026-10-24) se llama directo.
+        if (typeof window.novaActivar === 'function') {
+          window.novaActivar(_nombre, _sistema);
         }
 
         // Transformar el botón mientras se crea su expediente de paciente
@@ -1699,12 +1679,13 @@
     opacity: 0.7;
   }
 
-  .nova-wa-btn {
+  .nova-dir-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: #25D366;
-    color: #fff;
+    background: var(--nova-accent, #E8A33D);
+    color: #1C1915;
+    text-decoration: none;
     border: none;
     border-radius: 10px;
     padding: 0.7rem 1.2rem;
@@ -1717,7 +1698,7 @@
     width: 100%;
     justify-content: center;
   }
-  .nova-wa-btn:hover { opacity: 0.88; }
+  .nova-dir-btn:hover { opacity: 0.88; }
 
   @media (max-width: 600px) {
     #nova-panel { border-radius: 12px 12px 0 0; max-height: 95vh; }
@@ -1825,35 +1806,19 @@
     div.innerHTML = parseMarkdown(text);
     messages.appendChild(div);
 
-    // Detectar cierre del flujo e inyectar botón de WhatsApp
+    // Al cerrar el flujo, NOVA lleva al directorio para elegir médico
+    // (antes era un botón de WhatsApp a CODE CELLS).
     if (who === 'nova' && (
       text.indexOf('$1,500') !== -1 ||
       text.indexOf('1,500 MXN') !== -1 ||
       (text.indexOf('primera consulta') !== -1 && text.indexOf('costo') !== -1) ||
       (text.indexOf('Nos vemos pronto') !== -1)
     )) {
-      // Construir mensaje con datos del formulario o de la conversación
-      var nombreEl = document.getElementById('cf-nombre');
-      var waEl = document.getElementById('cf-wa');
-      var nombre = nombreEl ? nombreEl.value.trim() : '';
-      var telefono = waEl ? waEl.value.trim() : '';
-      // Buscar nombre en el historial si no está en el formulario
-      if (!nombre && novaHistory.length > 0) {
-        var primerMsg = novaHistory[0] ? (novaHistory[0].content || '') : '';
-        var mNombre = primerMsg.match(/me llamo ([^.]+)/i);
-        if (mNombre) nombre = mNombre[1].trim();
-      }
-      var waMsg = 'Hola, vengo de la evaluación CODE CELLS™. Me atendió NOVA y quiero agendar mi primera consulta.';
-      if (nombre) waMsg += ' Soy ' + nombre + '.';
-      if (telefono) waMsg += ' Mi WhatsApp es ' + telefono + '.';
-
-      var waBtn = document.createElement('button');
-      waBtn.className = 'nova-wa-btn';
-      waBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.122 1.523 5.855L0 24l6.335-1.498A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.652-.5-5.18-1.375l-.37-.22-3.762.89.948-3.658-.242-.378A9.956 9.956 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg> Continuar en WhatsApp';
-      waBtn.onclick = function() {
-        window.open('https://wa.me/526671264060?text=' + encodeURIComponent(waMsg), '_blank');
-      };
-      div.appendChild(waBtn);
+      var dirBtn = document.createElement('a');
+      dirBtn.className = 'nova-dir-btn';
+      dirBtn.href = '/directorio/';
+      dirBtn.textContent = 'Encuentra a tu médico en el directorio';
+      div.appendChild(dirBtn);
     }
 
     messages.scrollTop = messages.scrollHeight;
@@ -1999,7 +1964,7 @@
 
     var msg = 'Hola';
     if (nombreFinal) msg += ', me llamo ' + nombreFinal;
-    if (telefono) msg += '. Mi WhatsApp es ' + telefono;
+    if (telefono) msg += '. Mi teléfono es ' + telefono;
     msg += '.';
     novaOpen(msg);
   };
@@ -2007,31 +1972,6 @@
 })();
 </script>
 
-<!-- Patch al script del test: llama novaActivar ANTES de abrir WhatsApp -->
-<script>
-(function() {
-  var _origOpen = window.open;
-  window.open = function(url, target, features) {
-    // Detectar apertura del WhatsApp del test ANTES de abrirlo
-    if (typeof url === 'string' && url.indexOf('wa.me/526671264060') !== -1 && url.indexOf('sistema') !== -1) {
-      try {
-        var decoded = decodeURIComponent(url.split('text=')[1] || '');
-        var matchSistema = decoded.match(/sistema prioritario es (.+?\(\d+%\))/);
-        var sistemaTexto = matchSistema ? matchSistema[1].trim() : '';
-        var nombreEl = document.getElementById('cf-nombre');
-        var nombre = nombreEl ? nombreEl.value.trim() : 'amigo';
-        if (sistemaTexto && typeof window.novaActivar === 'function') {
-          // Activar NOVA primero, luego abrir WhatsApp con delay
-          window.novaActivar(nombre, sistemaTexto);
-          setTimeout(function() { _origOpen.call(window, url, target, features); }, 800);
-          return;
-        }
-      } catch(e) { console.error('NOVA trigger:', e); }
-    }
-    return _origOpen.apply(this, arguments);
-  };
-})();
-</script>
 
 </body>
 </html>

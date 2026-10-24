@@ -118,7 +118,7 @@
           <dt>Herramientas</dt><dd>${esc((p.tratamientos || []).join(', ')) || '—'}</dd>
           <dt>Presentación</dt><dd>${esc(p.bio) || '—'}</dd>
           <dt>Horarios</dt><dd>${esc(p.horarios) || '—'}</dd>
-          <dt>Teléfono</dt><dd>${esc(p.telefono) || '—'}${p.whatsapp ? ' · WhatsApp: ' + esc(p.whatsapp) : ''}</dd>
+          <dt>Teléfono</dt><dd>${esc(p.telefono) || '—'}</dd>
           <dt>Redes</dt><dd>${Object.keys(p.redes || {}).length ? Object.entries(p.redes).map(([red, url]) => `${esc(red)}: <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">${esc(url)}</a>`).join('<br>') : '—'}</dd>
           <dt>Consentimiento</dt><dd>${p.tieneConsentimiento ? esc(p.versionConsentimiento) + ' · ' + esc(fecha(p.fechaConsentimiento)) : '<span class="error">No registrado</span>'}</dd>
           ${p.faltantes.length ? `<dt>Falta</dt><dd class="error">${esc(p.faltantes.join(', '))}</dd>` : ''}

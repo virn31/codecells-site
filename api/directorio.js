@@ -253,7 +253,6 @@ module.exports = async (req, res) => {
             bio: c['Bio corta'] || '',
             horarios: c['Horarios'] || '',
             telefono: c['Teléfono de consultorio'] || '',
-            whatsapp: c['WhatsApp público'] || '',
             redes: D.redesPublicas(c),
             revisadoPor: c['Revisado por'] || null,
             fechaRevision: c['Fecha de revisión'] || null,

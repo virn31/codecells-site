@@ -103,9 +103,8 @@ const DIRECTORIO_CAMPOS_PUBLICOS = [
 
 // Campos que solo se revelan a visitantes registrados (gate suave).
 // NUNCA fusionar con la lista de campos públicos de arriba.
-// 2026-10-22: el WhatsApp también va aquí; antes viajaba en el JSON público
-// aunque la tarjeta lo ocultara hasta que el visitante dejara sus datos.
-const DIRECTORIO_CAMPOS_PRIVADOS = ['Teléfono de consultorio', 'WhatsApp público'];
+// 2026-10-24: sin WhatsApp en la plataforma; solo el teléfono del consultorio.
+const DIRECTORIO_CAMPOS_PRIVADOS = ['Teléfono de consultorio'];
 
 function escaparFormula(valor) {
   return String(valor).replace(/"/g, '\\"');
@@ -468,14 +467,11 @@ module.exports = async (req, res) => {
         ...DIRECTORIO_CAMPOS_PRIVADOS.map(f => ['fields[]', f]),
       ]);
       const contactos = {};
-      const whatsapp = {};
       registros.forEach(rec => {
         const tel = rec.fields?.['Teléfono de consultorio'];
         if (tel) contactos[rec.id] = tel;
-        const wa = rec.fields?.['WhatsApp público'];
-        if (wa && /^https:\/\//.test(wa)) whatsapp[rec.id] = wa;
       });
-      return res.status(200).json({ contactos, whatsapp });
+      return res.status(200).json({ contactos });
     } catch (err) {
       return res.status(502).json({ error: 'No pudimos cargar los teléfonos en este momento. Intenta de nuevo en unos segundos.' });
     }
@@ -956,8 +952,10 @@ module.exports = async (req, res) => {
           // Publicar ya no es decisión del médico (etapa 1 del directorio):
           // el perfil nace en Borrador y solo api/directorio.js lo mueve.
           const redesPost = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
-          if (redesPost.errores.length) return res.status(400).json({ error: redesPost.errores.join(' ') });
-          const fields = redesPost.fields;
+          const contactoPost = directorio.normalizarContacto(redesPost.fields);
+          const erroresPost = [...redesPost.errores, ...contactoPost.errores];
+          if (erroresPost.length) return res.status(400).json({ error: erroresPost.join(' ') });
+          const fields = contactoPost.fields;
           if ('Ciudad de consulta' in fields) fields['Ciudad de consulta'] = directorio.normalizarCiudad(fields['Ciudad de consulta']);
           const ahoraISO = new Date().toISOString();
           req.body.fields = {
@@ -988,8 +986,10 @@ module.exports = async (req, res) => {
             // revisión los controla api/directorio.js (campos protegidos).
             // Redes: solo ligas de la red correcta, guardadas como https completo.
             const redesPatch = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
-            if (redesPatch.errores.length) return res.status(400).json({ error: redesPatch.errores.join(' ') });
-            const fields = redesPatch.fields;
+            const contactoPatch = directorio.normalizarContacto(redesPatch.fields);
+            const erroresPatch = [...redesPatch.errores, ...contactoPatch.errores];
+            if (erroresPatch.length) return res.status(400).json({ error: erroresPatch.join(' ') });
+            const fields = contactoPatch.fields;
             if ('Ciudad de consulta' in fields) fields['Ciudad de consulta'] = directorio.normalizarCiudad(fields['Ciudad de consulta']);
             const ahoraISO = new Date().toISOString();
             // Editar lo que ve el público en un perfil YA publicado lo deja

@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
     const { nombre, especialidad, cedula, ciudad, whatsapp, email, recordId, codigoCortesia } = req.body;
 
     if (!nombre || !whatsapp) {
-      return res.status(400).json({ error: 'Faltan datos mínimos (nombre y WhatsApp).' });
+      return res.status(400).json({ error: 'Faltan datos mínimos (nombre y teléfono).' });
     }
 
     const fields = {
@@ -91,7 +91,7 @@ module.exports = async (req, res) => {
       `Especialidad: ${especialidad || '(no especificada)'}\n` +
       `Cédula: ${cedula || '(no especificada)'}\n` +
       `Ciudad: ${ciudad || '(no especificada)'}\n` +
-      `WhatsApp: ${whatsapp}\n` +
+      `Teléfono: ${whatsapp}\n` +
       `Email: ${email || '(no especificado)'}\n` +
       (codigoCortesia ? `\n🎓 Ya tiene un código de cortesía asignado (${codigoCortesia}) — esto es solo informativo, la decisión de afiliarlo sigue siendo tuya.\n` : '') +
       `\n¿Autorizas su afiliación? Al autorizar, NOVA genera su código CCMED- automáticamente.`;

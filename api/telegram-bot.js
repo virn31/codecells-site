@@ -7,7 +7,7 @@
 // 2) Una vez vinculado, el médico puede escribir los datos de un paciente
 //    (peso, talla, IMC, diagnósticos, labs, etc.) y el bot le regresa un plan
 //    nutricional de 7 días en texto plano, firmado con su nombre y cédula,
-//    listo para copiar/pegar y reenviar por Telegram, WhatsApp o correo.
+//    listo para copiar/pegar y reenviar por Telegram o correo.
 
 const { sendTelegramMessage, sendTelegramMessageChunked, answerCallbackQuery, editarMensaje } = require('../lib/telegram');
 const { generarPlanNutricional } = require('../lib/nutricion');

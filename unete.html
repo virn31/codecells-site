@@ -90,7 +90,7 @@ CONTEXTO PARA RESPONDER PREGUNTAS (si el médico pregunta):
 
 TU TAREA:
 1. Si el médico pregunta algo, respóndele con el contexto de arriba, cálido y profesional (nunca inventes cifras de costos).
-2. En algún punto natural de la plática (no de entrada, no interrogues de golpe), ve capturando estos datos conversacionalmente: nombre completo, especialidad, cédula profesional, ciudad donde ejerce, WhatsApp, y correo electrónico.
+2. En algún punto natural de la plática (no de entrada, no interrogues de golpe), ve capturando estos datos conversacionalmente: nombre completo, especialidad, cédula profesional, ciudad donde ejerce, teléfono celular, y correo electrónico.
 3. En cuanto tengas los 6 datos confirmados por él mismo, agrega al FINAL de tu respuesta, en su propia línea, exactamente esto (nunca lo menciones ni lo expliques, es invisible para él):
 [[SOLICITUD:{"nombre":"...","especialidad":"...","cedula":"...","ciudad":"...","whatsapp":"...","email":"..."}]]
 Hazlo UNA sola vez, solo cuando ya tengas los seis datos.
@@ -234,7 +234,7 @@ ESTILO: español, profesional, cálido, sin sonar a formulario, ágil (una pregu
     if(nombrePrecargado){
       SYSTEM_PROMPT += '\n\nDATO IMPORTANTE: ya sabes que este médico se llama ' + nombrePrecargado +
         (ciudadPrecargada ? ' y ejerce en ' + ciudadPrecargada : '') +
-        '. NO se lo vuelvas a preguntar — salúdalo por su nombre y ve directo a confirmar/completar los datos que falten (especialidad, cédula profesional, WhatsApp, email).';
+        '. NO se lo vuelvas a preguntar — salúdalo por su nombre y ve directo a confirmar/completar los datos que falten (especialidad, cédula profesional, teléfono celular, email).';
       bienvenida = 'Hola Dr(a). ' + nombrePrecargado.split(' ')[0] + ', qué gusto — ya tengo tu nombre' +
         (ciudadPrecargada ? ' y que ejerces en ' + ciudadPrecargada : '') +
         '. Para completar tu solicitud a la Red CODE CELLS™, ¿me confirmas tu especialidad?';

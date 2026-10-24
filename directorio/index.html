@@ -399,8 +399,8 @@
     a.pd-card__cta { display: block; text-decoration: none; }
     .pd-card__name a { color: inherit; text-decoration: none; }
     .pd-card__name a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-    .pd-card__cta:focus-visible, .pd-card__wa:focus-visible { outline: 2px solid var(--c-energy); outline-offset: 2px; border-radius: 999px; }
-    .pd-card__wa {
+    .pd-card__cta:focus-visible, .pd-card__tel:focus-visible { outline: 2px solid var(--c-energy); outline-offset: 2px; border-radius: 999px; }
+    .pd-card__tel {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -414,8 +414,8 @@
       text-decoration: none;
       white-space: nowrap;
     }
-    .pd-card__wa:hover { filter: brightness(1.08); }
-    .pd-card__wa svg { width: 16px; height: 16px; }
+    .pd-card__tel:hover { filter: brightness(1.08); }
+    .pd-card__tel svg { width: 16px; height: 16px; }
     /* Móvil: foto arriba, datos debajo */
     @media (max-width: 639px) {
       .pd-card__body { flex-direction: column; align-items: center; text-align: center; }
@@ -632,9 +632,6 @@
 
     let TOKEN_VISITANTE = sessionStorage.getItem('cc_visitante') || null;
     let CONTACTOS = {};
-    // WhatsApp del consultorio: también solo después de dejar datos (antes
-    // venía en la lista pública).
-    let WHATSAPP = {};
     // true si el servidor no pudo leer los teléfonos: la tarjeta lo dice en
     // vez de quedarse en blanco (un fallo no es "sin teléfono").
     let CONTACTOS_ERROR = false;
@@ -653,7 +650,6 @@
         const data = await r.json();
         CONTACTOS_ERROR = !r.ok;
         CONTACTOS = data.contactos || {};
-        WHATSAPP = data.whatsapp || {};
       } catch (err) {
         CONTACTOS_ERROR = true;
         console.error('Error cargando contactos:', err);
@@ -751,7 +747,6 @@
       reloj: `<svg ${SVG_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
       telefono: `<svg ${SVG_ATR}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>`,
       candado: `<svg ${SVG_ATR}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
-      whatsapp: `<svg ${SVG_ATR}><path d="M4 20l1.3-3.9A8.5 8.5 0 1 1 8 18.8z"/></svg>`,
     };
 
     function filaPd(icono, contenidoHtml, clase) {
@@ -767,10 +762,17 @@
       return palabras.slice(0, 2).map(p => p[0].toUpperCase()).join('') || '·';
     }
 
-    // Solo enlaces http(s); un valor raro no se convierte en enlace.
-    function enlaceWhatsApp(valor) {
-      const v = String(valor || '').trim();
-      return /^https?:\/\//i.test(v) ? v : '';
+    // Teléfono del consultorio como enlace tel: (sin WhatsApp ni otra
+    // empresa de por medio). 10 dígitos = México (+52).
+    function digitosTel(t) { return String(t || '').replace(/\D/g, ''); }
+    function enlaceTel(t) {
+      const d = digitosTel(t);
+      if (d.length < 10) return '';
+      return 'tel:+' + (d.length === 10 ? '52' + d : d);
+    }
+    function telLegible(t) {
+      const n = digitosTel(t).slice(-10);
+      return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : String(t || '');
     }
 
     function renderResultados(medicos, q) {
@@ -804,16 +806,16 @@
         const bio = escaparHtml(f['Bio corta'] || '');
         const tratamientos = f['Tratamientos que ofrece'] || [];
         const horarios = escaparHtml(f['Horarios'] || '');
-        const wa = enlaceWhatsApp(WHATSAPP[m.id]);
         const foto = /^https:\/\//.test(f['Foto de perfil'] || '') ? f['Foto de perfil'] : '';
         const tel = CONTACTOS[m.id] || null;
+        const hrefTel = enlaceTel(tel);
         const urlFicha = '/directorio/medico.html?id=' + encodeURIComponent(m.id);
 
-        // Teléfono y WhatsApp solo después de que el visitante dejó sus datos.
+        // Teléfono solo después de que el visitante dejó sus datos.
         const filas = [
           especialidades && filaPd(ICONOS.especialidad, especialidades),
           horarios && filaPd(ICONOS.reloj, horarios),
-          tel && filaPd(ICONOS.telefono, escaparHtml(tel), 'pd-row--tel'),
+          tel && filaPd(ICONOS.telefono, hrefTel ? `<a href="${hrefTel}">${escaparHtml(telLegible(tel))}</a>` : escaparHtml(tel), 'pd-row--tel'),
           (!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) && filaPd(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga la página en unos segundos.', 'pd-row--aviso'),
           !TOKEN_VISITANTE && filaPd(ICONOS.candado, 'El teléfono se muestra después de solicitar cita', 'pd-row--aviso'),
         ].filter(Boolean).join('');
@@ -836,7 +838,7 @@
             </div>
             <div class="pd-card__bar">
               <a class="pd-card__cta" data-cta="${escaparHtml(m.id)}" href="${urlFicha}#solicitar">Solicitar cita</a>
-              ${wa && TOKEN_VISITANTE ? `<a class="pd-card__wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener" aria-label="Enviar WhatsApp a ${nombre}">${ICONOS.whatsapp}<span>WhatsApp</span></a>` : ''}
+              ${hrefTel && TOKEN_VISITANTE ? `<a class="pd-card__tel" href="${hrefTel}" aria-label="Llamar al consultorio de ${nombre}">${ICONOS.telefono}<span>Llamar</span></a>` : ''}
             </div>
           </article>
         `;

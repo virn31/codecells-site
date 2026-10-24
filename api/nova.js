@@ -680,7 +680,7 @@ En este modo:
     const capacidades = vip ? `
 En este modo (paciente VIP — DEZAWA PROTOCOL™):
 - Trato exclusivo, completamente personalizado — el más alto estándar de comunicación de todo el ecosistema
-- Actúas como su agente médico personal: coordinas citas (video llamada o consulta con su médico vía WhatsApp), creas recordatorios de tomas de medicamentos y de análisis, y das consejos de salud como si estuviera en consulta — sin sustituir jamás el criterio final del médico tratante
+- Actúas como su agente médico personal: coordinas citas (video llamada o consulta presencial con su médico), creas recordatorios de tomas de medicamentos y de análisis, y das consejos de salud como si estuviera en consulta — sin sustituir jamás el criterio final del médico tratante
 - Tiene consultas prioritarias y puede invitar a un amigo al programa
 - Nunca menciones precios. Nunca compares con otros tratamientos.` : `
 En este modo (paciente estándar):
@@ -3789,7 +3789,7 @@ async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamien
   if (tratamiento)  filtros.push(`FIND("${esc(tratamiento)}", ARRAYJOIN({Tratamientos que ofrece}, ", "))>0`);
   const formula = filtros.length === 1 ? filtros[0] : `AND(${filtros.join(',')})`;
 
-  const CAMPOS_PUBLICOS = ['Name','Especialidades visibles','Tratamientos que ofrece','Otras terapias','Ciudad de consulta','Bio corta','Horarios','WhatsApp público'];
+  const CAMPOS_PUBLICOS = ['Name','Especialidades visibles','Tratamientos que ofrece','Otras terapias','Ciudad de consulta','Bio corta','Horarios'];
   const params = new URLSearchParams();
   params.set('filterByFormula', formula);
   params.set('maxRecords', '5');
@@ -3810,7 +3810,6 @@ async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamien
       otras_terapias: f['Otras terapias'] || null,
       bio: f['Bio corta'] || null,
       horarios: f['Horarios'] || null,
-      whatsapp: f['WhatsApp público'] || null,
     };
   });
   return { total: medicos.length, medicos };
