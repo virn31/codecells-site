@@ -38,6 +38,9 @@ const TIPOS = {
 http.createServer(async (req, res) => {
   const t0 = Date.now();
   const url = new URL(req.url, 'http://127.0.0.1');
+  // Igual que vercel.json: /directorio/<liga> → /api/ficha?liga=<liga>
+  const ligaFicha = url.pathname.match(/^\/directorio\/([a-z0-9-]+)$/);
+  if (ligaFicha) { url.pathname = '/api/ficha'; url.searchParams.set('liga', ligaFicha[1]); }
   if (url.pathname.startsWith('/api/')) {
     const nombre = url.pathname.slice(5).replace(/[^a-z0-9-]/gi, '');
     const archivo = path.join(ROOT, 'api', nombre + '.js');

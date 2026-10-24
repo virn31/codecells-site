@@ -268,7 +268,10 @@
       return d.toISOString().slice(0, 10);
     }
 
-    const ID = new URLSearchParams(location.search).get('id') || '';
+    // /directorio/<liga> llega con window.FICHA (lo pone api/ficha.js);
+    // /directorio/medico.html?id=rec… sigue funcionando.
+    const FICHA = window.FICHA || {};
+    const ID = FICHA.id || new URLSearchParams(location.search).get('id') || '';
     let MEDICO = null;
     // Agenda automática (etapa 2b): { automatica, siguientes, … } | { error: true } si no se pudo leer.
     let AGENDA = null;
@@ -320,6 +323,10 @@
 
     async function cargar() {
       const cont = document.getElementById('contenido');
+      if (FICHA.noEncontrada) {
+        cont.innerHTML = '<div class="estado-pagina"><h1>Este médico no está en el directorio</h1><p>La liga no existe o el médico retiró su perfil. <a href="/directorio/">Buscar otro médico</a></p></div>';
+        return;
+      }
       if (!/^rec[A-Za-z0-9]{14}$/.test(ID)) {
         cont.innerHTML = '<div class="estado-pagina"><h1>Perfil no encontrado</h1><p>La liga está incompleta. <a href="/directorio/">Volver al directorio</a></p></div>';
         return;
@@ -336,6 +343,11 @@
       if (!MEDICO) {
         cont.innerHTML = '<div class="estado-pagina"><h1>Este médico no está en el directorio</h1><p>Puede que haya retirado su perfil. <a href="/directorio/">Buscar otro médico</a></p></div>';
         return;
+      }
+      // Abierta con ?id=: se muestra la liga bonita en la barra (misma página).
+      const liga = (MEDICO.fields || {})['Liga pública'];
+      if (!FICHA.id && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(liga || '')) {
+        try { history.replaceState(null, '', '/directorio/' + liga + location.hash); } catch (e) { /* sin history */ }
       }
       const [contactos, agenda] = await Promise.all([cargarContactos(), cargarDisponibilidad()]);
       AGENDA = agenda;

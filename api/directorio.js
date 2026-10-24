@@ -95,6 +95,7 @@ function resumenPerfil(rec) {
     motivoRechazo: c['Motivo de rechazo'] || null,
     faltantes: D.faltantesParaPublicar(c),
     foto: D.urlFotoPublica(c[D.CAMPO_FOTO]),
+    liga: D.esLigaValida(c[D.CAMPO_LIGA]) ? c[D.CAMPO_LIGA] : null,
   };
 }
 
@@ -288,7 +289,15 @@ module.exports = async (req, res) => {
         }
         const faltan = D.faltantesParaPublicar(c);
         if (faltan.length) return res.status(409).json({ error: 'Al perfil le falta: ' + faltan.join(', ') + '.' });
+        // Liga pública (/directorio/<liga>): se asigna la primera vez y ya no
+        // cambia, aunque el médico edite su nombre.
+        let liga = D.esLigaValida(c[D.CAMPO_LIGA]) ? c[D.CAMPO_LIGA] : '';
+        if (!liga) {
+          const todos = await leerTodo(TBL_DIRECTORIO, [['fields[]', D.CAMPO_LIGA]]);
+          liga = D.ligaDisponible(c['Name'], todos.filter(r => r.id !== recordId).map(r => (r.fields || {})[D.CAMPO_LIGA]).filter(Boolean));
+        }
         const fields = {
+          [D.CAMPO_LIGA]: liga,
           'Publicado': true,
           'Estado de publicación': D.ESTADOS.PUBLICADO,
           'Cambios sin revisar': false,

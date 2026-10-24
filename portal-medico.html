@@ -7842,6 +7842,12 @@ function htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar) {
     } else if (p.cambiosSinRevisar) {
       sub += '<br>Tus cambios más recientes están pendientes de revisión; mientras tanto el perfil sigue visible.';
     }
+    if (p.liga) {
+      const url = location.origin + '/directorio/' + p.liga;
+      sub += `<br>Tu liga para compartir: <a href="${escaparHtml(url)}" target="_blank" rel="noopener" style="color:#E8A33D">${escaparHtml(url.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
+        + ` <button type="button" class="mi-dir-btn-secondary" style="padding:4px 10px;font-size:12px" onclick="copiarLigaMiDir(this, '${escaparHtml(url)}')">Copiar</button>`
+        + '<br><span style="font-size:12px;opacity:.75">Al pegarla en WhatsApp o redes se ve tu nombre, especialidad y foto.</span>';
+    }
     acciones = (!p.tieneConsentimiento ? btn('Aceptar consentimiento', 'abrirConsentimientoMiDir()', true, faltan.length) : '')
       + btn('Despublicar', 'despublicarMiDir()', false, false);
   } else if (estado === 'En revisión') {
@@ -7867,6 +7873,11 @@ function htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar) {
       <div class="mi-dir-toggle-hint" id="mi-dir-accion-error" style="color:#D4654A"></div>
       ${admin}
     </div>`;
+}
+
+async function copiarLigaMiDir(boton, url) {
+  try { await navigator.clipboard.writeText(url); boton.textContent = 'Copiada'; }
+  catch (e) { boton.textContent = 'Selecciona la liga y cópiala'; }
 }
 
 // ── Solicitudes de cita (etapa 2) ──

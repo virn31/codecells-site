@@ -164,6 +164,18 @@ test('aprobar con consentimiento → publicado, con revisor, fecha de alta e his
   assert.match(f['Historial de publicación'], /Aprobado y publicado/);
 });
 
+test('aprobar asigna la liga pública una sola vez (no cambia si ya existe)', async () => {
+  const consentido = D.sellarConsentimiento({ codigo: COD, ip: '1.1.1.1', navegador: 'x', fechaISO: '2026-10-21T10:00:00.000Z' });
+  let at = airtableFalsa(perfilCompleto({ ...consentido, 'Estado de publicación': 'En revisión' }));
+  let r = await llamar('admin_aprobar', { metodo: 'POST', body: { recordId: REC_PERFIL }, codigo: 'CCMED-VIRN01' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(at.patches[0]['Liga pública'], 'dr-prueba');
+  assert.strictEqual(r.data.perfil.liga, 'dr-prueba');
+  at = airtableFalsa(perfilCompleto({ ...consentido, 'Name': 'Dr. Nombre Nuevo', 'Liga pública': 'dr-prueba' }));
+  r = await llamar('admin_aprobar', { metodo: 'POST', body: { recordId: REC_PERFIL }, codigo: 'CCMED-VIRN01' });
+  assert.strictEqual(at.patches[0]['Liga pública'], 'dr-prueba', 'editar el nombre no rompe la liga ya compartida');
+});
+
 test('rechazar exige motivo', async () => {
   const at = airtableFalsa(perfilCompleto({ 'Estado de publicación': 'En revisión' }));
   const r = await llamar('admin_rechazar', { metodo: 'POST', body: { recordId: REC_PERFIL, motivo: '  ' }, codigo: 'CCMED-JCG01' });
@@ -467,4 +479,65 @@ test('WhatsApp del médico como red social: número o liga → https://wa.me/<n�
   assert.ok(D.CAMPOS_REDES.includes('WhatsApp público'));
   assert.ok(D.CAMPOS_PUBLICOS.includes('WhatsApp público'), 'editarlo en un perfil publicado marca revisión');
   assert.deepStrictEqual(D.redesPublicas({ 'WhatsApp público': 'https://wa.me/5216671234567' }), { 'WhatsApp público': 'https://wa.me/526671234567' }, 'lo viejo sale limpio');
+});
+
+// ── M6: liga pública y ficha con vista previa ──
+test('ligaDisponible: sin acentos ni títulos raros, -2 si ya existe, nunca una palabra reservada', () => {
+  assert.strictEqual(D.ligaDisponible('Dr. Víctor Iván Rodríguez Nava', []), 'dr-victor-ivan-rodriguez-nava');
+  assert.strictEqual(D.ligaDisponible('Dr. Rodriguez', ['dr-rodriguez']), 'dr-rodriguez-2');
+  assert.strictEqual(D.ligaDisponible('Dr. Rodriguez', ['dr-rodriguez', 'dr-rodriguez-2']), 'dr-rodriguez-3');
+  assert.strictEqual(D.ligaDisponible('Médico', []), 'medico-2');
+  assert.strictEqual(D.ligaDisponible('***', []), 'medico-2');
+  assert.ok(D.ligaDisponible('x'.repeat(200), []).length <= 64);
+  assert.ok(D.esLigaValida('dr-a-b') && !D.esLigaValida('Dr-A') && !D.esLigaValida('a--b') && !D.esLigaValida('../x'));
+  assert.ok(D.CAMPOS_PROTEGIDOS.includes('Liga pública'), 'el médico no puede cambiar su liga');
+});
+
+test('htmlFicha: pone título, descripción y og: escapados; el JSON no puede cerrar el <script>', () => {
+  const plantilla = '<html><head><title>Médico — Red CODE CELLS™</title>\n<meta name="description" content="x">\n</head><body></body></html>';
+  const meta = D.metaFicha({ 'Name': 'Dr. <b>Ana</b> "Q"', 'Especialidades visibles': ['Cardiología'], 'Ciudad de consulta': 'Culiacán', 'Foto de perfil': 'https://img/x.jpg', 'Bio corta': 'Hola' }, 'https://www.codecells.mx/directorio/dr-ana');
+  const html = D.htmlFicha(plantilla, meta, { id: 'recAAAAAAAAAAAAAA', liga: '</script><script>alert(1)' });
+  assert.match(html, /<title>Dr\. &lt;b&gt;Ana&lt;\/b&gt; &quot;Q&quot; — Cardiología en Culiacán \| CODE CELLS™<\/title>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/img\/x\.jpg">/);
+  assert.match(html, /<meta name="description" content="Hola">/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/www\.codecells\.mx\/directorio\/dr-ana">/);
+  assert.ok(!html.includes('</script><script>alert'), 'el texto no cierra la etiqueta');
+  assert.ok(!html.includes('<b>Ana'));
+});
+
+function llamarFicha(liga, host = 'www.codecells.mx') {
+  delete require.cache[require.resolve('../api/ficha.js')];
+  const handler = require('../api/ficha.js');
+  return new Promise(resolve => {
+    const res = { statusCode: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(b) { resolve({ status: this.statusCode, headers: this.headers, html: b }); } };
+    handler({ method: 'GET', query: { liga }, headers: { host } }, res);
+  });
+}
+
+test('ficha /directorio/<liga>: perfil publicado → 200 con vista previa y window.FICHA', async () => {
+  let formula = '';
+  global.fetch = async url => { formula = new URL(url).searchParams.get('filterByFormula'); return { ok: true, status: 200, json: async () => ({ records: [perfilCompleto({ 'Publicado': true, 'Ciudad de consulta': 'Culiacan', 'Liga pública': 'dr-prueba' })] }) }; };
+  const r = await llamarFicha('dr-prueba');
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(formula, 'AND({Publicado}=1, {Liga pública}="dr-prueba")', 'solo publicados');
+  assert.match(r.html, /<meta property="og:title" content="Dr\. Prueba — Cardiología en Culiacán">/);
+  assert.match(r.html, /window\.FICHA = \{"id":"rec[A-Za-z0-9]+","liga":"dr-prueba"\}/);
+  assert.match(r.headers['Cache-Control'], /s-maxage=300/);
+});
+
+test('ficha: liga inexistente → 404 noindex; liga inválida no consulta Airtable; Airtable caído → 502', async () => {
+  global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ records: [] }) });
+  let r = await llamarFicha('no-existe');
+  assert.strictEqual(r.status, 404);
+  assert.match(r.html, /noindex/);
+  assert.match(r.html, /"noEncontrada":true/);
+  let llamadas = 0;
+  global.fetch = async () => { llamadas++; return { ok: true, status: 200, json: async () => ({ records: [] }) }; };
+  r = await llamarFicha('x") , OR(1');
+  assert.strictEqual(r.status, 404);
+  assert.strictEqual(llamadas, 0, 'una liga con caracteres raros nunca llega a la fórmula');
+  global.fetch = async () => ({ ok: false, status: 503, json: async () => ({}) });
+  r = await llamarFicha('dr-prueba');
+  assert.strictEqual(r.status, 502, 'un fallo no se disfraza de "no existe"');
+  assert.match(r.headers['Cache-Control'], /no-store/);
 });

@@ -87,19 +87,10 @@ const TABLAS_EXPEDIENTE_MEDICO = new Set(['historia', 'consultas', 'labs']);
 // en la respuesta pública — se aplica como fields[]= en la petición a
 // Airtable, no en post-procesado JS, para que un bug de serialización no
 // pueda filtrar campos sensibles.
-const DIRECTORIO_CAMPOS_PUBLICOS = [
-  'Name',
-  'Especialidades visibles',
-  'Tratamientos que ofrece',
-  'Otras terapias',
-  'Ciudad de consulta',
-  'Bio corta',
-  'Horarios',
-  'Foto de perfil',
-  // Redes sociales y sitio web (2026-10-23): públicas, revisadas por
-  // directorio.redesPublicas() antes de salir.
-  ...directorio.CAMPOS_REDES,
-];
+// La lista vive en lib/directorio.js (la comparte api/ficha.js): nombre,
+// especialidades, herramientas, ciudad, bio, horarios, foto, liga pública y
+// redes (revisadas por directorio.redesPublicas() antes de salir).
+const DIRECTORIO_CAMPOS_PUBLICOS = directorio.CAMPOS_LECTURA_PUBLICA;
 
 // Campos que solo se revelan a visitantes registrados (gate suave).
 // NUNCA fusionar con la lista de campos públicos de arriba.
@@ -538,20 +529,9 @@ module.exports = async (req, res) => {
       const palabras = directorio.palabrasBusqueda(q);
       if (palabras.length) registros = registros.filter(rec => directorio.coincideBusqueda(rec.fields, palabras));
       const data = { records: registros.slice(0, 50) };
-      // La foto sale al público solo como URL (sin nombre de archivo, tamaño
-      // ni id del adjunto).
-      (data.records || []).forEach(rec => {
-        const f = rec.fields || {};
-        if (directorio.CAMPO_FOTO in f) {
-          const url = directorio.urlFotoPublica(f[directorio.CAMPO_FOTO]);
-          if (url) f[directorio.CAMPO_FOTO] = url; else delete f[directorio.CAMPO_FOTO];
-        }
-        // Una liga que no pasa la regla de su red no sale al público.
-        const redes = directorio.redesPublicas(f);
-        directorio.CAMPOS_REDES.forEach(c => { if (redes[c]) f[c] = redes[c]; else delete f[c]; });
-        // Ortografía del catálogo ("Culiacan" → "Culiacán").
-        if (f['Ciudad de consulta']) f['Ciudad de consulta'] = directorio.normalizarCiudad(f['Ciudad de consulta']);
-      });
+      // Foto solo como URL (sin nombre de archivo ni id del adjunto), redes
+      // que pasan su regla y ciudad del catálogo ("Culiacan" → "Culiacán").
+      data.records.forEach(directorio.limpiarPerfilPublico);
       return res.status(200).json(data);
     } catch (err) {
       return res.status(502).json({ error: 'No pudimos consultar el directorio en este momento. Intenta de nuevo en unos segundos.' });

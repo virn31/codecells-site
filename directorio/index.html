@@ -809,7 +809,10 @@
         const foto = /^https:\/\//.test(f['Foto de perfil'] || '') ? f['Foto de perfil'] : '';
         const tel = CONTACTOS[m.id] || null;
         const hrefTel = enlaceTel(tel);
-        const urlFicha = '/directorio/medico.html?id=' + encodeURIComponent(m.id);
+        const liga = f['Liga pública'];
+        const urlFicha = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(liga || '')
+          ? '/directorio/' + liga
+          : '/directorio/medico.html?id=' + encodeURIComponent(m.id);
 
         // Teléfono solo después de que el visitante dejó sus datos.
         const filas = [
