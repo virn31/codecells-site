@@ -9,13 +9,13 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-23 (cierre) — mejoras del directorio con el cobro detenido: redes sociales, ciudad sin acentos, agendar con el horario primero, calendario y "mis citas". Campos del directorio creados en producción. 7 commits SIN PUSH.
+**Última actualización:** 2026-10-23 (cierre) — mejoras del directorio con el cobro detenido: redes sociales, ciudad sin acentos, agendar con el horario primero, calendario y "mis citas". Campos del directorio creados en producción. 8 commits SIN PUSH.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** (7 commits, `7e86b85`…`4aec176`):
+1. **Que Víctor haga push** (8 commits, `7e86b85`…`a02a96c` y este):
    `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
 2. **Revisar en Preview, desde un celular** (lo hecho hoy solo se probó en local contra la base de prueba):
    - `/directorio/`: menús con conteo, "Culiacán" agrupa a Víctor, insignia "Agenda en línea · próximo…" en las tarjetas (la de Víctor depende de Google: en local no hay llaves y no salía).
