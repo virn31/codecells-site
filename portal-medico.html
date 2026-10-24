@@ -2321,6 +2321,25 @@
 #mi-directorio .mi-dir-foto-botones { display: flex; gap: 8px; flex-wrap: wrap; }
 #mi-directorio .mi-dir-foto-estado { font-size: 12px; min-height: 1em; }
 
+/* Encuadre de la foto: el médico la arrastra y la acerca dentro del círculo */
+.mi-dir-encuadre-marco {
+  position: relative; width: var(--marco); height: var(--marco); margin: 16px auto 14px;
+  overflow: hidden; border-radius: 8px; background: #202820;
+  touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.mi-dir-encuadre-marco:active { cursor: grabbing; }
+.mi-dir-encuadre-marco:focus-visible { outline: 2px solid #E8A33D; outline-offset: 3px; }
+.mi-dir-encuadre-marco img {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none;
+  pointer-events: none; -webkit-user-drag: none;
+}
+.mi-dir-encuadre-circulo {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 999px rgba(14, 20, 16, 0.62); border: 2px solid #E8A33D;
+}
+.mi-dir-encuadre-zoom { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 18px; color: rgba(232,228,221,0.6); }
+.mi-dir-encuadre-zoom input { flex: 1; accent-color: #E8A33D; }
+
 /* Multiselect de chips */
 #mi-directorio .mi-dir-chips {
   display: flex;
@@ -2545,7 +2564,8 @@
 /* Modal (preview + confirm comparten skeleton) */
 #mi-directorio .mi-dir-modal,
 #mi-dir-preview-modal,
-#mi-dir-confirm-modal {
+#mi-dir-confirm-modal,
+#mi-dir-encuadre-modal {
   position: fixed;
   inset: 0;
   background: rgba(14, 20, 16, 0.75);
@@ -8077,7 +8097,8 @@ window.addEventListener('load', () => {
 });
 
 // ── Foto, avatar o logotipo ──
-// Se recorta en el navegador a un cuadrado de 400 px y se vuelve a codificar:
+// El médico la encuadra en el navegador (encuadrarFotoMiDir) y se recorta a
+// un cuadrado de 400 px que se vuelve a codificar:
 // pesa poco y pierde los metadatos de la foto original (ubicación GPS,
 // cámara). El servidor vuelve a revisar tipo y tamaño. Sin foto, el
 // directorio muestra las iniciales.
@@ -8104,7 +8125,7 @@ function htmlBloqueFotoMiDir(mensaje, esError) {
           ${foto ? `<button type="button" class="mi-dir-btn-secondary" onclick="quitarFotoMiDir()">Quitar</button>` : ''}
           <input type="file" id="mi-dir-foto-archivo" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="subirFotoMiDir(this)">
         </div>
-        <div class="mi-dir-hint">JPG, PNG o WebP. Se recorta en círculo y se borran los datos de ubicación de la foto. Si no subes nada, se muestran tus iniciales.</div>
+        <div class="mi-dir-hint">JPG, PNG o WebP. Al elegirla puedes moverla y acercarla para centrarla en el círculo; se borran los datos de ubicación de la foto. Si no subes nada, se muestran tus iniciales.</div>
         <div class="mi-dir-foto-estado" style="color:${esError ? '#D4654A' : '#5FAE6E'}">${mensaje ? escaparHtml(mensaje) : ''}</div>
       </div>
     </div>`;
@@ -8120,22 +8141,112 @@ function refrescarFotoYEstadoMiDir(mensaje, esError) {
   }
 }
 
-function recortarFotoMiDir(archivo) {
+// Abre la imagen en una ventana con el círculo encima: el médico la arrastra
+// (dedo o mouse; flechas del teclado) y la acerca con el control. Al guardar
+// se recorta exactamente lo que queda en el cuadro, a 400 × 400.
+// Devuelve { tipo, dataUrl }, o null si cancela.
+function encuadrarFotoMiDir(archivo) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(archivo);
     const img = new Image();
-    img.onload = () => {
-      const lado = Math.min(img.naturalWidth, img.naturalHeight);
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 400;
-      canvas.getContext('2d').drawImage(img,
-        (img.naturalWidth - lado) / 2, (img.naturalHeight - lado) / 2, lado, lado, 0, 0, 400, 400);
-      URL.revokeObjectURL(url);
-      // PNG/WebP conservan la transparencia de un logotipo; las fotos van en JPEG.
-      const tipo = archivo.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
-      resolve({ tipo, dataUrl: canvas.toDataURL(tipo, 0.85) });
-    };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No pudimos leer esa imagen. Prueba con un JPG o PNG.')); };
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      // Cabe en un teléfono de 320 px: la ventana y la tarjeta ocupan 104 px de margen.
+      const marco = Math.max(180, Math.min(280, window.innerWidth - 120));
+      const base = marco / Math.min(w, h); // escala que apenas cubre el cuadro
+      let zoom = 1, x = 0, y = 0;
+      const modal = document.createElement('div');
+      modal.id = 'mi-dir-encuadre-modal';
+      modal.className = 'mi-dir-modal';
+      modal.innerHTML = `
+        <div class="mi-dir-modal-card" role="dialog" aria-modal="true" aria-labelledby="mi-dir-encuadre-titulo">
+          <div class="mi-dir-modal-eyebrow" id="mi-dir-encuadre-titulo">Centra tu imagen</div>
+          <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:rgba(232,228,221,0.75)">Arrastra la imagen para acomodarla dentro del círculo y usa el control para acercarla. Así se verá en tu ficha.</p>
+          <div class="mi-dir-encuadre-marco" tabindex="0" aria-label="Imagen a encuadrar; usa las flechas para moverla" style="--marco:${marco}px">
+            <div class="mi-dir-encuadre-circulo"></div>
+          </div>
+          <label class="mi-dir-encuadre-zoom"><span aria-hidden="true">−</span><input type="range" min="1" max="4" step="0.01" value="1" aria-label="Acercar o alejar"><span aria-hidden="true">+</span></label>
+          <div class="mi-dir-modal-actions">
+            <button type="button" class="mi-dir-btn-secondary" data-accion="cancelar">Cancelar</button>
+            <button type="button" class="mi-dir-btn-primary" data-accion="guardar">Guardar imagen</button>
+          </div>
+        </div>`;
+      const caja = modal.querySelector('.mi-dir-encuadre-marco');
+      img.alt = '';
+      img.draggable = false;
+      caja.insertBefore(img, caja.firstChild);
+      const control = modal.querySelector('input[type="range"]');
+
+      // La imagen nunca deja hueco dentro del cuadro.
+      function pintar() {
+        const esc = base * zoom;
+        x = Math.min(0, Math.max(marco - w * esc, x));
+        y = Math.min(0, Math.max(marco - h * esc, y));
+        img.style.width = w + 'px';
+        img.style.height = h + 'px';
+        img.style.transform = `translate(${x}px, ${y}px) scale(${esc})`;
+      }
+      function cambiarZoom(nuevo) {
+        // Acerca hacia el centro del cuadro, no hacia la esquina.
+        const antes = base * zoom;
+        const cx = (marco / 2 - x) / antes, cy = (marco / 2 - y) / antes;
+        zoom = Math.min(4, Math.max(1, nuevo));
+        x = marco / 2 - cx * base * zoom;
+        y = marco / 2 - cy * base * zoom;
+        control.value = zoom;
+        pintar();
+      }
+      x = (marco - w * base) / 2;
+      y = (marco - h * base) / 2;
+      pintar();
+
+      let arrastre = null;
+      caja.addEventListener('pointerdown', e => {
+        arrastre = { id: e.pointerId, px: e.clientX, py: e.clientY, x, y };
+        caja.setPointerCapture(e.pointerId);
+      });
+      caja.addEventListener('pointermove', e => {
+        if (!arrastre || e.pointerId !== arrastre.id) return;
+        x = arrastre.x + e.clientX - arrastre.px;
+        y = arrastre.y + e.clientY - arrastre.py;
+        pintar();
+      });
+      const soltar = () => { arrastre = null; };
+      caja.addEventListener('pointerup', soltar);
+      caja.addEventListener('pointercancel', soltar);
+      caja.addEventListener('wheel', e => { e.preventDefault(); cambiarZoom(zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+      caja.addEventListener('keydown', e => {
+        const paso = { ArrowLeft: [10, 0], ArrowRight: [-10, 0], ArrowUp: [0, 10], ArrowDown: [0, -10] }[e.key];
+        if (!paso) return;
+        e.preventDefault();
+        x += paso[0]; y += paso[1];
+        pintar();
+      });
+      control.addEventListener('input', () => cambiarZoom(parseFloat(control.value)));
+
+      function cerrar(resultado) {
+        document.removeEventListener('keydown', alEscape);
+        modal.remove();
+        URL.revokeObjectURL(url);
+        resolve(resultado);
+      }
+      function alEscape(e) { if (e.key === 'Escape') cerrar(null); }
+      document.addEventListener('keydown', alEscape);
+      modal.querySelector('[data-accion="cancelar"]').addEventListener('click', () => cerrar(null));
+      modal.querySelector('[data-accion="guardar"]').addEventListener('click', () => {
+        const esc = base * zoom;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 400;
+        canvas.getContext('2d').drawImage(img, -x / esc, -y / esc, marco / esc, marco / esc, 0, 0, 400, 400);
+        // PNG/WebP conservan la transparencia de un logotipo; las fotos van en JPEG.
+        const tipo = archivo.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+        cerrar({ tipo, dataUrl: canvas.toDataURL(tipo, 0.85) });
+      });
+
+      document.body.appendChild(modal);
+      caja.focus();
+    };
     img.src = url;
   });
 }
@@ -8152,10 +8263,12 @@ async function subirFotoMiDir(input) {
     refrescarFotoYEstadoMiDir('La imagen pesa más de 20 MB. Elige una más ligera.', true);
     return;
   }
-  const estado = document.querySelector('#mi-dir-foto-bloque .mi-dir-foto-estado');
-  if (estado) { estado.style.color = 'rgba(232,228,221,0.65)'; estado.textContent = 'Subiendo…'; }
   try {
-    const { tipo, dataUrl } = await recortarFotoMiDir(archivo);
+    const encuadre = await encuadrarFotoMiDir(archivo);
+    if (!encuadre) return; // canceló: la imagen anterior queda igual
+    const { tipo, dataUrl } = encuadre;
+    const estado = document.querySelector('#mi-dir-foto-bloque .mi-dir-foto-estado');
+    if (estado) { estado.style.color = 'rgba(232,228,221,0.65)'; estado.textContent = 'Subiendo…'; }
     const r = await fetch('/api/directorio?accion=subir_foto', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
