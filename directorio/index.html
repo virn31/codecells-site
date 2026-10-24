@@ -242,6 +242,25 @@
       margin: 0 0 4px;
       overflow-wrap: anywhere;
     }
+    .pd-card__agenda {
+      margin: 8px 0 0; font-size: 12px; font-weight: 600; color: var(--c-regen);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pd-card__agenda::before { content: ''; flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--c-regen); box-shadow: 0 0 0 3px rgba(95,174,110,0.2); }
+    .pd-card__agenda[hidden] { display: none; }
+    .mis-citas { max-width: 1100px; margin: 24px auto 0; padding: 0 40px; }
+    .mis-citas[hidden] { display: none; }
+    .mis-citas h2 { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-energy); font-weight: 500; margin: 0 0 10px; }
+    .mis-citas ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    .mi-cita {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    }
+    .mi-cita strong { display: block; font-weight: 600; }
+    .mi-cita__estado { font-size: 13px; color: var(--ink-muted); }
+    .mi-cita__acciones { display: flex; gap: 8px; align-items: center; }
+    .mi-cita__acciones a { color: var(--c-energy); font-weight: 600; font-size: 14px; }
+    .mi-cita__acciones button { background: none; border: 0; color: var(--ink-dim); font-size: 13px; cursor: pointer; font-family: var(--font-body); }
     .filtros-aviso { color: #E2574B; text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-size: 14px; }
     .pd-card__city {
       font-family: var(--font-mono);
@@ -439,7 +458,7 @@
     @media (max-width: 720px) {
       header { padding: 16px 20px; }
       .hero { padding: 60px 20px 30px; }
-      .filtros-wrap, .resumen, .medicos-grid { padding-left: 20px; padding-right: 20px; }
+      .filtros-wrap, .resumen, .medicos-grid, .mis-citas { padding-left: 20px; padding-right: 20px; }
       .filtros { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
     }
 
@@ -564,6 +583,10 @@
     </div>
   </div>
 
+  <section id="mis-citas" class="mis-citas" hidden aria-labelledby="mis-citas-titulo">
+    <h2 id="mis-citas-titulo">Tus citas en este teléfono</h2>
+    <ul id="mis-citas-lista"></ul>
+  </section>
   <div id="filtros-aviso" class="resumen filtros-aviso" role="alert" hidden></div>
   <div id="resumen" class="resumen"></div>
 
@@ -765,6 +788,7 @@
               <div class="pd-card__info">
                 <h3 class="pd-card__name"><a href="${urlFicha}">${nombre}</a></h3>
                 ${ciudad ? `<p class="pd-card__city">${ciudad}</p>` : ''}
+                <p class="pd-card__agenda" data-agenda="${escaparHtml(m.id)}" hidden></p>
                 ${filas ? `<ul class="pd-card__rows">${filas}</ul>` : ''}
                 ${bio ? `<p class="pd-card__bio">${bio}</p>` : ''}
                 ${tratamientos.length ? `<ul class="pd-card__chips">${tratamientos.map((t, j) => `<li class="pd-chip" style="animation-delay: ${(i * 0.07) + 0.18 + (j * 0.025)}s">${escaparHtml(etiquetaHerramienta(t))}</li>`).join('')}</ul>` : ''}
@@ -775,13 +799,99 @@
               </div>
             </div>
             <div class="pd-card__bar">
-              <a class="pd-card__cta" href="${urlFicha}#solicitar">Solicitar cita</a>
+              <a class="pd-card__cta" data-cta="${escaparHtml(m.id)}" href="${urlFicha}#solicitar">Solicitar cita</a>
               ${wa && TOKEN_VISITANTE ? `<a class="pd-card__wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener" aria-label="Enviar WhatsApp a ${nombre}">${ICONOS.whatsapp}<span>WhatsApp</span></a>` : ''}
             </div>
           </article>
         `;
       }).join('') + '</div>';
+      cargarProximos(medicos.map(m => m.id));
     }
+
+    // "Agenda en línea · próximo: lun 26 oct, 10:00" en los médicos con agenda
+    // automática. Si no se puede leer, la tarjeta se queda como estaba (no
+    // promete nada que no esté confirmado por el servidor).
+    const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    let PETICION_PROXIMOS = 0;
+    async function cargarProximos(ids) {
+      if (!ids.length) return;
+      const mia = ++PETICION_PROXIMOS;
+      try {
+        const r = await fetch('/api/citas?accion=proximos&ids=' + encodeURIComponent(ids.slice(0, 50).join(',')));
+        if (!r.ok) return;
+        const { proximos } = await r.json();
+        if (mia !== PETICION_PROXIMOS) return; // ya hay otra búsqueda en pantalla
+        for (const [id, p] of Object.entries(proximos || {})) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(p.fecha) || !/^\d{2}:\d{2}$/.test(p.hora)) continue;
+          const d = new Date(p.fecha + 'T12:00:00Z');
+          const el = document.querySelector(`[data-agenda="${CSS.escape(id)}"]`);
+          if (el) {
+            el.textContent = `Agenda en línea · próximo: ${DIAS_CORTOS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES_CORTOS[d.getUTCMonth()]}, ${p.hora.replace(/^0/, '')}`;
+            el.hidden = false;
+          }
+          const cta = document.querySelector(`[data-cta="${CSS.escape(id)}"]`);
+          if (cta) cta.textContent = 'Agendar cita';
+        }
+      } catch (e) {
+        console.error('Próximos horarios:', e);
+      }
+    }
+
+    // ── Mis citas en este teléfono ──
+    // Al pedir una cita, la ficha guarda la liga personal en este navegador
+    // (cc_mis_solicitudes). Aquí se listan con su estado actual, para que el
+    // paciente que perdió la liga la recupere. Nada sale de este teléfono
+    // salvo la consulta del estado, igual que al abrir la liga.
+    const ESTADOS_TEXTO = {
+      'Pendiente': 'Esperando respuesta del médico',
+      'Aceptada': 'Cita confirmada',
+      'Otro horario propuesto': 'Te proponen otro horario',
+      'Confirmada por el paciente': 'Cita confirmada',
+      'Rechazada': 'El médico no pudo atenderte',
+      'Cancelada por el paciente': 'Cancelada',
+    };
+    function leerMisCitas() {
+      try { return JSON.parse(localStorage.getItem('cc_mis_solicitudes') || '[]').filter(x => x && typeof x.liga === 'string'); }
+      catch (e) { return []; }
+    }
+    function quitarMiCita(liga) {
+      try { localStorage.setItem('cc_mis_solicitudes', JSON.stringify(leerMisCitas().filter(x => x.liga !== liga))); } catch (e) { /* sin almacenamiento */ }
+      cargarMisCitas();
+    }
+    async function cargarMisCitas() {
+      const caja = document.getElementById('mis-citas');
+      const lista = leerMisCitas();
+      if (!lista.length) { caja.hidden = true; return; }
+      caja.hidden = false;
+      const ul = document.getElementById('mis-citas-lista');
+      ul.innerHTML = lista.map((x, i) => `<li class="mi-cita" data-i="${i}">
+          <div><strong>${escaparHtml(x.medico || 'Médico de la Red')}</strong><span class="mi-cita__estado">Consultando…</span></div>
+          <div class="mi-cita__acciones"><a href="${escaparHtml(x.liga)}">Ver</a><button type="button" data-quitar="${i}" aria-label="Quitar de esta lista">Quitar</button></div>
+        </li>`).join('');
+      await Promise.all(lista.map(async (x, i) => {
+        const estado = ul.querySelector(`[data-i="${i}"] .mi-cita__estado`);
+        try {
+          const h = new URLSearchParams(new URL(x.liga).hash.slice(1));
+          const r = await fetch('/api/citas?accion=estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: h.get('id'), c: h.get('c') }) });
+          const d = await r.json().catch(() => ({}));
+          if (r.status === 404 || r.status === 400) { estado.textContent = 'Esta liga ya no es válida'; return; }
+          if (!r.ok) throw new Error(d.error || 'Error ' + r.status);
+          const s = d.solicitud || {};
+          const m = String(s.horario || '').match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})$/);
+          const cuando = m ? ` · ${new Date(m[1] + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}, ${m[2]}` : '';
+          estado.textContent = (ESTADOS_TEXTO[s.estado] || s.estado || '') + cuando;
+        } catch (e) {
+          estado.textContent = 'No pudimos consultar el estado. Abre la liga para verlo.';
+        }
+      }));
+    }
+    document.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-quitar]');
+      if (!b) return;
+      const x = leerMisCitas()[Number(b.dataset.quitar)];
+      if (x) quitarMiCita(x.liga);
+    });
 
     function limpiarFiltros() {
       document.getElementById('f-ciudad').value = '';
@@ -792,6 +902,7 @@
 
     // Arranque
     cargarFiltros();
+    cargarMisCitas();
     cargarContactos().then(buscarDirectorio);
   </script>
 

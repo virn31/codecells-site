@@ -3,7 +3,12 @@
 //
 //   Público (sin sesión):
 //     GET  ?accion=disponibilidad&medicoId=rec…&fecha=YYYY-MM-DD
-//                              → espacios libres si el médico tiene agenda automática (etapa 2b)
+//                              → espacios libres si el médico tiene agenda automática (etapa 2b),
+//                                el primer horario libre y la zona horaria del consultorio
+//     GET  ?accion=proximos&ids=rec…,rec…  (máx. 50)
+//                              → { proximos: { rec…: { fecha, hora } } } para las tarjetas del
+//                                directorio; un médico sin agenda o cuya agenda no se pudo leer
+//                                simplemente no aparece (la tarjeta no promete nada)
 //     POST ?accion=solicitar   → crea la solicitud y devuelve la clave de seguimiento. Con agenda
 //                                automática y `hora`, la cita queda Aceptada al momento; sin
 //                                agenda, queda Pendiente hasta que el médico responda
@@ -36,6 +41,12 @@ const VERSION_AVISO = 'v1.0 2026-08-11';
 class ErrorAirtable extends Error {
   constructor(status, detalle) { super(`Airtable respondió ${status}`); this.status = status; this.detalle = detalle; }
 }
+
+// Airtable responde 403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND (no 404) cuando
+// un id bien formado no existe en la tabla. Para un GET por id con un token
+// que sí lee esta base, eso es "no existe", no una falla de la base.
+const noExiste = e => e instanceof ErrorAirtable && (e.status === 404 ||
+  (e.status === 403 && e.detalle && e.detalle.error && e.detalle.error.type === 'INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND'));
 
 async function at(ruta, opciones = {}) {
   const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${ruta}`, {
@@ -208,7 +219,15 @@ async function citasQueOcupan(perfilId) {
     ['filterByFormula', `AND(OR(${estados}), {Horario acordado}!="")`],
     ['fields[]', 'Médico solicitado'], ['fields[]', 'Estado de cita'], ['fields[]', 'Horario acordado'],
   ]);
-  return regs.filter(r => (r.fields['Médico solicitado'] || []).includes(perfilId));
+  return perfilId ? regs.filter(r => (r.fields['Médico solicitado'] || []).includes(perfilId)) : regs;
+}
+
+// Primer horario libre (fecha + hora) a partir de las fechas con espacio.
+function primerEspacio(ag, siguientes, ocupadosMapa, rangosMapa, ahora) {
+  const f = (siguientes || [])[0];
+  if (!f) return null;
+  const hora = A.espaciosLibres({ fecha: f.fecha, horario: ag.horario, bloqueos: ag.bloqueos, ocupados: ocupadosMapa[f.fecha], rangosOcupados: rangosMapa[f.fecha], ahora })[0];
+  return hora ? { fecha: f.fecha, hora } : null;
 }
 
 const fechaCorta = ymd => {
@@ -229,7 +248,7 @@ module.exports = async (req, res) => {
       if (!esRecId(medicoId)) return res.status(400).json({ error: 'Falta el médico.' });
       let perfil;
       try { perfil = await at(`${TBL_DIRECTORIO}/${medicoId}`); }
-      catch (e) { if (e instanceof ErrorAirtable && e.status === 404) perfil = null; else throw e; }
+      catch (e) { if (noExiste(e)) perfil = null; else throw e; }
       if (!perfil || !perfil.fields || perfil.fields['Publicado'] !== true) {
         return res.status(404).json({ error: 'Este médico no está disponible en el directorio.' });
       }
@@ -240,13 +259,43 @@ module.exports = async (req, res) => {
       const conFecha = A.fechaValida(fecha);
       const desde = conFecha && fecha > manana ? fecha : manana;
       const rangosMapa = await ocupadoEnGoogle(perfil, ag.horario, conFecha && fecha < desde ? fecha : desde, C.sumarDias(desde, 30));
+      const siguientes = A.proximasFechasConEspacio({ desde, horario: ag.horario, bloqueos: ag.bloqueos, ocupadosMapa, rangosMapa, ahora, cuantas: 7 });
       return res.status(200).json({
         automatica: true,
         duracion: ag.horario.duracion,
+        zona: ag.horario.zona || null,
         fecha: conFecha ? fecha : null,
         espacios: conFecha ? A.espaciosLibres({ fecha, horario: ag.horario, bloqueos: ag.bloqueos, ocupados: ocupadosMapa[fecha], rangosOcupados: rangosMapa[fecha], ahora }) : [],
-        siguientes: A.proximasFechasConEspacio({ desde, horario: ag.horario, bloqueos: ag.bloqueos, ocupadosMapa, rangosMapa, ahora }),
+        siguientes,
+        primero: primerEspacio(ag, siguientes, ocupadosMapa, rangosMapa, ahora),
       });
+    }
+
+    if (accion === 'proximos' && req.method === 'GET') {
+      const ids = [...new Set(String(req.query.ids || '').split(',').map(x => x.trim()).filter(esRecId))].slice(0, 50);
+      if (!ids.length) return res.status(200).json({ proximos: {} });
+      const perfiles = await leerTodo(TBL_DIRECTORIO, [
+        ['filterByFormula', `AND({Publicado}=1, OR(${ids.map(id => `RECORD_ID()="${id}"`).join(',')}))`],
+        ['fields[]', 'Médico'], ['fields[]', A.CAMPOS.HORARIO], ['fields[]', A.CAMPOS.BLOQUEOS], ['fields[]', A.CAMPOS.AUTOMATICA],
+      ]);
+      const conAgenda = perfiles.map(p => ({ perfil: p, ag: agendaDePerfil(p) })).filter(x => x.ag.automatica);
+      if (!conAgenda.length) return res.status(200).json({ proximos: {} });
+      // Una sola lectura de las citas que ocupan agenda, repartida por perfil.
+      const ocupan = await citasQueOcupan(null);
+      const manana = C.sumarDias(C.fechaMexico(ahora), 1);
+      const proximos = {};
+      await Promise.all(conAgenda.map(async ({ perfil, ag }) => {
+        try {
+          const ocupadosMapa = A.ocupadosPorFecha(ocupan.filter(r => (r.fields['Médico solicitado'] || []).includes(perfil.id)));
+          const rangosMapa = await ocupadoEnGoogle(perfil, ag.horario, manana, C.sumarDias(manana, 14));
+          const siguientes = A.proximasFechasConEspacio({ desde: manana, horario: ag.horario, bloqueos: ag.bloqueos, ocupadosMapa, rangosMapa, ahora, cuantas: 1, buscarDias: 14 });
+          const p = primerEspacio(ag, siguientes, ocupadosMapa, rangosMapa, ahora);
+          if (p) proximos[perfil.id] = p;
+        } catch (e) {
+          console.error('[citas] proximos', perfil.id, e.message); // sin insignia: no se promete nada
+        }
+      }));
+      return res.status(200).json({ proximos });
     }
 
     if (accion === 'solicitar' && req.method === 'POST') {
@@ -264,7 +313,7 @@ module.exports = async (req, res) => {
       const d = v.datos;
       let perfil;
       try { perfil = await at(`${TBL_DIRECTORIO}/${d.medicoId}`); }
-      catch (e) { if (e instanceof ErrorAirtable && e.status === 404) perfil = null; else throw e; }
+      catch (e) { if (noExiste(e)) perfil = null; else throw e; }
       if (!perfil || !perfil.fields || perfil.fields['Publicado'] !== true) {
         return res.status(404).json({ error: 'Este médico no está disponible en el directorio.' });
       }
@@ -329,7 +378,8 @@ module.exports = async (req, res) => {
       catch (e) { console.error('[citas] no se registró el destino del aviso:', e.message); }
 
       return res.status(200).json({ ok: true, id: creado.id, clave, token: generarTokenVisitante(), aviso: destino,
-        estado: fields['Estado de cita'], horario: horarioAgendado });
+        estado: fields['Estado de cita'], horario: horarioAgendado,
+        zona: horarioAgendado ? (ag.horario.zona || null) : null, duracion: horarioAgendado ? ag.horario.duracion : null });
     }
 
     if (accion === 'estado' && req.method === 'POST') {
@@ -337,14 +387,24 @@ module.exports = async (req, res) => {
       if (!esRecId(id) || !c) return res.status(400).json({ error: 'La liga de seguimiento está incompleta.' });
       let rec;
       try { rec = await at(`${TBL_SOLICITUDES}/${id}`); }
-      catch (e) { if (e instanceof ErrorAirtable && e.status === 404) rec = null; else throw e; }
+      catch (e) { if (noExiste(e)) rec = null; else throw e; }
       if (!rec || !C.claveValida(c, rec.fields['Clave de seguimiento — huella'])) {
         return res.status(404).json({ error: 'No encontramos esa solicitud. Revisa que la liga esté completa.' });
       }
       const idPerfil = (rec.fields['Médico solicitado'] || [])[0];
       let nombreMedico = null;
-      if (idPerfil) { try { nombreMedico = (await at(`${TBL_DIRECTORIO}/${idPerfil}`)).fields['Name'] || null; } catch (e) { /* el nombre es opcional */ } }
-      return res.status(200).json({ solicitud: C.vistaPaciente(rec, nombreMedico), medicoId: idPerfil || null });
+      let agenda = null;
+      if (idPerfil) {
+        try {
+          const perfil = await at(`${TBL_DIRECTORIO}/${idPerfil}`);
+          nombreMedico = perfil.fields['Name'] || null;
+          const ag = agendaDePerfil(perfil);
+          // Para "Agregar a mi calendario". Sin horario configurado no se
+          // sabe la zona: el navegador usa la hora local del teléfono.
+          if (ag.horario) agenda = { zona: ag.horario.zona || null, duracion: ag.horario.duracion || null };
+        } catch (e) { /* el nombre y la zona son opcionales */ }
+      }
+      return res.status(200).json({ solicitud: C.vistaPaciente(rec, nombreMedico), medicoId: idPerfil || null, agenda });
     }
 
     if (accion === 'paciente' && req.method === 'POST') {
@@ -353,7 +413,7 @@ module.exports = async (req, res) => {
       if (acc !== 'cancelar' && CONGELADO) return respuestaCongelada(res); // cancelar reduce lo tratado: se permite
       let rec;
       try { rec = await at(`${TBL_SOLICITUDES}/${id}`); }
-      catch (e) { if (e instanceof ErrorAirtable && e.status === 404) rec = null; else throw e; }
+      catch (e) { if (noExiste(e)) rec = null; else throw e; }
       if (!rec || !C.claveValida(c, rec.fields['Clave de seguimiento — huella'])) {
         return res.status(404).json({ error: 'No encontramos esa solicitud.' });
       }

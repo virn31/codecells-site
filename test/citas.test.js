@@ -128,7 +128,8 @@ function mundo({ publicado = true, solicitudes = [] } = {}) {
         return ok(rec);
       }
       if (rec) return ok(rec);
-      if (id.startsWith('rec')) return { ok: false, status: 404, json: async () => ({ error: 'NOT_FOUND' }) };
+      // Así responde Airtable de verdad a un id bien formado que no existe (no 404).
+      if (id.startsWith('rec')) return { ok: false, status: 403, json: async () => ({ error: { type: 'INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND', message: 'Invalid permissions, or the requested model was not found.' } }) };
       return ok({ records: m.solicitudes });
     }
     throw new Error('URL no simulada: ' + url);
@@ -180,6 +181,13 @@ test('estado con clave equivocada → 404; con la correcta no expone teléfono n
   assert.strictEqual(bien.status, 200);
   assert.strictEqual(bien.data.solicitud.medico, 'Dr. Prueba');
   assert.ok(!/6671234567|rodilla/.test(JSON.stringify(bien.data)));
+});
+
+test('estado de una solicitud que no existe → 404 "no encontramos" (Airtable responde 403 MODEL_NOT_FOUND), no 502', async () => {
+  mundo();
+  const r = await llamar('estado', { metodo: 'POST', body: { id: 'recNOEXISTE000001', c: 'abc' } });
+  assert.strictEqual(r.status, 404, JSON.stringify(r.data));
+  assert.match(r.data.error, /No encontramos/);
 });
 
 test('el paciente confirma un horario propuesto; no puede confirmar uno pendiente', async () => {

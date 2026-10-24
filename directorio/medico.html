@@ -144,8 +144,39 @@
     .turnos input { accent-color: var(--c-energy); }
     .turnos label:has(input:checked) { border-color: var(--c-energy); background: rgba(232,163,61,0.1); }
     .nota-chica { margin: 0 0 8px; color: var(--ink-muted); font-size: 14px; }
-    .dias-lugar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-muted); }
-    .btn-dia { padding: 7px 12px; font-size: 13px; }
+    /* Agenda automática: pasos, tira de días y horas */
+    .paso { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; font-size: 15px; font-weight: 600; color: var(--ink); }
+    .paso:first-of-type { margin-top: 4px; }
+    .paso__n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: var(--c-energy); color: #1A1406; flex: 0 0 auto; }
+    .paso__dia { font-weight: 400; color: var(--ink-muted); font-size: 14px; }
+    .paso__dia:not(:empty)::before { content: '· '; }
+    .tira-dias { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(78px, 1fr); gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+    .dia-chip {
+      scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px;
+      border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-family: var(--font-body);
+    }
+    .dia-chip:hover { border-color: rgba(232,163,61,0.5); }
+    .dia-chip[aria-pressed="true"] { border-color: var(--c-energy); background: rgba(232,163,61,0.12); }
+    .dia-chip__sem, .dia-chip__mes { font-size: 12px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .dia-chip__num { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; }
+    .dia-chip__n { font-size: 11px; color: var(--c-balance); margin-top: 2px; }
+    .otra-fecha { margin-top: 10px; font-size: 14px; color: var(--ink-muted); }
+    .otra-fecha summary { cursor: pointer; width: fit-content; }
+    .otra-fecha input { margin-top: 8px; padding: 9px 12px; background: var(--bg-alt); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; font-family: var(--font-body); font-size: 15px; color-scheme: dark; }
+    .turnos--horas label { min-width: 78px; justify-content: center; font-variant-numeric: tabular-nums; position: relative; }
+    .turnos--horas input { position: absolute; opacity: 0; pointer-events: none; }
+    .turnos--horas label:has(input:focus-visible) { outline: 2px solid var(--c-energy); outline-offset: 2px; }
+    .resumen-cita { margin: 18px 0 0; padding: 12px 14px; border-radius: 10px; background: rgba(232,163,61,0.1); border: 1px solid rgba(232,163,61,0.35); color: var(--ink); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    /* Botón fijo en celular: lleva al formulario sin tener que bajar */
+    .agendar-fijo { display: none; }
+    @media (max-width: 639px) {
+      .agendar-fijo {
+        position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 20; text-align: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.45); text-decoration: none;
+      }
+      .agendar-fijo.visible { display: block; }
+    }
     .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--ink-muted); line-height: 1.55; margin-top: 4px; }
     .consent input { margin-top: 3px; accent-color: var(--c-energy); flex: 0 0 auto; }
@@ -186,10 +217,12 @@
     <a href="/directorio/" class="volver">← Directorio</a>
   </header>
 
+  <a href="#solicitar" class="btn agendar-fijo" id="agendar-fijo">Agendar cita</a>
   <main id="contenido">
     <div class="estado-pagina">Cargando perfil…</div>
   </main>
 
+  <script src="/directorio/calendario.js"></script>
   <script>
     const ICONO_ATR = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
     const ICONOS = {
@@ -294,7 +327,9 @@
       const [contactos, agenda] = await Promise.all([cargarContactos(), cargarDisponibilidad()]);
       AGENDA = agenda;
       render(contactos);
+      if (AGENDA && AGENDA.automatica && (AGENDA.siguientes || []).length) elegirFecha(AGENDA.siguientes[0].fecha);
       if (location.hash === '#solicitar') document.getElementById('solicitar').scrollIntoView({ behavior: 'smooth' });
+      vigilarBotonFijo();
     }
 
     function render(ct) {
@@ -345,30 +380,58 @@
             <div class="campo"><label for="c-telefono">Teléfono o WhatsApp *</label><input id="c-telefono" type="tel" autocomplete="tel" maxlength="30" required></div>
             <div class="campo"><label for="c-email">Correo (opcional)</label><input id="c-email" type="email" autocomplete="email" maxlength="120"></div>`;
 
-    function htmlDiasConLugar(siguientes, excepto) {
-      const lista = (siguientes || []).filter(s => s.fecha !== excepto);
-      if (!lista.length) return '';
-      return `<div class="dias-lugar"><span>Días con lugar:</span>${lista.map(s =>
-        `<button type="button" class="btn-sec btn-dia" data-fecha="${esc(s.fecha)}">${esc(mayusculaInicial(fechaLarga(s.fecha)))}</button>`).join('')}</div>`;
+    // ── Agenda automática: primero el día y la hora, después los datos ──
+    const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    let FECHA_ELEGIDA = '';
+
+    // Tira de días con lugar (los próximos 7). Cada botón dice cuántos horarios hay.
+    function htmlTiraDias(siguientes) {
+      if (!(siguientes || []).length) return '';
+      return `<div class="tira-dias" role="group" aria-label="Días con horarios libres">${siguientes.map(s => {
+        const d = new Date(s.fecha + 'T12:00:00Z');
+        return `<button type="button" class="dia-chip" data-fecha="${esc(s.fecha)}" aria-pressed="false" aria-label="${esc(mayusculaInicial(fechaLarga(s.fecha)))}, ${s.espacios} horarios">
+          <span class="dia-chip__sem">${DIAS_CORTOS[d.getUTCDay()]}</span>
+          <span class="dia-chip__num">${d.getUTCDate()}</span>
+          <span class="dia-chip__mes">${MESES_CORTOS[d.getUTCMonth()]}</span>
+          <span class="dia-chip__n">${s.espacios} ${s.espacios === 1 ? 'horario' : 'horarios'}</span>
+        </button>`;
+      }).join('')}</div>`;
     }
 
     function htmlEspacios(d, fecha) {
-      if (!fecha) return `<p class="nota-chica">Elige un día para ver los horarios libres.</p>${htmlDiasConLugar(AGENDA.siguientes)}`;
+      if (!fecha) return '<p class="nota-chica">Elige un día para ver los horarios libres.</p>';
       if (d.error) return '<p class="error">No pudimos cargar los horarios. Revisa tu conexión e intenta de nuevo.</p>';
-      if (!d.espacios || !d.espacios.length) return `<p class="nota-chica">No hay horarios libres el ${esc(fechaLarga(fecha))}.</p>${htmlDiasConLugar(d.siguientes, fecha)}`;
-      return `<div class="turnos">${d.espacios.map(h =>
+      if (!d.espacios || !d.espacios.length) return `<p class="nota-chica">No hay horarios libres el ${esc(fechaLarga(fecha))}. Elige otro día.</p>`;
+      return `<div class="turnos turnos--horas">${d.espacios.map(h =>
         `<label><input type="radio" name="hora" value="${esc(h)}"> ${esc(horaCorta(h))}</label>`).join('')}</div>`;
     }
 
     async function elegirFecha(fecha) {
       const cont = document.getElementById('c-espacios');
-      const input = document.getElementById('c-fecha');
       if (!cont) return;
-      if (input && input.value !== fecha) input.value = fecha;
+      FECHA_ELEGIDA = fecha;
+      document.getElementById('c-fecha').value = fecha;
+      document.querySelectorAll('.dia-chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fecha === fecha)));
+      const titulo = document.getElementById('c-dia-elegido');
+      if (titulo) titulo.textContent = mayusculaInicial(fechaLarga(fecha));
+      mostrarDatos(false);
       cont.innerHTML = '<p class="nota-chica">Buscando horarios…</p>';
       const d = await cargarDisponibilidad(fecha);
-      if (input && input.value !== fecha) return; // el paciente ya eligió otro día
+      if (FECHA_ELEGIDA !== fecha) return; // el paciente ya eligió otro día
       cont.innerHTML = htmlEspacios(d, fecha);
+    }
+
+    // Los datos del paciente aparecen hasta que eligió hora (antes se pedían
+    // nombre y teléfono sin saber si había lugar).
+    function mostrarDatos(si, hora) {
+      const caja = document.getElementById('c-datos');
+      if (!caja) return;
+      caja.hidden = !si;
+      if (si) {
+        document.getElementById('c-resumen').innerHTML = `Tu cita: <strong>${esc(fechaLarga(FECHA_ELEGIDA))}, ${esc(horaCorta(hora))} h</strong>`;
+        caja.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
 
     function htmlFormulario(nombre) {
@@ -377,18 +440,30 @@
           <p class="error">No pudimos cargar la agenda de ${esc(nombre)}. Recarga la página en unos segundos.</p>`;
       }
       if (AGENDA && AGENDA.automatica) {
+        const hayLugar = (AGENDA.siguientes || []).length > 0;
         return `
         <h2>Agendar cita</h2>
         <p class="nota">Elige el día y la hora: verás solo los horarios libres de ${esc(nombre)} y tu cita queda <strong>confirmada al momento</strong>.</p>
         <form id="form-cita" novalidate>
-          <div class="rejilla">
-            ${camposPaciente}
-            <div class="campo"><label for="c-fecha">Día *</label><input id="c-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" required></div>
-            <fieldset class="campo campo--ancho">
-              <legend>Hora *</legend>
-              <div id="c-espacios">${htmlEspacios({}, '')}</div>
-            </fieldset>
-            ${camposFinales('Agendar cita')}
+          <input type="hidden" id="c-fecha">
+          <div class="paso"><span class="paso__n">1</span> Elige el día</div>
+          ${hayLugar ? htmlTiraDias(AGENDA.siguientes) : '<p class="nota-chica">No hay horarios libres en las próximas semanas. Prueba con otra fecha.</p>'}
+          <details class="otra-fecha" ${hayLugar ? '' : 'open'}>
+            <summary>Otra fecha</summary>
+            <input id="c-otra-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" aria-label="Elegir otra fecha">
+          </details>
+          <div class="paso"><span class="paso__n">2</span> Elige la hora <span class="paso__dia" id="c-dia-elegido"></span></div>
+          <fieldset class="campo campo--ancho" style="margin-bottom:8px">
+            <legend class="visually-hidden">Hora</legend>
+            <div id="c-espacios">${htmlEspacios({}, '')}</div>
+          </fieldset>
+          <div id="c-datos" hidden>
+            <div class="resumen-cita" id="c-resumen"></div>
+            <div class="paso"><span class="paso__n">3</span> Tus datos</div>
+            <div class="rejilla">
+              ${camposPaciente}
+              ${camposFinales('Confirmar cita')}
+          </div>
         </form>`;
       }
       return `
@@ -429,7 +504,7 @@
       const btn = document.getElementById('c-enviar');
       const err = document.getElementById('c-error');
       const auto = !!(AGENDA && AGENDA.automatica);
-      const textoBoton = auto ? 'Agendar cita' : 'Enviar solicitud';
+      const textoBoton = auto ? 'Confirmar cita' : 'Enviar solicitud';
       const turno = (document.querySelector('input[name="turno"]:checked') || {}).value || '';
       const hora = (document.querySelector('input[name="hora"]:checked') || {}).value || '';
       const datos = {
@@ -456,7 +531,8 @@
         const d = await r.json().catch(() => ({}));
         // Alguien más tomó ese horario: se refrescan los espacios del día.
         if (r.status === 409 && auto && Array.isArray(d.espacios)) {
-          document.getElementById('c-espacios').innerHTML = htmlEspacios({ espacios: d.espacios, siguientes: AGENDA.siguientes }, datos.fechaPreferida);
+          document.getElementById('c-espacios').innerHTML = htmlEspacios({ espacios: d.espacios }, datos.fechaPreferida);
+          mostrarDatos(false);
         }
         if (!r.ok) throw new Error(d.error || 'No pudimos enviar tu solicitud. Intenta de nuevo.');
         if (d.token) guardar('cc_visitante', d.token);
@@ -496,11 +572,22 @@
           ${cabecera}
           <div class="liga" id="liga-texto">${esc(liga)}</div>
           <div class="botones">
+            ${confirmada ? `<button type="button" class="btn" id="btn-calendario">Agregar a mi calendario</button>` : ''}
             <a class="btn-sec" href="${esc(liga)}">${confirmada ? 'Ver mi cita' : 'Ver estado de mi solicitud'}</a>
             <button type="button" class="btn-sec" id="btn-copiar">Copiar liga</button>
             <a class="btn-sec" href="https://wa.me/?text=${textoWa}" target="_blank" rel="noopener">${ICONOS.whatsapp} Enviármela por WhatsApp</a>
           </div>
         </div>`;
+      const botonCal = document.getElementById('btn-calendario');
+      if (botonCal) botonCal.addEventListener('click', () => {
+        try {
+          CalendarioCita.descargarIcs({
+            fecha: d.horario.slice(0, 10), hora: d.horario.slice(11), duracion: d.duracion, zona: d.zona,
+            titulo: `Cita con ${nombre}`, uid: d.id,
+            descripcion: `Cita agendada en el directorio CODE CELLS.\nPara ver o cancelar tu cita: ${liga}`,
+          });
+        } catch (e) { botonCal.textContent = 'No pudimos crear el archivo de calendario'; }
+      });
       document.getElementById('btn-copiar').addEventListener('click', async ev => {
         try { await navigator.clipboard.writeText(liga); ev.target.textContent = 'Liga copiada'; }
         catch (e) { ev.target.textContent = 'Selecciona la liga y cópiala'; }
@@ -509,12 +596,23 @@
 
     document.addEventListener('submit', ev => { if (ev.target.id === 'form-cita') enviar(ev); });
     document.addEventListener('change', ev => {
-      if (ev.target.id === 'c-fecha' && AGENDA && AGENDA.automatica && ev.target.value) elegirFecha(ev.target.value);
+      if (ev.target.id === 'c-otra-fecha' && ev.target.value) elegirFecha(ev.target.value);
+      if (ev.target.name === 'hora' && ev.target.checked) mostrarDatos(true, ev.target.value);
     });
     document.addEventListener('click', ev => {
-      const b = ev.target.closest('.btn-dia');
+      const b = ev.target.closest('.dia-chip');
       if (b) elegirFecha(b.dataset.fecha);
     });
+    // Botón "Agendar cita" fijo abajo (solo celular) mientras el formulario no está a la vista.
+    function vigilarBotonFijo() {
+      const boton = document.getElementById('agendar-fijo');
+      const destino = document.getElementById('solicitar');
+      if (!boton || !destino || !('IntersectionObserver' in window)) return;
+      boton.textContent = AGENDA && AGENDA.automatica ? 'Agendar cita' : 'Solicitar cita';
+      new IntersectionObserver(([e]) => boton.classList.toggle('visible', !e.isIntersecting && e.boundingClientRect.top > 0))
+        .observe(destino);
+    }
+
     cargar();
   </script>
 </body>

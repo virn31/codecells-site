@@ -73,6 +73,7 @@
     <div class="caja" id="caja">Cargando tu solicitud…</div>
   </main>
 
+  <script src="/directorio/calendario.js"></script>
   <script>
     // La clave viaja en el fragmento (#), que el navegador no manda al
     // servidor ni a otros sitios; se envía al API en el cuerpo de un POST.
@@ -142,6 +143,7 @@
         </dl>
         <div class="botones">
           ${t.confirmar ? '<button class="btn" id="b-confirmar">Confirmar este horario</button>' : ''}
+          ${t.agendada && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s.horario || '') ? '<button class="btn" id="b-calendario">Agregar a mi calendario</button>' : ''}
           ${!t.cerrada ? `<button class="btn-sec btn-peligro" id="b-cancelar">${t.confirmar ? 'No me funciona, cancelar' : t.agendada ? 'Cancelar cita' : 'Cancelar solicitud'}</button>` : ''}
           ${t.cerrada ? '<a class="btn-sec" href="/directorio/">Buscar otro médico</a>' : ''}
           ${medicoId && !t.cerrada ? `<a class="btn-sec" href="/directorio/medico.html?id=${encodeURIComponent(medicoId)}">Ver perfil del médico</a>` : ''}
@@ -158,9 +160,22 @@
       enlazar('b-cancelar', () => document.getElementById('caja-cancelar').classList.add('visible'));
       enlazar('b-cancelar-no', () => document.getElementById('caja-cancelar').classList.remove('visible'));
       enlazar('b-cancelar-si', () => actuar('cancelar'));
+      enlazar('b-calendario', ev => {
+        try {
+          CalendarioCita.descargarIcs({
+            fecha: s.horario.slice(0, 10), hora: s.horario.slice(11), uid: s.id,
+            duracion: AGENDA && AGENDA.duracion, zona: AGENDA && AGENDA.zona,
+            titulo: `Cita con ${s.medico || 'tu médico'}`,
+            descripcion: `Cita en el directorio CODE CELLS.
+Para ver o cancelar tu cita: ${location.href}`,
+          });
+        } catch (e) { ev.target.textContent = 'No pudimos crear el archivo de calendario'; }
+      });
     }
 
     let MEDICO_ID = null;
+    // Zona y duración de la consulta (para el calendario); null si el médico no tiene agenda configurada.
+    let AGENDA = null;
     async function actuar(accion) {
       const err = document.getElementById('error');
       document.querySelectorAll('#caja button').forEach(b => { b.disabled = true; });
@@ -184,6 +199,7 @@
       try {
         const d = await api('estado');
         MEDICO_ID = d.medicoId;
+        AGENDA = d.agenda || null;
         render(d.solicitud, d.medicoId);
       } catch (e) {
         caja.innerHTML = `<h1>No pudimos mostrar tu solicitud</h1><p>${esc(e.message)}</p>`;
