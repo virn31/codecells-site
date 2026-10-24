@@ -9,107 +9,54 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-23 — PRUEBA REAL con la agenda de Víctor: FUNCIONÓ (Google Calendar conectado desde @CodeCellsPruebaBot, cita agendada y anotada en su calendario).
+**Última actualización:** 2026-10-23 (cierre) — mejoras del directorio con el cobro detenido: redes sociales, ciudad sin acentos, agendar con el horario primero, calendario y "mis citas". Campos del directorio creados en producción. 7 commits SIN PUSH.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-**Estado 2026-10-23 (tarde) — mejoras del directorio mientras el cobro está detenido.** Análisis completo en `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`. Hecho en esta rama:
-- `7e86b85` redes sociales y sitio web en la ficha (validadas por dominio; consentimiento v1.2-borrador).
-- `c2aac06` ciudad sin acentos ("Culiacan" = "Culiacán", catálogo), filtros con lo publicado y conteo (`accion=filtros`), días "de octubre", ciudad sin repetir, "DEZAWA" sin "(VIP)".
-- `15a05ec` agendar con el horario primero (tira de 7 días → hora → datos), "Agregar a mi calendario" (.ics, `directorio/calendario.js`), insignia "próximo horario" en tarjetas (`accion=proximos`), "Tus citas en este teléfono", botón fijo en celular; Airtable 403 MODEL_NOT_FOUND = no existe.
-- **Todos los campos de Airtable del directorio ya existen en producción** (ver §4b).
-- 166/166 pruebas. Probado en local contra la base de prueba; **falta verlo en Preview** (push de Víctor) y en un celular real.
-- **Siguiente (análisis, orden):** M5 búsqueda por nombre, M6 ficha que se comparte bien (vista previa + liga bonita), M8 liga de la cita con dirección/"cómo llegar", P1 dirección del consultorio, P3 costo de consulta, M9 "Únete a la red", resumen semanal al médico. Pendiente de Víctor: cédula en el perfil (abogado) y decisión #8. App del paciente: rehacer la pestaña Citas en `feat/paciente-unico` (está rota, ver análisis §2.1).
+1. **Que Víctor haga push** (7 commits, `7e86b85`…`4aec176`):
+   `! cd /c/Users/virn3/Documents/codecells-site && git push origin feat/directorio`
+2. **Revisar en Preview, desde un celular** (lo hecho hoy solo se probó en local contra la base de prueba):
+   - `/directorio/`: menús con conteo, "Culiacán" agrupa a Víctor, insignia "Agenda en línea · próximo…" en las tarjetas (la de Víctor depende de Google: en local no hay llaves y no salía).
+   - Ficha del Dr. QA (`recVNUCiwPAxNR4w0`): tira de días → hora → datos → "Cita confirmada" → "Agregar a mi calendario" (revisar que la hora salga bien en el teléfono) → "Tus citas en este teléfono" en `/directorio/`.
+   - Ficha de Víctor (`rec1upfZfkftncHii`): redes sociales (capturarlas en portal → Mi directorio → "Redes sociales").
+   - Ojo: una cita real en Preview manda aviso de Telegram real.
+3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): M5 búsqueda por nombre/síntoma · M6 ficha que se comparte bien (vista previa en WhatsApp + liga bonita `/directorio/dr-…`) · P1 dirección del consultorio + M8 "Cómo llegar" en la liga de la cita · P3 costo de consulta (opcional) · M9 "Únete a la red" en el encabezado · resumen semanal al médico por Telegram.
+4. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1: usa `CC-PAC-DEMO01` si no encuentra el código, rellena "CONTINUUM™"/"Evaluación", "Confirmar" hace PATCH a CONSULTAS → 403, botones que no hacen nada, error = "no tienes citas"). Rehacerla es categoría A. Lo demás de la app (notificaciones, pantalla "Hoy", un solo diseño) es fase 2.
 
-**Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
+### Lo hecho el 2026-10-23 (tarde)
+- `7e86b85` redes sociales y sitio web en la ficha: el médico pega liga o `@usuario`; el servidor solo acepta el dominio de cada red y guarda https completo; lo público se revalida (`lib/directorio.js` `normalizarRed`). Cambiarlas en un perfil publicado lo marca para revisión. Consentimiento sube a **v1.2-borrador 2026-10-23** (menciona redes). Errores al guardar en "Mi directorio" ya se muestran al médico.
+- `c2aac06` ciudad: se compara por clave sin acentos y se guarda/muestra con un catálogo (`normalizarCiudad`; ciudad desconocida se respeta). Filtros con lo publicado y conteo (`/api/airtable?tabla=directorio_medico&accion=filtros`). Búsqueda pública lee todas las páginas y falla con 502. Días "de octubre", ciudad sin repetir, "DEZAWA" sin "(VIP)".
+- `15a05ec` agendar: tira de 7 días → hora → datos; `directorio/calendario.js` (.ics con alarmas 24 h y 2 h; hora convertida con la zona del consultorio, flotante si no se conoce); `/api/citas?accion=proximos&ids=` (insignia; si la agenda no se lee, no se promete nada); `disponibilidad` devuelve `primero` y `zona`; `estado` devuelve `agenda {zona, duracion}`; "Tus citas en este teléfono" lee `cc_mis_solicitudes`; botón fijo en celular.
+- **Airtable responde 403 `INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND` (no 404) a un id que no existe**: `api/citas.js` ahora lo trata como "no existe" (`noExiste()`); el simulador de `test/citas.test.js` responde igual que Airtable.
+- **Campos del directorio creados en PRODUCCIÓN** con autorización de Víctor (ver §4b).
+- Pruebas: **166/166**.
 
-**⏸ ETAPA 3 (cobro) DETENIDA — 2026-10-23, decisión de Víctor:** sin acta constitutiva de GALONAVA GROUP no se pueden abrir cuentas bancarias ni de pagos, así que no se construye el cobro todavía. Al retomarla, decidir: quién cobra/factura, medio (Mercado Pago recomendado; Stripe; SPEI manual), CFDI (automático recomendado), qué pasa si no paga (7 días de gracia y se oculta, recomendado). Precio ya decidido: Red $600/mes con IVA.
-El directorio tampoco se abre en producción hasta cumplir LFPDPPP (aviso de privacidad con domicilio fiscal + abogado, consentimientos).
+### Estado general de la rama
+- Etapas 0, 1, 2 y 2b hechas (Preview, base de prueba). Producción congelada en `main@66cd2ed`.
+- **⏸ Etapa 3 (cobro) DETENIDA** (Víctor, 2026-10-23): sin acta constitutiva de GALONAVA GROUP no hay cuentas bancarias ni de pagos. Al retomarla decidir: quién cobra/factura, medio (Mercado Pago recomendado; Stripe; SPEI), CFDI (automático recomendado), qué pasa si no paga (7 días de gracia y se oculta, recomendado). Precio decidido: Red $600/mes con IVA.
+- **Reglas de Víctor:** nada a producción hasta que TODO esté listo y probado (ni el PR chico de privacidad). Lanzamiento con `DESCONGELAR_AREAS=directorio` (y `,afiliacion` si se abren altas por unete.html); NO `DESCONGELAR_PRODUCCION=true`. El directorio no se abre hasta cumplir LFPDPPP: `aviso-privacidad.html` sigue "BORRADOR — NO PUBLICAR" (falta domicilio fiscal + abogado) y cada solicitud estampa "v1.0 2026-08-11".
+- **Agenda automática + Google Calendar:** prueba real OK el 2026-10-23 con la agenda de Víctor vía **@CodeCellsPruebaBot** (`TELEGRAM_BOT_TOKEN_PRUEBA`, Preview, webhook con bypass de Vercel). Falta probar en vivo: cancelar desde la liga del paciente (debe borrar el evento) y un bloqueo por texto libre. El evento lleva nombre y teléfono del paciente (pendiente legal).
+- **Verificación de Google** (`docs/VERIFICACION-GOOGLE.md`, `795ae88`): permisos `calendar.freebusy` + `calendar.events` confirmados. Bloquea: publicar en `main` privacidad.html + enlace + `c8184fe` (producción aún devuelve el refresh token al navegador) — espera a "todo listo"; quitar el redirect de Preview del cliente OAuth; TXT de Search Console en GoDaddy. Sin verificar: aviso "app no verificada" y tope de 100 usuarios. Al terminar pruebas, revocar el bypass de Vercel o dejarlo solo para Preview.
+- **Para el abogado / Víctor:** cédula profesional en el perfil público (confianza + posible requisito de publicidad médica; resuelve decisión #8); consentimiento v1.2-borrador; evento de Google con datos del paciente.
+- Datos de prueba: Víctor publicó su perfil en la base de prueba (`rec1upfZfkftncHii`, "Dr. Rodriguez", guarda "Culiacan" sin acento — se muestra "Culiacán"). Su primera solicitud (`recudd3onYdDJJHYY`) quedó ligada al perfil ficticio de Bruno (`recDk9rLagIn3PVyK`). Su registro de médico no tiene `Telegram Chat ID` (avisos al chat de respaldo). Perfil QA `[PRUEBA] Dr. QA Cardiología` (CCMED-QACARD, `recVNUCiwPAxNR4w0`): agenda Lun/Mié/Vie 9–14 y 16–18, bloqueo 4–6 nov, Instagram y sitio web de prueba.
 
-**Reglas de Víctor 2026-10-23:**
-- **Nada a producción hasta que TODO esté listo y probado** (ni siquiera el PR chico de privacidad para Google). Se prepara y se prueba en Preview; se publica junto.
-- **Lanzamiento con congelamiento por área:** abrir el directorio (página principal + directorio médico) y dejar congelado expediente, kiosco, labs y capacitación. Ya implementado (`lib/congelamientoDatosPersonales.js` → `congelado(area)`): en Vercel/production poner `DESCONGELAR_AREAS=directorio` (y `,afiliacion` si se abren altas de médicos nuevos por unete.html). NO usar `DESCONGELAR_PRODUCCION=true` (abre todo). La página principal no necesita descongelar nada: es estática y su único formulario de alta (test → expediente) está pausado de forma permanente desde agosto por falta de consentimiento.
-- **Requisito legal antes de abrir el directorio en producción:** el aviso de privacidad (`aviso-privacidad.html`) sigue marcado "BORRADOR — NO PUBLICAR": falta el domicilio fiscal de GALONAVA GROUP y la revisión del abogado, y cada solicitud estampa "v1.0 2026-08-11" como el aviso que el paciente aceptó. El congelamiento se puso por instrucción legal; abrirlo sin eso deja consentimientos sin respaldo.
+### Cómo probar
+- Preview: https://codecells-site-git-feat-directorio-codecells.vercel.app (Vercel Authentication). `/directorio/` → ficha `/directorio/medico.html?id=…` → liga `/directorio/solicitud.html#id=…&c=…`. Portal → "◉ Mi directorio" (solicitudes, agenda, redes). Admin: `admin-directorio.html`.
+- Local: `node scripts/servidor-local.js` → http://127.0.0.1:3077 (base de prueba; sin llaves de Google: la agenda de Víctor responde 503, lo cual es correcto). Reiniciar el servidor tras cambiar archivos de `api/` (cachea módulos).
 
-**Verificación de Google preparada (2026-10-23, `795ae88`):** ver `docs/VERIFICACION-GOOGLE.md`. Permisos reducidos a `calendar.freebusy` + `calendar.events` (confirmados contra Google real: Víctor reconectó con las dos casillas el 2026-10-23 y funcionó); `privacidad.html` reescrita + enlace en la home. **Bloqueante:** antes de enviar, publicar en `main` un PR chico con privacidad.html + enlace + `c8184fe` (en producción `auth-login` aún devuelve el refresh token al navegador) — decisión de Víctor; quitar el redirect de Preview del cliente OAuth; TXT de Search Console en GoDaddy.
+### Pendientes conocidos del directorio
+- `api/nova.js` (~línea 3830) tiene su propia lista de campos públicos con `WhatsApp público`: revisar con la decisión #5.
+- `mis_solicitudes` y `proximos` leen toda la tabla SOLICITUDES_PACIENTE de citas que ocupan (la liga no se filtra por id en fórmula, CLAUDE.md §8): bien para el piloto, no para miles.
+- `proximos` consulta Google por cada médico con agenda en cada carga del directorio: bien para el piloto; con muchos médicos, poner caché.
+- El directorio público devuelve máximo 50 médicos (sin paginación).
+- El paciente no recibe aviso activo (SMS/correo); el .ics cubre el recordatorio.
+- Textos EN/PT: las páginas públicas del directorio no cargan `lib/i18n.js` y el panel "Mi directorio" del portal no está traducido (prioridad baja).
 
-**PRUEBA REAL 2026-10-23 — OK.** Bot de prueba **@CodeCellsPruebaBot** (token en `TELEGRAM_BOT_TOKEN_PRUEBA`, Preview, rama feat/directorio; webhook a Preview con el bypass de Vercel que creó Víctor). Víctor conectó su agenda real (correo de agenda) desde Telegram, configuró horario, agendó como paciente en su ficha ("Dr. Rodriguez") → cita Aceptada 2026-10-26 12:00, evento creado en su Google Calendar, aviso por Telegram. Confirmado por Víctor: "todo funcionando".
-- Hallazgo de la prueba (corregido en `0c31001`): Google deja la casilla del calendario SIN marcar → daba solo el correo (403 insufficient scopes). Ahora se detecta y el paso 3 del bot pide marcarla.
-- Falta probar en vivo: cancelar desde la liga del paciente (debe borrar el evento) y un bloqueo por texto libre.
-- Antes de abrir a otros médicos: **verificación de Google** de la app (scope de calendario sensible: sin verificar sale aviso "app no verificada" y hay tope de 100 usuarios); al terminar pruebas, revocar el bypass de Vercel o dejarlo solo para Preview; el evento lleva nombre y teléfono del paciente (pendiente legal).
-
-**Estado 2026-10-23 (noche) — Google Calendar conectado a la agenda automática (para la prueba real de Víctor con SU agenda).**
-- Víctor quiere probar con su agenda diaria (correo exclusivo de agenda en Google). Se descartó pedir correo+contraseña (CODE CELLS nunca ve la contraseña; Google lo bloquea): el bot manda en mensajes cortos los pasos y un botón-enlace → página de Google → "Permitir" (OAuth). `/conectar` en Telegram; `/agenda` lo ofrece primero si no está conectada.
-- `lib/google-agenda.js`: state FIRMADO (HMAC con llave derivada; antes el state era el código CCMED- en claro → cualquiera podía ligar su Google a otro médico), freeBusy (solo horas ocupadas), crear/borrar evento, zonas horarias. `api/google-oauth-callback.js` reescrito (`?iniciar=` redirige a Google; regreso guarda el permiso y el bot sigue la conversación). Portal: el botón de Google pide el enlace firmado a `/api/directorio?accion=google_enlace`.
-- Agenda: lo ocupado en Google no se ofrece; cada cita (automática, aceptada a mano o confirmada por el paciente) se anota en su Google Calendar (`Evento Google` en SOLICITUDES); cancelar/rechazar la borra. Si Google no responde → 503 (no se ofrecen espacios a ciegas). Si el permiso se retiró → se borra, se PAUSA la agenda automática y se avisa al médico.
-- Cuestionario: nueva primera pregunta, zona horaria (Culiacán = Pacífico, UTC-7).
-- Seguridad traída de `feat/paciente-unico`: cherry-pick de `a72c134` (el refresh token y la passphrase nunca salen del servidor).
-- Pruebas 143/143; punta a punta con Google y Telegram simulados (14 pasos OK).
-- **Para la prueba real faltan 4 pasos de Víctor** (no los puedo hacer: permisos/cuentas suyas): (1) push; (2) Vercel → Settings → Deployment Protection → Protection Bypass for Automation → crear (la MCP dio 403); (3) Google Cloud Console → credencial OAuth → agregar redirect `https://codecells-site-git-feat-directorio-codecells.vercel.app/api/google-oauth-callback` (y si la pantalla de consentimiento está en "Testing", agregar su correo de agenda como usuario de prueba); (4) @BotFather → bot de prueba → su token en Vercel como `TELEGRAM_BOT_TOKEN_PRUEBA` (Preview, rama feat/directorio, Sensitive; Vercel no deja sobrescribir por rama `TELEGRAM_BOT_TOKEN`, compartida con producción) y decirme el @usuario del bot. Luego yo: `TELEGRAM_BOT_PRUEBA=@usuario`, redeploy y `GET /api/telegram-bot?accion=registrar_webhook` (vía MCP de Vercel). Ya creadas (rama feat/directorio): `GOOGLE_REDIRECT_URI`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_PRUEBA=1` (con "1" el registro se niega a propósito).
-- Pendiente legal: el evento en Google lleva nombre y teléfono del paciente (no el motivo) → agregar al expediente del abogado / aviso de privacidad.
-
-**Estado 2026-10-23 — etapa 2b HECHA (agenda automática).** Decisiones de Víctor: Telegram (no Instagram), consulta de 30 min por defecto, la cita se confirma sola, configuración por cuestionario de botones en Telegram.
-- `lib/agenda.js` (espacios libres, bloqueos, choques), `lib/agenda-asistente.js` (cuestionario con botones = máquina de estados; lectura de bloqueos con Claude `claude-sonnet-5-5` + validación), `lib/agenda-telegram.js` (/agenda, /bloqueos, /citas, texto libre → confirmar con botón). `api/telegram-bot.js` solo enruta (botones `ag:` antes del filtro de médico maestro).
-- `api/citas.js`: `GET disponibilidad` (espacios del día + próximos días con lugar); `solicitar` con `hora` → **Aceptada** al momento si el perfil tiene agenda automática; recalcula el espacio en el servidor y resuelve dos pacientes al mismo tiempo (se queda el primero, al segundo 409).
-- Ficha del médico: con agenda → "Agendar cita" (día → horas libres → "Cita confirmada"); sin agenda → solicitud como antes. Liga del paciente: "Cita confirmada" / "Cancelar cita". Portal → Mi directorio → bloque "Agenda automática" (estado, horario, fechas bloqueadas; se cambia por Telegram).
-- Reglas: NOVA repite el bloqueo con fechas y días de la semana y SOLO bloquea con el botón "Sí"; si hay citas en esas fechas avisa y no las cancela; si duda, pregunta. Por Telegram nunca van datos de pacientes (solo fecha y hora).
-- Pruebas: 131/131 (15 nuevas en `test/agenda.test.js`). Punta a punta en base de prueba con Telegram simulado (cuestionario, bloqueo leído por Claude real, reserva, choque 409, cancelación libera el espacio, pausar/activar). El perfil QA (`recVNUCiwPAxNR4w0`) quedó con agenda Lun/Mié/Vie 9–14 y 16–18 y bloqueo 4–6 nov.
-- **Falta probar el Telegram en vivo:** el webhook del bot apunta (casi seguro) a producción, que no tiene este código; y Preview tiene Vercel Authentication, que bloquea a Telegram. Opciones: (a) bot de prueba creado por Víctor en @BotFather + token en variables de Preview + bypass de protección para el webhook; (b) probarlo al fusionar. La página del paciente SÍ se puede probar ya en Preview con el médico QA.
-- Lección: con `max_tokens` 300 el modelo se quedaba sin espacio pensando ("la otra semana") → 4000 y error explícito si `stop_reason` = max_tokens.
-
-Siguiente: **Etapa 3** (cobro + pruebas de punta a punta + abogado). Víctor ya revisó la etapa 2 en Preview (2026-10-23) y la aprobó. Para arrancar la etapa 3 hacen falta sus decisiones #2 (precio fundador; recomendación $800 congelado) y la forma de cobro (Stripe / Mercado Pago / transferencia, ¿factura?) (§4.1).
-
-Nota: Víctor publicó él mismo su perfil en la base de prueba (`rec1upfZfkftncHii`, aparece como "Dr. Rodriguez", Culiacán, Medicina Regenerativa + Cirugía Plástica). Su primera solicitud de prueba (2026-10-22, `recudd3onYdDJJHYY`) quedó ligada al perfil ficticio de **Bruno** (`recDk9rLagIn3PVyK`, también Culiacán + Cirugía Plástica), no al suyo: el código manda el id correcto (verificado: tarjeta → ficha → POST con `rec1upf…`), así que fue la ficha que abrió. Por eso no la ve en su portal. Su registro de médico no tiene `Telegram Chat ID`: sus avisos van al chat de respaldo. Corregido el aviso "(mañana)" → "por la mañana" (se leía como "el día de mañana").
-
-Cómo probar en Preview (https://codecells-site-git-feat-directorio-codecells.vercel.app):
-- `/directorio/` → nombre o "Solicitar cita" → ficha `/directorio/medico.html?id=…` → formulario → liga de seguimiento `/directorio/solicitud.html#id=…&c=…`.
-- Portal → botón "◉ Mi directorio" (barra superior) → bloque "Solicitudes de cita": Aceptar (hora exacta) / Proponer otro horario / No puedo atenderle; insignia con pendientes.
-- El perfil ficticio `[PRUEBA] Dr. QA Cardiología` (CCMED-QACARD, `recVNUCiwPAxNR4w0`) quedó **Publicado** en la base de prueba con 3 solicitudes ficticias.
-- OJO: en Preview los avisos de Telegram son reales (bot real → chat de Víctor o del médico).
-
-**Lo hecho, por etapa:**
-- **Etapa 0** (`4131ad9`): base de Airtable por ambiente, congelamiento por base, `buscar-medicos` 410, lecturas honestas (502), botón "Directorio médico" en la home, servidor local, 8 perfiles "[PRUEBA]".
-- **Etapa 1** (`2eb18d5`): el médico ya no se publica solo. Solicita con consentimiento versionado (fecha, IP, navegador, huella SHA-256), un administrador (VIRN01/JCG01) aprueba/rechaza/despublica en `admin-directorio.html`. `api/directorio.js` + `lib/directorio.js`.
-- **Tarjeta y foto** (`fce8e46`, `69d4ddf`, `3dc0ec6`): tarjeta con círculo dorado, filas con ícono y barra píldora; foto/avatar/logo (`subir_foto`/`quitar_foto`, recorte 400 px sin metadatos, validación por bytes), iniciales si no hay foto; consentimiento `v1.1-borrador` menciona la foto; botón visible "Mi directorio" en el portal (antes solo un engrane oculto en celular) y panel legible en modo claro.
-- **Etapa 2** (2026-10-22):
-  - Ficha pública por médico `directorio/medico.html?id=rec…` (lectura pública de UN perfil publicado: `GET /api/airtable?tabla=directorio_medico&id=`).
-  - Solicitud de cita `api/citas.js` + `lib/citas.js`: fecha preferida (mañana a +90 días, hora de México) y turno; el médico acepta con hora exacta, propone otro horario o rechaza; el paciente confirma la propuesta o cancela desde su liga. Nunca se muestra como cita confirmada mientras esté Pendiente. Historial por solicitud.
-  - Paciente sin cuenta: clave aleatoria en el fragmento `#` de la liga; solo se guarda su huella SHA-256; la vista del paciente no expone teléfono ni motivo.
-  - **El motivo ya no viaja por Telegram** (ni en el formulario viejo): el aviso al médico solo dice que hay una solicitud.
-  - **El WhatsApp público ya no viaja en el JSON público**: sale con el teléfono, solo con token de visitante (decisión #5 sigue abierta).
-  - Se quitó el modal viejo "Solicitar contacto" de `/directorio/`; la tarjeta lleva a la ficha. `accion=registrar` sigue en el API (sin uso desde la página).
-  - Pruebas: **116/116** (15 nuevas en `test/citas.test.js`). Punta a punta en la base de prueba OK.
-
-**Pendientes conocidos del directorio:**
-- `api/nova.js` (~línea 3830) tiene su propia lista de campos públicos con `WhatsApp público` (recomendación de NOVA): revisar con la decisión #5.
-- `mis_solicitudes` lee toda la tabla SOLICITUDES_PACIENTE y filtra por id en el servidor (la liga no se puede filtrar por id en fórmula, CLAUDE.md §8): está bien para el piloto, no para miles de solicitudes.
-- El paciente no recibe aviso activo (SMS/correo): ve la respuesta en su liga o el médico lo contacta. Decidir si se agrega correo en la etapa 3.
-- Textos EN/PT de la ficha, la liga del paciente y el bloque de citas: no traducidos.
-
-### Valuación y precios (contexto)
-
-**Valuación y precios (Víctor, 2026-10-19).** `code_cells_auditoria_integral.json` (raíz, sin rastrear) es solo REFERENCIA para un orden propio. Víctor duda de que 28 USD/mes sea competitivo y quiere **precios estables** que no cambien con el mercado ni el tipo de cambio. Orden acordado:
-1. Inventario de lo construido — **HECHO**: `docs/INVENTARIO-2026-10-19.md`.
-2. Costos y horas — **DADOS** (Airtable, Vercel y Anthropic 20 USD/mes c/u; dominio 100 USD/año; ~6 meses a 8–10 h/semana). Falta aclarar si Anthropic es suscripción o API.
-3. Investigación de mercado — **HECHA**: `docs/PRECIOS-MERCADO-2026-10-19.md` (con propuesta de planes Red $390 / Clínico $890 MXN y fundadores).
-4. Valuación, costo de IA por médico, migración y costos no contemplados — **HECHO**: `docs/VALUACION-2026-10-19.md` (Anthropic = API, confirmado por Víctor).
-5. Modelo financiero 12/24 meses — **HECHO**: `docs/MODELO-FINANCIERO-2026-10-19.xlsx` (generado con `scripts/modelo-financiero.py`; 2 866 fórmulas verificadas sin errores con pycel).
-
-**Decisiones de Víctor (2026-10-19):** plan Red **$600** y plan Clínico **$1 100** (incluye todo), con IVA; tope de NOVA **por paciente** (se queda como está); la **migración se cobra aparte**.
-**Propuestas en el modelo, pendientes de su visto bueno:** fundador $600 mientras solo hay Red y **$800 congelado** cuando tenga el Clínico (a $600 su contribución cae al 28 %); migración ~$50 + IVA por paciente; clínico en mayo-2027.
-**Agregado 2026-10-19 (Víctor):** almacenamiento **cobrado por GB** (propuesta: 20 GB incluidos en Clínico, 1 GB en Red, $2/GB adicional con IVA; paquete 1 TB ~$990; costo real ~0.022 USD/GB con 2 copias R2 + Backblaze; se conserva 5 años aunque el médico se vaya). **Canal Regene Global: ~2 500 médicos afiliados** (dato de Víctor) — en el modelo entran desde mayo-2027+1 con 15 % de descuento/comisión; 5/10/20 % de afiliación según escenario. Requisito previo: base clínica fuera de Airtable.
-**Decisiones de Víctor (2026-10-19, cierre):** arrancamos SOLOS; Regene entra solo cuando haya infraestructura para **1 000 médicos** y personal de migración contratado y capacitado (modelo: dic-2027). **Regene no cobra, solo refiere** (sin comisión). La migración asistida la hace personal contratado; además el médico puede **migrar manualmente** desde un botón exclusivo, con constancia, consentimiento firmado y metadatos → `SPEC-MIGRACION-EXPEDIENTES.md` (sin implementar; propone una regla nueva para CLAUDE.md §7 que Víctor debe aprobar; preguntas para el abogado en §7).
-**Siguiente:** que Víctor revise supuestos (contador, abogado, adquisición, sueldo); luego retomar el directorio (plan §3) — la etapa de cobro usa estos precios.
-
-**Hallazgos técnicos de la valuación (no arreglados, ramas de código):** NOVA sin caché de instrucciones (duplica el costo de IA); `medico_subir_estudio` no guarda el original y escribe "ver archivo adjunto" sin adjunto (viola CLAUDE.md §6); Airtable Team (50 000 registros/base) no aguanta migraciones de expedientes.
-
-**Decisión de Víctor (2026-10-19):** se trabaja ACTUALIZANDO codecells.mx **sin quitar el congelamiento**. Implica: al fusionar a `main`, traer `6214dda` (congelamiento por base + `DESCONGELAR_PRODUCCION`) y NO definir ese interruptor; cerrar `api/buscar-medicos` (410) en el mismo cambio.
-
-Propuesta original (referencia): niveles (directorio / directorio + portal clínico), precio en MXN con colchón cambiario, revisión anual con regla pública, pago anual, oferta para 100 fundadores con plazo definido, punto de equilibrio.
-
-Después se retoma el directorio (plan en §3, aprobado; la etapa de cobro depende del paso 4).
+### Valuación y precios (contexto, 2026-10-19)
+Documentos: `docs/INVENTARIO-2026-10-19.md`, `docs/PRECIOS-MERCADO-2026-10-19.md`, `docs/VALUACION-2026-10-19.md`, `docs/MODELO-FINANCIERO-2026-10-19.xlsx` (`scripts/modelo-financiero.py`). `code_cells_auditoria_integral.json` (raíz, sin rastrear) es solo referencia. Decisiones: Red **$600**, Clínico **$1 100** (con IVA); tope de NOVA por paciente; migración se cobra aparte; almacenamiento por GB (propuesta en el modelo); arrancar SOLOS; Regene Global (~2 500 médicos) entra cuando haya infraestructura para 1 000 médicos y personal de migración, **sin comisión**; migración manual con constancia y consentimiento → `SPEC-MIGRACION-EXPEDIENTES.md` (sin implementar). Pendiente de su visto bueno: fundador $800 congelado (decisión #2), migración ~$50 + IVA por paciente, supuestos (contador, abogado, adquisición, sueldo).
+Hallazgos técnicos de la valuación (sin arreglar, ramas de código): NOVA sin caché de instrucciones; `medico_subir_estudio` no guarda el original ("ver archivo adjunto" falso, CLAUDE.md §6); Airtable Team (50 000 registros/base) no aguanta migraciones.
 
 ## 1b. Bandeja de decisiones (ver `docs/REGLAS-DE-DECISION.md`)
 
