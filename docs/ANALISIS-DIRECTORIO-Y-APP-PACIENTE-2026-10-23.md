@@ -102,6 +102,8 @@ PIN con teclado propio y liga de activación; "Mi equipo"; llave de un solo uso;
 
 ## Orden propuesto
 
+> **Avance 2026-10-23:** hechos D1–D5, D7 (vía M3), D8, M1, M2, M3, M4, M7 y las redes sociales (pedido de Víctor) — commits `7e86b85`, `c2aac06`, `15a05ec`. D6 (más de 50 médicos) queda para cuando crezca la red.
+
 1. **Hoy, en `feat/directorio` (A):** D1–D5, D8. Son arreglos chicos con prueba.
 2. **Siguiente (B):** M2 (agendar con el horario primero) + M1 (próximo horario en la tarjeta) + M4 (.ics) + M3 (mis citas). Es el paquete que más se nota para el paciente.
 3. **Después (B):** M5, M6, M7, M8, M9, P1, P3, P4 y el resumen semanal del médico.

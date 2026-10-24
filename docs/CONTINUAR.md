@@ -15,6 +15,14 @@
 
 ## 1. Siguiente paso (empezar aquí)
 
+**Estado 2026-10-23 (tarde) — mejoras del directorio mientras el cobro está detenido.** Análisis completo en `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`. Hecho en esta rama:
+- `7e86b85` redes sociales y sitio web en la ficha (validadas por dominio; consentimiento v1.2-borrador).
+- `c2aac06` ciudad sin acentos ("Culiacan" = "Culiacán", catálogo), filtros con lo publicado y conteo (`accion=filtros`), días "de octubre", ciudad sin repetir, "DEZAWA" sin "(VIP)".
+- `15a05ec` agendar con el horario primero (tira de 7 días → hora → datos), "Agregar a mi calendario" (.ics, `directorio/calendario.js`), insignia "próximo horario" en tarjetas (`accion=proximos`), "Tus citas en este teléfono", botón fijo en celular; Airtable 403 MODEL_NOT_FOUND = no existe.
+- **Todos los campos de Airtable del directorio ya existen en producción** (ver §4b).
+- 166/166 pruebas. Probado en local contra la base de prueba; **falta verlo en Preview** (push de Víctor) y en un celular real.
+- **Siguiente (análisis, orden):** M5 búsqueda por nombre, M6 ficha que se comparte bien (vista previa + liga bonita), M8 liga de la cita con dirección/"cómo llegar", P1 dirección del consultorio, P3 costo de consulta, M9 "Únete a la red", resumen semanal al médico. Pendiente de Víctor: cédula en el perfil (abogado) y decisión #8. App del paciente: rehacer la pestaña Citas en `feat/paciente-unico` (está rota, ver análisis §2.1).
+
 **Estado al 2026-10-22 — etapas 0, 1 y 2 del directorio HECHAS en esta rama (Preview, base de prueba). Producción sigue congelada y en `main@66cd2ed`.**
 
 **⏸ ETAPA 3 (cobro) DETENIDA — 2026-10-23, decisión de Víctor:** sin acta constitutiva de GALONAVA GROUP no se pueden abrir cuentas bancarias ni de pagos, así que no se construye el cobro todavía. Al retomarla, decidir: quién cobra/factura, medio (Mercado Pago recomendado; Stripe; SPEI manual), CFDI (automático recomendado), qué pasa si no paga (7 días de gracia y se oculta, recomendado). Precio ya decidido: Red $600/mes con IVA.
