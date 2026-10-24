@@ -570,6 +570,31 @@ test('normalizarCosto: pesos enteros con o sin $, comas o "MXN"; vacío borra; r
   assert.ok(D.TEXTO_CONSENTIMIENTO.includes('costo de la consulta'), 'el consentimiento lo menciona');
 });
 
+test('consulta en línea: casilla + costo propio; sin casilla no se publica el costo en línea', () => {
+  assert.deepStrictEqual(D.normalizarContacto({ 'Consulta en línea': true, 'Costo de consulta en línea': '$600' }).fields,
+    { 'Consulta en línea': true, 'Costo de consulta en línea': 600 });
+  assert.strictEqual(D.normalizarContacto({ 'Consulta en línea': 'sí' }).fields['Consulta en línea'], false, 'solo true es true');
+  assert.match(D.normalizarContacto({ 'Costo de consulta en línea': '0' }).errores[0], /en línea/);
+  const con = D.limpiarPerfilPublico({ fields: { 'Consulta en línea': true, 'Costo de consulta en línea': 600 } }).fields;
+  assert.deepStrictEqual(con, { 'Consulta en línea': true, 'Costo de consulta en línea': 600 });
+  const sin = D.limpiarPerfilPublico({ fields: { 'Costo de consulta en línea': 600 } }).fields;
+  assert.deepStrictEqual(sin, {}, 'un costo olvidado con la casilla desmarcada no sale');
+  for (const c of ['Consulta en línea', 'Costo de consulta en línea']) {
+    assert.ok(D.CAMPOS_PUBLICOS.includes(c), c + ' marca revisión');
+    assert.ok(D.CAMPOS_LECTURA_PUBLICA.includes(c), c + ' se lee en público');
+  }
+  assert.ok(D.TEXTO_CONSENTIMIENTO.includes('consulta en línea'), 'el consentimiento lo menciona');
+});
+
+test('directorio público: ?enlinea=1 agrega {Consulta en línea}=1 a la fórmula; sin él no', async () => {
+  let formula = '';
+  global.fetch = async url => { formula = new URL(url).searchParams.get('filterByFormula'); return { ok: true, status: 200, json: async () => ({ records: [] }) }; };
+  await llamarPublico({ tabla: 'directorio_medico', enlinea: '1' });
+  assert.ok(formula.includes('{Consulta en línea}=1'), formula);
+  await llamarPublico({ tabla: 'directorio_medico' });
+  assert.ok(!formula.includes('Consulta en línea'), formula);
+});
+
 test('limpiarPerfilPublico: un costo inválido guardado a mano en Airtable no sale al público', () => {
   const bueno = D.limpiarPerfilPublico({ fields: { 'Costo de consulta': 800 } });
   assert.strictEqual(bueno.fields['Costo de consulta'], 800);

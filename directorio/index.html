@@ -147,7 +147,7 @@
     }
     .filtros {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 16px;
       padding: 20px;
       background: var(--surface);
@@ -565,7 +565,7 @@
   <section class="hero">
     <div class="eyebrow">Red CODE CELLS™</div>
     <h1>Encuentra a tu médico</h1>
-    <p>Especialistas certificados en medicina regenerativa en toda la República. Busca por nombre o por lo que quieres atender, o filtra por ciudad, especialidad o herramienta.</p>
+    <p>Especialistas certificados en medicina regenerativa en toda la República. Busca por nombre o por lo que quieres atender, o filtra por ciudad, especialidad, herramienta o consulta en línea.</p>
   </section>
 
   <div class="credenciales">
@@ -597,6 +597,13 @@
         <label for="f-tratamiento">Herramienta</label>
         <select id="f-tratamiento" onchange="buscarDirectorio()">
           <option value="">Todas las herramientas</option>
+        </select>
+      </div>
+      <div class="filtro">
+        <label for="f-modalidad">Modalidad</label>
+        <select id="f-modalidad" onchange="buscarDirectorio()">
+          <option value="">Presencial y en línea</option>
+          <option value="enlinea">Solo en línea</option>
         </select>
       </div>
     </div>
@@ -695,6 +702,7 @@
       const especialidad = document.getElementById('f-especialidad').value.trim();
       const tratamiento = document.getElementById('f-tratamiento').value.trim();
       const q = document.getElementById('f-q').value.trim();
+      const enLinea = document.getElementById('f-modalidad').value === 'enlinea';
 
       // La búsqueda queda en la dirección (?q=…) para poder compartirla.
       try {
@@ -716,6 +724,7 @@
       if (especialidad) params.set('especialidad', especialidad);
       if (tratamiento) params.set('tratamiento', tratamiento);
       if (q) params.set('q', q);
+      if (enLinea) params.set('enlinea', '1');
 
       try {
         const r = await fetch('/api/airtable?' + params.toString());
@@ -747,6 +756,7 @@
       reloj: `<svg ${SVG_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
       telefono: `<svg ${SVG_ATR}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>`,
       candado: `<svg ${SVG_ATR}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+      pantalla: `<svg ${SVG_ATR}><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>`,
       costo: `<svg ${SVG_ATR}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>`,
     };
 
@@ -826,6 +836,7 @@
           especialidades && filaPd(ICONOS.especialidad, especialidades),
           horarios && filaPd(ICONOS.reloj, horarios),
           costoLegible(f['Costo de consulta']) && filaPd(ICONOS.costo, 'Consulta: ' + escaparHtml(costoLegible(f['Costo de consulta']))),
+          f['Consulta en línea'] === true && filaPd(ICONOS.pantalla, costoLegible(f['Costo de consulta en línea']) ? 'En línea: ' + escaparHtml(costoLegible(f['Costo de consulta en línea'])) : 'También consulta en línea'),
           tel && filaPd(ICONOS.telefono, hrefTel ? `<a href="${hrefTel}">${escaparHtml(telLegible(tel))}</a>` : escaparHtml(tel), 'pd-row--tel'),
           (!tel && TOKEN_VISITANTE && CONTACTOS_ERROR) && filaPd(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga la página en unos segundos.', 'pd-row--aviso'),
           !TOKEN_VISITANTE && filaPd(ICONOS.candado, 'El teléfono se muestra después de solicitar cita', 'pd-row--aviso'),
@@ -947,6 +958,7 @@
       document.getElementById('f-ciudad').value = '';
       document.getElementById('f-especialidad').value = '';
       document.getElementById('f-tratamiento').value = '';
+      document.getElementById('f-modalidad').value = '';
       buscarDirectorio();
     }
 

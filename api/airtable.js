@@ -495,7 +495,7 @@ module.exports = async (req, res) => {
   if (esLecturaDirectorioPublico) {
     const params = new URLSearchParams();
     const filtros = ['{Publicado}=1'];
-    const { ciudad, especialidad, tratamiento, id, q } = req.query;
+    const { ciudad, especialidad, tratamiento, id, q, enlinea } = req.query;
     // Ficha de UN médico (/directorio/medico.html?id=rec…): mismo filtro de
     // publicado y misma lista blanca; un id que no es de un perfil publicado
     // devuelve lista vacía.
@@ -511,6 +511,7 @@ module.exports = async (req, res) => {
     if (tratamiento) {
       filtros.push(`FIND("${escaparFormula(tratamiento)}", ARRAYJOIN({Tratamientos que ofrece}, ", "))>0`);
     }
+    if (enlinea === '1') filtros.push(`{${directorio.CAMPO_EN_LINEA}}=1`);
     params.set(
       'filterByFormula',
       filtros.length === 1 ? filtros[0] : `AND(${filtros.join(',')})`

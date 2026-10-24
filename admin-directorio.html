@@ -120,6 +120,7 @@
           <dt>Horarios</dt><dd>${esc(p.horarios) || '—'}</dd>
           <dt>Dirección</dt><dd style="white-space:pre-line">${esc(p.direccion) || '—'}</dd>
           <dt>Costo</dt><dd>${esc(p.costo) || 'No lo muestra'}</dd>
+          <dt>En línea</dt><dd>${p.enLinea ? 'Sí' + (p.costoEnLinea ? ' · ' + esc(p.costoEnLinea) : ' · sin costo publicado') : 'No'}</dd>
           <dt>Teléfono</dt><dd>${esc(p.telefono) || '—'}</dd>
           <dt>Liga</dt><dd>${p.liga ? `<a href="/directorio/${esc(p.liga)}" target="_blank" rel="noopener" style="color:var(--gold)">/directorio/${esc(p.liga)}</a>` : 'Se asigna al aprobar'}</dd>
           <dt>Redes</dt><dd>${Object.keys(p.redes || {}).length ? Object.entries(p.redes).map(([red, url]) => `${esc(red)}: <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">${esc(url)}</a>`).join('<br>') : '—'}</dd>

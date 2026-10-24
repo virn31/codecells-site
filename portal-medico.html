@@ -2252,6 +2252,7 @@
 }
 #mi-directorio .mi-dir-field input[type="text"],
 #mi-directorio .mi-dir-field input[type="url"],
+#mi-directorio .mi-dir-field input[type="tel"],
 #mi-directorio .mi-dir-field textarea {
   width: 100%;
   padding: 10px 12px;
@@ -7678,6 +7679,17 @@ function renderMiDirFormulario() {
           <span class="mi-dir-saved">✓ Guardado</span>
           <div class="mi-dir-hint">En pesos, sin centavos. Se muestra en tu ficha como "se paga en el consultorio": CODE CELLS no cobra ni interviene en el pago. Déjalo vacío si prefieres no mostrarlo.</div>
         </div>
+        <div class="mi-dir-field">
+          <label style="display:flex;gap:10px;align-items:center;cursor:pointer;font-size:14px;color:rgba(232,228,221,0.9)"><input type="checkbox" data-campo="Consulta en línea" ${c['Consulta en línea'] === true ? 'checked' : ''} style="width:18px;height:18px;accent-color:#E8A33D"> Ofrezco consulta en línea</label>
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">El paciente te encuentra con el filtro "Solo en línea" aunque viva en otra ciudad. El horario y el pago los acuerdas tú directamente con él (por ejemplo, transferencia a tu cuenta): CODE CELLS no cobra ni interviene.</div>
+        </div>
+        <div class="mi-dir-field">
+          <label>Costo de la consulta en línea (opcional)</label>
+          <input type="text" data-campo="Costo de consulta en línea" value="${c['Costo de consulta en línea'] ? escaparHtml(String(c['Costo de consulta en línea'])) : ''}" placeholder="Ej. 600" maxlength="12" inputmode="numeric" autocomplete="off">
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">Solo se muestra si marcaste "Ofrezco consulta en línea".</div>
+        </div>
       </div>
 
       <div class="mi-dir-block">
@@ -7693,6 +7705,13 @@ function renderMiDirFormulario() {
   content.querySelectorAll('input[type="text"], input[type="url"], input[type="tel"], textarea').forEach(el => {
     el.addEventListener('input', () => programarGuardadoMiDir(el));
     el.addEventListener('blur', () => guardarCampoMiDir(el)); // forzar guardado al desenfocar
+  });
+  // Casillas: se guardan al marcar; si falla, vuelven a como estaban.
+  content.querySelectorAll('input[type="checkbox"][data-campo]').forEach(el => {
+    el.addEventListener('change', async () => {
+      const ok = await guardarValorMiDir(el.dataset.campo, el.checked, el.closest('.mi-dir-field'));
+      if (ok === false) el.checked = !el.checked;
+    });
   });
 }
 
@@ -7775,16 +7794,18 @@ async function guardarValorMiDir(campo, valor, campoContainer) {
     // ciudad: "Culiacan" → "Culiacán").
     const guardado = (d.fields && campo in d.fields) ? d.fields[campo] : valor;
     miDirEstado.campos[campo] = guardado;
-    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"], input[data-campo="Costo de consulta"], textarea[data-campo="Dirección del consultorio"]');
+    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"], input[data-campo="Costo de consulta"], input[data-campo="Costo de consulta en línea"], textarea[data-campo="Dirección del consultorio"]');
     if (input && document.activeElement !== input) input.value = guardado == null ? '' : String(guardado);
     mostrarErrorMiDir(campoContainer, '');
     mostrarGuardadoMiDir(campoContainer);
+    return true;
   } catch (err) {
     if (err.name === 'AbortError') return; // canceled — expected
     console.error('guardarValorMiDir:', campo, err);
     // Un fallo se ve como fallo: antes solo iba a la consola y el médico
     // creía que su cambio se había guardado.
     mostrarErrorMiDir(campoContainer, err.message);
+    return false;
   }
 }
 

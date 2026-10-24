@@ -256,6 +256,8 @@ module.exports = async (req, res) => {
             telefono: c['Teléfono de consultorio'] || '',
             direccion: c[D.CAMPO_DIRECCION] || '',
             costo: D.costoLegible(c[D.CAMPO_COSTO]),
+            enLinea: c[D.CAMPO_EN_LINEA] === true,
+            costoEnLinea: D.costoLegible(c[D.CAMPO_COSTO_EN_LINEA]),
             redes: D.redesPublicas(c),
             revisadoPor: c['Revisado por'] || null,
             fechaRevision: c['Fecha de revisión'] || null,
