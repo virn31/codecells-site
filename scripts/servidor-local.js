@@ -41,6 +41,8 @@ http.createServer(async (req, res) => {
   // Igual que vercel.json: /directorio/<liga> → /api/ficha?liga=<liga>
   const ligaFicha = url.pathname.match(/^\/directorio\/([a-z0-9-]+)$/);
   if (ligaFicha) { url.pathname = '/api/ficha'; url.searchParams.set('liga', ligaFicha[1]); }
+  // Igual que vercel.json: /api/resumen-semanal (ruta del cron) → /api/citas?accion=resumen_semanal
+  if (url.pathname === '/api/resumen-semanal') { url.pathname = '/api/citas'; url.searchParams.set('accion', 'resumen_semanal'); }
   if (url.pathname.startsWith('/api/')) {
     const nombre = url.pathname.slice(5).replace(/[^a-z0-9-]/gi, '');
     const archivo = path.join(ROOT, 'api', nombre + '.js');
