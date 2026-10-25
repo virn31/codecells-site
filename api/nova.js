@@ -62,6 +62,7 @@ const {
 const credPaciente = require('../lib/credenciales').paciente;
 const evalBio = require('../lib/evaluacionesBiologicas');
 const meds = require('../lib/medicamentos');
+const citasPaciente = require('../lib/citasPaciente');
 
 // Puerta común de las acciones kiosco_* — las mismas reglas que
 // /api/airtable aplica a ANTECEDENTES_OBSTETRICOS desde el mismo kiosco.
@@ -2736,24 +2737,103 @@ module.exports = async function handler(req, res) {
         if (!mRes.ok) return res.status(502).json({ error: 'No pudimos cargar a tu equipo médico.' });
         medicos = (await mRes.json()).records || [];
       }
+      // Ficha pública del directorio (para "Agendar"): solo perfiles
+      // publicados, la misma información que ve cualquier visitante. Si la
+      // lectura falla, el equipo se muestra igual pero se avisa
+      // (directorioError) en vez de decir "tu médico no tiene agenda".
+      let perfiles = [];
+      let directorioError = false;
+      if (medicos.length) {
+        try {
+          perfiles = await leerTodoAirtable('tblkUNPwu1sQgZBPJ', { filterByFormula: '{Publicado}=1', 'fields[]': ['Médico', 'Publicado', Directorio.CAMPO_LIGA] });
+        } catch (e) {
+          console.error('[nova] paciente_mi_equipo directorio:', e.message);
+          directorioError = true;
+        }
+      }
       const equipo = [];
       for (const m of medicos) {
         const f = m.fields || {};
         const esPrincipal = principales.includes(m.id);
         const vinc = vinculos.find(v => v['Médico'] === f['Código de médico']);
         if (!esPrincipal && !vinc) continue;
+        const perfil = perfiles.find(p => ((p.fields || {})['Médico'] || []).includes(m.id));
         equipo.push({
           nombre: f['Nombre completo'] || null,
           especialidad: f['Especialidad'] || (vinc && vinc['Especialidad']) || null,
           rol: esPrincipal ? 'principal' : 'compartido',
           desde: !esPrincipal && vinc ? (vinc['Fecha de vinculación'] || null) : null,
+          fichaDirectorio: perfil ? citasPaciente.urlFichaDirectorio(perfil) : null,
         });
       }
       equipo.sort((a, b) => (a.rol === b.rol ? 0 : a.rol === 'principal' ? -1 : 1));
-      return res.status(200).json({ ok: true, equipo });
+      return res.status(200).json({ ok: true, equipo, directorioError });
     } catch (err) {
       console.error('[nova] paciente_mi_equipo error:', err.message);
       return res.status(500).json({ error: 'Error interno cargando tu equipo médico.' });
+    }
+  }
+
+  // ─── MIS CITAS (app del paciente, pestaña Citas) ──────────────────
+  // Solo lectura: las consultas que registraron sus médicos y la próxima
+  // cita que cada uno anotó (lib/citasPaciente.js). Lista blanca de campos:
+  // nunca las notas privadas del autor (lib/privacidadConsultas.js) ni
+  // diagnóstico/exploración — la pestaña es de citas, no el expediente.
+  // Sin consultas → 200 con listas vacías; fallo de lectura → 502.
+  if (action === 'paciente_mis_citas') {
+    try {
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
+      const esc = (v) => String(v).replace(/"/g, '\\"');
+      let registros;
+      try {
+        registros = await leerTodoAirtable('tbl1Xp2IGxdV178Ky', {
+          filterByFormula: `{Código de paciente ref}="${esc(sesion.codigo)}"`,
+          'fields[]': ['Fecha de consulta', 'Tipo de consulta', 'Plan terapéutico', 'Próxima cita', 'Médico', 'Código de médico ref'],
+          'sort[0][field]': 'Fecha de consulta',
+          'sort[0][direction]': 'desc',
+        });
+      } catch (e) {
+        console.error('[nova] paciente_mis_citas consultas:', e.message);
+        return res.status(502).json({ error: 'No pudimos cargar tus citas. Esto no significa que no tengas: intenta de nuevo.' });
+      }
+
+      // Nombre y especialidad del médico (nada más: CLAUDE.md §10).
+      const recIds = [...new Set(registros.flatMap(r => (r.fields || {})['Médico'] || []))];
+      const codigos = [...new Set(registros.map(r => (r.fields || {})['Código de médico ref']).filter(c => typeof c === 'string' && c.startsWith('CCMED-')))];
+      const condiciones = recIds.map(id => `RECORD_ID()="${esc(id)}"`).concat(codigos.map(c => `{Código de médico}="${esc(c)}"`));
+      let medicos = [];
+      if (condiciones.length) {
+        try {
+          medicos = await leerTodoAirtable('tbl87DsuBMmb4DjFM', { filterByFormula: `OR(${condiciones.join(',')})`, 'fields[]': ['Nombre completo', 'Especialidad', 'Código de médico'] });
+        } catch (e) {
+          console.error('[nova] paciente_mis_citas médicos:', e.message);
+          return res.status(502).json({ error: 'No pudimos cargar tus citas. Esto no significa que no tengas: intenta de nuevo.' });
+        }
+      }
+      const medicoDe = (f) => {
+        const recId = (f['Médico'] || [])[0];
+        const m = medicos.find(x => (recId && x.id === recId) || (x.fields || {})['Código de médico'] === f['Código de médico ref']);
+        return m ? { clave: m.id, nombre: m.fields['Nombre completo'] || null, especialidad: m.fields['Especialidad'] || null } : null;
+      };
+
+      const consultas = registros.map(r => {
+        const f = r.fields || {};
+        const m = medicoDe(f);
+        return {
+          fecha: f['Fecha de consulta'] || null,
+          tipo: f['Tipo de consulta'] || null,
+          plan: f['Plan terapéutico'] || null,
+          proximaCita: f['Próxima cita'] || null,
+          medico: m ? { nombre: m.nombre, especialidad: m.especialidad } : null,
+          medicoClave: m ? m.clave : (f['Código de médico ref'] || null),
+        };
+      }).filter(c => c.fecha);
+      const proximas = citasPaciente.proximasCitas(consultas, meds.hoyEnZona());
+      consultas.forEach(c => { delete c.medicoClave; });
+      return res.status(200).json({ ok: true, proximas, consultas });
+    } catch (err) {
+      console.error('[nova] paciente_mis_citas error:', err.message);
+      return res.status(500).json({ error: 'Error interno cargando tus citas.' });
     }
   }
 

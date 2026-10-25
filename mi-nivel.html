@@ -151,6 +151,21 @@
   .equipo-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--gold-pale); color: var(--gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 16px; flex-shrink: 0; }
   .equipo-nombre { font-size: 14px; color: var(--text-1); }
   .equipo-detalle { font-size: 12px; color: var(--text-3); }
+  .citas-estado { font-size: 13px; color: var(--text-3); line-height: 1.5; }
+  .citas-estado.error { color: #E2574B; }
+  .citas-lista { display: flex; flex-direction: column; gap: 14px; }
+  .citas-nota { font-size: 11.5px; color: var(--text-3); margin-top: 14px; line-height: 1.4; }
+  .cita-proxima-fecha { font-family: var(--font-serif); font-size: 20px; color: var(--gold); }
+  .cita-proxima-hoy { font-size: 11px; color: var(--black); background: var(--gold); border-radius: 10px; padding: 2px 8px; margin-left: 8px; vertical-align: middle; }
+  .cita-medico { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+  .consulta-fila + .consulta-fila { border-top: 1px solid var(--border-dim); padding-top: 14px; }
+  .consulta-fecha { font-size: 14px; color: var(--text-1); }
+  .consulta-fila details { margin-top: 8px; }
+  .consulta-fila summary { font-size: 12.5px; color: var(--gold); cursor: pointer; }
+  .consulta-fila .plan-texto { margin-top: 8px; font-size: 13.5px; }
+  .agendar-fila { display: flex; align-items: center; gap: 12px; }
+  .agendar-fila > div:nth-child(2) { flex: 1; min-width: 0; }
+  .btn-agendar { font-size: 12.5px; color: var(--black); background: var(--gold); border-radius: 20px; padding: 8px 14px; text-decoration: none; white-space: nowrap; }
   .meds-lista { display: flex; flex-direction: column; gap: 12px; }
   .med-item { border-bottom: 1px solid var(--border-dim); padding-bottom: 12px; }
   .med-item:last-child { border-bottom: none; padding-bottom: 0; }
@@ -408,225 +423,31 @@
     </div>
     <div style="font-size:11px;color:var(--text-3);margin-top:10px;">Sigue las indicaciones de tu médico. Si tienes dudas sobre tu plan, pregúntale a él.</div>
   </div>
-  <!-- ═══ Pestaña CITAS ═══ -->
+  <!-- ═══ Pestaña CITAS ═══
+       Solo lectura (nova paciente_mis_citas): la próxima cita es la fecha que
+       el médico anotó en su consulta más reciente; las consultas las registra
+       el médico. El paciente no confirma ni modifica nada aquí. "Agendar" usa
+       la ficha pública del directorio de cada médico de su equipo. -->
   <div class="tab-pane" data-tab="citas">
-    <!-- NUEVA: PANEL MIS CITAS AGENDADAS -->
-    <div class="panel-mis-citas">
-      <div class="panel-mis-citas-header">
-        <h3>📅 Mis Citas Agendadas</h3>
-        <span id="contador-citas" class="contador-citas">0 citas</span>
-      </div>
-      
-      <div id="lista-citas-paciente" class="lista-citas-paciente">
-        <div class="citas-vacio">
-          <p>No tienes citas agendadas</p>
-          <small>Contacta a tu médico para agendar una</small>
-        </div>
-      </div>
+    <div class="seccion-label">Tu próxima cita</div>
+    <div class="chat-caja" style="padding:20px;">
+      <div id="citas-estado" class="citas-estado">Cargando…</div>
+      <div id="citas-proximas" class="citas-lista"></div>
+      <div id="citas-nota" class="citas-nota" style="display:none;">La fecha la anotó tu médico en tu última consulta. Confirma la hora con su consultorio.</div>
     </div>
 
-    <!-- ESTILOS PANEL CITAS -->
-    <style>
-      .panel-mis-citas {
-        background: rgba(0, 0, 0, 0.2);
-        border: 2px solid #4FA8A0;
-        border-radius: 10px;
-        padding: 20px;
-        margin-top: 20px;
-      }
+    <div class="seccion-label">Agendar con mi médico</div>
+    <div class="chat-caja" style="padding:20px;">
+      <div id="agendar-estado" class="citas-estado">Cargando…</div>
+      <div id="agendar-lista" class="equipo-lista"></div>
+    </div>
 
-      .panel-mis-citas-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 2px solid rgba(79, 168, 160, 0.3);
-      }
-
-      .panel-mis-citas-header h3 {
-        margin: 0;
-        color: #E8A33D;
-        font-size: 18px;
-      }
-
-      .contador-citas {
-        background: rgba(79, 168, 160, 0.3);
-        color: #4FA8A0;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: bold;
-      }
-
-      .lista-citas-paciente {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .citas-vacio {
-        text-align: center;
-        color: #999;
-        padding: 30px 20px;
-      }
-
-      .cita-card {
-        background: rgba(79, 168, 160, 0.15);
-        border: 2px solid rgba(79, 168, 160, 0.3);
-        border-radius: 10px;
-        padding: 14px;
-        transition: all 0.3s;
-      }
-
-      .cita-card:hover {
-        background: rgba(79, 168, 160, 0.25);
-        border-color: #4FA8A0;
-      }
-
-      .cita-card-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-      }
-
-      .cita-fecha {
-        font-size: 14px;
-        font-weight: bold;
-        color: #E8A33D;
-      }
-
-      .cita-hora {
-        font-size: 13px;
-        color: #CFD6D0;
-      }
-
-      .cita-status {
-        background: rgba(95, 174, 110, 0.3);
-        color: #5FAE6E;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: bold;
-      }
-
-      .cita-status.pendiente {
-        background: rgba(232, 163, 61, 0.3);
-        color: #E8A33D;
-      }
-
-      .cita-card-info {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 12px;
-      }
-
-      .cita-info-row {
-        display: flex;
-        gap: 8px;
-        font-size: 13px;
-      }
-
-      .cita-info-label {
-        color: #4FA8A0;
-        font-weight: bold;
-        min-width: 80px;
-      }
-
-      .cita-info-valor {
-        color: #CFD6D0;
-      }
-
-      .cita-card-acciones {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        padding-top: 12px;
-        border-top: 1px solid rgba(79, 168, 160, 0.2);
-      }
-
-      .btn-cita-accion {
-        flex: 1;
-        min-width: 120px;
-        padding: 8px 12px;
-        background: rgba(232, 163, 61, 0.2);
-        color: #E8A33D;
-        border: 1px solid #E8A33D;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: bold;
-        transition: all 0.2s;
-      }
-
-      .btn-cita-accion:hover {
-        background: #E8A33D;
-        color: #0E1410;
-      }
-
-      .btn-cita-confirmar {
-        background: rgba(95, 174, 110, 0.2);
-        color: #5FAE6E;
-        border-color: #5FAE6E;
-      }
-
-      .btn-cita-confirmar:hover {
-        background: #5FAE6E;
-        color: #fff;
-      }
-
-      .modal-info-cita {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 2000;
-      }
-
-      .modal-info-content {
-        background: #1a1f1b;
-        border: 2px solid #4FA8A0;
-        border-radius: 12px;
-        padding: 20px;
-        max-width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
-      }
-
-      .modal-info-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 16px;
-      }
-
-      .modal-info-header h4 {
-        margin: 0;
-        color: #E8A33D;
-      }
-
-      .modal-info-close {
-        background: none;
-        border: none;
-        color: #CFD6D0;
-        font-size: 24px;
-        cursor: pointer;
-      }
-
-      .modal-info-body {
-        color: #CFD6D0;
-        font-size: 13px;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-      }
-    </style>
-
+    <div class="seccion-label">Tus consultas</div>
+    <div class="chat-caja" style="padding:20px;">
+      <div id="consultas-estado" class="citas-estado">Cargando…</div>
+      <div id="consultas-lista" class="citas-lista"></div>
+    </div>
+    <button type="button" class="btn-reintentar" id="btn-citas-reintentar" style="display:none;" onclick="cargarCitas()">Intentar de nuevo</button>
   </div>
   <!-- ═══ Pestaña NOVA ═══ -->
   <div class="tab-pane" data-tab="nova">
@@ -1142,17 +963,21 @@ function dibujarAnillo(ev) {
 
 // ─── MI EQUIPO ───────────────────────────────────────────────────
 var equipoDatos = null;
+var equipoError = null;          // texto del fallo; también lo muestra "Agendar"
+var equipoDirectorioError = false;
 function cargarEquipo() {
   var estado = document.getElementById('equipo-estado');
   estado.style.display = ''; estado.style.color = ''; estado.textContent = 'Cargando…';
+  equipoDatos = null; equipoError = null; pintarAgendar();
   fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'paciente_mi_equipo' }) })
     .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return { ok: r.ok, d: d }; }); })
     .then(function(x) {
-      if (!x.ok) { estado.textContent = (x.d && x.d.error) || 'No pudimos cargar a tu equipo médico.'; estado.style.color = '#E2574B'; return; }
+      if (!x.ok) { equipoError = (x.d && x.d.error) || 'No pudimos cargar a tu equipo médico.'; estado.textContent = equipoError; estado.style.color = '#E2574B'; pintarAgendar(); return; }
       equipoDatos = x.d.equipo || [];
+      equipoDirectorioError = !!x.d.directorioError;
       pintarEquipo();
     })
-    .catch(function(){ estado.textContent = 'Sin conexión — no pudimos cargar a tu equipo médico.'; estado.style.color = '#E2574B'; });
+    .catch(function(){ equipoError = 'Sin conexión — no pudimos cargar a tu equipo médico.'; estado.textContent = equipoError; estado.style.color = '#E2574B'; pintarAgendar(); });
 }
 function inicialMedico(nombre) {
   var limpio = String(nombre || '').replace(/^(Dra?\.?|Dr\.?)\s+/i, '');
@@ -1160,6 +985,7 @@ function inicialMedico(nombre) {
 }
 function pintarEquipo() {
   if (!equipoDatos) return;
+  pintarAgendar();
   var estado = document.getElementById('equipo-estado');
   var lista = document.getElementById('equipo-lista');
   lista.innerHTML = '';
@@ -1174,6 +1000,111 @@ function pintarEquipo() {
     lista.appendChild(fila);
   });
 }
+
+// ─── CITAS (solo lectura) ────────────────────────────────────────
+// nova paciente_mis_citas. "Sin citas" (200 con listas vacías) ≠ error de
+// lectura (502): un fallo nunca se muestra como "no tienes citas".
+var citasDatos = null;
+function cargarCitas() {
+  citasDatos = null;
+  ['citas-estado', 'consultas-estado'].forEach(function(id){
+    var e = document.getElementById(id); e.style.display = ''; e.className = 'citas-estado'; e.textContent = 'Cargando…';
+  });
+  document.getElementById('citas-proximas').innerHTML = '';
+  document.getElementById('consultas-lista').innerHTML = '';
+  document.getElementById('citas-nota').style.display = 'none';
+  document.getElementById('btn-citas-reintentar').style.display = 'none';
+  postNova({ action: 'paciente_mis_citas' }).then(function(x) {
+    if (!x.ok) return errorCitas((x.d && x.d.error) || 'No pudimos cargar tus citas.');
+    citasDatos = { proximas: x.d.proximas || [], consultas: x.d.consultas || [] };
+    pintarCitas();
+  }).catch(function(){ errorCitas('Sin conexión — no pudimos cargar tus citas.'); });
+}
+function errorCitas(msg) {
+  ['citas-estado', 'consultas-estado'].forEach(function(id){
+    var e = document.getElementById(id); e.style.display = ''; e.className = 'citas-estado error'; e.textContent = msg;
+  });
+  document.getElementById('btn-citas-reintentar').style.display = '';
+}
+// 'AAAA-MM-DD' (campo date) → mediodía local, para que no cambie de día.
+function fechaLarga(dia) {
+  var d = new Date(dia + 'T12:00:00');
+  return d.toLocaleDateString(localeActual(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+function hoyLocal() {
+  var d = new Date();
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+function lineaMedico(m) {
+  if (!m || !m.nombre) return '';
+  return sinTraducir(m.nombre) + (m.especialidad ? ' · ' + sinTraducir(m.especialidad) : '');
+}
+function pintarCitas() {
+  if (!citasDatos) return;
+  var estado = document.getElementById('citas-estado');
+  var cont = document.getElementById('citas-proximas');
+  if (!citasDatos.proximas.length) {
+    cont.innerHTML = '';
+    estado.style.display = ''; estado.className = 'citas-estado';
+    estado.textContent = 'Tu médico no ha anotado una próxima cita.';
+    document.getElementById('citas-nota').style.display = 'none';
+  } else {
+    estado.style.display = 'none';
+    cont.innerHTML = citasDatos.proximas.map(function(c) {
+      return '<div><div class="cita-proxima-fecha"><span data-no-i18n>' + esc(fechaLarga(c.fecha)) + '</span>' +
+        (c.fecha === hoyLocal() ? '<span class="cita-proxima-hoy">Hoy</span>' : '') + '</div>' +
+        (c.medico && c.medico.nombre ? '<div class="cita-medico">' + lineaMedico(c.medico) + '</div>' : '') + '</div>';
+    }).join('');
+    document.getElementById('citas-nota').style.display = '';
+  }
+
+  var estadoC = document.getElementById('consultas-estado');
+  var lista = document.getElementById('consultas-lista');
+  if (!citasDatos.consultas.length) {
+    lista.innerHTML = '';
+    estadoC.style.display = ''; estadoC.className = 'citas-estado';
+    estadoC.textContent = 'Aún no hay consultas registradas por tus médicos.';
+    return;
+  }
+  estadoC.style.display = 'none';
+  lista.innerHTML = citasDatos.consultas.map(function(c) {
+    var detalle = [lineaMedico(c.medico), c.tipo ? sinTraducir(c.tipo) : ''].filter(Boolean).join(' · ');
+    return '<div class="consulta-fila"><div class="consulta-fecha" data-no-i18n>' + esc(fechaCorta(c.fecha)) + '</div>' +
+      (detalle ? '<div class="cita-medico">' + detalle + '</div>' : '') +
+      (c.plan ? '<details><summary>Indicaciones de tu médico</summary><div class="plan-texto" data-no-i18n>' + esc(c.plan) + '</div></details>' : '') +
+      '</div>';
+  }).join('');
+}
+
+// "Agendar con mi médico": los médicos de su equipo con ficha publicada en
+// el directorio abren su ficha (ahí está la agenda o la solicitud). Sin
+// ficha publicada se dice tal cual; nunca se inventa un teléfono ni horario.
+function pintarAgendar() {
+  var estado = document.getElementById('agendar-estado');
+  var lista = document.getElementById('agendar-lista');
+  lista.innerHTML = '';
+  estado.style.display = ''; estado.className = 'citas-estado';
+  if (equipoError) { estado.className = 'citas-estado error'; estado.textContent = equipoError; return; }
+  if (!equipoDatos) { estado.textContent = 'Cargando…'; return; }
+  if (!equipoDatos.length) {
+    estado.innerHTML = '<span>Aún no tienes un médico asignado.</span> <a href="/directorio/" style="color:var(--gold);">Buscar en el directorio</a>';
+    return;
+  }
+  if (equipoDirectorioError) { estado.className = 'citas-estado error'; estado.textContent = 'No pudimos revisar el directorio en este momento. Intenta más tarde.'; }
+  else estado.style.display = 'none';
+  equipoDatos.forEach(function(m) {
+    var fila = document.createElement('div');
+    fila.className = 'agendar-fila';
+    var detalle = m.fichaDirectorio
+      ? (m.especialidad ? sinTraducir(m.especialidad) : '')
+      : (equipoDirectorioError ? '' : '<span>Aún no tiene agenda en el directorio. Pídele tu cita en consulta o en su consultorio.</span>');
+    fila.innerHTML = '<div class="equipo-avatar">' + esc(inicialMedico(m.nombre)) + '</div>' +
+      '<div><div class="equipo-nombre" data-no-i18n>' + esc(m.nombre || '—') + '</div>' + (detalle ? '<div class="equipo-detalle">' + detalle + '</div>' : '') + '</div>' +
+      (m.fichaDirectorio ? '<a class="btn-agendar" href="' + esc(m.fichaDirectorio) + '" target="_blank" rel="noopener">Agendar</a>' : '');
+    lista.appendChild(fila);
+  });
+}
+window.addEventListener('i18n:change', function(){ pintarCitas(); pintarAgendar(); });
 
 // ─── PROGRESO: peso y presión arterial ───────────────────────────
 var progresoSeries = null;
@@ -1570,6 +1501,7 @@ function cargarPaciente() {
       cargarComparativoLabs();
       cargarBio();
       cargarEquipo();
+      cargarCitas();
       cargarProgreso();
       cargarPlan();
       cargarMedicamentos();
@@ -1806,10 +1738,7 @@ function renderComparativoLabs() {
 
 init();
 
-// NUEVA: Script panel de citas agendadas
 </script>
-
-<script src="./panel-citas-mi-nivel.js"></script>
 
 </body>
 </html>
