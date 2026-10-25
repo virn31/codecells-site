@@ -11,7 +11,7 @@
 > como referencia histórica; no se le agregan commits. El congelamiento por
 > áreas protege producción: el directorio se abre y lo clínico sigue cerrado.
 
-**Última actualización:** 2026-10-24 (noche) — rama única (`ad6020b`); hotfix de inyección en login (`hotfix/auth-login-inyeccion`, falta push + merge a main); **PIN para médicos + entrada única `entrar.html`** (ver §1). Tablas `VISITAS_DIRECTORIO` y `CREDENCIALES_MEDICO` solo en prueba (§4b).
+**Última actualización:** 2026-10-24 (noche) — rama única (`ad6020b`); hotfix de inyección en login (`hotfix/auth-login-inyeccion`, falta push + merge a main); **PIN para médicos + entrada única `entrar.html`** (ver §1). Tablas `VISITAS_DIRECTORIO` y `CREDENCIALES_MEDICO` ya creadas en producción (vacías, §4b).
 
 ---
 
@@ -153,9 +153,9 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 
 ## 4b. Antes de fusionar a `main`
 
-**Tabla `CREDENCIALES_MEDICO` — FALTA EN PRODUCCIÓN (pedir autorización).** Prueba `tbl2bkJUptlAM6Ghe`: `Código de médico ref` (texto primario), `Médico` (liga a MÉDICOS), `PIN (hash)`, `Cuenta activada` (casilla), `Fecha activación`, `Intentos fallidos` (número), `Bloqueado hasta`, `Liga (hash)`, `Liga vence` (fechas con hora), `Liga emitida por` (texto). Sin ella NINGÚN médico entra en producción.
+**Tabla `CREDENCIALES_MEDICO` — YA CREADA EN PRODUCCIÓN** (2026-10-24, autorizada por Víctor; prod `tblr2DDj55hHWKwhn`, prueba `tbl2bkJUptlAM6Ghe`): `Código de médico ref` (texto primario), `Médico` (liga a MÉDICOS), `PIN (hash)`, `Cuenta activada` (casilla), `Fecha activación`, `Intentos fallidos` (número), `Bloqueado hasta`, `Liga (hash)`, `Liga vence` (fechas con hora), `Liga emitida por` (texto). Vacía: cada médico necesita su liga para crear su PIN.
 
-**Tabla `VISITAS_DIRECTORIO` — FALTA EN PRODUCCIÓN.** Víctor la autorizó el 2026-10-24, pero el permiso de Claude Code bloqueó la creación por MCP: crearla a mano en Airtable o dar el permiso. En prueba: `tbl9SwedUiu9uBzKs` (`Clave` texto primario, `Perfil` texto, `Semana` texto, `Visitas` número entero). El código la llama por NOMBRE (los ids de tabla nuevos difieren entre bases). Sin ella en producción: cada visita responde 502 (la ficha no se afecta) y el resumen del lunes no se manda y avisa a Víctor.
+**Tabla `VISITAS_DIRECTORIO` — YA CREADA EN PRODUCCIÓN** (2026-10-24, prod `tblZ5A4m2PqFtQzb0`). Víctor la autorizó el 2026-10-24, pero el permiso de Claude Code bloqueó la creación por MCP: crearla a mano en Airtable o dar el permiso. En prueba: `tbl9SwedUiu9uBzKs` (`Clave` texto primario, `Perfil` texto, `Semana` texto, `Visitas` número entero). El código la llama por NOMBRE (los ids de tabla nuevos difieren entre bases). Sin ella en producción: cada visita responde 502 (la ficha no se afecta) y el resumen del lunes no se manda y avisa a Víctor.
 
 **Campo `Modalidad` (SOLICITUDES) YA CREADO EN PRODUCCIÓN** (2026-10-24, autorizado por Víctor; `fldCn4y6dWnLnmylM`). Sin él, crear CUALQUIER solicitud daría 422.
 
