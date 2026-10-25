@@ -334,6 +334,23 @@
       }
     }
 
+    // Una visita por semana y por navegador para el resumen semanal del
+    // médico. Sin IP ni cookie: solo el id del perfil. Si falla, la ficha
+    // sigue igual (es un contador, no algo que el paciente necesite).
+    function contarVisita() {
+      const hoy = new Date();
+      const lunes = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - ((hoy.getDay() + 6) % 7));
+      const semana = lunes.getFullYear() + '-' + String(lunes.getMonth() + 1).padStart(2, '0') + '-' + String(lunes.getDate()).padStart(2, '0');
+      const llave = 'cc_visita_' + ID;
+      try { if (localStorage.getItem(llave) === semana) return; } catch (e) { /* sin almacenamiento: se cuenta */ }
+      fetch('/api/citas?accion=visita', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medicoId: ID }), keepalive: true,
+      }).then(r => {
+        if (!r.ok) { console.warn('[directorio] visita no contada:', r.status); return; }
+        try { localStorage.setItem(llave, semana); } catch (e) { /* sin almacenamiento */ }
+      }).catch(e => console.warn('[directorio] visita no contada:', e.message));
+    }
+
     async function cargar() {
       const cont = document.getElementById('contenido');
       if (FICHA.noEncontrada) {
@@ -365,6 +382,7 @@
       const [contactos, agenda] = await Promise.all([cargarContactos(), cargarDisponibilidad()]);
       AGENDA = agenda;
       render(contactos);
+      contarVisita();
       if (AGENDA && AGENDA.automatica && (AGENDA.siguientes || []).length) elegirFecha(AGENDA.siguientes[0].fecha);
       if (location.hash === '#solicitar') document.getElementById('solicitar').scrollIntoView({ behavior: 'smooth' });
       vigilarBotonFijo();

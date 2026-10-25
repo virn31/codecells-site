@@ -15,6 +15,11 @@
 //     POST ?accion=estado      → { id, c } estado de SU solicitud (sin teléfono ni motivo).
 //                                POST para que la clave no quede en URLs ni bitácoras.
 //     POST ?accion=paciente    → { id, c, accion: confirmar | cancelar }
+//     POST ?accion=visita      → { medicoId } suma una visita a la ficha (sin IP ni cookie)
+//   Cron (Authorization: Bearer CRON_SECRET; vercel.json lo llama los lunes):
+//     GET  ?accion=resumen_semanal[&prueba=1] → manda a cada médico publicado sus
+//                              números de la semana anterior por Telegram; con prueba=1
+//                              solo devuelve los textos, sin mandar nada
 //   Médico (sesión tipo 'medico'):
 //     GET  ?accion=mis_solicitudes → solicitudes dirigidas a SU perfil del directorio
 //     POST ?accion=responder       → { id, respuesta: aceptar | proponer | rechazar, horario, mensaje }
@@ -32,6 +37,7 @@ const C = require('../lib/citas');
 const A = require('../lib/agenda');
 const G = require('../lib/google-agenda');
 const D = require('../lib/directorio');
+const R = require('../lib/resumen-semanal');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TBL_SOLICITUDES = 'tblUsc72JO2BaqT6d';
@@ -110,6 +116,47 @@ async function avisarMedico(perfil, texto) {
     console.error('[citas] aviso Telegram falló:', e.message);
     return 'Falló el envío';
   }
+}
+
+// Lee todo ANTES de mandar el primer mensaje: si una lectura falla, nadie
+// recibe números incompletos.
+async function resumenSemanal(ahora, prueba) {
+  const semana = R.semanaAnterior(ahora);
+  const V = R.CAMPOS_VISITAS;
+  const perfiles = await leerTodo(TBL_DIRECTORIO, [['filterByFormula', '{Publicado}=1'], ['fields[]', 'Name'], ['fields[]', 'Médico']]);
+  const visitas = await leerTodo(encodeURIComponent(R.TABLA_VISITAS), [['filterByFormula', `{${V.SEMANA}}="${semana.inicio}"`], ['fields[]', V.PERFIL], ['fields[]', V.SEMANA], ['fields[]', V.VISITAS]]);
+  // Solo campos sin datos del paciente.
+  const solicitudes = await leerTodo(TBL_SOLICITUDES, [['fields[]', 'Médico solicitado'], ['fields[]', 'Fecha solicitud'], ['fields[]', 'Modalidad'], ['fields[]', 'Estado de cita']]);
+  const destinos = [];
+  for (const perfil of perfiles) {
+    const medId = (perfil.fields['Médico'] || [])[0];
+    let chat = null;
+    if (medId) {
+      const m = await at(`${TBL_MEDICOS}/${medId}`); // GET por id no acepta fields[] (422)
+      chat = (m.fields && m.fields['Telegram Chat ID']) || null;
+    }
+    const r = R.resumenDeMedico({ perfilId: perfil.id, visitas, solicitudes, semana, estados: C.ESTADOS_CITA });
+    destinos.push({ nombre: perfil.fields['Name'] || '(sin nombre)', chat, numeros: r, texto: R.textoResumen(r, semana) });
+  }
+  const ambiente = BASE_ID === 'app6jyD9pDlTLpknA' ? '' : '\n(Ambiente: prueba)';
+  if (prueba) return { ok: true, prueba: true, semana, medicos: destinos.map(({ chat, ...d }) => ({ ...d, tieneTelegram: !!chat })) };
+
+  const enviados = [], sinTelegram = [], fallidos = [];
+  for (const d of destinos) {
+    if (!d.chat) { sinTelegram.push(d.nombre); continue; }
+    try { await sendTelegramMessage(d.chat, d.texto + ambiente); enviados.push(d.nombre); }
+    catch (e) { console.error('[citas] resumen a', d.nombre, 'falló:', e.message); fallidos.push(d.nombre); }
+  }
+  const control = [
+    `CODE CELLS: resumen semanal (${R.rangoLegible(semana)}) enviado a ${enviados.length} de ${destinos.length} médicos.`,
+    sinTelegram.length ? `Sin Telegram (no lo recibieron): ${sinTelegram.join(', ')}` : '',
+    fallidos.length ? `Falló el envío: ${fallidos.join(', ')}` : '',
+  ].filter(Boolean).join('\n');
+  if (process.env.TELEGRAM_CHAT_ID) {
+    try { await sendTelegramMessage(process.env.TELEGRAM_CHAT_ID, control + ambiente); }
+    catch (e) { console.error('[citas] aviso de control del resumen falló:', e.message); }
+  }
+  return { ok: true, semana, enviados: enviados.length, total: destinos.length, sinTelegram, fallidos };
 }
 
 function resumenParaMedico(rec) {
@@ -466,6 +513,50 @@ module.exports = async (req, res) => {
     }
 
     // ── Médico ────────────────────────────────────────────────────────
+    if (accion === 'visita' && req.method === 'POST') {
+      if (CONGELADO) return respuestaCongelada(res);
+      const medicoId = String((req.body && req.body.medicoId) || '');
+      if (!esRecId(medicoId)) return res.status(400).json({ error: 'Médico no válido.' });
+      if (R.esBot(req.headers && req.headers['user-agent'])) return res.status(200).json({ ok: true, contada: false });
+      let perfil;
+      try { perfil = await at(`${TBL_DIRECTORIO}/${medicoId}`); }
+      catch (e) { if (noExiste(e)) perfil = null; else throw e; }
+      if (!perfil || !perfil.fields || perfil.fields['Publicado'] !== true) return res.status(404).json({ error: 'Este médico no está en el directorio.' });
+      const V = R.CAMPOS_VISITAS;
+      const semana = R.semanaDe(ahora);
+      const clave = R.claveVisita(medicoId, semana);
+      const tabla = encodeURIComponent(R.TABLA_VISITAS);
+      const hay = await at(`${tabla}?${new URLSearchParams({ filterByFormula: `{${V.CLAVE}}="${clave}"`, maxRecords: '1' })}`);
+      const fila = (hay.records || [])[0];
+      // Sin transacciones: dos visitas a la vez pueden crear dos filas con la
+      // misma clave; el resumen las suma, así que no se pierde ninguna.
+      if (fila) {
+        await at(`${tabla}/${fila.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { [V.VISITAS]: (Number(fila.fields[V.VISITAS]) || 0) + 1 } }) });
+      } else {
+        await at(tabla, { method: 'POST', body: JSON.stringify({ fields: { [V.CLAVE]: clave, [V.PERFIL]: medicoId, [V.SEMANA]: semana, [V.VISITAS]: 1 } }) });
+      }
+      return res.status(200).json({ ok: true, contada: true });
+    }
+
+    if (accion === 'resumen_semanal' && req.method === 'GET') {
+      const secreto = process.env.CRON_SECRET;
+      if (!secreto || (req.headers && req.headers.authorization) !== `Bearer ${secreto}`) return res.status(401).json({ error: 'No autorizado.' });
+      if (CONGELADO) return respuestaCongelada(res);
+      const prueba = String(req.query.prueba || '') === '1';
+      try {
+        return res.status(200).json(await resumenSemanal(ahora, prueba));
+      } catch (e) {
+        // Un resumen con números de una lectura fallida sería mentira: no se
+        // manda nada y Víctor se entera.
+        console.error('[citas] resumen semanal falló:', e.message);
+        if (!prueba && process.env.TELEGRAM_CHAT_ID) {
+          try { await sendTelegramMessage(process.env.TELEGRAM_CHAT_ID, `CODE CELLS: el resumen semanal a los médicos NO se envió (${e.message}).${BASE_ID === 'app6jyD9pDlTLpknA' ? '' : '\n(Ambiente: prueba)'}`); }
+          catch (e2) { console.error('[citas] tampoco se pudo avisar a Víctor:', e2.message); }
+        }
+        throw e;
+      }
+    }
+
     if (accion === 'mis_solicitudes' || accion === 'responder') {
       const sesion = verificarToken(tokenDesdeRequest(req));
       if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });

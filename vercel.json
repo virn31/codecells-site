@@ -3,7 +3,11 @@
     "api/nova.js": { "maxDuration": 60 },
     "api/ficha.js": { "includeFiles": "directorio/medico.html" }
   },
+  "crons": [
+    { "path": "/api/resumen-semanal", "schedule": "0 16 * * 1" }
+  ],
   "rewrites": [
+    { "source": "/api/resumen-semanal", "destination": "/api/citas?accion=resumen_semanal" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/directorio/:liga([a-z0-9-]+)", "destination": "/api/ficha?liga=:liga" },
     { "source": "/aviso-privacidad", "destination": "/aviso-privacidad.html" }

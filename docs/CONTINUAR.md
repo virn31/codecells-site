@@ -9,13 +9,13 @@
 > El portal clínico vive en `feat/paciente-unico` (intacta, fase 2) con su
 > propio `docs/CONTINUAR.md`.
 
-**Última actualización:** 2026-10-24 (noche) — P3 costo (`6c12e6b`), encuadre de foto (`65672ea`), consulta en línea (`97b64a5`), presencial/en línea en la solicitud (`9dd5eac`) y NOVA con precios reales (`9a8a6cb`). Push hecho (`bafbd6a`, 2026-10-24); Vercel arma el Preview solo. Todos los campos nuevos (directorio y `Modalidad` de SOLICITUDES) YA están en producción (vacíos; ver §4b).
+**Última actualización:** 2026-10-24 (noche) — M9 "Únete a la red" (`5e4e004`) y resumen semanal al médico por Telegram (ver §1b, falta autorización de la tabla en producción). Push hasta `bafbd6a`; lo posterior está SIN PUSH. Todos los campos nuevos (directorio y `Modalidad`) YA están en producción; la tabla `VISITAS_DIRECTORIO` solo en prueba (ver §4b).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. ~~Push~~ hecho (`bafbd6a`, 2026-10-24).
+1. **Que Víctor haga push** de lo posterior a `bafbd6a` (M9 + resumen semanal + docs).
 2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
@@ -31,7 +31,9 @@
    - Home: "Encuentra a tu médico" lleva al directorio; al terminar la evaluación **NOVA debe abrirse sola** (antes la abría un parche que interceptaba WhatsApp; ahora se llama directo) y al final de la plática sale "Encuentra a tu médico en el directorio".
    - `code-cells-network`: el botón final dice "Solicitar afiliación" y va a `unete.html`.
    - Ojo: una cita real en Preview manda aviso de Telegram real.
-3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ ~~P1~~ ~~M8~~ ~~P3~~ ~~consulta en línea (parte de P4)~~ · **M9 "Únete a la red" en el encabezado (empezar aquí)** · resumen semanal al médico por Telegram.
+   - **M9** (`5e4e004`): en `/directorio/` el encabezado dice "Únete a la red" (en celular "Únete") junto a "Acceso médico" → `unete.html`. Medido sin desbordar en 320/360/375/414/700 px. En `unete.html`, si la solicitud no se guarda, NOVA ya NO dice "quedó registrada": dice que no se pudo y por qué (probado con respuestas simuladas 503 / sin red / 200, sin crear registros).
+   - **Resumen semanal**: abrir una ficha en Preview cuenta una visita (una por semana por navegador; en Airtable de prueba, tabla `VISITAS_DIRECTORIO`). El cron NO corre en Preview (solo en producción). Para ver los textos sin mandar nada: `curl -H "Authorization: Bearer <CRON_SECRET>" "<preview>/api/resumen-semanal?prueba=1"` (Preview además pide el bypass de Vercel Authentication). Sin `prueba=1` manda Telegram real a los médicos de prueba con Telegram (hoy solo VIRN01) y el control a Víctor.
+3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ ~~P1~~ ~~M8~~ ~~P3~~ ~~consulta en línea (parte de P4)~~ · ~~M9~~ · ~~resumen semanal~~ · **siguiente: M7 botón "Agendar" fijo** (ya existe `vigilarBotonFijo` en la ficha: revisar si M7 ya está hecho) o M10 idiomas (baja), o pasar a la pestaña Citas de la app del paciente.
 4. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1). Rehacerla es categoría A. Lo demás de la app es fase 2.
 
 ### Lo hecho el 2026-10-24
@@ -44,7 +46,9 @@
 - `97b64a5` **Consulta en línea** (Víctor 2026-10-24: algunos médicos la dan; precio, horario y pago los arregla el médico, **cobro directo por transferencia personal, CODE CELLS no interviene**): `Consulta en línea` (casilla) + `Costo de consulta en línea`; el costo solo se publica con la casilla marcada; filtro `?enlinea=1`. La solicitud de cita NO tiene campo de modalidad: el paciente lo escribe en "¿Qué te gustaría atender?". Si se quiere una opción "presencial / en línea" en la solicitud, hace falta un campo nuevo en SOLICITUDES (decisión B). Arreglo de paso: el teléfono del consultorio (`type=tel`) no tenía estilo en el portal.
 - `9dd5eac` **Modalidad en la solicitud**: campo `Modalidad` (Presencial / En línea) en SOLICITUDES (`tblUsc72JO2BaqT6d`; prueba `fldW0hLhSp3myFeb8`, prod `fldCn4y6dWnLnmylM`). Se escribe SIEMPRE (también "Presencial"); vacío en solicitudes viejas = presencial. En línea nunca usa la agenda automática; 400 si el médico no la ofrece.
 - `9a8a6cb` **NOVA con precios**: se quitó del prompt "Primera consulta: $1,500 MXN" y la cobertura escrita a mano; la herramienta `buscar_medicos_directorio` devuelve costos (null = no publicado), consulta en línea y liga; filtro `en_linea`; ciudad sin acentos. Botón del home ahora aparece cuando NOVA menciona el directorio.
-- Pruebas: **192/192**.
+- `5e4e004` **M9 "Únete a la red"** en el encabezado del directorio; `unete.html` ya no dice "registrada" si el guardado falló (antes se tragaba el error; en producción, con `afiliacion` congelada, TODA solicitud se perdía en silencio).
+- **Resumen semanal al médico**: `lib/resumen-semanal.js` (reglas puras) + `api/citas.js` `?accion=visita` (público, POST) y `?accion=resumen_semanal` (cron, `Authorization: Bearer CRON_SECRET`, `&prueba=1` no manda nada). `vercel.json`: rewrite `/api/resumen-semanal` + cron `0 16 * * 1` (lunes 9:00 Culiacán). Semana lunes–domingo en `America/Mazatlan`, nombrada por su lunes. Visitas en tabla `VISITAS_DIRECTORIO` (`Clave` perfil|lunes, `Perfil`, `Semana`, `Visitas`), sin IP ni cookie; el navegador marca en localStorage `cc_visita_<id>`; bots fuera por User-Agent (incluye la vista previa de WhatsApp/Telegram). Lee TODO antes de mandar: si una lectura falla, ningún médico recibe nada y Víctor recibe "NO se envió". Sin Telegram → no se le manda (no hay respaldo por médico); Víctor recibe un control con quién no lo recibió. La lectura de SOLICITUDES pide solo campos sin datos del paciente. Probado en local contra la base de prueba: visita real (crea fila, no duplica, suma), `prueba=1` con datos reales, 401 sin secreto. **No probado: el envío real por Telegram ni el cron de Vercel** (solo con red simulada). Trampa encontrada: el GET de un registro por id en Airtable NO acepta `fields[]` (422).
+- Pruebas: **204/204**.
 - **WhatsApp que queda fuera de esta rama** (fase 2, `feat/paciente-unico`): portal VIP y `dezawavip.html` (verificación con "últimos 4 dígitos de tu WhatsApp", botones "Enviar por WhatsApp"), portal clínico ("Enviar por WhatsApp"/"Copiar para WhatsApp" de planes y recetas), `api/nova.js` (Canal 'WhatsApp' en solicitudes de cita, firma "📲 WhatsApp"). `aviso-privacidad.html` dice "Número telefónico o de WhatsApp": cambiarlo con la revisión del abogado.
 
 ### Lo hecho el 2026-10-23 (tarde)
@@ -140,6 +144,8 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 
 ## 4b. Antes de fusionar a `main`
 
+**Tabla `VISITAS_DIRECTORIO` — FALTA EN PRODUCCIÓN.** Víctor la autorizó el 2026-10-24, pero el permiso de Claude Code bloqueó la creación por MCP: crearla a mano en Airtable o dar el permiso. En prueba: `tbl9SwedUiu9uBzKs` (`Clave` texto primario, `Perfil` texto, `Semana` texto, `Visitas` número entero). El código la llama por NOMBRE (los ids de tabla nuevos difieren entre bases). Sin ella en producción: cada visita responde 502 (la ficha no se afecta) y el resumen del lunes no se manda y avisa a Víctor.
+
 **Campo `Modalidad` (SOLICITUDES) YA CREADO EN PRODUCCIÓN** (2026-10-24, autorizado por Víctor; `fldCn4y6dWnLnmylM`). Sin él, crear CUALQUIER solicitud daría 422.
 
 **Campos `Costo de consulta`, `Consulta en línea` y `Costo de consulta en línea` YA CREADOS EN PRODUCCIÓN** (2026-10-24, autorizados por Víctor; prod `fld2o194je2Ts4NkT`, `fldSPAh4CM5l8Eb4y`, `fldbZ502g3XpvMxeE`; prueba `fldkRPbdEGtyV4puu`, `fld81if2lMX7xpdzL`, `fldgaYL5ZWypD8j9H`). Vacíos. Regla: cualquier campo nuevo en `CAMPOS_LECTURA_PUBLICA` debe existir en producción antes de fusionar, o el directorio da 422.
@@ -153,6 +159,7 @@ Las diferencias restantes entre bases son del portal clínico (fase 2: anteceden
 En Google Cloud el redirect de producción ya existe (`https://www.codecells.mx/api/google-oauth-callback`).
 - Cerrar en el mismo cambio: `api/buscar-medicos` ya está en 410 en esta rama.
 - Producción sigue congelada: NO definir `DESCONGELAR_PRODUCCION` al fusionar.
+- **DECIDIDO por Víctor (2026-10-24): lanzar con `DESCONGELAR_AREAS=directorio,afiliacion`** (así "Únete a la red" de M9 sí registra médicos).
 
 ## 5. Trampas técnicas
 
