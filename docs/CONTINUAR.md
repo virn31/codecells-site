@@ -17,7 +17,9 @@
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push:** `git push origin hotfix/auth-login-inyeccion` + merge a `main` en GitHub (URGENTE, seguridad); `git push origin feat/paciente-unico` (rama única).
+1. ~~Hotfix de inyección~~ EN PRODUCCIÓN (PR #7, `3d951df`, verificado 401 en codecells.mx, 2026-10-24). Falta `git push origin feat/paciente-unico` (rama única).
+   - Vercel (2026-10-24): los 4 ajustes de Preview por rama (`TELEGRAM_BOT_TOKEN_PRUEBA`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_PRUEBA`, `GOOGLE_REDIRECT_URI`) se MOVIERON de `feat/directorio` a `feat/paciente-unico` (no se copiaron: los secretos no pasan por Claude). `GOOGLE_REDIRECT_URI` = `https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/api/google-oauth-callback` → Víctor la agrega en Google Cloud (Credenciales → cliente OAuth → URIs de redireccionamiento).
+   - Tras el primer Preview: abrir `https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/api/telegram-bot?accion=registrar_webhook` (registra el webhook del bot de prueba en el Preview nuevo y confirma que el token movido es el del bot de prueba).
 2. **PIN para médicos + entrada única (2026-10-24, decisión de Víctor):**
    - `entrar.html`: "¿Eres médico o paciente?" → código → PIN → portal (`#selector`) o `mi-nivel.html`. Recibe las ligas `?activar=…&t=medico|paciente`. El portal sin sesión y "Salir" mandan aquí; se quitó el auto-login de 90 días por dispositivo (entraba sin nada). La app del paciente sin código recordado manda aquí.
    - Servidor: `lib/credenciales.js` (antes `credencialesPaciente.js`) sirve a los dos; tabla `CREDENCIALES_MEDICO` (prueba `tbl2bkJUptlAM6Ghe`). `auth-login` exige PIN al médico (mismas reglas: scrypt, 5 fallos → 15 min, 10 → solo liga nueva).
