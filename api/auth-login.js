@@ -18,6 +18,14 @@ const { camposParaSuDueno } = require('../lib/camposMedico');
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
 
+// El código se pega dentro de una fórmula de Airtable: el servidor valida su
+// forma SIEMPRE (no basta con la regex de cada pantalla). Sin esto, un código
+// con comillas reescribía la fórmula (p. ej. `" != "x`) y emitía un token del
+// primer médico de la tabla sin conocer ningún código. Letras, números y
+// guiones cubren CCMED-*, CC-PAC-* y los códigos VIP.
+const CODIGO_SEGURO = /^[A-Za-z0-9][A-Za-z0-9-]{2,29}$/;
+const enFormula = v => String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
 const TABLAS = {
   medico:   { id: 'tbl87DsuBMmb4DjFM', campo: 'Código de médico' },
   paciente: { id: 'tblyUcCfueFLJuvIv', campo: 'Código de paciente' },
@@ -174,8 +182,12 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Falta un tipo válido (medico/paciente/vip) o el código.' });
     }
 
+    if (!CODIGO_SEGURO.test(codigo.trim())) {
+      return res.status(401).json({ error: 'No encontramos ese código. Verifica que esté completo (revisa que no se haya cortado al escribirlo o pegarlo) o confirma con administración.' });
+    }
+
     const { id: tableId, campo } = TABLAS[tipo];
-    const formula = encodeURIComponent(`{${campo}}="${codigo.trim()}"`);
+    const formula = encodeURIComponent(`{${campo}}="${enFormula(codigo.trim())}"`);
     const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?filterByFormula=${formula}&maxRecords=1`;
     const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
     const data = await r.json();
