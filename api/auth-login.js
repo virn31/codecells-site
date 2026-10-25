@@ -16,7 +16,7 @@ const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { camposParaSuDueno } = require('../lib/camposMedico');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 
 // El código se pega dentro de una fórmula de Airtable: el servidor valida su
 // forma SIEMPRE (no basta con la regex de cada pantalla). Sin esto, un código

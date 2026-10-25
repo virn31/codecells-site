@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Médico — Red CODE CELLS™</title>
+  <meta name="description" content="Perfil del médico en el directorio de la Red CODE CELLS™ y solicitud de cita.">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,700;1,500&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Mismos tokens que /directorio/ */
+    :root {
+      --bg: #0E1410;
+      --bg-alt: #121810;
+      --surface: #1A211B;
+      --surface-2: #202820;
+      --ink: #F2EFE6;
+      --ink-muted: #A9B3A4;
+      --ink-dim: #6E786C;
+      --line: rgba(242,239,230,0.12);
+      --c-energy: #E8A33D;
+      --c-repair: #D4654A;
+      --c-balance: #4FA8A0;
+      --c-regen: #5FAE6E;
+      --cc-cream: #F4EFE3;
+      --cc-ink: #1A1F1C;
+      --font-display: "Fraunces", serif;
+      --font-body: "IBM Plex Sans", sans-serif;
+      --font-mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E1410 url('/assets/nebula-nova.jpg') center/cover fixed no-repeat;
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(14,20,16,0.80) 0%, rgba(14,20,16,0.92) 55%, rgba(14,20,16,0.97) 100%);
+      z-index: -1;
+      pointer-events: none;
+    }
+    a { color: inherit; }
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 18px 40px; border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(14,20,16,0.92); backdrop-filter: blur(12px);
+    }
+    header .logo { font-family: var(--font-display); font-size: 20px; color: var(--c-energy); text-decoration: none; }
+    header .volver {
+      font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--ink-muted); text-decoration: none; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px;
+    }
+    header .volver:hover { color: var(--c-energy); border-color: rgba(232,163,61,0.4); }
+    main { max-width: 820px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    .estado-pagina { text-align: center; padding: 60px 16px; color: var(--ink-muted); }
+    .estado-pagina h1 { font-family: var(--font-display); color: var(--c-energy); font-weight: 500; }
+
+    /* Ficha */
+    .ficha {
+      background: radial-gradient(circle at 100% 0%, rgba(79,168,160,0.10), transparent 55%), var(--surface);
+      border: 1px solid var(--line); border-radius: 16px; padding: 32px;
+    }
+    .ficha__top { display: flex; gap: 28px; align-items: center; }
+    .avatar {
+      position: relative; flex: 0 0 132px; width: 132px; height: 132px; border-radius: 50%;
+      border: 2px solid var(--c-energy); overflow: hidden; display: grid; place-items: center; background: var(--surface-2);
+    }
+    .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .avatar span { font-family: var(--font-display); font-style: italic; font-size: 2.6rem; color: var(--c-energy); }
+    .ficha h1 {
+      font-family: var(--font-display); font-style: italic; font-weight: 500;
+      font-size: clamp(1.7rem, 4vw, 2.3rem); line-height: 1.15; color: var(--c-energy); margin: 0 0 6px; overflow-wrap: anywhere;
+    }
+    .ficha .ciudad { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); }
+    .filas { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 12px; }
+    .fila { display: flex; align-items: center; gap: 12px; font-size: 15px; }
+    .fila > span:last-child { overflow-wrap: anywhere; min-width: 0; }
+    .fila--aviso { color: var(--ink-muted); font-style: italic; font-size: 14px; }
+    .fila--tel { font-family: var(--font-mono); letter-spacing: 0.04em; }
+    .icono {
+      flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%;
+      background: var(--c-balance); color: var(--cc-ink); display: grid; place-items: center;
+    }
+    .icono svg { width: 15px; height: 15px; }
+    .seccion { margin-top: 28px; }
+    .seccion h2 {
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--c-energy); font-weight: 500; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(232,163,61,0.15);
+    }
+    .bio { color: var(--ink-muted); line-height: 1.65; margin: 0; white-space: pre-line; }
+    .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { font-size: 13px; padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(232,163,61,0.5); color: var(--c-energy); }
+    .llamar {
+      display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 10px 18px; border-radius: 999px;
+      background: var(--c-balance); color: var(--cc-ink); font-weight: 600; text-decoration: none;
+    }
+    /* Redes sociales: botones píldora con ícono; ligas ya validadas por el servidor. */
+    .redes { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .redes a {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+      border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-size: 14px;
+      transition: border-color .15s, color .15s;
+    }
+    .redes a:hover, .redes a:focus-visible { border-color: rgba(232,163,61,0.6); color: var(--c-energy); }
+    .redes svg { width: 18px; height: 18px; flex: 0 0 18px; }
+    .legal { margin-top: 28px; font-size: 12px; color: var(--ink-dim); line-height: 1.6; }
+
+    /* Formulario de solicitud */
+    .solicitud {
+      margin-top: 32px; background: var(--surface); border: 1px solid rgba(232,163,61,0.3); border-radius: 16px; padding: 32px;
+    }
+    .solicitud h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.6rem; margin: 0 0 8px; color: var(--ink); }
+    .nota {
+      font-size: 14px; color: var(--ink-muted); background: rgba(79,168,160,0.08); border-left: 3px solid var(--c-balance);
+      padding: 12px 14px; border-radius: 0 8px 8px 0; margin: 0 0 22px;
+    }
+    .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .campo--ancho { grid-column: 1 / -1; }
+    .campo label, .campo legend { font-size: 13px; color: var(--ink-muted); padding: 0; }
+    .campo input[type=text], .campo input[type=tel], .campo input[type=email], .campo input[type=date], .campo textarea {
+      width: 100%; padding: 11px 12px; background: var(--bg-alt); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 8px; font-family: var(--font-body); font-size: 15px; color-scheme: dark;
+    }
+    .campo textarea { min-height: 90px; resize: vertical; }
+    .campo input:focus, .campo textarea:focus { outline: none; border-color: rgba(232,163,61,0.6); }
+    fieldset.campo { border: 0; margin: 0; padding: 0; }
+    .turnos { display: flex; gap: 8px; flex-wrap: wrap; }
+    .turnos label {
+      display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px;
+      cursor: pointer; color: var(--ink); font-size: 14px;
+    }
+    .turnos input { accent-color: var(--c-energy); }
+    .turnos label:has(input:checked) { border-color: var(--c-energy); background: rgba(232,163,61,0.1); }
+    .nota-chica { margin: 0 0 8px; color: var(--ink-muted); font-size: 14px; }
+    /* Agenda automática: pasos, tira de días y horas */
+    .paso { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; font-size: 15px; font-weight: 600; color: var(--ink); }
+    .paso:first-of-type { margin-top: 4px; }
+    .paso__n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: var(--c-energy); color: #1A1406; flex: 0 0 auto; }
+    .paso__dia { font-weight: 400; color: var(--ink-muted); font-size: 14px; }
+    .paso__dia:not(:empty)::before { content: '· '; }
+    .tira-dias { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(78px, 1fr); gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+    .dia-chip {
+      scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px;
+      border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-family: var(--font-body);
+    }
+    .dia-chip:hover { border-color: rgba(232,163,61,0.5); }
+    .dia-chip[aria-pressed="true"] { border-color: var(--c-energy); background: rgba(232,163,61,0.12); }
+    .dia-chip__sem, .dia-chip__mes { font-size: 12px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .dia-chip__num { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; }
+    .dia-chip__n { font-size: 11px; color: var(--c-balance); margin-top: 2px; }
+    .otra-fecha { margin-top: 10px; font-size: 14px; color: var(--ink-muted); }
+    .otra-fecha summary { cursor: pointer; width: fit-content; }
+    .otra-fecha input { margin-top: 8px; padding: 9px 12px; background: var(--bg-alt); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; font-family: var(--font-body); font-size: 15px; color-scheme: dark; }
+    .turnos--horas label { min-width: 78px; justify-content: center; font-variant-numeric: tabular-nums; position: relative; }
+    .turnos--horas input { position: absolute; opacity: 0; pointer-events: none; }
+    .turnos--horas label:has(input:focus-visible) { outline: 2px solid var(--c-energy); outline-offset: 2px; }
+    .resumen-cita { margin: 18px 0 0; padding: 12px 14px; border-radius: 10px; background: rgba(232,163,61,0.1); border: 1px solid rgba(232,163,61,0.35); color: var(--ink); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    /* Botón fijo en celular: lleva al formulario sin tener que bajar */
+    .agendar-fijo { display: none; }
+    @media (max-width: 639px) {
+      .agendar-fijo {
+        position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 20; text-align: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.45); text-decoration: none;
+      }
+      .agendar-fijo.visible { display: block; }
+    }
+    .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--ink-muted); line-height: 1.55; margin-top: 4px; }
+    .consent input { margin-top: 3px; accent-color: var(--c-energy); flex: 0 0 auto; }
+    .consent a { color: var(--c-energy); }
+    .acciones { display: flex; justify-content: flex-end; margin-top: 20px; }
+    .btn {
+      padding: 12px 26px; border-radius: 999px; border: 0; cursor: pointer;
+      background: var(--c-energy); color: #1A1406; font-family: var(--font-body); font-size: 15px; font-weight: 600;
+    }
+    .btn:disabled { opacity: 0.6; cursor: wait; }
+    .btn-sec {
+      padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink);
+      font-family: var(--font-body); font-size: 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .error { color: #F08A73; font-size: 14px; margin-top: 12px; min-height: 1em; }
+
+    .enviada h2 { color: var(--c-energy); }
+    .liga {
+      display: flex; gap: 8px; align-items: center; margin: 16px 0; padding: 10px 12px; background: var(--bg-alt);
+      border: 1px dashed rgba(232,163,61,0.4); border-radius: 8px; font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere;
+    }
+    .botones { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    @media (max-width: 639px) {
+      header { padding: 14px 16px; }
+      main { padding: 24px 16px 60px; }
+      .ficha, .solicitud { padding: 22px 18px; }
+      .ficha__top { flex-direction: column; text-align: center; gap: 16px; }
+      .filas { width: fit-content; max-width: 100%; margin-inline: auto; }
+      .rejilla { grid-template-columns: 1fr; }
+      .acciones .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">CODE CELLS™</a>
+    <a href="/directorio/" class="volver">← Directorio</a>
+  </header>
+
+  <a href="#solicitar" class="btn agendar-fijo" id="agendar-fijo">Agendar cita</a>
+  <main id="contenido">
+    <div class="estado-pagina">Cargando perfil…</div>
+  </main>
+
+  <script src="/directorio/calendario.js"></script>
+  <script>
+    const ICONO_ATR = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+    const ICONOS = {
+      especialidad: `<svg ${ICONO_ATR}><path d="M12 5v14M5 12h14"/></svg>`,
+      ubicacion: `<svg ${ICONO_ATR}><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
+      reloj: `<svg ${ICONO_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
+      telefono: `<svg ${ICONO_ATR}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>`,
+      candado: `<svg ${ICONO_ATR}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+      pantalla: `<svg ${ICONO_ATR}><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>`,
+      costo: `<svg ${ICONO_ATR}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>`,
+    };
+    // Íconos de línea propios (sin cargar logos de terceros).
+    const REDES = [
+      { campo: 'Instagram', icono: `<svg ${ICONO_ATR}><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="0.6" fill="currentColor"/></svg>` },
+      { campo: 'Facebook', icono: `<svg ${ICONO_ATR}><path d="M14.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.6 1.6-1.6h1.5V4.3a20 20 0 0 0-2.3-.1c-2.3 0-3.8 1.4-3.8 3.9v2.4H9v3h2.5V21"/></svg>` },
+      { campo: 'TikTok', icono: `<svg ${ICONO_ATR}><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.4 2.6 2.2 4.4 5 4.6"/></svg>` },
+      { campo: 'YouTube', icono: `<svg ${ICONO_ATR}><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10.5 9.5v5l4-2.5z" fill="currentColor"/></svg>` },
+      { campo: 'LinkedIn', icono: `<svg ${ICONO_ATR}><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 10.5V16M8 7.8v.1M11.5 16v-5.5M11.5 13c0-1.5 1-2.5 2.3-2.5s2.2.9 2.2 2.5V16"/></svg>` },
+      { campo: 'Sitio web', icono: `<svg ${ICONO_ATR}><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5s1.2-6.1 3.5-8.5z"/></svg>` },
+      { campo: 'WhatsApp público', etiqueta: 'WhatsApp', icono: `<svg ${ICONO_ATR}><path d="M4 20l1.3-3.9A8.5 8.5 0 1 1 8 18.8z"/></svg>` },
+    ];
+    // El servidor ya filtró las ligas; aquí se vuelve a exigir https por si acaso.
+    function htmlRedes(f, nombre) {
+      const items = REDES.filter(r => /^https:\/\//i.test(f[r.campo] || '')).map(r =>
+        `<li><a href="${esc(f[r.campo])}" target="_blank" rel="noopener noreferrer nofollow" aria-label="${esc(r.etiqueta || r.campo)} de ${esc(nombre)} (se abre en otra pestaña)">${r.icono}<span>${esc(r.etiqueta || r.campo)}</span></a></li>`);
+      return items.length ? `<ul class="redes">${items.join('')}</ul>` : '';
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function iniciales(nombre) {
+      const p = String(nombre || '').replace(/\[[^\]]*\]/g, ' ').split(/\s+/).filter(x => x && !/^(dr|dra|doctor|doctora)\.?$/i.test(x));
+      return p.slice(0, 2).map(x => x[0].toUpperCase()).join('') || '·';
+    }
+    const fila = (icono, html, clase) => `<li class="fila${clase ? ' ' + clase : ''}"><span class="icono">${icono}</span><span>${html}</span></li>`;
+    const leer = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
+    const guardar = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } };
+
+    // Fechas en hora de México: mañana y +90 días (mismo límite que el servidor).
+    function ymdMexico(dias) {
+      const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const d = new Date(hoy + 'T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() + dias);
+      return d.toISOString().slice(0, 10);
+    }
+
+    // /directorio/<liga> llega con window.FICHA (lo pone api/ficha.js);
+    // /directorio/medico.html?id=rec… sigue funcionando.
+    const FICHA = window.FICHA || {};
+    const ID = FICHA.id || new URLSearchParams(location.search).get('id') || '';
+    let MEDICO = null;
+    // Agenda automática (etapa 2b): { automatica, siguientes, … } | { error: true } si no se pudo leer.
+    let AGENDA = null;
+
+    const fechaLarga = ymd => new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    const horaCorta = h => String(h).replace(/^0(\d)/, '$1');
+    // "Sábado, 24 de octubre": solo la primera letra (antes el CSS ponía "De Octubre").
+    const mayusculaInicial = t => String(t).charAt(0).toUpperCase() + String(t).slice(1);
+    // "DEZAWA (VIP)" es el valor guardado; al paciente no se le habla de VIP.
+    const etiquetaHerramienta = t => String(t || '').replace(/\s*\(VIP\)\s*$/i, '');
+
+    async function cargarDisponibilidad(fecha) {
+      try {
+        const r = await fetch('/api/citas?accion=disponibilidad&medicoId=' + encodeURIComponent(ID) + (fecha ? '&fecha=' + encodeURIComponent(fecha) : ''));
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'Error ' + r.status);
+        return d;
+      } catch (e) {
+        return { error: true };
+      }
+    }
+
+    // Teléfono del consultorio como enlace tel: (sin WhatsApp ni otra
+    // empresa de por medio). 10 dígitos = México (+52).
+    function digitosTel(t) { return String(t || '').replace(/\D/g, ''); }
+    function enlaceTel(t) {
+      const d = digitosTel(t);
+      if (d.length < 10) return '';
+      return 'tel:+' + (d.length === 10 ? '52' + d : d);
+    }
+    function telLegible(t) {
+      const n = digitosTel(t).slice(-10);
+      return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : String(t || '');
+    }
+
+    // Costo de la consulta (opcional; se paga en el consultorio): 1200 → "$1,200 MXN".
+    function costoLegible(v) {
+      const n = Number(v);
+      return Number.isInteger(n) && n > 0 ? '$' + n.toLocaleString('en-US') + ' MXN' : '';
+    }
+
+    function enlaceMapa(direccion, ciudad) {
+      const partes = [String(direccion || '').split(/\n+/).map(x => x.trim()).filter(Boolean).join(', '), ciudad, 'México'].filter(Boolean);
+      return partes.length > 1 ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(partes.join(', ')) : '';
+    }
+
+    async function cargarContactos() {
+      const token = leer('cc_visitante');
+      if (!token) return { tel: null, error: false };
+      try {
+        const r = await fetch('/api/airtable?tabla=directorio_medico&accion=contactos', { headers: { Authorization: 'Bearer ' + token } });
+        if (r.status === 401) return { tel: null, error: false, vencido: true };
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) return { tel: null, error: true };
+        return { tel: (d.contactos || {})[ID] || null, error: false };
+      } catch (e) {
+        return { tel: null, error: true };
+      }
+    }
+
+    // Una visita por semana y por navegador para el resumen semanal del
+    // médico. Sin IP ni cookie: solo el id del perfil. Si falla, la ficha
+    // sigue igual (es un contador, no algo que el paciente necesite).
+    function contarVisita() {
+      const hoy = new Date();
+      const lunes = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - ((hoy.getDay() + 6) % 7));
+      const semana = lunes.getFullYear() + '-' + String(lunes.getMonth() + 1).padStart(2, '0') + '-' + String(lunes.getDate()).padStart(2, '0');
+      const llave = 'cc_visita_' + ID;
+      try { if (localStorage.getItem(llave) === semana) return; } catch (e) { /* sin almacenamiento: se cuenta */ }
+      fetch('/api/citas?accion=visita', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medicoId: ID }), keepalive: true,
+      }).then(r => {
+        if (!r.ok) { console.warn('[directorio] visita no contada:', r.status); return; }
+        try { localStorage.setItem(llave, semana); } catch (e) { /* sin almacenamiento */ }
+      }).catch(e => console.warn('[directorio] visita no contada:', e.message));
+    }
+
+    async function cargar() {
+      const cont = document.getElementById('contenido');
+      if (FICHA.noEncontrada) {
+        cont.innerHTML = '<div class="estado-pagina"><h1>Este médico no está en el directorio</h1><p>La liga no existe o el médico retiró su perfil. <a href="/directorio/">Buscar otro médico</a></p></div>';
+        return;
+      }
+      if (!/^rec[A-Za-z0-9]{14}$/.test(ID)) {
+        cont.innerHTML = '<div class="estado-pagina"><h1>Perfil no encontrado</h1><p>La liga está incompleta. <a href="/directorio/">Volver al directorio</a></p></div>';
+        return;
+      }
+      try {
+        const r = await fetch('/api/airtable?tabla=directorio_medico&id=' + encodeURIComponent(ID));
+        if (!r.ok) throw new Error('Error ' + r.status);
+        const d = await r.json();
+        MEDICO = (d.records || [])[0] || null;
+      } catch (e) {
+        cont.innerHTML = '<div class="estado-pagina"><h1>No pudimos cargar el perfil</h1><p>Hubo un problema de conexión. Recarga la página en unos segundos.</p></div>';
+        return;
+      }
+      if (!MEDICO) {
+        cont.innerHTML = '<div class="estado-pagina"><h1>Este médico no está en el directorio</h1><p>Puede que haya retirado su perfil. <a href="/directorio/">Buscar otro médico</a></p></div>';
+        return;
+      }
+      // Abierta con ?id=: se muestra la liga bonita en la barra (misma página).
+      const liga = (MEDICO.fields || {})['Liga pública'];
+      if (!FICHA.id && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(liga || '')) {
+        try { history.replaceState(null, '', '/directorio/' + liga + location.hash); } catch (e) { /* sin history */ }
+      }
+      const [contactos, agenda] = await Promise.all([cargarContactos(), cargarDisponibilidad()]);
+      AGENDA = agenda;
+      render(contactos);
+      contarVisita();
+      if (AGENDA && AGENDA.automatica && (AGENDA.siguientes || []).length) elegirFecha(AGENDA.siguientes[0].fecha);
+      if (location.hash === '#solicitar') document.getElementById('solicitar').scrollIntoView({ behavior: 'smooth' });
+      vigilarBotonFijo();
+    }
+
+    function render(ct) {
+      const f = MEDICO.fields || {};
+      const nombre = f['Name'] || 'Médico';
+      document.title = nombre + ' — Red CODE CELLS™';
+      const foto = /^https:\/\//.test(f['Foto de perfil'] || '') ? f['Foto de perfil'] : '';
+      const esp = (f['Especialidades visibles'] || []).map(esc).join(' · ');
+      const trat = f['Tratamientos que ofrece'] || [];
+      const tieneToken = !!leer('cc_visitante') && !ct.vencido;
+      const filas = [
+        esp && fila(ICONOS.especialidad, esp),
+        f['Horarios'] && fila(ICONOS.reloj, esc(f['Horarios'])),
+        costoLegible(f['Costo de consulta']) && fila(ICONOS.costo, `Consulta: ${esc(costoLegible(f['Costo de consulta']))} <span style="opacity:.7">· se paga en el consultorio</span>`),
+        f['Consulta en línea'] === true && fila(ICONOS.pantalla, `${costoLegible(f['Costo de consulta en línea']) ? 'Consulta en línea: ' + esc(costoLegible(f['Costo de consulta en línea'])) : 'Ofrece consulta en línea'}<br><span style="opacity:.7;font-size:.92em">Horario y pago se acuerdan directamente con el médico (por ejemplo, por transferencia). CODE CELLS no cobra ni interviene.</span>`),
+        f['Dirección del consultorio'] && fila(ICONOS.ubicacion, `<span style="white-space:pre-line">${esc(f['Dirección del consultorio'])}</span>${enlaceMapa(f['Dirección del consultorio'], f['Ciudad de consulta']) ? ` · <a href="${esc(enlaceMapa(f['Dirección del consultorio'], f['Ciudad de consulta']))}" target="_blank" rel="noopener">Cómo llegar</a>` : ''}`),
+        ct.tel && fila(ICONOS.telefono, enlaceTel(ct.tel) ? `<a href="${enlaceTel(ct.tel)}">${esc(telLegible(ct.tel))}</a>` : esc(ct.tel), 'fila--tel'),
+        (tieneToken && ct.error) && fila(ICONOS.telefono, 'No pudimos cargar el teléfono. Recarga en unos segundos.', 'fila--aviso'),
+        !tieneToken && fila(ICONOS.candado, 'El teléfono se muestra después de enviar tu solicitud.', 'fila--aviso'),
+      ].filter(Boolean).join('');
+
+      document.getElementById('contenido').innerHTML = `
+        <article class="ficha">
+          <div class="ficha__top">
+            <div class="avatar">
+              <span aria-hidden="true">${esc(iniciales(nombre))}</span>
+              ${foto ? `<img src="${esc(foto)}" alt="Foto de ${esc(nombre)}" onerror="this.remove()">` : ''}
+            </div>
+            <div>
+              <h1>${esc(nombre)}</h1>
+              ${f['Ciudad de consulta'] ? `<div class="ciudad">${esc(f['Ciudad de consulta'])}</div>` : ''}
+            </div>
+          </div>
+          ${filas ? `<ul class="filas">${filas}</ul>` : ''}
+          ${htmlRedes(f, nombre)}
+          ${enlaceTel(ct.tel) && tieneToken ? `<a class="llamar" href="${enlaceTel(ct.tel)}">${ICONOS.telefono} Llamar al consultorio</a>` : ''}
+          ${f['Bio corta'] ? `<section class="seccion"><h2>Presentación</h2><p class="bio">${esc(f['Bio corta'])}</p></section>` : ''}
+          ${trat.length ? `<section class="seccion"><h2>Herramientas que ofrece</h2><ul class="chips">${trat.map(t => `<li class="chip">${esc(etiquetaHerramienta(t))}</li>`).join('')}</ul></section>` : ''}
+          ${f['Otras terapias'] ? `<section class="seccion"><h2>Otras terapias</h2><p class="bio">${esc(f['Otras terapias'])}</p></section>` : ''}
+          <p class="legal">Este perfil no sustituye la consulta médica. El médico declara bajo su responsabilidad las herramientas que ofrece.</p>
+        </article>
+
+        <section class="solicitud" id="solicitar">
+          ${htmlFormulario(nombre)}
+        </section>`;
+    }
+
+    // Campos comunes a los dos formularios (agenda automática y solicitud).
+    const camposPaciente = `
+            <div class="campo"><label for="c-nombre">Tu nombre *</label><input id="c-nombre" type="text" autocomplete="name" maxlength="120" required></div>
+            <div class="campo"><label for="c-telefono">Teléfono *</label><input id="c-telefono" type="tel" autocomplete="tel" maxlength="30" required></div>
+            <div class="campo"><label for="c-email">Correo (opcional)</label><input id="c-email" type="email" autocomplete="email" maxlength="120"></div>`;
+
+    // ── Agenda automática: primero el día y la hora, después los datos ──
+    const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    let FECHA_ELEGIDA = '';
+
+    // Tira de días con lugar (los próximos 7). Cada botón dice cuántos horarios hay.
+    function htmlTiraDias(siguientes) {
+      if (!(siguientes || []).length) return '';
+      return `<div class="tira-dias" role="group" aria-label="Días con horarios libres">${siguientes.map(s => {
+        const d = new Date(s.fecha + 'T12:00:00Z');
+        return `<button type="button" class="dia-chip" data-fecha="${esc(s.fecha)}" aria-pressed="false" aria-label="${esc(mayusculaInicial(fechaLarga(s.fecha)))}, ${s.espacios} horarios">
+          <span class="dia-chip__sem">${DIAS_CORTOS[d.getUTCDay()]}</span>
+          <span class="dia-chip__num">${d.getUTCDate()}</span>
+          <span class="dia-chip__mes">${MESES_CORTOS[d.getUTCMonth()]}</span>
+          <span class="dia-chip__n">${s.espacios} ${s.espacios === 1 ? 'horario' : 'horarios'}</span>
+        </button>`;
+      }).join('')}</div>`;
+    }
+
+    function htmlEspacios(d, fecha) {
+      if (!fecha) return '<p class="nota-chica">Elige un día para ver los horarios libres.</p>';
+      if (d.error) return '<p class="error">No pudimos cargar los horarios. Revisa tu conexión e intenta de nuevo.</p>';
+      if (!d.espacios || !d.espacios.length) return `<p class="nota-chica">No hay horarios libres el ${esc(fechaLarga(fecha))}. Elige otro día.</p>`;
+      return `<div class="turnos turnos--horas">${d.espacios.map(h =>
+        `<label><input type="radio" name="hora" value="${esc(h)}"> ${esc(horaCorta(h))}</label>`).join('')}</div>`;
+    }
+
+    async function elegirFecha(fecha) {
+      const cont = document.getElementById('c-espacios');
+      if (!cont) return;
+      FECHA_ELEGIDA = fecha;
+      document.getElementById('c-fecha').value = fecha;
+      document.querySelectorAll('.dia-chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fecha === fecha)));
+      const titulo = document.getElementById('c-dia-elegido');
+      if (titulo) titulo.textContent = mayusculaInicial(fechaLarga(fecha));
+      mostrarDatos(false);
+      cont.innerHTML = '<p class="nota-chica">Buscando horarios…</p>';
+      const d = await cargarDisponibilidad(fecha);
+      if (FECHA_ELEGIDA !== fecha) return; // el paciente ya eligió otro día
+      cont.innerHTML = htmlEspacios(d, fecha);
+    }
+
+    // Los datos del paciente aparecen hasta que eligió hora (antes se pedían
+    // nombre y teléfono sin saber si había lugar).
+    function mostrarDatos(si, hora) {
+      const caja = document.getElementById('c-datos');
+      if (!caja) return;
+      caja.hidden = !si;
+      if (si) {
+        document.getElementById('c-resumen').innerHTML = `Tu cita: <strong>${esc(fechaLarga(FECHA_ELEGIDA))}, ${esc(horaCorta(hora))} h</strong>`;
+        caja.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    // Presencial o en línea (solo si el médico ofrece consulta en línea). En
+    // línea no usa la agenda automática: el horario se acuerda con el médico.
+    let MODALIDAD = 'Presencial';
+    const ofreceEnLinea = () => ((MEDICO && MEDICO.fields) || {})['Consulta en línea'] === true;
+    const agendaAutomatica = () => !!(AGENDA && AGENDA.automatica) && MODALIDAD !== 'En línea';
+
+    function htmlFormulario(nombre) {
+      if (!ofreceEnLinea()) return htmlFormularioPresencial(nombre);
+      const selector = `
+        <div class="paso" style="margin-top:0">¿Cómo quieres tu consulta?</div>
+        <div class="turnos" role="radiogroup" aria-label="Modalidad de la consulta" style="margin-bottom:18px">
+          <label><input type="radio" name="modalidad" value="Presencial" ${MODALIDAD === 'Presencial' ? 'checked' : ''}> En el consultorio</label>
+          <label><input type="radio" name="modalidad" value="En línea" ${MODALIDAD === 'En línea' ? 'checked' : ''}> En línea</label>
+        </div>`;
+      return selector + (MODALIDAD === 'En línea' ? htmlFormularioEnLinea(nombre) : htmlFormularioPresencial(nombre));
+    }
+
+    function htmlFormularioEnLinea(nombre) {
+      const costo = costoLegible((MEDICO.fields || {})['Costo de consulta en línea']);
+      return `
+        <h2>Solicitar consulta en línea</h2>
+        <p class="nota">Esto es una <strong>solicitud</strong>. ${esc(nombre)} la revisará y te contactará para acordar el día, la hora y cómo se conectan. ${costo ? `Costo: <strong>${esc(costo)}</strong>. ` : ''}El pago lo acuerdas directamente con el médico (por ejemplo, por transferencia); CODE CELLS no cobra ni interviene.</p>
+        <form id="form-cita" novalidate>
+          <div class="rejilla">
+            ${camposPaciente}
+            <div class="campo"><label for="c-fecha">Fecha que prefieres *</label><input id="c-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" required></div>
+            <fieldset class="campo campo--ancho">
+              <legend>Horario que prefieres *</legend>
+              <div class="turnos">
+                <label><input type="radio" name="turno" value="Mañana"> Mañana</label>
+                <label><input type="radio" name="turno" value="Tarde"> Tarde</label>
+                <label><input type="radio" name="turno" value="Cualquiera" checked> Cualquiera</label>
+              </div>
+            </fieldset>
+            ${camposFinales('Enviar solicitud')}
+        </form>`;
+    }
+
+    function htmlFormularioPresencial(nombre) {
+      if (AGENDA && AGENDA.error) {
+        return `<h2>Agendar cita</h2>
+          <p class="error">No pudimos cargar la agenda de ${esc(nombre)}. Recarga la página en unos segundos.</p>`;
+      }
+      if (AGENDA && AGENDA.automatica) {
+        const hayLugar = (AGENDA.siguientes || []).length > 0;
+        return `
+        <h2>Agendar cita</h2>
+        <p class="nota">Elige el día y la hora: verás solo los horarios libres de ${esc(nombre)} y tu cita queda <strong>confirmada al momento</strong>.</p>
+        <form id="form-cita" novalidate>
+          <input type="hidden" id="c-fecha">
+          <div class="paso"><span class="paso__n">1</span> Elige el día</div>
+          ${hayLugar ? htmlTiraDias(AGENDA.siguientes) : '<p class="nota-chica">No hay horarios libres en las próximas semanas. Prueba con otra fecha.</p>'}
+          <details class="otra-fecha" ${hayLugar ? '' : 'open'}>
+            <summary>Otra fecha</summary>
+            <input id="c-otra-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" aria-label="Elegir otra fecha">
+          </details>
+          <div class="paso"><span class="paso__n">2</span> Elige la hora <span class="paso__dia" id="c-dia-elegido"></span></div>
+          <fieldset class="campo campo--ancho" style="margin-bottom:8px">
+            <legend class="visually-hidden">Hora</legend>
+            <div id="c-espacios">${htmlEspacios({}, '')}</div>
+          </fieldset>
+          <div id="c-datos" hidden>
+            <div class="resumen-cita" id="c-resumen"></div>
+            <div class="paso"><span class="paso__n">3</span> Tus datos</div>
+            <div class="rejilla">
+              ${camposPaciente}
+              ${camposFinales('Confirmar cita')}
+          </div>
+        </form>`;
+      }
+      return `
+        <h2>Solicitar cita</h2>
+        <p class="nota">Esto es una <strong>solicitud</strong>, todavía no una cita. ${esc(nombre)} la revisará y podrá aceptarla, proponerte otro horario o avisarte si no puede atenderte. Verás la respuesta en una liga que te daremos al enviar.</p>
+        <form id="form-cita" novalidate>
+          <div class="rejilla">
+            ${camposPaciente}
+            <div class="campo"><label for="c-fecha">Fecha que prefieres *</label><input id="c-fecha" type="date" min="${ymdMexico(1)}" max="${ymdMexico(90)}" required></div>
+            <fieldset class="campo campo--ancho">
+              <legend>Horario que prefieres *</legend>
+              <div class="turnos">
+                <label><input type="radio" name="turno" value="Mañana"> Mañana</label>
+                <label><input type="radio" name="turno" value="Tarde"> Tarde</label>
+                <label><input type="radio" name="turno" value="Cualquiera" checked> Cualquiera</label>
+              </div>
+            </fieldset>
+            ${camposFinales('Enviar solicitud')}
+        </form>`;
+    }
+
+    // Motivo, campo trampa, consentimiento y botón; cierra la rejilla.
+    function camposFinales(textoBoton) {
+      return `
+            <div class="campo campo--ancho"><label for="c-motivo">¿Qué te gustaría atender? (opcional)</label><textarea id="c-motivo" maxlength="1000" placeholder="Describe brevemente lo que buscas"></textarea></div>
+            <div class="trampa" aria-hidden="true"><label for="c-sitio">No llenar</label><input id="c-sitio" type="text" tabindex="-1" autocomplete="off"></div>
+          </div>
+          <div class="consent">
+            <input type="checkbox" id="c-consent">
+            <label for="c-consent">Autorizo que CODE CELLS™ trate mis datos, incluida la información de salud que yo decida escribir, y la comparta con el médico que seleccioné, conforme al <a href="/aviso-privacidad" target="_blank" rel="noopener">Aviso de Privacidad</a>. Puedo enviar mi solicitud sin marcar esta casilla; en ese caso no se guardará lo que escribí sobre lo que quiero atender.</label>
+          </div>
+          <div class="acciones"><button type="submit" class="btn" id="c-enviar">${textoBoton}</button></div>
+          <div class="error" id="c-error" role="alert"></div>`;
+    }
+
+    async function enviar(ev) {
+      ev.preventDefault();
+      const btn = document.getElementById('c-enviar');
+      const err = document.getElementById('c-error');
+      const auto = agendaAutomatica();
+      const textoBoton = auto ? 'Confirmar cita' : 'Enviar solicitud';
+      const turno = (document.querySelector('input[name="turno"]:checked') || {}).value || '';
+      const hora = (document.querySelector('input[name="hora"]:checked') || {}).value || '';
+      const datos = {
+        medicoId: ID,
+        nombre: document.getElementById('c-nombre').value.trim(),
+        telefono: document.getElementById('c-telefono').value.trim(),
+        email: document.getElementById('c-email').value.trim(),
+        fechaPreferida: document.getElementById('c-fecha').value,
+        ...(auto ? { hora } : { turno }),
+        motivo: document.getElementById('c-motivo').value.trim(),
+        consentimiento: document.getElementById('c-consent').checked,
+        ...(ofreceEnLinea() ? { modalidad: MODALIDAD } : {}),
+        sitio: document.getElementById('c-sitio').value,
+      };
+      if (!datos.nombre || !datos.telefono) { err.textContent = 'Escribe tu nombre y teléfono.'; return; }
+      if (!datos.fechaPreferida) { err.textContent = auto ? 'Elige el día.' : 'Elige la fecha que prefieres.'; return; }
+      if (auto && !hora) { err.textContent = 'Elige la hora.'; return; }
+      err.textContent = '';
+      btn.disabled = true;
+      btn.textContent = auto ? 'Agendando…' : 'Enviando…';
+      try {
+        const r = await fetch('/api/citas?accion=solicitar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos),
+        });
+        const d = await r.json().catch(() => ({}));
+        // Alguien más tomó ese horario: se refrescan los espacios del día.
+        if (r.status === 409 && auto && Array.isArray(d.espacios)) {
+          document.getElementById('c-espacios').innerHTML = htmlEspacios({ espacios: d.espacios }, datos.fechaPreferida);
+          mostrarDatos(false);
+        }
+        if (!r.ok) throw new Error(d.error || 'No pudimos enviar tu solicitud. Intenta de nuevo.');
+        if (d.token) guardar('cc_visitante', d.token);
+        const liga = `${location.origin}/directorio/solicitud.html#id=${encodeURIComponent(d.id)}&c=${encodeURIComponent(d.clave)}`;
+        try {
+          const previas = JSON.parse(localStorage.getItem('cc_mis_solicitudes') || '[]');
+          previas.unshift({ liga, medico: (MEDICO.fields || {})['Name'] || '', fecha: datos.fechaPreferida });
+          localStorage.setItem('cc_mis_solicitudes', JSON.stringify(previas.slice(0, 10)));
+        } catch (e) { /* sin almacenamiento: la liga se muestra igual */ }
+        // Ya con token de visitante, la ficha muestra el teléfono; el panel de
+        // "enviada" reemplaza al formulario.
+        const ct = await cargarContactos();
+        render(ct);
+        mostrarEnviada(liga, { ...d, modalidad: datos.modalidad });
+        document.getElementById('solicitar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        err.textContent = e.message;
+        btn.disabled = false;
+        btn.textContent = textoBoton;
+      }
+    }
+
+    function mostrarEnviada(liga, d) {
+      const nombre = (MEDICO.fields || {})['Name'] || 'el médico';
+      // Solo se dice "confirmada" si el servidor la guardó como Aceptada con horario.
+      const confirmada = d && d.estado === 'Aceptada' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(d.horario || '');
+      const cabecera = confirmada
+        ? `<h2>Cita confirmada</h2>
+          <p class="nota">Tu cita con ${esc(nombre)} es el <strong>${esc(fechaLarga(d.horario.slice(0, 10)))} a las ${esc(horaCorta(d.horario.slice(11)))}</strong>. Si no puedes asistir, cancélala desde la liga de abajo para liberar el espacio.</p>
+          <p style="margin:0;color:var(--ink-muted);font-size:14px">Guarda esta liga. Es personal: quien la tenga puede ver y cancelar tu cita.</p>`
+        : `<h2>Solicitud enviada</h2>
+          ${d && d.modalidad === 'En línea' ? `<p class="nota"><strong>Consulta en línea:</strong> ${esc(nombre)} te contactará para acordar el día, la hora y cómo se conectan. El pago lo acuerdas directamente con el médico (por ejemplo, por transferencia); CODE CELLS no cobra ni interviene.</p>` : ''}
+          <p class="nota">Tu solicitud llegó a ${esc(nombre)}. <strong>Todavía no es una cita confirmada.</strong> La respuesta del médico (aceptarla, proponerte otro horario o avisarte si no puede) aparecerá en la liga de abajo; el médico también puede llamarte o escribirte.</p>
+          <p style="margin:0;color:var(--ink-muted);font-size:14px">Guarda esta liga para ver la respuesta. Es personal: quien la tenga puede ver y cancelar tu solicitud.</p>`;
+      document.getElementById('solicitar').innerHTML = `
+        <div class="enviada">
+          ${cabecera}
+          <div class="liga" id="liga-texto">${esc(liga)}</div>
+          <div class="botones">
+            ${confirmada ? `<button type="button" class="btn" id="btn-calendario">Agregar a mi calendario</button>` : ''}
+            <a class="btn-sec" href="${esc(liga)}">${confirmada ? 'Ver mi cita' : 'Ver estado de mi solicitud'}</a>
+            <button type="button" class="btn-sec" id="btn-copiar">Copiar liga</button>
+          </div>
+        </div>`;
+      const botonCal = document.getElementById('btn-calendario');
+      if (botonCal) botonCal.addEventListener('click', () => {
+        try {
+          CalendarioCita.descargarIcs({
+            fecha: d.horario.slice(0, 10), hora: d.horario.slice(11), duracion: d.duracion, zona: d.zona,
+            titulo: `Cita con ${nombre}`, uid: d.id,
+            lugar: [String((MEDICO.fields || {})['Dirección del consultorio'] || '').replace(/\n+/g, ', '), (MEDICO.fields || {})['Ciudad de consulta']].filter(Boolean).join(', '),
+            descripcion: `Cita agendada en el directorio CODE CELLS.\nPara ver o cancelar tu cita: ${liga}`,
+          });
+        } catch (e) { botonCal.textContent = 'No pudimos crear el archivo de calendario'; }
+      });
+      document.getElementById('btn-copiar').addEventListener('click', async ev => {
+        try { await navigator.clipboard.writeText(liga); ev.target.textContent = 'Liga copiada'; }
+        catch (e) { ev.target.textContent = 'Selecciona la liga y cópiala'; }
+      });
+    }
+
+    document.addEventListener('submit', ev => { if (ev.target.id === 'form-cita') enviar(ev); });
+    document.addEventListener('change', ev => {
+      if (ev.target.id === 'c-otra-fecha' && ev.target.value) elegirFecha(ev.target.value);
+      if (ev.target.name === 'hora' && ev.target.checked) mostrarDatos(true, ev.target.value);
+      if (ev.target.name === 'modalidad' && ev.target.checked) {
+        MODALIDAD = ev.target.value;
+        document.getElementById('solicitar').innerHTML = htmlFormulario((MEDICO.fields || {})['Name'] || 'el médico');
+        const elegido = document.querySelector(`input[name="modalidad"][value="${MODALIDAD}"]`);
+        if (elegido) elegido.focus();
+        if (agendaAutomatica() && (AGENDA.siguientes || []).length) elegirFecha(AGENDA.siguientes[0].fecha);
+      }
+    });
+    document.addEventListener('click', ev => {
+      const b = ev.target.closest('.dia-chip');
+      if (b) elegirFecha(b.dataset.fecha);
+    });
+    // Botón "Agendar cita" fijo abajo (solo celular) mientras el formulario no está a la vista.
+    function vigilarBotonFijo() {
+      const boton = document.getElementById('agendar-fijo');
+      const destino = document.getElementById('solicitar');
+      if (!boton || !destino || !('IntersectionObserver' in window)) return;
+      boton.textContent = AGENDA && AGENDA.automatica ? 'Agendar cita' : 'Solicitar cita';
+      new IntersectionObserver(([e]) => boton.classList.toggle('visible', !e.isIntersecting && e.boundingClientRect.top > 0))
+        .observe(destino);
+    }
+
+    cargar();
+  </script>
+</body>
+</html>

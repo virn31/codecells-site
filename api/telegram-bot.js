@@ -7,16 +7,17 @@
 // 2) Una vez vinculado, el médico puede escribir los datos de un paciente
 //    (peso, talla, IMC, diagnósticos, labs, etc.) y el bot le regresa un plan
 //    nutricional de 7 días en texto plano, firmado con su nombre y cédula,
-//    listo para copiar/pegar y reenviar por Telegram, WhatsApp o correo.
+//    listo para copiar/pegar y reenviar por Telegram o correo.
 
 const { sendTelegramMessage, sendTelegramMessageChunked, answerCallbackQuery, editarMensaje } = require('../lib/telegram');
 const { generarPlanNutricional } = require('../lib/nutricion');
 const { generarCodigoPorIniciales } = require('../lib/codigos');
-const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { CONGELADO, congelado, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico } = require('../lib/autorizacion');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { estructurarDictado } = require('../lib/dictado');
 const { sugerirCie10, integrarCodigosEnDiagnostico } = require('../lib/cie10');
+const { manejarMensajeAgenda, manejarBotonAgenda } = require('../lib/agenda-telegram');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -496,8 +497,8 @@ async function manejarCallbackQuery(callbackQuery, res) {
     // registro nuevo en MÉDICOS (última etapa del pipeline de registro de
     // médicos, después de unete.html/code-cells-network → nueva-solicitud-
     // medico.js). "Rechazar" no captura datos nuevos — se deja funcionando.
-    // Ver lib/congelamientoDatosPersonales.js.
-    if (CONGELADO) {
+    // Ver lib/congelamientoDatosPersonales.js. Área 'afiliacion'.
+    if (congelado('afiliacion')) {
       await answerCallbackQuery(callbackQuery.id, 'Registro de médicos pausado temporalmente (actualización del aviso de privacidad).');
       await editarMensaje(chatId, messageId, textoOriginal + '\n\n⏸️ Pausado — registro de médicos nuevos suspendido temporalmente por actualización del aviso de privacidad. Esta solicitud sigue pendiente.');
       return res.status(200).json({ ok: true });
@@ -564,6 +565,31 @@ async function verificarEsMedicoMaestro(chatId) {
 const SOLICITUDES_TABLE_ID = 'tblDpqi2XJqoR4QiE';
 
 module.exports = async (req, res) => {
+  // Solo Preview: registra el webhook del bot de PRUEBA hacia esta rama. Se
+  // llama una vez (detrás de Vercel Authentication). Exige que el bot del
+  // token sea exactamente el nombrado en TELEGRAM_BOT_PRUEBA: así nunca se
+  // puede desviar por error el bot real de producción hacia Preview.
+  if (req.method === 'GET' && req.query && req.query.accion === 'registrar_webhook') {
+    if (process.env.VERCEL_ENV !== 'preview' || !process.env.TELEGRAM_BOT_PRUEBA) {
+      return res.status(403).json({ error: 'Solo disponible en Preview con bot de prueba.' });
+    }
+    const api = `https://api.telegram.org/bot${require('../lib/telegram').TOKEN_BOT}`;
+    const yo = await fetch(`${api}/getMe`).then(r => r.json()).catch(() => ({}));
+    const usuario = yo && yo.result && yo.result.username;
+    if (!usuario || usuario.toLowerCase() !== String(process.env.TELEGRAM_BOT_PRUEBA).replace(/^@/, '').toLowerCase()) {
+      return res.status(409).json({ error: `El token de esta rama es del bot @${usuario || '?'}, no del bot de prueba esperado (${process.env.TELEGRAM_BOT_PRUEBA}). No se registró nada.` });
+    }
+    if (!process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+      return res.status(409).json({ error: 'Falta "Protection Bypass for Automation" en Vercel (Settings → Deployment Protection). Sin él, Telegram no puede entrar a Preview.' });
+    }
+    const destino = `https://${process.env.VERCEL_BRANCH_URL}/api/telegram-bot?x-vercel-protection-bypass=${encodeURIComponent(process.env.VERCEL_AUTOMATION_BYPASS_SECRET)}`;
+    const r = await fetch(`${api}/setWebhook`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: destino, secret_token: process.env.TELEGRAM_WEBHOOK_SECRET, allowed_updates: ['message', 'callback_query'], drop_pending_updates: true }),
+    }).then(x => x.json()).catch(e => ({ ok: false, description: e.message }));
+    return res.status(r.ok ? 200 : 502).json({ ok: !!r.ok, bot: '@' + usuario, webhook: `https://${process.env.VERCEL_BRANCH_URL}/api/telegram-bot`, detalle: r.description || null });
+  }
+
   if (req.method !== 'POST') {
     return res.status(200).send('CODE CELLS™ Telegram bot activo.');
   }
@@ -622,6 +648,8 @@ module.exports = async (req, res) => {
 
     // ── Toque de botón (Autorizar/Rechazar solicitud de afiliación) ──────
     if (update.callback_query) {
+      // Botones de la agenda ("ag:…"): son del propio médico, no requieren ser maestro.
+      if (await manejarBotonAgenda(update.callback_query)) return res.status(200).json({ ok: true });
       return await manejarCallbackQuery(update.callback_query, res);
     }
 
@@ -658,6 +686,7 @@ module.exports = async (req, res) => {
         'Hola, soy el bot de notificaciones y apoyo clínico de CODE CELLS™ Red Médica.\n\n' +
           'Para vincular tu cuenta, envíame tu código de médico (formato CCMED-XXXXXX).\n\n' +
           'Una vez vinculado:\n' +
+          '• Escribe /agenda → configura tu horario para que NOVA agende tus citas sola.\n' +
           '• Escribe "plan" + datos del paciente → plan nutricional de 7 días.\n' +
           '• Escribe el código del paciente (CC-PAC-XXXXXX) + tu dictado, en el orden que quieras → te digo campo por campo qué entendí. Puedes seguir dictando para agregar; "sí" lo guarda en su expediente y "cancelar" lo descarta.'
       );
@@ -920,6 +949,13 @@ module.exports = async (req, res) => {
         console.error('[telegram-bot] error estructurando dictado:', err.message);
         await sendTelegramMessage(chatId, 'Hubo un error acomodando el dictado; no se guardó nada. Intenta de nuevo.');
       }
+      return res.status(200).json({ ok: true });
+    }
+
+    // Agenda (etapa 2b): /agenda, /bloqueos, /citas o texto libre del tipo
+    // "estaré fuera del 5 al 10 de noviembre". Va después de los flujos de
+    // expediente para no robarles un mensaje, y antes del plan nutricional.
+    if (!/^\/?plan\b/i.test(texto) && await manejarMensajeAgenda(chatId, texto)) {
       return res.status(200).json({ ok: true });
     }
 

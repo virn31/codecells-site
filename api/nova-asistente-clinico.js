@@ -15,7 +15,7 @@ const { verificarToken, tokenDesdeRequest } = require('../lib/auth');
 const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico, MENSAJE_ACCESO_NO_VERIFICABLE } = require('../lib/autorizacion');
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const CONSULTAS_TABLE_ID = 'tbl1Xp2IGxdV178Ky';
 const HISTORIA_TABLE_ID = 'tblm2xUADazitHisR';
 

@@ -56,7 +56,7 @@ function instalar(manejar) {
 
 async function callback(state, manejar) {
   const { cap, restaurar } = instalar((u, m) => {
-    if (u.includes('oauth2.googleapis.com/token')) return ok({ access_token: 'at', refresh_token: 'rt' });
+    if (u.includes('oauth2.googleapis.com/token')) return ok({ access_token: 'at', refresh_token: 'rt', scope: require('../lib/google-agenda').SCOPES });
     if (u.includes('googleapis.com/oauth2/v2/userinfo')) return ok({ email: 'medico@ejemplo.test' });
     return manejar(u, m);
   });
@@ -68,23 +68,25 @@ async function callback(state, manejar) {
   } finally { restaurar(); }
 }
 const medicoOk = (u, m) => (u.includes(`/${MEDICOS}`) ? ok(m === 'GET' ? { records: [{ id: 'recMED', fields: {} }] } : { id: 'recMED' }) : null);
-const stateFirmado = () => generarToken({ tipo: 'google_oauth', codigo: 'CCMED-VIRN01', horas: 0.25 });
+// Al unificar ramas (2026-10-24) quedó el callback de feat/directorio: el state lo
+// firma lib/google-agenda.js con una llave propia (no la de las sesiones).
+const stateFirmado = () => require('../lib/google-agenda').firmarEstado({ codigo: 'CCMED-VIRN01' });
 
 test('OAuth: un state en texto plano (CCMED-VIRN01) se rechaza sin canjear ni guardar nada', async () => {
   const { res, cap } = await callback('CCMED-VIRN01', medicoOk);
-  assert.match(res.body, /no es válido o ya venció/);
+  assert.match(res.body, /caducó o está incompleto/);
   assert.strictEqual(cap.llamadas.length, 0);
 });
 
 test('OAuth: un token de SESIÓN de médico no sirve como state', async () => {
   const { res, cap } = await callback(generarToken({ tipo: 'medico', codigo: 'CCMED-VIRN01', horas: 1 }), medicoOk);
-  assert.match(res.body, /no es válido/);
+  assert.match(res.body, /caducó o está incompleto/);
   assert.strictEqual(cap.escrituras.length, 0);
 });
 
 test('OAuth: con state firmado se guarda en el médico del state y dice "Conectado"', async () => {
   const { res, cap } = await callback(stateFirmado(), medicoOk);
-  assert.match(res.body, /Conectado/);
+  assert.match(res.body, /Agenda conectada/);
   assert.ok(cap.llamadas.some((l) => l.includes(encodeURIComponent('"CCMED-VIRN01"'))));
   assert.strictEqual(cap.escrituras.find((e) => e.u.includes(MEDICOS)).body.fields['Google Calendar Refresh Token'], 'rt');
 });
@@ -92,13 +94,14 @@ test('OAuth: con state firmado se guarda en el médico del state y dice "Conecta
 test('OAuth (M10): un 429 al buscar al médico NO dice "no encontramos tu registro"', async () => {
   const { res } = await callback(stateFirmado(), (u) => (u.includes(`/${MEDICOS}`) ? falla() : null));
   assert.ok(!/No encontramos tu registro/.test(res.body));
-  assert.match(res.body, /problema temporal/);
+  assert.ok(!/Agenda conectada/.test(res.body));
+  assert.match(res.body, /error de conexión/);
 });
 
 test('OAuth: si el guardado falla, NO dice "Conectado"', async () => {
   const { res } = await callback(stateFirmado(), (u, m) => (u.includes(`/${MEDICOS}`) ? (m === 'GET' ? ok({ records: [{ id: 'recMED', fields: {} }] }) : falla(422)) : null));
-  assert.ok(!/✅ Conectado/.test(res.body));
-  assert.match(res.body, /no pudimos guardarla/);
+  assert.ok(!/Agenda conectada/.test(res.body));
+  assert.match(res.body, /error de conexión/);
 });
 
 async function nova(body, sesion) {

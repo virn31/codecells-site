@@ -24,9 +24,10 @@ const { autorizarPaciente, ErrorAutorizacion, verificarAccesoClinicoMedico, MENS
 const { esAutor, filtrarConsultasParaLector } = require('../lib/privacidadConsultas');
 const { camposParaColega } = require('../lib/camposMedico');
 const { TABLA_VINCULACIONES, urlTabla } = require('../lib/vinculacion');
-const { CONGELADO, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const { CONGELADO, congelado, respuestaCongelada } = require('../lib/congelamientoDatosPersonales');
+const directorio = require('../lib/directorio');
 
-const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 
 const TABLAS_PERMITIDAS = {
   pacientes: 'tblyUcCfueFLJuvIv',
@@ -92,19 +93,14 @@ const TABLAS_EXPEDIENTE_MEDICO = new Set(['historia', 'consultas', 'labs', 'ante
 // en la respuesta pública — se aplica como fields[]= en la petición a
 // Airtable, no en post-procesado JS, para que un bug de serialización no
 // pueda filtrar campos sensibles.
-const DIRECTORIO_CAMPOS_PUBLICOS = [
-  'Name',
-  'Especialidades visibles',
-  'Tratamientos que ofrece',
-  'Otras terapias',
-  'Ciudad de consulta',
-  'Bio corta',
-  'Horarios',
-  'WhatsApp público',
-];
+// La lista vive en lib/directorio.js (la comparte api/ficha.js): nombre,
+// especialidades, herramientas, ciudad, bio, horarios, foto, liga pública y
+// redes (revisadas por directorio.redesPublicas() antes de salir).
+const DIRECTORIO_CAMPOS_PUBLICOS = directorio.CAMPOS_LECTURA_PUBLICA;
 
 // Campos que solo se revelan a visitantes registrados (gate suave).
 // NUNCA fusionar con la lista de campos públicos de arriba.
+// 2026-10-24: sin WhatsApp en la plataforma; solo el teléfono del consultorio.
 const DIRECTORIO_CAMPOS_PRIVADOS = ['Teléfono de consultorio'];
 
 function escaparFormula(valor) {
@@ -237,10 +233,10 @@ async function notificarSolicitudPaciente(registro, body) {
     `*Ciudad:* ${body.ciudad || '—'}`,
     `*Busca:* ${body.especialidad || '—'}`
   ];
+  // 2026-10-22: el motivo (dato de salud) ya no viaja por Telegram, aunque
+  // el paciente lo haya autorizado: queda solo en SOLICITUDES_PACIENTE.
   if (consintio && body.motivo) {
-    lineas.push(`*Motivo:* ${body.motivo}`);
-  } else {
-    lineas.push('_El paciente no autorizó compartir su motivo de consulta._');
+    lineas.push('_El paciente escribió un motivo de consulta: está en su registro, no se envía por aquí._');
   }
   lineas.push('', 'Contáctalo directamente. Registro en Airtable → SOLICITUDES_PACIENTE.');
 
@@ -357,6 +353,10 @@ module.exports = async (req, res) => {
     !sesion && req.method === 'GET' && tabla === 'directorio_medico';
   const esListaCiudadesPublica =
     !sesion && req.method === 'GET' && tabla === 'directorio_medico' && req.query.accion === 'ciudades';
+  // Opciones de los filtros (ciudades, especialidades, herramientas) con lo
+  // que de verdad hay publicado, con conteo.
+  const esFiltrosPublicos =
+    !sesion && req.method === 'GET' && tabla === 'directorio_medico' && req.query.accion === 'filtros';
 
   // ── Registro público de un lead del directorio (crea el lead + token) ──
   const esRegistroPacientePublico =
@@ -368,7 +368,8 @@ module.exports = async (req, res) => {
     // CONGELAMIENTO 2026-08-24 (instrucción legal): formulario de contacto
     // del directorio — el que estampa versión de aviso de privacidad. Se
     // rechaza antes de tocar Airtable. Ver lib/congelamientoDatosPersonales.js.
-    if (CONGELADO) return respuestaCongelada(res);
+    // Es del directorio: se abre con DESCONGELAR_AREAS=directorio.
+    if (congelado('directorio')) return respuestaCongelada(res);
     const b = req.body || {};
     const nombre = String(b.nombre || '').trim().slice(0, 120);
     const telefono = String(b.telefono || '').trim().slice(0, 30);
@@ -476,8 +477,11 @@ module.exports = async (req, res) => {
     try {
       // Todas las páginas y error ruidoso: antes un fallo se respondía como
       // "sin teléfonos" a un visitante que ya dejó sus datos (lead perdido),
-      // y con más de 100 médicos se cortaban en silencio.
-      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, { filterByFormula: '{Publicado}=1', 'fields[]': 'Teléfono de consultorio' });
+      // y con más de 200 médicos se cortaban en silencio.
+      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, [
+        ['filterByFormula', '{Publicado}=1'],
+        ...DIRECTORIO_CAMPOS_PRIVADOS.map(f => ['fields[]', f]),
+      ]);
       const contactos = {};
       registros.forEach(rec => {
         const tel = rec.fields?.['Teléfono de consultorio'];
@@ -493,45 +497,70 @@ module.exports = async (req, res) => {
     // Devolver array de ciudades únicas de médicos publicados
     try {
       // Mismo criterio: todas las páginas; un fallo es error, no "sin ciudades".
+      // "Culiacan" y "Culiacán" son la misma ciudad (se agrupan por clave).
       const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, { filterByFormula: '{Publicado}=1', 'fields[]': 'Ciudad de consulta' });
-      const set = new Set();
-      registros.forEach(rec => {
-        const c = rec.fields?.['Ciudad de consulta']?.trim();
-        if (c) set.add(c);
-      });
-      return res.status(200).json({ ciudades: Array.from(set).sort() });
+      return res.status(200).json({ ciudades: directorio.opcionesFiltros(registros).ciudades.map(c => c.nombre) });
     } catch (err) {
       return res.status(502).json({ error: 'No pudimos cargar las ciudades en este momento.' });
+    }
+  }
+
+  if (esFiltrosPublicos) {
+    try {
+      const registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, [
+        ['filterByFormula', '{Publicado}=1'],
+        ['fields[]', 'Ciudad de consulta'], ['fields[]', 'Especialidades visibles'], ['fields[]', 'Tratamientos que ofrece'],
+      ]);
+      return res.status(200).json(directorio.opcionesFiltros(registros));
+    } catch (err) {
+      return res.status(502).json({ error: 'No pudimos cargar los filtros en este momento.' });
     }
   }
 
   if (esLecturaDirectorioPublico) {
     const params = new URLSearchParams();
     const filtros = ['{Publicado}=1'];
-    const { ciudad, especialidad, tratamiento } = req.query;
-    if (ciudad) {
-      filtros.push(`{Ciudad de consulta}="${escaparFormula(ciudad)}"`);
+    const { ciudad, especialidad, tratamiento, id, q, enlinea } = req.query;
+    // Ficha de UN médico (/directorio/medico.html?id=rec…): mismo filtro de
+    // publicado y misma lista blanca; un id que no es de un perfil publicado
+    // devuelve lista vacía.
+    if (id !== undefined) {
+      if (!/^rec[A-Za-z0-9]{14}$/.test(String(id))) return res.status(400).json({ error: 'Identificador inválido.' });
+      filtros.push(`RECORD_ID()="${id}"`);
     }
+    // La ciudad NO va en la fórmula: se compara abajo por clave (sin
+    // acentos ni mayúsculas), porque es texto libre.
     if (especialidad) {
       filtros.push(`FIND("${escaparFormula(especialidad)}", ARRAYJOIN({Especialidades visibles}, ", "))>0`);
     }
     if (tratamiento) {
       filtros.push(`FIND("${escaparFormula(tratamiento)}", ARRAYJOIN({Tratamientos que ofrece}, ", "))>0`);
     }
+    if (enlinea === '1') filtros.push(`{${directorio.CAMPO_EN_LINEA}}=1`);
     params.set(
       'filterByFormula',
       filtros.length === 1 ? filtros[0] : `AND(${filtros.join(',')})`
     );
     DIRECTORIO_CAMPOS_PUBLICOS.forEach(f => params.append('fields[]', f));
-    params.set('maxRecords', '50');
 
-    const url = `https://api.airtable.com/v0/${BASE_ID}/${tableId}?${params.toString()}`;
     try {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      const data = await r.json();
-      return res.status(r.status).json(data);
+      // Todas las páginas: un fallo es error (502), nunca "sin médicos".
+      let registros = await airtableLeerTodo(tableId, AIRTABLE_TOKEN, [...params.entries()]);
+      if (ciudad) {
+        const clave = directorio.claveCiudad(directorio.normalizarCiudad(ciudad));
+        registros = registros.filter(rec => directorio.claveCiudad(directorio.normalizarCiudad(rec.fields?.['Ciudad de consulta'])) === clave);
+      }
+      // Caja de búsqueda (nombre o lo que quiere atender): también aquí y no
+      // en la fórmula, para comparar sin acentos y antes del tope de 50.
+      const palabras = directorio.palabrasBusqueda(q);
+      if (palabras.length) registros = registros.filter(rec => directorio.coincideBusqueda(rec.fields, palabras));
+      const data = { records: registros.slice(0, 50) };
+      // Foto solo como URL (sin nombre de archivo ni id del adjunto), redes
+      // que pasan su regla y ciudad del catálogo ("Culiacan" → "Culiacán").
+      data.records.forEach(directorio.limpiarPerfilPublico);
+      return res.status(200).json(data);
     } catch (err) {
-      return res.status(500).json({ error: 'Error al conectar con Airtable.', detail: String(err) });
+      return res.status(502).json({ error: 'No pudimos consultar el directorio en este momento. Intenta de nuevo en unos segundos.' });
     }
   }
 
@@ -970,13 +999,22 @@ module.exports = async (req, res) => {
           if (!recordIdMedico) {
             return res.status(500).json({ error: 'No se pudo resolver el registro del médico.' });
           }
-          const fields = (req.body && req.body.fields) || {};
-          delete fields['Fecha de alta']; // solo se estampa al primer publish
+          // Publicar ya no es decisión del médico (etapa 1 del directorio):
+          // el perfil nace en Borrador y solo api/directorio.js lo mueve.
+          const redesPost = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
+          const contactoPost = directorio.normalizarContacto(redesPost.fields);
+          const erroresPost = [...redesPost.errores, ...contactoPost.errores];
+          if (erroresPost.length) return res.status(400).json({ error: erroresPost.join(' ') });
+          const fields = contactoPost.fields;
+          if ('Ciudad de consulta' in fields) fields['Ciudad de consulta'] = directorio.normalizarCiudad(fields['Ciudad de consulta']);
+          const ahoraISO = new Date().toISOString();
           req.body.fields = {
             ...fields,
             'Médico': [recordIdMedico],
             'Publicado': false,
-            'Última actualización': new Date().toISOString(),
+            'Estado de publicación': directorio.ESTADOS.BORRADOR,
+            'Historial de publicación': directorio.agregarHistorial('', { fechaISO: ahoraISO, accion: 'Perfil creado', quien: codigo }),
+            'Última actualización': ahoraISO,
           };
         } else if (req.method === 'PATCH') {
           const { recordId } = req.query;
@@ -994,16 +1032,25 @@ module.exports = async (req, res) => {
             if (!check.ok || !linkado.includes(recordIdMedico)) {
               return res.status(403).json({ error: 'No puedes modificar un perfil que no es tuyo.' });
             }
-            const fields = (req.body && req.body.fields) || {};
-            // Campos que el médico NO puede tocar por este endpoint
-            delete fields['Médico'];
-            delete fields['Fecha de alta'];
-            // Si va a publicar por primera vez, estampar Fecha de alta
-            const yaTieneFecha = !!checkData.fields?.['Fecha de alta'];
-            if (fields['Publicado'] === true && !yaTieneFecha) {
-              fields['Fecha de alta'] = new Date().toISOString();
+            // El médico edita su contenido; publicar, consentimiento y
+            // revisión los controla api/directorio.js (campos protegidos).
+            // Redes: solo ligas de la red correcta, guardadas como https completo.
+            const redesPatch = directorio.normalizarRedes(directorio.quitarCamposProtegidos((req.body && req.body.fields) || {}));
+            const contactoPatch = directorio.normalizarContacto(redesPatch.fields);
+            const erroresPatch = [...redesPatch.errores, ...contactoPatch.errores];
+            if (erroresPatch.length) return res.status(400).json({ error: erroresPatch.join(' ') });
+            const fields = contactoPatch.fields;
+            if ('Ciudad de consulta' in fields) fields['Ciudad de consulta'] = directorio.normalizarCiudad(fields['Ciudad de consulta']);
+            const ahoraISO = new Date().toISOString();
+            // Editar lo que ve el público en un perfil YA publicado lo deja
+            // visible pero marcado para que un administrador lo revise.
+            if (checkData.fields?.['Publicado'] && directorio.tocaCamposPublicos(fields) && !checkData.fields?.['Cambios sin revisar']) {
+              fields['Cambios sin revisar'] = true;
+              fields['Historial de publicación'] = directorio.agregarHistorial(checkData.fields?.['Historial de publicación'], {
+                fechaISO: ahoraISO, accion: 'Cambios en perfil publicado', quien: codigo, detalle: Object.keys(fields).filter(k => directorio.CAMPOS_PUBLICOS.includes(k)).join(', '),
+              });
             }
-            fields['Última actualización'] = new Date().toISOString();
+            fields['Última actualización'] = ahoraISO;
             req.body.fields = fields;
           } catch (err) {
             return res.status(502).json({ error: 'No se pudo verificar el registro antes de modificarlo.' });
@@ -1358,7 +1405,10 @@ module.exports = async (req, res) => {
   // (esEscrituraPreAuth), que no tienen bloque propio y caen aquí. La
   // lectura (GET) sigue funcionando sin cambios. Ver
   // lib/congelamientoDatosPersonales.js.
-  if (CONGELADO && req.method !== 'GET') return respuestaCongelada(res);
+  // El perfil del médico en el directorio se abre con el área 'directorio';
+  // todo lo demás (pacientes, expediente, VIP…) sigue con CONGELADO.
+  const congeladoAqui = tabla === 'directorio_medico' ? congelado('directorio') : CONGELADO;
+  if (congeladoAqui && req.method !== 'GET') return respuestaCongelada(res);
 
   // ── Reenvío real a Airtable ──
   try {

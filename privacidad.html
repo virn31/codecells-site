@@ -49,14 +49,14 @@
 <div class="wrap">
   <header>
     <div class="logo">CODE CELLS<span>™</span></div>
-    <div class="updated">Aviso de privacidad — actualizado julio 2026</div>
+    <div class="updated">Aviso de privacidad — actualizado octubre 2026</div>
   </header>
 
   <h1>Aviso de Privacidad</h1>
   <p>Este aviso describe cómo CODE CELLS™ (en adelante, "la Red") recopila, usa y protege la información de pacientes, médicos afiliados y visitantes de codecells.mx, incluyendo el uso de integraciones con servicios de terceros como Google Calendar.</p>
 
   <h2>1. Responsable del tratamiento</h2>
-  <p>CODE CELLS™ es una red de medicina regenerativa con sede en Culiacán, Sinaloa, México. Para cualquier duda sobre este aviso o sobre tus datos, puedes escribir a través de los canales de contacto listados al final de esta página.</p>
+  <p>CODE CELLS™ es una red de medicina regenerativa con sede en Culiacán, Sinaloa, México. Para cualquier duda sobre este aviso o sobre tus datos, escríbenos a <a href="mailto:privacidad@codecells.mx">privacidad@codecells.mx</a>.</p>
 
   <h2>2. Datos que recopilamos</h2>
   <p>Dependiendo de tu rol dentro de la plataforma, podemos recopilar:</p>
@@ -67,11 +67,25 @@
 
   <h2>3. Integración con Google Calendar</h2>
   <div class="box">
-    <p><strong>¿Qué acceso solicitamos?</strong> Si un médico elige conectar su Google Calendar desde el Portal Médico, solicitamos permiso para crear eventos en su calendario (alcance <code>calendar</code> de Google) y para identificar la cuenta conectada (su correo).</p>
-    <p><strong>¿Para qué lo usamos?</strong> Únicamente para agregar automáticamente las citas de consulta que el médico confirma dentro del Portal Médico a su propio calendario de Google — como una comodidad para no tener que capturarlas manualmente dos veces.</p>
-    <p><strong>¿Con quién se comparte?</strong> Con nadie. Los datos de tu calendario no se comparten con otros médicos, pacientes, ni terceros, y no se usan para publicidad ni se venden bajo ninguna circunstancia.</p>
-    <p><strong>¿Cómo puedo revocar el acceso?</strong> En cualquier momento desde <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>, buscando "CODE CELLS™" y eliminando el acceso. Esto no afecta el resto de tu cuenta de médico en el Portal, solo detiene la sincronización de citas.</p>
-    <p>El uso que CODE CELLS™ hace de la información recibida de las APIs de Google se apega a la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, incluyendo los requisitos de Uso Limitado (Limited Use).</p>
+    <p><strong>¿Quién la usa?</strong> Solo los médicos afiliados que deciden conectar su Google Calendar, desde el Portal Médico o desde el asistente de CODE CELLS™ en Telegram. Es opcional: sin conectarla, la agenda de CODE CELLS™ funciona igual con el horario que el médico configura.</p>
+    <p><strong>¿Qué acceso solicitamos?</strong> Tres permisos, y nada más:</p>
+    <ul>
+      <li><strong>Correo de la cuenta</strong> (<code>userinfo.email</code>): para mostrarle al médico qué cuenta quedó conectada.</li>
+      <li><strong>Disponibilidad</strong> (<code>calendar.freebusy</code>): saber a qué horas el médico está ocupado. Solo recibimos los bloques de tiempo ocupados; <strong>no</strong> vemos títulos, descripciones, participantes ni ningún otro detalle de sus eventos.</li>
+      <li><strong>Eventos</strong> (<code>calendar.events</code>): crear en su calendario el evento de cada cita que se agenda con él en CODE CELLS™, y borrarlo si la cita se cancela. No modificamos ni borramos ningún evento que no hayamos creado.</li>
+    </ul>
+    <p><strong>¿Para qué lo usamos?</strong> Únicamente para que el directorio de CODE CELLS™ ofrezca a los pacientes solo los horarios en que el médico está libre, y para que las citas agendadas aparezcan en su propio calendario. El evento de la cita lleva el nombre y teléfono del paciente que la agendó (nunca el motivo de consulta), para que el médico sepa a quién recibe.</p>
+    <p><strong>¿Qué guardamos?</strong> El permiso de acceso que entrega Google (token), el correo de la cuenta conectada y el identificador de cada evento que creamos (para poder borrarlo si la cita se cancela). No guardamos ni copiamos el contenido del calendario del médico.</p>
+    <p><strong>¿Con quién se comparte?</strong> Con nadie. La información recibida de Google no se comparte con otros médicos, pacientes ni terceros, no se usa para publicidad, no se vende y no se usa para entrenar modelos de inteligencia artificial.</p>
+    <p><strong>¿Cómo puedo revocar el acceso?</strong> En cualquier momento desde <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>, buscando "CODE CELLS" y quitando el acceso. Al detectarlo, borramos el permiso guardado y la agenda automática pasa a modo de solicitudes. También puedes pedir que borremos todos los datos de la conexión escribiendo a <a href="mailto:privacidad@codecells.mx">privacidad@codecells.mx</a>.</p>
+    <p>El uso que CODE CELLS™ hace de la información recibida de las APIs de Google, y su transferencia a cualquier otra aplicación, se apega a la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, incluidos los requisitos de Uso Limitado (Limited Use).</p>
+  </div>
+
+  <h2 lang="en">Google Calendar integration (English summary)</h2>
+  <div class="box" lang="en">
+    <p>Only affiliated physicians who choose to connect their Google Calendar use this integration. CODE CELLS™ requests three scopes: <code>userinfo.email</code> (to show which account is connected), <code>calendar.freebusy</code> (to know when the physician is busy — we receive busy time blocks only, never event titles, descriptions or attendees) and <code>calendar.events</code> (to create an event for each appointment booked with the physician through CODE CELLS™, and to delete it if the appointment is cancelled; we never modify or delete events we did not create).</p>
+    <p>We store only the OAuth token, the connected account's email and the IDs of the events we create. Google user data is not shared with other physicians, patients or third parties, is not used for advertising, is not sold, and is not used to train AI models. Access can be revoked at any time at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>; data deletion requests: <a href="mailto:privacidad@codecells.mx">privacidad@codecells.mx</a>.</p>
+    <p>CODE CELLS™'s use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
   </div>
 
   <h2>4. Cómo usamos la información clínica</h2>

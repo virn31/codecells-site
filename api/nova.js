@@ -31,6 +31,8 @@ const { generarCodigoUnico } = require('../lib/codigos');
 const usoNova = require('../lib/usoNova');
 const { MAX_TEXTO_DICTADO, procesarDictado, normalizarDictado, numerosEnPalabras, estructurarDictado } = require('../lib/dictado');
 const { sugerirCie10 } = require('../lib/cie10');
+// Campos y limpieza del directorio público (costos, consulta en línea, ciudad sin acentos).
+const Directorio = require('../lib/directorio');
 
 // Sesión firmada (HMAC), la misma que ya exige api/airtable.js — HOTFIX
 // gate-sesion-nova: el modo médico del chat y los endpoints de labs abajo
@@ -406,7 +408,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 // ─── BASE Y TABLAS (app de pacientes / VIP) ────────────────────────
-const BASE_ID_CLINICA        = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+const BASE_ID_CLINICA        = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TBL_PACIENTES          = 'tblyUcCfueFLJuvIv';
 const TBL_MEDICOS_APP        = 'tbl87DsuBMmb4DjFM';
 const TBL_NOVA_CONVERSACIONES= 'tblYMr2lpmLQhw6GS';
@@ -836,18 +838,28 @@ momento te piden cambiar de idioma, o simplemente te escriben en uno distinto, c
 inmediato y sigues en el idioma que usen, sin comentarlo ni pedir confirmación.`;
 
   const INFO_COMERCIAL = `
-COBERTURA Y PRECIOS:
-- Culiacán, Sinaloa y Guadalajara, Jalisco: consulta presencial o virtual.
-- Otras ciudades de México: solo consulta virtual.
-- Primera consulta: $1,500 MXN, aproximadamente 60 minutos.
-No des indicaciones de tratamiento, no diagnostiques, no des precios de nada que no sea la
-primera consulta. Invita siempre a una evaluación personalizada con un especialista.
+CONSULTAS, PRECIOS Y PAGO:
+- Cada médico de la Red pone su propio precio. No hay un precio único de CODE CELLS™.
+- Algunos médicos dan consulta en su consultorio y otros también en línea; cada uno lo
+  indica en su perfil del directorio (/directorio/).
+- El pago es SIEMPRE directo al médico: la consulta en el consultorio se paga ahí; la
+  consulta en línea se paga como el médico indique (por ejemplo, transferencia a su
+  cuenta), y el horario de la consulta en línea se acuerda con él. CODE CELLS™ no cobra
+  consultas ni interviene en el pago.
+- Para dar un precio, usa buscar_medicos_directorio y di solo el que devuelva para ese
+  médico (costo_consulta, costo_consulta_en_linea). Si el médico no lo publicó, dilo así
+  ("no lo publicó; puedes preguntarle al solicitar tu cita"). Nunca inventes, promedies ni
+  estimes un precio.
+No des indicaciones de tratamiento ni diagnostiques. Invita siempre a una evaluación
+personalizada con un especialista: el paciente elige médico y solicita su cita en el
+directorio (/directorio/).
 
 Tienes la herramienta buscar_medicos_directorio para encontrar médicos afiliados por ciudad,
-especialidad o herramienta regenerativa — úsala cuando te pidan un especialista concreto.
-Presenta los resultados con calidez y en lenguaje natural. Si no hay resultados, dilo con
-amabilidad y sugiere ampliar la búsqueda. Nunca inventes médicos ni datos: solo lo que la
-herramienta devuelva.`;
+especialidad, herramienta regenerativa o consulta en línea — úsala cuando te pidan un
+especialista concreto o pregunten precios o consulta en línea. Presenta los resultados con
+calidez y en lenguaje natural, con la liga de su perfil. Si no hay resultados, dilo con
+amabilidad y sugiere ampliar la búsqueda (por ejemplo, consulta en línea si en su ciudad no
+hay médico). Nunca inventes médicos ni datos: solo lo que la herramienta devuelva.`;
 
   if (contexto === 'post_test') {
     const { nombre, resultadoTest } = datos;
@@ -965,7 +977,7 @@ module.exports = async function handler(req, res) {
       const { nombre, whatsapp } = req.body;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TABLE_CODIGOS = 'tblypndhtcurFwue6';
 
       // Buscar un código todavía disponible.
@@ -1044,7 +1056,7 @@ module.exports = async function handler(req, res) {
 
       const cantidad = 10;
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TABLE_CODIGOS = 'tblypndhtcurFwue6';
 
       const gen4 = () => Array.from({length:4}, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random()*36)]).join('');
@@ -1085,7 +1097,7 @@ module.exports = async function handler(req, res) {
       const fundador = FUNDADORES_CODIGO[sesion.codigo].nombre;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TABLE_CODIGOS = 'tblypndhtcurFwue6';
 
       const formula = `FIND("pendiente de avisar a ${fundador}", {Notes})`;
@@ -1157,7 +1169,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
       const formula = `{Código de paciente ref}="${pacienteCode}"`;
@@ -1224,7 +1236,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       // Solo para clasificar el registro de acceso (¿existe el paciente o
       // no?) — esta acción nunca consultaba PACIENTES; no cambia qué se
@@ -1363,7 +1375,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
@@ -1559,7 +1571,7 @@ module.exports = async function handler(req, res) {
       if (!googleCalendarLib) return res.status(200).json({ ok: false, error: 'Integración de Google Calendar no disponible.' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_MEDICOS = 'tbl87DsuBMmb4DjFM';
 
       const medRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TBL_MEDICOS}?filterByFormula=${encodeURIComponent(`{Código de médico}="${medicoCode}"`)}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -1626,7 +1638,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
       const TBL_CATALOGO_PARAMETROS = 'tblA51aUeYypWQMQV';
@@ -1777,7 +1789,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_LABS = 'tblhKp4uE1NdXXqLh';
       const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
 
@@ -2248,7 +2260,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
 
       // Sesión médica del token (kiosco paso 1). Antes se buscaba el médico
@@ -2313,7 +2325,7 @@ module.exports = async function handler(req, res) {
       const pacienteRecordId = puerta.auth.recId;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
 
       const fields = { 'Última actividad': new Date().toISOString(), 'Estado del expediente': 'Activo' };
@@ -2375,7 +2387,7 @@ module.exports = async function handler(req, res) {
       const pacienteRecordId = puerta.auth.recId;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_HIST = 'tblm2xUADazitHisR';
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
 
@@ -2820,7 +2832,7 @@ module.exports = async function handler(req, res) {
       const numDias = Math.min(Math.max(parseInt(dias) || 7, 1), 30);
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -3505,7 +3517,7 @@ module.exports = async function handler(req, res) {
       const pacienteRecordId = puerta.auth.recId;
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -3545,7 +3557,7 @@ module.exports = async function handler(req, res) {
       if (!peso || !talla || !edad || !sexo) return res.status(400).json({ error: 'Faltan datos antropométricos (peso, talla, edad, sexo).' });
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -3659,7 +3671,7 @@ module.exports = async function handler(req, res) {
       }
 
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -3796,7 +3808,7 @@ module.exports = async function handler(req, res) {
 
       // Leer estado actual del paciente y hacer merge (solo agregar, nunca quitar)
       const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
       const TBL_PAC = 'tblyUcCfueFLJuvIv';
       const getUrl = `https://api.airtable.com/v0/${BASE_ID}/${TBL_PAC}/${pacienteRecordId}`;
       const getRes = await fetch(getUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
@@ -4443,7 +4455,7 @@ module.exports = async function handler(req, res) {
         try {
           const datos = toolAutorizarDZW.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
           const TBL_TEMP = 'temp';
 
           const codigoInvitacion = await generarCodigoUnico({
@@ -4496,7 +4508,7 @@ module.exports = async function handler(req, res) {
         try {
           const datos = toolInvitar.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
           const TBL_SOLICITUDES_MED = 'tblDpqi2XJqoR4QiE';
           const codigoInvitacion = 'REF-' + Math.random().toString(36).slice(2, 8);
 
@@ -4541,7 +4553,7 @@ module.exports = async function handler(req, res) {
         try {
           const datos = toolAlta.input;
           const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+          const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
           const TBL_PAC = 'tblyUcCfueFLJuvIv';
           const TBL_HIST = 'tblm2xUADazitHisR';
           const fechaNacimiento = /^\d{4}-\d{2}-\d{2}$/.test(datos.fecha_nacimiento || '') ? datos.fecha_nacimiento : null;
@@ -4933,7 +4945,7 @@ async function ejecutarGuardadoSeriesLab(codigoMedico, pacienteCode, mensaje, se
   }
 
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-  const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+  const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
   const TBL_PAC = 'tblyUcCfueFLJuvIv';
   const TBL_LABS = 'tblhKp4uE1NdXXqLh';
   const TBL_LAB_VALORES = 'tbl6y1ZfsmPPhrlFk';
@@ -5217,6 +5229,7 @@ module.exports.numerosEnPalabras = numerosEnPalabras;
 module.exports.isAllowedOrigin = isAllowedOrigin;
 module.exports.buildSystemPrompt = buildSystemPrompt;
 module.exports.buildHerramientaPaciente = buildHerramientaPaciente;
+module.exports.ejecutarBuscarMedicosDirectorio = ejecutarBuscarMedicosDirectorio;
 
 // ─── HERRAMIENTA: ALTA DE PACIENTE NUEVO POR DICTADO ────────────────
 // Opcional (tool_choice auto) — distinta de rellenar_ficha_consulta: esa es
@@ -5277,7 +5290,7 @@ function buildHerramientaInvitarMedico() {
 function buildHerramientaBuscarDirectorio() {
   return {
     name: 'buscar_medicos_directorio',
-    description: 'Búscala cuando un paciente pida encontrar, localizar o que le recomiendes un médico/especialista de la Red CODE CELLS™ — por ciudad, especialidad o herramienta regenerativa (ej. "¿hay algún médico de células madre en Culiacán?", "busco un cardiólogo"). NO la uses para preguntas generales sobre CODE CELLS™ o protocolos, ni cuando el paciente no busca un médico concreto. Llámala con uno, dos o los tres filtros; si no dio ciudad, ómitela.',
+    description: 'Búscala cuando un paciente pida encontrar, localizar o que le recomiendes un médico/especialista de la Red CODE CELLS™ — por ciudad, especialidad, herramienta regenerativa o consulta en línea (ej. "¿hay algún médico de células madre en Culiacán?", "busco un cardiólogo", "¿alguien da consulta en línea?") — o cuando pregunte cuánto cuesta la consulta. Devuelve el costo que cada médico publicó (o null si no lo publicó) y si da consulta en línea. NO la uses para preguntas generales sobre CODE CELLS™ o protocolos. Llámala con los filtros que el paciente dio; si no dio ciudad, ómitela.',
     input_schema: {
       type: 'object',
       properties: {
@@ -5291,29 +5304,33 @@ function buildHerramientaBuscarDirectorio() {
           type: 'string',
           description: 'Herramienta regenerativa canónica. Mapea lo que pida el paciente al valor más cercano.',
           enum: ['Células madre','Exosomas','Sueroterapia IV','Peptidoterapia','GLP-1 / Pérdida de peso','MUSE Cells','Rejuvenecimiento facial','Terapia hormonal','Ozonoterapia','Homotoxicología','Biohacking / Longevidad','NK Cells','MSC Placental','DEZAWA (VIP)']
-        }
+        },
+        en_linea: { type: 'boolean', description: 'true solo si el paciente quiere consulta en línea (o vive donde no hay médico). Entonces la ciudad no importa: omítela.' }
       },
       required: []
     }
   };
 }
 
-async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamiento }) {
+async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamiento, en_linea }) {
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
-  const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+  const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
   const TABLA_DIRECTORIO = 'tblkUNPwu1sQgZBPJ';
   const esc = (v) => String(v || '').replace(/"/g, '\\"');
 
   const filtros = ['{Publicado}=1'];
-  if (ciudad)       filtros.push(`{Ciudad de consulta}="${esc(ciudad)}"`);
+  // La ciudad se compara abajo sin acentos ("Culiacan" = "Culiacán"), como
+  // en el directorio; en la fórmula un acento de diferencia daba cero médicos.
   if (especialidad) filtros.push(`FIND("${esc(especialidad)}", ARRAYJOIN({Especialidades visibles}, ", "))>0`);
   if (tratamiento)  filtros.push(`FIND("${esc(tratamiento)}", ARRAYJOIN({Tratamientos que ofrece}, ", "))>0`);
+  if (en_linea === true) filtros.push(`{${Directorio.CAMPO_EN_LINEA}}=1`);
   const formula = filtros.length === 1 ? filtros[0] : `AND(${filtros.join(',')})`;
 
-  const CAMPOS_PUBLICOS = ['Name','Especialidades visibles','Tratamientos que ofrece','Otras terapias','Ciudad de consulta','Bio corta','Horarios','WhatsApp público'];
+  const CAMPOS_PUBLICOS = ['Name','Especialidades visibles','Tratamientos que ofrece','Otras terapias','Ciudad de consulta','Bio corta','Horarios',
+    Directorio.CAMPO_LIGA, Directorio.CAMPO_COSTO, Directorio.CAMPO_EN_LINEA, Directorio.CAMPO_COSTO_EN_LINEA];
   const params = new URLSearchParams();
   params.set('filterByFormula', formula);
-  params.set('maxRecords', '5');
+  params.set('maxRecords', ciudad ? '100' : '5'); // con ciudad se filtra abajo y luego se recorta
   CAMPOS_PUBLICOS.forEach(c => params.append('fields[]', c));
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLA_DIRECTORIO}?${params.toString()}`;
@@ -5321,8 +5338,15 @@ async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamien
   if (!r.ok) throw new Error('Airtable ' + r.status);
   const data = await r.json();
 
-  const medicos = (data.records || []).map(rec => {
-    const f = rec.fields || {};
+  let registros = data.records || [];
+  if (ciudad) {
+    const clave = Directorio.claveCiudad(Directorio.normalizarCiudad(ciudad));
+    registros = registros.filter(rec => Directorio.claveCiudad(Directorio.normalizarCiudad((rec.fields || {})['Ciudad de consulta'])) === clave);
+  }
+  const medicos = registros.slice(0, 5).map(rec => {
+    // Misma limpieza que el directorio público: costo en línea solo con la
+    // casilla marcada, costos inválidos fuera.
+    const f = Directorio.limpiarPerfilPublico({ fields: { ...(rec.fields || {}) } }).fields;
     return {
       nombre: f['Name'] || null,
       ciudad: f['Ciudad de consulta'] || null,
@@ -5331,7 +5355,12 @@ async function ejecutarBuscarMedicosDirectorio({ ciudad, especialidad, tratamien
       otras_terapias: f['Otras terapias'] || null,
       bio: f['Bio corta'] || null,
       horarios: f['Horarios'] || null,
-      whatsapp: f['WhatsApp público'] || null,
+      perfil: f[Directorio.CAMPO_LIGA] ? `/directorio/${f[Directorio.CAMPO_LIGA]}` : null,
+      // null = el médico no lo publicó (no es "gratis" ni "desconocido por error").
+      costo_consulta: Directorio.costoLegible(f[Directorio.CAMPO_COSTO]) || null,
+      consulta_en_linea: f[Directorio.CAMPO_EN_LINEA] === true,
+      costo_consulta_en_linea: Directorio.costoLegible(f[Directorio.CAMPO_COSTO_EN_LINEA]) || null,
+      pago: 'Directo al médico (en el consultorio; en línea, como él indique, p. ej. transferencia). CODE CELLS no cobra ni interviene.',
     };
   });
   return { total: medicos.length, medicos };

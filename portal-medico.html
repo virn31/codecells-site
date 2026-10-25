@@ -411,6 +411,28 @@
     flex-shrink: 0;
   }
   .btn-capacitacion-topbar:hover { background: rgba(18,150,138,0.18); }
+  /* Acceso visible a "Mi directorio" (antes solo era un engrane sin texto en
+     la barra lateral, que en celular está oculta). */
+  .btn-directorio-topbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(232,163,61,0.1);
+    border: 0.5px solid rgba(232,163,61,0.35);
+    border-radius: var(--radius);
+    color: #E8A33D;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 5px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .btn-directorio-topbar:hover { background: rgba(232,163,61,0.18); }
+  .btn-directorio-topbar .solo-movil { display: none; }
 
   /* ─── NOVA FLOTANTE (capa 2) ───
      El botón real vive donde antes estaba en el topbar, pero con
@@ -2177,6 +2199,14 @@
     .btn-nova-topbar { width: 52px; height: 52px; }
     .nova-teaser { width: 260px; }
     .btn-logout { padding: 5px 8px; font-size: 11px; }
+    .btn-directorio-topbar { padding: 5px 8px; font-size: 10px; letter-spacing: 0.04em; }
+    /* La topbar ya no cabía en celular (Salir quedaba fuera de pantalla):
+       se oculta la píldora del médico y el saludo se recorta con "…". */
+    .doc-pill { display: none; }
+    .topbar-brand { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .topbar-brand * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-directorio-topbar .solo-escritorio { display: none; }
+    .btn-directorio-topbar .solo-movil { display: inline; }
 
     .app-body { flex-direction: column; height: calc(100vh - 48px); overflow: hidden; }
     .nav-rail { display: none; }
@@ -2232,8 +2262,13 @@
     .login-logo-block { margin-bottom: 1rem; }
   }
 /* ── Mi directorio (perfil público del médico) ── */
+/* "Mi directorio" está diseñado sobre fondo oscuro (colores claros fijos).
+   En modo claro el texto quedaba casi invisible: el panel conserva su
+   propio fondo oscuro en ambos temas, como la tarjeta del directorio público. */
 #mi-directorio {
-  color: var(--foreground, #E8E4DD);
+  --foreground: #E8E4DD;
+  color: #E8E4DD;
+  background: rgba(14, 20, 16, 0.96);
   font-family: 'IBM Plex Sans', sans-serif;
 }
 #mi-directorio .mi-directorio-header {
@@ -2249,6 +2284,11 @@
   padding: 6px 12px;
   font-size: 13px;
   margin-bottom: 8px;
+  color: #E8E4DD;
+  background: transparent;
+  border: 1px solid rgba(232, 228, 221, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
 }
 #mi-directorio .mi-dir-subtitle {
   font-size: 13px;
@@ -2358,6 +2398,7 @@
 }
 #mi-directorio .mi-dir-field input[type="text"],
 #mi-directorio .mi-dir-field input[type="url"],
+#mi-directorio .mi-dir-field input[type="tel"],
 #mi-directorio .mi-dir-field textarea {
   width: 100%;
   padding: 10px 12px;
@@ -2380,11 +2421,71 @@
   resize: vertical;
   font-family: 'IBM Plex Sans', sans-serif;
 }
+#mi-directorio .mi-dir-field .mi-dir-error {
+  margin-top: 6px; font-size: 12px; color: #E2574B; line-height: 1.4;
+}
 #mi-directorio .mi-dir-field .mi-dir-hint {
   font-size: 11px;
   color: rgba(232, 228, 221, 0.4);
   font-style: italic;
 }
+/* Solicitudes de cita (etapa 2 del directorio) */
+#mi-directorio .mi-cita { border: 1px solid rgba(232,228,221,0.12); border-radius: 10px; padding: 14px 16px; background: rgba(232,228,221,0.03); }
+#mi-directorio .mi-cita + .mi-cita { margin-top: 10px; }
+#mi-directorio .mi-cita-cab { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between; }
+#mi-directorio .mi-cita-nombre { font-size: 15px; font-weight: 600; }
+#mi-directorio .mi-cita-chip { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(232,228,221,0.25); color: rgba(232,228,221,0.8); }
+#mi-directorio .mi-cita-chip.pendiente { border-color: #E8A33D; color: #E8A33D; }
+#mi-directorio .mi-cita-chip.ok { border-color: #5FAE6E; color: #7BC99A; }
+#mi-directorio .mi-cita-dato { font-size: 13px; color: rgba(232,228,221,0.75); margin-top: 6px; overflow-wrap: anywhere; }
+#mi-directorio .mi-cita-dato b { color: #E8E4DD; font-weight: 500; }
+#mi-directorio .mi-cita-dato a { color: #4FA8A0; }
+#mi-directorio .mi-cita-motivo { margin-top: 8px; font-size: 13px; padding: 8px 10px; border-left: 2px solid rgba(232,163,61,0.4); background: rgba(232,163,61,0.05); white-space: pre-line; }
+#mi-directorio .mi-cita-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#mi-directorio .mi-cita-acciones button, #mi-directorio .mi-cita-form button { margin: 0 !important; }
+#mi-directorio .mi-cita-form { margin-top: 12px; display: none; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px dashed rgba(232,228,221,0.15); }
+#mi-directorio .mi-cita-form.visible { display: flex; }
+#mi-directorio .mi-cita-form .fila { display: flex; gap: 8px; flex-wrap: wrap; }
+#mi-directorio .mi-cita-form input[type=date], #mi-directorio .mi-cita-form input[type=time], #mi-directorio .mi-cita-form textarea {
+  padding: 9px 10px; background: rgba(232,228,221,0.04); border: 1px solid rgba(232,228,221,0.15); border-radius: 6px; color: #E8E4DD; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; color-scheme: dark;
+}
+#mi-directorio .mi-cita-form textarea { min-height: 60px; resize: vertical; }
+#mi-directorio .mi-cita-error { color: #D4654A; font-size: 12px; min-height: 1em; }
+#mi-directorio .mi-citas-vacio { font-size: 13px; color: rgba(232,228,221,0.6); font-style: italic; }
+#mi-directorio details.mi-citas-cerradas summary { cursor: pointer; font-size: 13px; color: rgba(232,228,221,0.65); margin-top: 10px; }
+.btn-directorio-topbar .insignia { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #E8A33D; color: #1A1406; font-size: 10px; font-weight: 700; letter-spacing: 0; }
+
+/* Foto, avatar o logotipo del directorio */
+#mi-directorio .mi-dir-foto { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+#mi-directorio .mi-dir-foto-circulo {
+  flex: 0 0 88px; width: 88px; height: 88px; border-radius: 50%;
+  border: 2px solid #E8A33D; overflow: hidden; display: grid; place-items: center;
+  background: #202820; position: relative;
+}
+#mi-directorio .mi-dir-foto-circulo img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+#mi-directorio .mi-dir-foto-circulo span { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-size: 28px; color: #E8A33D; }
+#mi-directorio .mi-dir-foto-acciones { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px; }
+#mi-directorio .mi-dir-foto-botones { display: flex; gap: 8px; flex-wrap: wrap; }
+#mi-directorio .mi-dir-foto-estado { font-size: 12px; min-height: 1em; }
+
+/* Encuadre de la foto: el médico la arrastra y la acerca dentro del círculo */
+.mi-dir-encuadre-marco {
+  position: relative; width: var(--marco); height: var(--marco); margin: 16px auto 14px;
+  overflow: hidden; border-radius: 8px; background: #202820;
+  touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.mi-dir-encuadre-marco:active { cursor: grabbing; }
+.mi-dir-encuadre-marco:focus-visible { outline: 2px solid #E8A33D; outline-offset: 3px; }
+.mi-dir-encuadre-marco img {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none;
+  pointer-events: none; -webkit-user-drag: none;
+}
+.mi-dir-encuadre-circulo {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 999px rgba(14, 20, 16, 0.62); border: 2px solid #E8A33D;
+}
+.mi-dir-encuadre-zoom { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 18px; color: rgba(232,228,221,0.6); }
+.mi-dir-encuadre-zoom input { flex: 1; accent-color: #E8A33D; }
 
 /* Multiselect de chips */
 #mi-directorio .mi-dir-chips {
@@ -2610,7 +2711,8 @@
 /* Modal (preview + confirm comparten skeleton) */
 #mi-directorio .mi-dir-modal,
 #mi-dir-preview-modal,
-#mi-dir-confirm-modal {
+#mi-dir-confirm-modal,
+#mi-dir-encuadre-modal {
   position: fixed;
   inset: 0;
   background: rgba(14, 20, 16, 0.75);
@@ -2669,7 +2771,8 @@
   gap: 12px;
   justify-content: flex-end;
 }
-.mi-dir-modal .mi-dir-btn-primary {
+.mi-dir-modal .mi-dir-btn-primary,
+#mi-directorio .mi-dir-btn-primary {
   padding: 10px 22px;
   background: var(--gold, #E8A33D);
   color: #0E1410;
@@ -2681,10 +2784,12 @@
   cursor: pointer;
   transition: transform 0.15s;
 }
-.mi-dir-modal .mi-dir-btn-primary:hover {
+.mi-dir-modal .mi-dir-btn-primary:hover,
+#mi-directorio .mi-dir-btn-primary:hover {
   transform: translateY(-1px);
 }
-.mi-dir-modal .mi-dir-btn-secondary {
+.mi-dir-modal .mi-dir-btn-secondary,
+#mi-directorio .mi-dir-btn-secondary {
   padding: 10px 22px;
   background: transparent;
   color: rgba(232, 228, 221, 0.7);
@@ -2695,9 +2800,16 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.mi-dir-modal .mi-dir-btn-secondary:hover {
+.mi-dir-modal .mi-dir-btn-secondary:hover,
+#mi-directorio .mi-dir-btn-secondary:hover {
   border-color: rgba(232, 228, 221, 0.4);
   color: var(--foreground, #E8E4DD);
+}
+.mi-dir-modal .mi-dir-btn-primary:disabled,
+#mi-directorio .mi-dir-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Contenido del preview */
@@ -2759,7 +2871,7 @@
   color: rgba(232, 228, 221, 0.8);
   line-height: 1.7;
 }
-.mi-dir-preview-render .mi-dir-preview-wa {
+.mi-dir-preview-render .mi-dir-preview-tel {
   color: #5FAE6E;
   text-decoration: none;
   word-break: break-all;
@@ -3196,6 +3308,8 @@
     <button class="btn-topbar" id="btn-theme" title="Cambiar tema">☀</button>
     <!-- Botón conectar Google Calendar -->
     <button class="btn-topbar" id="btn-google-calendar" title="Conectar mi Google Calendar">📅</button>
+    <!-- Mi directorio: perfil público, foto y solicitud de publicación -->
+    <button class="btn-directorio-topbar" id="btn-mi-directorio" title="Mi perfil en el directorio público" onclick="mostrarMiDirectorio()">◉ <span class="solo-escritorio">Mi directorio</span><span class="solo-movil">Directorio</span></button>
     <!-- Botón Capacitación -->
     <a class="btn-capacitacion-topbar" id="link-capacitacion-topbar" href="/capacitacion/" target="_blank" title="Programa de certificación médica">
       ◈ Capacitación
@@ -3245,7 +3359,7 @@
       <a class="nav-rail-item" href="/agenda/" title="Agenda"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></a>
       <a class="nav-rail-item" href="/kiosco.html" target="_blank" title="Kiosco (tablet de sala de espera)"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg></a>
       <button class="nav-rail-item" title="NOVA" onclick="document.getElementById('btn-nova-open').click()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg></button>
-      <button class="nav-rail-item" title="Configuración" onclick="mostrarMiDirectorio()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
+      <button class="nav-rail-item" title="Mi directorio público" onclick="mostrarMiDirectorio()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
       <div class="nav-rail-foot">CLINICAL OS · v2.0</div>
     </nav>
 
@@ -4206,13 +4320,17 @@
         <!-- Modal confirmación publicar -->
         <div id="mi-dir-confirm-modal" class="mi-dir-modal" style="display:none;">
           <div class="mi-dir-modal-card">
-            <div class="mi-dir-modal-eyebrow">Publicar perfil</div>
-            <p style="margin: 12px 0 24px 0; line-height: 1.6; color: rgba(232,228,221,0.85); font-size: 14px;">
-              Al confirmar, tu perfil será visible para pacientes que busquen en la Red CODE CELLS™ — por ciudad, especialidad o herramienta. Puedes despublicar en cualquier momento.
-            </p>
+            <div class="mi-dir-modal-eyebrow">Consentimiento de publicación</div>
+            <p id="mi-dir-consent-texto" style="margin: 12px 0 8px 0; line-height: 1.6; color: rgba(232,228,221,0.85); font-size: 14px;"></p>
+            <div id="mi-dir-consent-version" style="font-size: 11px; color: rgba(232,228,221,0.5); margin-bottom: 16px;"></div>
+            <label style="display:flex; gap:10px; align-items:flex-start; font-size:14px; color: rgba(232,228,221,0.9); margin-bottom: 20px; cursor:pointer;">
+              <input type="checkbox" id="mi-dir-consent-acepto" onchange="document.getElementById('mi-dir-consent-enviar').disabled = !this.checked" style="margin-top:3px">
+              <span>Leí y acepto. Entiendo que un administrador revisará mi perfil antes de publicarlo.</span>
+            </label>
+            <div id="mi-dir-consent-error" style="color:#D4654A; font-size:13px; margin-bottom:12px;"></div>
             <div class="mi-dir-modal-actions">
               <button class="mi-dir-btn-secondary" onclick="cancelarPublicarMiDir()">Cancelar</button>
-              <button class="mi-dir-btn-primary" onclick="confirmarPublicarMiDir()">Publicar</button>
+              <button class="mi-dir-btn-primary" id="mi-dir-consent-enviar" onclick="confirmarPublicarMiDir()" disabled>Aceptar y solicitar</button>
             </div>
           </div>
         </div>
@@ -4524,7 +4642,7 @@ window.fetch = function(url, opts = {}) {
   // pacienteCode leía los labs de ese paciente sin sesión de ningún tipo.
   // Las acciones de /api/nova que no verifican Authorization simplemente
   // ignoran este header, así que agregarlo aquí no rompe nada existente.
-  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova')) {
+  if (urlStr.includes('/api/airtable') || urlStr.includes('/api/nova') || urlStr.includes('/api/directorio') || urlStr.includes('/api/citas')) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
       opts = { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } };
@@ -7704,34 +7822,15 @@ document.getElementById('btn-google-calendar').addEventListener('click', async (
     showToast(`Ya tienes conectado: ${medicoActual['Google Calendar Email']}`, 'success');
     return;
   }
-  const GOOGLE_CLIENT_ID = '741625233877-n4i5n224o0mq7h2ao7cbnru470co7m9b.apps.googleusercontent.com';
-  const redirectUri = 'https://www.codecells.mx/api/google-oauth-callback';
-  // El state lo firma el servidor con tu sesión (15 min): ya no es tu código
-  // CCMED- en texto plano, que permitía enlazar un calendario ajeno a tu cuenta.
-  let state;
-  try {
-    const r = await fetch('/api/nova', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'medico_google_oauth_state' }),
-    });
-    const d = await r.json();
-    if (!r.ok || !d.ok || !d.state) throw new Error(d.error || 'sin state');
-    state = d.state;
-  } catch (err) {
-    showToast('No se pudo iniciar la conexión con Google. Vuelve a iniciar sesión e intenta de nuevo.', 'error');
-    return;
-  }
-  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email',
-    access_type: 'offline',
-    prompt: 'consent',
-    state,
-  }).toString();
-  window.location.href = authUrl;
+  // El enlace lo arma el servidor con un "state" firmado (antes era el código
+  // CCMED- en claro y cualquiera podía ligar su Google al registro de otro).
+  fetch('/api/directorio?accion=google_enlace')
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok || !d.url) throw new Error(d.error || 'No se pudo preparar la conexión.');
+      window.location.href = d.url;
+    })
+    .catch(e => showToast(e.message, 'error'));
 });
 document.getElementById('btn-nova-close').addEventListener('click', cerrarNova);
 novaOverlay.addEventListener('click', cerrarNova);
@@ -9418,6 +9517,8 @@ const MI_DIR_TRATAMIENTOS = [
 let miDirEstado = {
   recordId: null,
   campos: {},
+  flujo: null,       // respuesta de /api/directorio?accion=mi_estado
+  flujoError: null,  // texto si no se pudo leer el estado de publicación
   cargando: false,
   aborters: {} // AbortControllers activos por campo, para cancelar autosaves obsoletos
 };
@@ -9445,6 +9546,7 @@ async function cargarMiDirectorio() {
     } else {
       miDirEstado.recordId = data.records[0].id;
       miDirEstado.campos = data.records[0].fields || {};
+      await cargarFlujoMiDir();
       renderMiDirFormulario();
     }
   } catch (err) {
@@ -9452,6 +9554,21 @@ async function cargarMiDirectorio() {
     console.error('cargarMiDirectorio:', err);
   } finally {
     miDirEstado.cargando = false;
+  }
+}
+
+// Estado de publicación (etapa 1): lo decide el servidor, no el formulario.
+async function cargarFlujoMiDir() {
+  miDirEstado.flujoError = null;
+  try {
+    const r = await fetch('/api/directorio?accion=mi_estado');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ('Error ' + r.status));
+    miDirEstado.flujo = d;
+  } catch (e) {
+    miDirEstado.flujo = null;
+    miDirEstado.flujoError = 'No pudimos leer el estado de publicación de tu perfil. Recarga en unos segundos.';
+    console.error('cargarFlujoMiDir:', e);
   }
 }
 
@@ -9525,34 +9642,26 @@ function renderMiDirFormulario() {
   const puedePublicar = validarPuedePublicarMiDir(c);
   const fechaAltaFormateada = fechaAlta ? formatearFechaMiDir(fechaAlta) : '';
 
-  const statusHtml = `
-    <div class="mi-dir-status-block${publicado ? ' published' : ''}">
-      <div class="mi-dir-status-row">
-        <div class="mi-dir-status-dot"></div>
-        <div class="mi-dir-status-text">
-          ${publicado
-            ? `<strong>Publicado en la Red CODE CELLS™</strong><br><span class="mi-dir-status-sub">Visible desde: ${fechaAltaFormateada}</span>`
-            : `<strong>Solo tú ves este perfil</strong><br><span class="mi-dir-status-sub">Al activar el toggle, tu perfil será visible para pacientes que busquen en la Red.</span>`
-          }
-        </div>
-      </div>
-      <div class="mi-dir-toggle-row">
-        <label class="mi-dir-toggle${!puedePublicar.ok ? ' disabled' : ''}" title="${!puedePublicar.ok ? escaparHtml(puedePublicar.razon) : ''}">
-          <input type="checkbox" ${publicado ? 'checked' : ''} ${!puedePublicar.ok && !publicado ? 'disabled' : ''} onchange="alternarPublicadoMiDir(this)">
-          <span class="mi-dir-toggle-slider"></span>
-          <span class="mi-dir-toggle-label">Publicar en el directorio</span>
-        </label>
-        ${!puedePublicar.ok && !publicado ? `<div class="mi-dir-toggle-hint">${escaparHtml(puedePublicar.razon)}</div>` : ''}
-      </div>
-    </div>
-  `;
+  const statusHtml = htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar);
+  setTimeout(cargarCitasMiDir, 0);
 
   content.innerHTML = `
     <div class="mi-dir-form">
       ${statusHtml}
 
       <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Solicitudes de cita</div>
+        <div id="mi-dir-citas-lista"><div class="mi-citas-vacio">Cargando solicitudes…</div></div>
+      </div>
+
+      <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Agenda automática</div>
+        ${htmlAgendaMiDir(c)}
+      </div>
+
+      <div class="mi-dir-block">
         <div class="mi-dir-block-title">Cómo apareces</div>
+        <div class="mi-dir-field" id="mi-dir-foto-bloque">${htmlBloqueFotoMiDir()}</div>
         <div class="mi-dir-field">
           <label>Nombre público</label>
           <input type="text" data-campo="Name" value="${escaparHtml(c['Name'] || '')}" placeholder="Ej. Dr. Rodríguez">
@@ -9602,20 +9711,77 @@ function renderMiDirFormulario() {
           <span class="mi-dir-saved">✓ Guardado</span>
         </div>
         <div class="mi-dir-field">
-          <label>WhatsApp (solo número, se normaliza a wa.me)</label>
-          <input type="text" data-campo="WhatsApp público" value="${escaparHtml(c['WhatsApp público'] || '')}" placeholder="Ej. 6671234567" data-normalizar="whatsapp">
+          <label>Dirección del consultorio</label>
+          <textarea data-campo="Dirección del consultorio" maxlength="300" rows="3" placeholder="Ej. Av. Obregón 123, Col. Centro&#10;Torre Médica, consultorio 405">${escaparHtml(c['Dirección del consultorio'] || '')}</textarea>
           <span class="mi-dir-saved">✓ Guardado</span>
-          <div class="mi-dir-hint">Se convierte a https://wa.me/52... automáticamente</div>
+          <div class="mi-dir-hint">Se muestra en tu ficha y en la cita del paciente con un botón "Cómo llegar". La ciudad se agrega sola.</div>
         </div>
+        <div class="mi-dir-field">
+          <label>Teléfono del consultorio</label>
+          <input type="tel" data-campo="Teléfono de consultorio" value="${escaparHtml(c['Teléfono de consultorio'] || '')}" placeholder="Ej. 667 123 4567" maxlength="20" autocomplete="tel">
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">10 dígitos. El paciente lo ve como botón "Llamar" después de enviar su solicitud.</div>
+        </div>
+        <div class="mi-dir-field">
+          <label>Costo de la consulta (opcional)</label>
+          <input type="text" data-campo="Costo de consulta" value="${c['Costo de consulta'] ? escaparHtml(String(c['Costo de consulta'])) : ''}" placeholder="Ej. 800" maxlength="12" inputmode="numeric" autocomplete="off">
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">En pesos, sin centavos. Se muestra en tu ficha como "se paga en el consultorio": CODE CELLS no cobra ni interviene en el pago. Déjalo vacío si prefieres no mostrarlo.</div>
+        </div>
+        <div class="mi-dir-field">
+          <label style="display:flex;gap:10px;align-items:center;cursor:pointer;font-size:14px;color:rgba(232,228,221,0.9)"><input type="checkbox" data-campo="Consulta en línea" ${c['Consulta en línea'] === true ? 'checked' : ''} style="width:18px;height:18px;accent-color:#E8A33D"> Ofrezco consulta en línea</label>
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">El paciente te encuentra con el filtro "Solo en línea" aunque viva en otra ciudad. El horario y el pago los acuerdas tú directamente con él (por ejemplo, transferencia a tu cuenta): CODE CELLS no cobra ni interviene.</div>
+        </div>
+        <div class="mi-dir-field">
+          <label>Costo de la consulta en línea (opcional)</label>
+          <input type="text" data-campo="Costo de consulta en línea" value="${c['Costo de consulta en línea'] ? escaparHtml(String(c['Costo de consulta en línea'])) : ''}" placeholder="Ej. 600" maxlength="12" inputmode="numeric" autocomplete="off">
+          <span class="mi-dir-saved">✓ Guardado</span>
+          <div class="mi-dir-hint">Solo se muestra si marcaste "Ofrezco consulta en línea".</div>
+        </div>
+      </div>
+
+      <div class="mi-dir-block">
+        <div class="mi-dir-block-title">Redes sociales</div>
+        <div style="margin:-4px 0 14px;font-size:12px;line-height:1.5;color:rgba(232,228,221,0.6)">Aparecen como botones en tu ficha para que el paciente vaya directo. Pega la liga de tu perfil o escribe solo tu usuario (por ejemplo @dr.rodriguez). Déjalo vacío si no la usas.</div>
+        ${htmlRedesMiDir(c)}
       </div>
     </div>
   `;
 
   // Conectar autosave a inputs de texto
-  content.querySelectorAll('input[type="text"], input[type="url"], textarea').forEach(el => {
+  // type="tel" incluido: sin él, el teléfono del consultorio no se guardaba.
+  content.querySelectorAll('input[type="text"], input[type="url"], input[type="tel"], textarea').forEach(el => {
     el.addEventListener('input', () => programarGuardadoMiDir(el));
     el.addEventListener('blur', () => guardarCampoMiDir(el)); // forzar guardado al desenfocar
   });
+  // Casillas: se guardan al marcar; si falla, vuelven a como estaban.
+  content.querySelectorAll('input[type="checkbox"][data-campo]').forEach(el => {
+    el.addEventListener('change', async () => {
+      const ok = await guardarValorMiDir(el.dataset.campo, el.checked, el.closest('.mi-dir-field'));
+      if (ok === false) el.checked = !el.checked;
+    });
+  });
+}
+
+// Redes sociales del perfil público. El servidor (lib/directorio.js)
+// valida que cada liga sea de su red y la guarda como https completo.
+const REDES_MI_DIR = [
+  { campo: 'Instagram', ejemplo: '@tuconsultorio o instagram.com/tuconsultorio' },
+  { campo: 'Facebook', ejemplo: 'facebook.com/tuconsultorio' },
+  { campo: 'TikTok', ejemplo: '@tuconsultorio' },
+  { campo: 'YouTube', ejemplo: '@tucanal o youtube.com/@tucanal' },
+  { campo: 'LinkedIn', ejemplo: 'linkedin.com/in/tu-nombre' },
+  { campo: 'Sitio web', ejemplo: 'tuconsultorio.com' },
+  { campo: 'WhatsApp público', etiqueta: 'WhatsApp', ejemplo: '667 123 4567 o wa.me/526671234567', tipo: 'tel' },
+];
+function htmlRedesMiDir(c) {
+  return REDES_MI_DIR.map(r => `
+        <div class="mi-dir-field">
+          <label>${r.etiqueta || r.campo}</label>
+          <input type="text" data-campo="${r.campo}" data-red="1" value="${escaparHtml(c[r.campo] || '')}" placeholder="${escaparHtml(r.ejemplo)}" autocomplete="off" inputmode="${r.tipo || 'url'}">
+          <span class="mi-dir-saved">✓ Guardado</span>
+        </div>`).join('');
 }
 
 // Helper HTML escape
@@ -9645,24 +9811,10 @@ function programarGuardadoMiDir(el) {
   _miDirDebounce[campo] = setTimeout(() => guardarCampoMiDir(el), 800);
 }
 
-function normalizarWhatsApp(valor) {
-  const soloNumeros = String(valor || '').replace(/\D/g, '');
-  if (!soloNumeros) return '';
-  // Si empieza con 52, dejarlo; si no, anteponer 521 (formato MX WhatsApp)
-  let n = soloNumeros;
-  if (n.startsWith('521')) { /* ok */ }
-  else if (n.startsWith('52')) { n = '521' + n.substring(2); }
-  else { n = '521' + n; }
-  return 'https://wa.me/' + n;
-}
-
 async function guardarCampoMiDir(el) {
   const campo = el.dataset.campo;
   if (!campo) return;
-  let valor = el.value;
-  if (el.dataset.normalizar === 'whatsapp' && valor.trim()) {
-    valor = normalizarWhatsApp(valor);
-  }
+  const valor = el.value;
   await guardarValorMiDir(campo, valor, el.closest('.mi-dir-field'));
 }
 
@@ -9684,13 +9836,39 @@ async function guardarValorMiDir(campo, valor, campoContainer) {
       body: JSON.stringify(body),
       signal: ctrl.signal
     });
-    if (!r.ok) throw new Error('Error ' + r.status);
-    miDirEstado.campos[campo] = valor;
+    const d = await r.json().catch(() => ({}));
+    // Nuestro servidor manda error como texto; Airtable, como objeto.
+    if (!r.ok) throw new Error(typeof d.error === 'string' ? d.error : 'No se pudo guardar (error ' + r.status + '). Intenta de nuevo.');
+    // El servidor puede normalizar el valor (redes: @usuario → liga completa;
+    // ciudad: "Culiacan" → "Culiacán").
+    const guardado = (d.fields && campo in d.fields) ? d.fields[campo] : valor;
+    miDirEstado.campos[campo] = guardado;
+    const input = campoContainer && campoContainer.querySelector('input[data-red], input[data-campo="Ciudad de consulta"], input[data-campo="Teléfono de consultorio"], input[data-campo="Costo de consulta"], input[data-campo="Costo de consulta en línea"], textarea[data-campo="Dirección del consultorio"]');
+    if (input && document.activeElement !== input) input.value = guardado == null ? '' : String(guardado);
+    mostrarErrorMiDir(campoContainer, '');
     mostrarGuardadoMiDir(campoContainer);
+    return true;
   } catch (err) {
     if (err.name === 'AbortError') return; // canceled — expected
     console.error('guardarValorMiDir:', campo, err);
+    // Un fallo se ve como fallo: antes solo iba a la consola y el médico
+    // creía que su cambio se había guardado.
+    mostrarErrorMiDir(campoContainer, err.message);
+    return false;
   }
+}
+
+function mostrarErrorMiDir(campoContainer, texto) {
+  if (!campoContainer) return;
+  let caja = campoContainer.querySelector('.mi-dir-error');
+  if (!texto) { if (caja) caja.remove(); return; }
+  if (!caja) {
+    caja = document.createElement('div');
+    caja.className = 'mi-dir-error';
+    caja.setAttribute('role', 'alert');
+    campoContainer.appendChild(caja);
+  }
+  caja.textContent = texto;
 }
 
 function mostrarGuardadoMiDir(campoContainer) {
@@ -9741,25 +9919,463 @@ salirMiDirectorio = function() {
   _origSalirMiDirectorio();
 };
 
-// ── Toggle publicar ──
-function alternarPublicadoMiDir(input) {
-  const quierePublicar = input.checked;
-  const yaEstabaPublicado = !!miDirEstado.campos['Publicado'];
+// ── Publicación (etapa 1): solicitar → revisión → publicado ──
+// El médico ya no se publica solo: acepta el consentimiento y un
+// administrador revisa. Despublicar sí es inmediato.
+function htmlEstadoPublicacionMiDir(fechaAltaFormateada, puedePublicar) {
+  if (miDirEstado.flujoError) {
+    return `<div class="mi-dir-status-block"><div class="mi-dir-status-text" style="color:#D4654A">${escaparHtml(miDirEstado.flujoError)}</div></div>`;
+  }
+  const p = (miDirEstado.flujo && miDirEstado.flujo.perfil) || {};
+  const estado = p.estado || 'Borrador';
+  const admin = miDirEstado.flujo && miDirEstado.flujo.esAdmin
+    ? `<div class="mi-dir-toggle-hint" style="margin-top:12px"><a href="/admin-directorio.html" style="color:#E8A33D">Revisar solicitudes del directorio →</a></div>` : '';
+  const btn = (txt, fn, primario, deshabilitado) =>
+    `<button class="${primario ? 'mi-dir-btn-primary' : 'mi-dir-btn-secondary'}" onclick="${fn}" ${deshabilitado ? 'disabled' : ''} style="margin-top:12px;margin-right:8px">${txt}</button>`;
+  const faltan = (p.faltantes && p.faltantes.length) ? p.faltantes : (puedePublicar.ok ? [] : [puedePublicar.razon]);
+  const pista = faltan.length ? `<div class="mi-dir-toggle-hint">Para solicitar falta: ${escaparHtml(faltan.join(', '))}</div>` : '';
+  let titulo, sub, acciones, clase = '';
 
-  // Publicando por primera vez o después de despublicar → mostrar modal de confirmación
-  if (quierePublicar && !yaEstabaPublicado) {
-    input.checked = false; // revertimos hasta que confirme
-    document.getElementById('mi-dir-confirm-modal').style.display = 'flex';
+  if (estado === 'Publicado') {
+    clase = ' published';
+    titulo = 'Publicado en la Red CODE CELLS™';
+    sub = fechaAltaFormateada ? `Visible desde: ${fechaAltaFormateada}` : 'Visible para los pacientes.';
+    if (!p.tieneConsentimiento) {
+      sub += '<br><span style="color:#E8A33D">Tu perfil se publicó antes de que existiera el consentimiento registrado. Acéptalo para que siga publicado.</span>';
+    } else if (p.cambiosSinRevisar) {
+      sub += '<br>Tus cambios más recientes están pendientes de revisión; mientras tanto el perfil sigue visible.';
+    }
+    if (p.liga) {
+      const url = location.origin + '/directorio/' + p.liga;
+      sub += `<br>Tu liga para compartir: <a href="${escaparHtml(url)}" target="_blank" rel="noopener" style="color:#E8A33D">${escaparHtml(url.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
+        + ` <button type="button" class="mi-dir-btn-secondary" style="padding:4px 10px;font-size:12px" onclick="copiarLigaMiDir(this, '${escaparHtml(url)}')">Copiar</button>`
+        + '<br><span style="font-size:12px;opacity:.75">Al pegarla en WhatsApp o redes se ve tu nombre, especialidad y foto.</span>';
+    }
+    acciones = (!p.tieneConsentimiento ? btn('Aceptar consentimiento', 'abrirConsentimientoMiDir()', true, faltan.length) : '')
+      + btn('Despublicar', 'despublicarMiDir()', false, false);
+  } else if (estado === 'En revisión') {
+    titulo = 'Solicitud en revisión';
+    sub = 'Un administrador de CODE CELLS revisará tu perfil y tu cédula. Te avisaremos por Telegram si lo tienes vinculado. Todavía no es visible para los pacientes.';
+    acciones = btn('Retirar solicitud', 'despublicarMiDir()', false, false);
+  } else if (estado === 'Rechazado') {
+    titulo = 'Tu solicitud necesita cambios';
+    sub = `Motivo: ${escaparHtml(p.motivoRechazo || 'sin detalle')}. Corrige tu perfil y vuelve a solicitar la publicación.`;
+    acciones = btn('Volver a solicitar', 'abrirConsentimientoMiDir()', true, faltan.length) + pista;
+  } else {
+    titulo = estado === 'Despublicado' ? 'Perfil despublicado' : 'Solo tú ves este perfil';
+    sub = 'Cuando esté listo, solicita la publicación. Un administrador lo revisará antes de que sea visible para los pacientes.';
+    acciones = btn('Solicitar publicación', 'abrirConsentimientoMiDir()', true, faltan.length) + pista;
+  }
+  return `
+    <div class="mi-dir-status-block${clase}">
+      <div class="mi-dir-status-row">
+        <div class="mi-dir-status-dot"></div>
+        <div class="mi-dir-status-text"><strong>${titulo}</strong><br><span class="mi-dir-status-sub">${sub}</span></div>
+      </div>
+      <div class="mi-dir-toggle-row" id="mi-dir-acciones">${acciones}</div>
+      <div class="mi-dir-toggle-hint" id="mi-dir-accion-error" style="color:#D4654A"></div>
+      ${admin}
+    </div>`;
+}
+
+async function copiarLigaMiDir(boton, url) {
+  try { await navigator.clipboard.writeText(url); boton.textContent = 'Copiada'; }
+  catch (e) { boton.textContent = 'Selecciona la liga y cópiala'; }
+}
+
+// ── Solicitudes de cita (etapa 2) ──
+// El paciente pide una fecha y un turno; el médico acepta (con hora exacta),
+// propone otro horario o no puede atenderle. El paciente ve la respuesta en
+// su liga. Nada se presenta como cita confirmada mientras siga "Pendiente".
+let miCitasEstado = { lista: [], nombrePublico: '' };
+const CITAS_ACTIVAS = ['Pendiente', 'Otro horario propuesto', 'Aceptada', 'Confirmada por el paciente'];
+
+// Igual que lib/citas.js: "(mañana)" junto a una fecha se lee como "el día de mañana".
+function textoTurnoMiDir(t) { return ({ 'Mañana': 'por la mañana', 'Tarde': 'por la tarde', 'Cualquiera': 'a cualquier hora' })[t] || String(t || '').toLowerCase(); }
+function fechaCitaMiDir(ymd) {
+  if (!ymd) return '';
+  try { return new Date(ymd + 'T12:00:00Z').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }); }
+  catch (e) { return ymd; }
+}
+
+// ── Agenda automática (etapa 2b) ──
+// Se configura por Telegram (/agenda); aquí solo se muestra su estado.
+// Mismo formato que lib/agenda.js (horario JSON por día 0=dom … 6=sáb).
+function htmlAgendaMiDir(c) {
+  let h = null, bloqueos = [];
+  try { h = JSON.parse(c['Agenda — horario'] || 'null'); } catch (e) { h = null; }
+  try { bloqueos = JSON.parse(c['Agenda — bloqueos'] || '[]') || []; } catch (e) { bloqueos = []; }
+  const instruccion = 'En Telegram, escríbele <b>/agenda</b> a @Drvirnbot (si no lo has vinculado, mándale primero tu código de médico).';
+  if (!h || !h.dias || !Object.keys(h.dias).length) {
+    return `<p class="mi-citas-vacio" style="text-align:left">Sin configurar: los pacientes te envían <b>solicitudes</b> que tú respondes aquí.<br>Para que NOVA agende sola en tus horarios libres: ${instruccion} Son 4 preguntas con botones.</p>`;
+  }
+  const corto = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const hc = x => String(x).replace(/^0(\d)/, '$1');
+  const grupos = new Map(); const sin = [];
+  for (const d of [1, 2, 3, 4, 5, 6, 0]) {
+    const r = h.dias[String(d)];
+    if (!r || !r.length) { sin.push(corto[d]); continue; }
+    const k = r.map(([a, b]) => `${hc(a)}–${hc(b)}`).join(' y ');
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(corto[d]);
+  }
+  const lineas = [...grupos].map(([k, ds]) => `${ds.join(', ')}: ${k}`);
+  if (sin.length) lineas.push(`${sin.join(', ')}: sin consulta`);
+  lineas.push(`Cada consulta: ${Number(h.duracion) || 30} min`);
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const prox = bloqueos.filter(b => b && b.hasta >= hoy).sort((a, b) => String(a.desde).localeCompare(b.desde));
+  const activa = c['Agenda — automática'] === true;
+  return `
+    <p style="margin:0 0 8px"><b>${activa ? '● Activa' : '⏸ En pausa'}</b> — ${activa ? 'los pacientes eligen un horario libre y la cita se confirma sola.' : 'los pacientes envían solicitudes que tú respondes.'}</p>
+    <div style="white-space:pre-line;font-size:14px;line-height:1.6">${escaparHtml(lineas.join('\n'))}</div>
+    ${prox.length ? `<p style="margin:10px 0 4px"><b>Fechas sin citas:</b></p><ul style="margin:0;padding-left:18px;font-size:14px">${prox.map(b =>
+      `<li>${escaparHtml(fechaCitaMiDir(b.desde))}${b.hasta !== b.desde ? ' – ' + escaparHtml(fechaCitaMiDir(b.hasta)) : ''}${b.ini ? `, ${escaparHtml(hc(b.ini))}–${escaparHtml(hc(b.fin))}` : ''}${b.nota ? ' · ' + escaparHtml(b.nota) : ''}</li>`).join('')}</ul>` : ''}
+    <p class="mi-citas-vacio" style="text-align:left;margin-top:10px">Para cambiar tu horario, pausarla o bloquear días: ${instruccion} Para bloquear basta escribirle, por ejemplo, “estaré fuera del 5 al 10 de noviembre”.</p>`;
+}
+
+function enlaceWaPacienteMiDir(telefono, nombre) {
+  let d = String(telefono || '').replace(/\D/g, '');
+  if (d.length === 10) d = '52' + d;
+  if (d.length < 11) return '';
+  const texto = `Hola ${nombre || ''}, le escribe el consultorio de ${miCitasEstado.nombrePublico || 'su médico'} sobre su solicitud de cita en CODE CELLS.`;
+  return 'https://wa.me/' + d + '?text=' + encodeURIComponent(texto);
+}
+
+async function cargarCitasMiDir() {
+  const cont = document.getElementById('mi-dir-citas-lista');
+  try {
+    const r = await fetch('/api/citas?accion=mis_solicitudes');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ('Error ' + r.status));
+    miCitasEstado = { lista: d.solicitudes || [], nombrePublico: d.nombrePublico || '' };
+    renderCitasMiDir();
+  } catch (e) {
+    if (cont) cont.innerHTML = `<div class="mi-cita-error">No pudimos cargar tus solicitudes de cita (${escaparHtml(e.message)}). Recarga en unos segundos.</div>`;
+  }
+  actualizarInsigniaCitas();
+}
+
+function htmlCitaMiDir(s) {
+  const pendiente = s.estado === 'Pendiente';
+  const ok = s.estado === 'Aceptada' || s.estado === 'Confirmada por el paciente';
+  const wa = enlaceWaPacienteMiDir(s.telefono, s.nombre);
+  const btn = (txt, accion, primario) => `<button class="${primario ? 'mi-dir-btn-primary' : 'mi-dir-btn-secondary'}" onclick="abrirRespuestaCitaMiDir('${s.id}','${accion}')">${txt}</button>`;
+  let acciones = '';
+  if (s.esCita) {
+    if (pendiente) acciones = btn('Aceptar', 'aceptar', true) + btn('Proponer otro horario', 'proponer') + btn('No puedo atenderle', 'rechazar');
+    else if (s.estado === 'Otro horario propuesto') acciones = btn('Proponer otro horario', 'proponer') + btn('No puedo atenderle', 'rechazar');
+    else if (ok) acciones = btn('Cancelar la cita', 'rechazar');
+  }
+  const recibida = s.fechaSolicitud ? new Date(s.fechaSolicitud).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  return `
+    <div class="mi-cita" id="mi-cita-${s.id}">
+      <div class="mi-cita-cab">
+        <span class="mi-cita-nombre">${escaparHtml(s.nombre || 'Sin nombre')}${s.modalidad === 'En línea' ? ' <span class="mi-cita-chip ok" style="margin-left:6px">En línea</span>' : ''}</span>
+        <span class="mi-cita-chip${pendiente ? ' pendiente' : ok ? ' ok' : ''}">${escaparHtml(s.esCita ? s.estado : 'Contacto (formato anterior)')}</span>
+      </div>
+      ${s.modalidad === 'En línea' ? `<div class="mi-cita-dato" style="opacity:.8">Consulta en línea: acuerda con el paciente el horario, cómo se conectan y el pago (directo contigo; CODE CELLS no interviene).</div>` : ''}
+      ${s.fechaPreferida ? `<div class="mi-cita-dato">Prefiere: <b>${escaparHtml(fechaCitaMiDir(s.fechaPreferida))}</b>${s.turno ? ', ' + escaparHtml(textoTurnoMiDir(s.turno)) : ''}</div>` : ''}
+      ${s.horario ? `<div class="mi-cita-dato">${s.estado === 'Otro horario propuesto' ? 'Propusiste' : 'Horario acordado'}: <b>${escaparHtml(s.horario)}</b></div>` : ''}
+      <div class="mi-cita-dato">Teléfono: <b>${escaparHtml(s.telefono || '—')}</b>${wa ? ` · <a href="${escaparHtml(wa)}" target="_blank" rel="noopener">Escribir por WhatsApp</a>` : ''}${s.email ? ' · ' + escaparHtml(s.email) : ''}</div>
+      ${s.motivo ? `<div class="mi-cita-motivo"><span style="opacity:.7;font-size:11px">Lo escribió el paciente (con su autorización):</span>\n${escaparHtml(s.motivo)}</div>` : ''}
+      ${s.mensaje ? `<div class="mi-cita-dato">Tu mensaje: ${escaparHtml(s.mensaje)}</div>` : ''}
+      <div class="mi-cita-dato" style="font-size:11px;opacity:.7">Recibida: ${escaparHtml(recibida)}</div>
+      ${acciones ? `<div class="mi-cita-acciones">${acciones}</div>` : ''}
+      <div class="mi-cita-form" id="mi-cita-form-${s.id}"></div>
+    </div>`;
+}
+
+function renderCitasMiDir() {
+  const cont = document.getElementById('mi-dir-citas-lista');
+  if (!cont) return;
+  const lista = miCitasEstado.lista;
+  if (!lista.length) {
+    cont.innerHTML = '<div class="mi-citas-vacio">Aún no tienes solicitudes. Cuando un paciente pida cita desde tu perfil, aparecerá aquí y te avisaremos por Telegram si lo tienes vinculado.</div>';
     return;
   }
+  const activas = lista.filter(s => s.esCita && CITAS_ACTIVAS.includes(s.estado));
+  const otras = lista.filter(s => !activas.includes(s));
+  cont.innerHTML = (activas.length ? activas.map(htmlCitaMiDir).join('') : '<div class="mi-citas-vacio">No tienes solicitudes abiertas.</div>')
+    + (otras.length ? `<details class="mi-citas-cerradas"><summary>Cerradas y anteriores (${otras.length})</summary>${otras.map(htmlCitaMiDir).join('')}</details>` : '');
+}
 
-  // Despublicando → directo, sin modal
-  if (!quierePublicar) {
-    guardarValorMiDir('Publicado', false, null).then(() => {
-      miDirEstado.campos['Publicado'] = false;
-      renderMiDirFormulario();
-    });
+function actualizarInsigniaCitas() {
+  const btn = document.getElementById('btn-mi-directorio');
+  if (!btn) return;
+  const n = (miCitasEstado.lista || []).filter(s => s.esCita && (s.estado === 'Pendiente' || s.estado === 'Confirmada por el paciente')).length;
+  let ins = btn.querySelector('.insignia');
+  if (!n) { if (ins) ins.remove(); return; }
+  if (!ins) { ins = document.createElement('span'); ins.className = 'insignia'; btn.appendChild(ins); }
+  ins.textContent = n;
+  ins.title = n === 1 ? '1 solicitud de cita por revisar' : `${n} solicitudes de cita por revisar`;
+}
+
+function abrirRespuestaCitaMiDir(id, respuesta) {
+  const s = miCitasEstado.lista.find(x => x.id === id);
+  const caja = document.getElementById('mi-cita-form-' + id);
+  if (!s || !caja) return;
+  const conHorario = respuesta === 'aceptar' || respuesta === 'proponer';
+  const fecha = respuesta === 'aceptar' ? (s.fechaPreferida || '') : '';
+  const abierta = s.estado === 'Pendiente' || s.estado === 'Otro horario propuesto';
+  const titulo = { aceptar: 'Aceptar: indica la hora exacta', proponer: 'Proponer otro horario', rechazar: abierta ? 'No puedo atenderle' : 'Cancelar la cita' }[respuesta];
+  const mensajeObligatorio = respuesta === 'rechazar' && !abierta;
+  caja.innerHTML = `
+    <div style="font-size:13px;font-weight:600">${titulo}</div>
+    ${conHorario ? `<div class="fila"><input type="date" id="mi-cita-fecha-${id}" value="${escaparHtml(fecha)}" aria-label="Fecha"><input type="time" id="mi-cita-hora-${id}" step="900" aria-label="Hora"></div>` : ''}
+    <textarea id="mi-cita-msg-${id}" maxlength="500" placeholder="Mensaje para el paciente${mensajeObligatorio ? ' (obligatorio)' : ' (opcional)'}. No escribas información clínica: el paciente lo ve en su liga."></textarea>
+    <div class="fila">
+      <button class="mi-dir-btn-primary" id="mi-cita-enviar-${id}" onclick="responderCitaMiDir('${id}','${respuesta}')">Enviar respuesta</button>
+      <button class="mi-dir-btn-secondary" onclick="document.getElementById('mi-cita-form-${id}').classList.remove('visible')">Cerrar</button>
+    </div>
+    <div class="mi-cita-error" id="mi-cita-error-${id}"></div>`;
+  caja.classList.add('visible');
+}
+
+async function responderCitaMiDir(id, respuesta) {
+  const err = document.getElementById('mi-cita-error-' + id);
+  const btn = document.getElementById('mi-cita-enviar-' + id);
+  const body = { id, respuesta, mensaje: (document.getElementById('mi-cita-msg-' + id) || {}).value || '' };
+  if (respuesta === 'aceptar' || respuesta === 'proponer') {
+    const f = (document.getElementById('mi-cita-fecha-' + id) || {}).value;
+    const h = (document.getElementById('mi-cita-hora-' + id) || {}).value;
+    if (!f || !h) { err.textContent = 'Indica fecha y hora.'; return; }
+    body.horario = f + ' ' + h;
   }
+  err.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    const r = await fetch('/api/citas?accion=responder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo guardar la respuesta.');
+    miCitasEstado.lista = miCitasEstado.lista.map(x => x.id === id ? d.solicitud : x);
+    renderCitasMiDir();
+    actualizarInsigniaCitas();
+  } catch (e) {
+    err.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Enviar respuesta';
+  }
+}
+
+// La insignia del botón "Mi directorio" se calcula al abrir el portal.
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    try { if (sessionStorage.getItem('cc_medico_token')) cargarCitasMiDir(); } catch (e) { /* sin sesión */ }
+  }, 1500);
+});
+
+// ── Foto, avatar o logotipo ──
+// El médico la encuadra en el navegador (encuadrarFotoMiDir) y se recorta a
+// un cuadrado de 400 px que se vuelve a codificar:
+// pesa poco y pierde los metadatos de la foto original (ubicación GPS,
+// cámara). El servidor vuelve a revisar tipo y tamaño. Sin foto, el
+// directorio muestra las iniciales.
+function inicialesMiDir(nombre) {
+  const palabras = String(nombre || '').replace(/\[[^\]]*\]/g, ' ').split(/\s+/)
+    .filter(p => p && !/^(dr|dra|doctor|doctora)\.?$/i.test(p));
+  return palabras.slice(0, 2).map(p => p[0].toUpperCase()).join('') || '·';
+}
+
+function htmlBloqueFotoMiDir(mensaje, esError) {
+  const p = (miDirEstado.flujo && miDirEstado.flujo.perfil) || {};
+  const foto = p.foto || '';
+  const iniciales = escaparHtml(inicialesMiDir((miDirEstado.campos || {})['Name']));
+  return `
+    <label>Foto, avatar o logotipo (opcional)</label>
+    <div class="mi-dir-foto">
+      <div class="mi-dir-foto-circulo">
+        <span>${iniciales}</span>
+        ${foto ? `<img src="${escaparHtml(foto)}" alt="Tu foto del directorio" onerror="this.remove()">` : ''}
+      </div>
+      <div class="mi-dir-foto-acciones">
+        <div class="mi-dir-foto-botones">
+          <button type="button" class="mi-dir-btn-secondary" onclick="document.getElementById('mi-dir-foto-archivo').click()">${foto ? 'Cambiar imagen' : 'Subir imagen'}</button>
+          ${foto ? `<button type="button" class="mi-dir-btn-secondary" onclick="quitarFotoMiDir()">Quitar</button>` : ''}
+          <input type="file" id="mi-dir-foto-archivo" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="subirFotoMiDir(this)">
+        </div>
+        <div class="mi-dir-hint">JPG, PNG o WebP. Al elegirla puedes moverla y acercarla para centrarla en el círculo; se borran los datos de ubicación de la foto. Si no subes nada, se muestran tus iniciales.</div>
+        <div class="mi-dir-foto-estado" style="color:${esError ? '#D4654A' : '#5FAE6E'}">${mensaje ? escaparHtml(mensaje) : ''}</div>
+      </div>
+    </div>`;
+}
+
+function refrescarFotoYEstadoMiDir(mensaje, esError) {
+  const bloque = document.getElementById('mi-dir-foto-bloque');
+  if (bloque) bloque.innerHTML = htmlBloqueFotoMiDir(mensaje, esError);
+  const estado = document.querySelector('#mi-dir-content .mi-dir-status-block');
+  if (estado) {
+    const c = miDirEstado.campos || {};
+    estado.outerHTML = htmlEstadoPublicacionMiDir(c['Fecha de alta'] ? formatearFechaMiDir(c['Fecha de alta']) : '', validarPuedePublicarMiDir(c));
+  }
+}
+
+// Abre la imagen en una ventana con el círculo encima: el médico la arrastra
+// (dedo o mouse; flechas del teclado) y la acerca con el control. Al guardar
+// se recorta exactamente lo que queda en el cuadro, a 400 × 400.
+// Devuelve { tipo, dataUrl }, o null si cancela.
+function encuadrarFotoMiDir(archivo) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(archivo);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No pudimos leer esa imagen. Prueba con un JPG o PNG.')); };
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      // Cabe en un teléfono de 320 px: la ventana y la tarjeta ocupan 104 px de margen.
+      const marco = Math.max(180, Math.min(280, window.innerWidth - 120));
+      const base = marco / Math.min(w, h); // escala que apenas cubre el cuadro
+      let zoom = 1, x = 0, y = 0;
+      const modal = document.createElement('div');
+      modal.id = 'mi-dir-encuadre-modal';
+      modal.className = 'mi-dir-modal';
+      modal.innerHTML = `
+        <div class="mi-dir-modal-card" role="dialog" aria-modal="true" aria-labelledby="mi-dir-encuadre-titulo">
+          <div class="mi-dir-modal-eyebrow" id="mi-dir-encuadre-titulo">Centra tu imagen</div>
+          <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:rgba(232,228,221,0.75)">Arrastra la imagen para acomodarla dentro del círculo y usa el control para acercarla. Así se verá en tu ficha.</p>
+          <div class="mi-dir-encuadre-marco" tabindex="0" aria-label="Imagen a encuadrar; usa las flechas para moverla" style="--marco:${marco}px">
+            <div class="mi-dir-encuadre-circulo"></div>
+          </div>
+          <label class="mi-dir-encuadre-zoom"><span aria-hidden="true">−</span><input type="range" min="1" max="4" step="0.01" value="1" aria-label="Acercar o alejar"><span aria-hidden="true">+</span></label>
+          <div class="mi-dir-modal-actions">
+            <button type="button" class="mi-dir-btn-secondary" data-accion="cancelar">Cancelar</button>
+            <button type="button" class="mi-dir-btn-primary" data-accion="guardar">Guardar imagen</button>
+          </div>
+        </div>`;
+      const caja = modal.querySelector('.mi-dir-encuadre-marco');
+      img.alt = '';
+      img.draggable = false;
+      caja.insertBefore(img, caja.firstChild);
+      const control = modal.querySelector('input[type="range"]');
+
+      // La imagen nunca deja hueco dentro del cuadro.
+      function pintar() {
+        const esc = base * zoom;
+        x = Math.min(0, Math.max(marco - w * esc, x));
+        y = Math.min(0, Math.max(marco - h * esc, y));
+        img.style.width = w + 'px';
+        img.style.height = h + 'px';
+        img.style.transform = `translate(${x}px, ${y}px) scale(${esc})`;
+      }
+      function cambiarZoom(nuevo) {
+        // Acerca hacia el centro del cuadro, no hacia la esquina.
+        const antes = base * zoom;
+        const cx = (marco / 2 - x) / antes, cy = (marco / 2 - y) / antes;
+        zoom = Math.min(4, Math.max(1, nuevo));
+        x = marco / 2 - cx * base * zoom;
+        y = marco / 2 - cy * base * zoom;
+        control.value = zoom;
+        pintar();
+      }
+      x = (marco - w * base) / 2;
+      y = (marco - h * base) / 2;
+      pintar();
+
+      let arrastre = null;
+      caja.addEventListener('pointerdown', e => {
+        arrastre = { id: e.pointerId, px: e.clientX, py: e.clientY, x, y };
+        caja.setPointerCapture(e.pointerId);
+      });
+      caja.addEventListener('pointermove', e => {
+        if (!arrastre || e.pointerId !== arrastre.id) return;
+        x = arrastre.x + e.clientX - arrastre.px;
+        y = arrastre.y + e.clientY - arrastre.py;
+        pintar();
+      });
+      const soltar = () => { arrastre = null; };
+      caja.addEventListener('pointerup', soltar);
+      caja.addEventListener('pointercancel', soltar);
+      caja.addEventListener('wheel', e => { e.preventDefault(); cambiarZoom(zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+      caja.addEventListener('keydown', e => {
+        const paso = { ArrowLeft: [10, 0], ArrowRight: [-10, 0], ArrowUp: [0, 10], ArrowDown: [0, -10] }[e.key];
+        if (!paso) return;
+        e.preventDefault();
+        x += paso[0]; y += paso[1];
+        pintar();
+      });
+      control.addEventListener('input', () => cambiarZoom(parseFloat(control.value)));
+
+      function cerrar(resultado) {
+        document.removeEventListener('keydown', alEscape);
+        modal.remove();
+        URL.revokeObjectURL(url);
+        resolve(resultado);
+      }
+      function alEscape(e) { if (e.key === 'Escape') cerrar(null); }
+      document.addEventListener('keydown', alEscape);
+      modal.querySelector('[data-accion="cancelar"]').addEventListener('click', () => cerrar(null));
+      modal.querySelector('[data-accion="guardar"]').addEventListener('click', () => {
+        const esc = base * zoom;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 400;
+        canvas.getContext('2d').drawImage(img, -x / esc, -y / esc, marco / esc, marco / esc, 0, 0, 400, 400);
+        // PNG/WebP conservan la transparencia de un logotipo; las fotos van en JPEG.
+        const tipo = archivo.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+        cerrar({ tipo, dataUrl: canvas.toDataURL(tipo, 0.85) });
+      });
+
+      document.body.appendChild(modal);
+      caja.focus();
+    };
+    img.src = url;
+  });
+}
+
+async function subirFotoMiDir(input) {
+  const archivo = input.files && input.files[0];
+  input.value = '';
+  if (!archivo) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(archivo.type)) {
+    refrescarFotoYEstadoMiDir('Solo se aceptan imágenes JPG, PNG o WebP.', true);
+    return;
+  }
+  if (archivo.size > 20 * 1024 * 1024) {
+    refrescarFotoYEstadoMiDir('La imagen pesa más de 20 MB. Elige una más ligera.', true);
+    return;
+  }
+  try {
+    const encuadre = await encuadrarFotoMiDir(archivo);
+    if (!encuadre) return; // canceló: la imagen anterior queda igual
+    const { tipo, dataUrl } = encuadre;
+    const estado = document.querySelector('#mi-dir-foto-bloque .mi-dir-foto-estado');
+    if (estado) { estado.style.color = 'rgba(232,228,221,0.65)'; estado.textContent = 'Subiendo…'; }
+    const r = await fetch('/api/directorio?accion=subir_foto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType: tipo, base64: dataUrl.split(',')[1] }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo subir la imagen.');
+    if (miDirEstado.flujo) miDirEstado.flujo.perfil = d.perfil;
+    const enRevision = d.perfil && d.perfil.estado === 'Publicado';
+    refrescarFotoYEstadoMiDir(enRevision ? 'Imagen guardada. Queda pendiente de revisión; tu perfil sigue visible.' : 'Imagen guardada.', false);
+  } catch (e) {
+    refrescarFotoYEstadoMiDir(e.message, true);
+  }
+}
+
+async function quitarFotoMiDir() {
+  try {
+    const r = await fetch('/api/directorio?accion=quitar_foto', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo quitar la imagen.');
+    if (miDirEstado.flujo) miDirEstado.flujo.perfil = d.perfil;
+    refrescarFotoYEstadoMiDir('Imagen retirada. Se mostrarán tus iniciales.', false);
+  } catch (e) {
+    refrescarFotoYEstadoMiDir(e.message + ' La imagen anterior puede seguir visible.', true);
+  }
+}
+
+function abrirConsentimientoMiDir() {
+  const c = miDirEstado.flujo && miDirEstado.flujo.consentimiento;
+  if (!c) return;
+  document.getElementById('mi-dir-consent-texto').textContent = c.texto;
+  document.getElementById('mi-dir-consent-version').textContent = 'Versión ' + c.version;
+  document.getElementById('mi-dir-consent-acepto').checked = false;
+  document.getElementById('mi-dir-consent-enviar').disabled = true;
+  document.getElementById('mi-dir-consent-error').textContent = '';
+  document.getElementById('mi-dir-confirm-modal').style.display = 'flex';
 }
 
 function cancelarPublicarMiDir() {
@@ -9767,11 +10383,42 @@ function cancelarPublicarMiDir() {
 }
 
 async function confirmarPublicarMiDir() {
-  document.getElementById('mi-dir-confirm-modal').style.display = 'none';
-  await guardarValorMiDir('Publicado', true, null);
-  miDirEstado.campos['Publicado'] = true;
-  // Recargar para pillar Fecha de alta que el backend estampó
-  await cargarMiDirectorio();
+  const c = miDirEstado.flujo && miDirEstado.flujo.consentimiento;
+  const btnEnviar = document.getElementById('mi-dir-consent-enviar');
+  const err = document.getElementById('mi-dir-consent-error');
+  if (!c || !document.getElementById('mi-dir-consent-acepto').checked) return;
+  btnEnviar.disabled = true;
+  btnEnviar.textContent = 'Enviando…';
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/directorio?accion=solicitar_publicacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acepto: true, version: c.version }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo enviar la solicitud.');
+    document.getElementById('mi-dir-confirm-modal').style.display = 'none';
+    await cargarMiDirectorio();
+  } catch (e) {
+    err.textContent = e.message;
+  } finally {
+    btnEnviar.textContent = 'Aceptar y solicitar';
+    btnEnviar.disabled = !document.getElementById('mi-dir-consent-acepto').checked;
+  }
+}
+
+async function despublicarMiDir() {
+  const err = document.getElementById('mi-dir-accion-error');
+  if (err) err.textContent = '';
+  try {
+    const r = await fetch('/api/directorio?accion=despublicar', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo despublicar.');
+    await cargarMiDirectorio();
+  } catch (e) {
+    if (err) err.textContent = e.message + ' Tu perfil puede seguir visible: intenta de nuevo.';
+  }
 }
 
 // ── Preview modal ──
@@ -9787,7 +10434,7 @@ function abrirPreviewMiDir() {
   const trat = c['Tratamientos que ofrece'] || [];
   const otras = c['Otras terapias'] || '';
   const horarios = c['Horarios'] || '';
-  const wa = c['WhatsApp público'] || '';
+  const tel = c['Teléfono de consultorio'] || '';
 
   if (!nombre && !ciudad && !esp.length) {
     body.innerHTML = '<div class="mi-dir-preview-empty">Completa al menos tu nombre público y ciudad para ver el preview.</div>';
@@ -9824,12 +10471,12 @@ function abrirPreviewMiDir() {
           <div class="mi-dir-preview-otras">${escaparHtml(otras)}</div>
         </div>` : ''}
 
-      ${(horarios || wa) ? `
+      ${(horarios || tel) ? `
         <div class="mi-dir-preview-section">
           <div class="mi-dir-preview-section-title">Contacto</div>
           <div class="mi-dir-preview-contact">
             ${horarios ? escaparHtml(horarios) + '<br>' : ''}
-            ${wa ? `<a class="mi-dir-preview-wa" href="${escaparHtml(wa)}" target="_blank" rel="noopener">${escaparHtml(wa)}</a>` : ''}
+            ${tel ? `<span class="mi-dir-preview-tel">Tel. ${escaparHtml(tel)}</span>` : ''}
           </div>
         </div>` : ''}
 
