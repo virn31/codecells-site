@@ -43,12 +43,16 @@ for (const tipo of ['medico', 'paciente', 'vip']) {
 
 test('auth-login: los códigos legítimos siguen entrando y la fórmula lleva el código exacto', async () => {
   const formulas = [];
+  const hash = require('../lib/credenciales').hashPin('482917');
   global.fetch = async (url) => {
+    if (String(url).includes('CREDENCIALES_MEDICO')) {
+      return { ok: true, status: 200, json: async () => ({ records: [{ id: 'recCRED', fields: { 'Cuenta activada': true, 'PIN (hash)': hash } }] }) };
+    }
     formulas.push(decodeURIComponent(new URL(url).searchParams.get('filterByFormula')));
     return { ok: true, status: 200, json: async () => ({ records: [{ id: 'recMED', fields: { 'Código de médico': 'CCMED-QACARD' } }] }) };
   };
   for (const codigo of ['CCMED-QACARD', 'CCMED-VIRN01', 'CC-PAC-9001', '  CCMED-JCG01  ']) {
-    const res = await login({ tipo: 'medico', codigo });
+    const res = await login({ tipo: 'medico', codigo, pin: '482917' });
     assert.strictEqual(res.statusCode, 200, `${codigo} → ${res.statusCode} ${JSON.stringify(res.body)}`);
   }
   assert.deepStrictEqual(formulas[3], '{Código de médico}="CCMED-JCG01"');

@@ -91,14 +91,17 @@ test('camposParaColega es lista blanca: nada de contacto, tokens ni notas', () =
 // ── 1) auth-login ─────────────────────────────────────────────────────
 
 test('auth-login médico: la respuesta NO trae el refresh token ni la passphrase', async () => {
+  // Desde 2026-10-24 el médico entra con PIN (CREDENCIALES_MEDICO).
+  const hash = require('../lib/credenciales').hashPin('482917');
   const { restaurar } = instalarFetch((u) => {
     if (u.includes(`/${TBL_MEDICOS}?`)) return ok({ records: [{ id: 'recMED1', fields: { ...MEDICO_COMPLETO } }] });
+    if (u.includes('CREDENCIALES_MEDICO')) return ok({ records: [{ id: 'recCRED1', fields: { 'Cuenta activada': true, 'PIN (hash)': hash } }] });
     throw new Error(`fetch no mockeado: ${u}`);
   });
   try {
     const handler = requerirFresco('../api/auth-login.js');
     const res = fakeRes();
-    await handler({ method: 'POST', body: { tipo: 'medico', codigo: 'CCMED-VIRN01' } }, res);
+    await handler({ method: 'POST', body: { tipo: 'medico', codigo: 'CCMED-VIRN01', pin: '482917' } }, res);
     assert.strictEqual(res.statusCode, 200, JSON.stringify(res.body));
     assert.ok(res.body.token);
     assert.ok(!JSON.stringify(res.body).includes(SECRETO), 'el refresh token viajó al navegador');

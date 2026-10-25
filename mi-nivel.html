@@ -1507,7 +1507,8 @@ function init() {
     try { pacienteCodigo = localStorage.getItem(STORAGE_KEY_CODIGO); } catch(e) { pacienteCodigo = null; }
   }
   if (!pacienteCodigo || !/^CC-PAC-(DEMO\d{2}|\d{4,8})$/.test(pacienteCodigo)) {
-    mostrarError('Para entrar necesitas el enlace de activación que te da tu médico.');
+    // Sin código recordado: la entrada única pide código y PIN (2026-10-24).
+    location.replace('/entrar.html?como=paciente');
     return;
   }
 

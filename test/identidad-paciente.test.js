@@ -13,7 +13,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 
 const { generarToken, verificarToken } = require('../lib/auth');
-const cred = require('../lib/credencialesPaciente');
+const cred = require('../lib/credenciales').paciente;
 
 const TBL_PACIENTES = 'tblyUcCfueFLJuvIv';
 const TBL_MEDICOS = 'tbl87DsuBMmb4DjFM';

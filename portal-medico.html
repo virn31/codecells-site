@@ -3088,7 +3088,7 @@
 </div>
 
 <!-- ─── SCREEN: LOGIN ─── -->
-<div id="screen-login">
+<div id="screen-login" style="display:none"><!-- Desde 2026-10-24 se entra por /entrar.html (código + PIN); esta pantalla ya no se muestra. -->
   <!-- Reconocimiento de dispositivo: se muestra en vez del login si ya hay un médico recordado en este dispositivo -->
   <div id="login-reconociendo">
     <div class="reconociendo-avatar" id="reconociendo-avatar">—</div>
@@ -4977,84 +4977,29 @@ function irAPortal() {
 // Revisar sesión guardada al cargar la página
 window.addEventListener('DOMContentLoaded', () => {
   const sesionGuardada = cargarSesion();
-  if (sesionGuardada) {
-    // Sesión activa (últimas 6h) — saltar login y selector, ir directo al portal
+  if (sesionGuardada && sessionStorage.getItem(TOKEN_KEY)) {
     medicoActual = sesionGuardada;
     document.getElementById('screen-login').style.display = 'none';
+    // Recién entrado desde /entrar.html: el selector de siempre (portal o
+    // capacitación). Con la sesión ya abierta (recarga): directo al portal.
+    if (location.hash === '#selector') {
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* sin history */ }
+      mostrarSelector();
+      return;
+    }
     document.getElementById('screen-selector').style.display = 'none';
     iniciarApp();
     return;
   }
-
-  // Sin sesión activa, pero puede haber un médico recordado en este dispositivo
-  const dispositivo = cargarDispositivo();
-  if (dispositivo) {
-    intentarAutoLogin(dispositivo);
-    return;
-  }
-  // Ni sesión ni dispositivo recordado — login en blanco (comportamiento por defecto)
+  // Sin sesión: se entra por la entrada única con código + PIN (2026-10-24).
+  // Antes el "dispositivo recordado" entraba solo durante 90 días sin pedir nada.
+  irAEntrar();
 });
 
-// ─── AUTO-LOGIN POR DISPOSITIVO RECORDADO ──────────────────────────
-async function intentarAutoLogin(dispositivo) {
-  const nombre = dispositivo.medico?.['Nombre completo'] || dispositivo.medico?.['Nombre'] || 'Doctor';
-
-  document.getElementById('login-reconociendo').style.display = 'flex';
-  const logoBlock = document.querySelector('#screen-login > .login-logo-block');
-  const loginCard = document.querySelector('#screen-login > .login-card');
-  if (logoBlock) logoBlock.style.display = 'none';
-  if (loginCard) loginCard.style.display = 'none';
-
-  document.getElementById('reconociendo-avatar').textContent = initials(nombre);
-  document.getElementById('reconociendo-nombre').textContent = nombre;
-
-  try {
-    if (dispositivo.codigo === 'CCMED-DEMO01') {
-      medicoActual = dispositivo.medico;
-      // El demo no tiene sesión real de Airtable — sin token, las llamadas a
-      // /api/airtable fallarán. Es un modo degradado, igual que en btn-login.
-      guardarSesion(medicoActual);
-      guardarDispositivo(medicoActual, dispositivo.codigo);
-      mostrarSelector();
-      return;
-    }
-
-    // Igual que el login manual: el dispositivo recordado (localStorage, 90
-    // días) solo evita tener que volver a teclear el código — pero la sesión
-    // real de nuevo se obtiene por /api/auth-login, nunca por el proxy
-    // /api/airtable directamente (ese ahora exige el token que aquí mismo se
-    // está generando). Antes esta función llamaba a /api/airtable sin token,
-    // recibía 401, lo atrapaba en el catch, y seguía adelante con datos
-    // viejos SIN token real — causaba \"entra automático pero sin pacientes\".
-    const loginRes = await _fetchOriginal('/api/auth-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: 'medico', codigo: dispositivo.codigo }),
-    });
-    const loginData = await loginRes.json();
-
-    if (!loginRes.ok || !loginData.ok) {
-      borrarDispositivo();
-      borrarSesion();
-      mostrarLoginEnBlanco(loginData.error || 'Acceso desactivado. Contacta a administración.');
-      return;
-    }
-
-    sessionStorage.setItem(TOKEN_KEY, loginData.token);
-    medicoActual = { id: loginData.recordId, ...loginData.fields };
-    guardarSesion(medicoActual);
-    guardarDispositivo(medicoActual, dispositivo.codigo);
-    mostrarSelector();
-  } catch (err) {
-    // Solo llega aquí si /api/auth-login no respondió en absoluto (sin
-    // conexión) — no si el código fue rechazado. En ese caso sí seguimos
-    // adelante con los datos guardados para no dejar al médico varado, pero
-    // sin token real las llamadas a /api/airtable fallarán hasta que vuelva
-    // a haber conexión y se reintente el login.
-    medicoActual = dispositivo.medico;
-    guardarSesion(medicoActual);
-    mostrarSelector();
-  }
+function irAEntrar() {
+  borrarSesion();
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* sin storage */ }
+  location.replace('/entrar.html?como=medico');
 }
 
 function mostrarLoginEnBlanco(mensaje) {
@@ -5069,8 +5014,7 @@ function mostrarLoginEnBlanco(mensaje) {
 
 document.getElementById('btn-cambiar-medico').addEventListener('click', () => {
   borrarDispositivo();
-  borrarSesion();
-  mostrarLoginEnBlanco();
+  irAEntrar();
 });
 
 // ─── INIT APP ────────────────────────────────────────────────────
@@ -5097,22 +5041,8 @@ function iniciarApp() {
 }
 
 document.getElementById('btn-logout').addEventListener('click', () => {
-  borrarSesion();
   borrarDispositivo();
-  document.querySelector('.app-body')?.classList.remove('mostrando-expediente');
-  medicoActual = null;
-  pacienteActual = null;
-  todosPacientes = [];
-  document.getElementById('screen-app').style.display = 'none';
-  document.getElementById('screen-selector').style.display = 'none';
-  document.getElementById('screen-login').style.display = 'flex';
-  document.getElementById('input-codigo').value = '';
-  document.getElementById('login-error').textContent = '';
-  document.getElementById('expediente').style.display = 'none';
-  document.getElementById('no-patient').style.display = 'flex';
-  document.getElementById('patient-list').innerHTML = '<div class="loading-row"><span class="loader"></span> Cargando pacientes…</div>';
-  document.getElementById('btn-login').disabled = false;
-  document.getElementById('btn-login').textContent = 'Ingresar';
+  irAEntrar();
 });
 
 // ─── CARGAR PACIENTES (filtrado por médico) ────────────────────────

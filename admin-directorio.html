@@ -60,6 +60,15 @@
 <main>
   <h1>Revisión del directorio</h1>
   <p class="lede">Aprueba un perfil solo si verificaste la cédula del médico y los datos son profesionales. Ningún perfil se publica sin consentimiento registrado. Cada acción queda en el historial del perfil.</p>
+  <section class="tarjeta" id="acceso" hidden>
+    <div class="nombre">Enlace de acceso para un médico</div>
+    <p class="lede" style="margin:.4rem 0 .8rem">Cada médico entra con su código y un PIN. Genera aquí su enlace para crear el PIN (o recuperarlo si lo olvidó). Vale 72 horas y un solo uso; uno nuevo anula el anterior. Mándaselo por un medio privado.</p>
+    <div class="acciones" style="margin-top:0">
+      <input id="acceso-codigo" placeholder="CCMED-XXXX" autocomplete="off" spellcheck="false" style="font:inherit;font-size:.9rem;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-strong);border-radius:8px;padding:.55rem .7rem;min-width:12rem;text-transform:uppercase">
+      <button type="button" class="aprobar" id="acceso-generar">Generar enlace</button>
+    </div>
+    <div id="acceso-msg"></div>
+  </section>
   <div id="contenido"><p class="vacio">Cargando perfiles…</p></div>
 </main>
 <script>
@@ -158,6 +167,7 @@
     }
     try {
       const d = await api('admin_perfiles');
+      document.getElementById('acceso').hidden = false;
       render(d.perfiles || []);
     } catch (e) {
       contenido.innerHTML = `<div class="aviso">${e.status === 403 ? 'Tu cuenta no es administradora del directorio.' : e.status === 401 ? 'Tu sesión expiró. Vuelve a entrar al portal médico.' : 'No pudimos cargar los perfiles: ' + esc(e.message) + ' — esto es un error, no una lista vacía.'}</div>`;
@@ -183,6 +193,26 @@
       msg.innerHTML = `<div class="error">${esc(e.message)}</div>`;
       card.querySelectorAll('button').forEach(b => b.disabled = false);
     }
+  });
+
+  document.getElementById('acceso-generar').addEventListener('click', async () => {
+    const btn = document.getElementById('acceso-generar');
+    const msg = document.getElementById('acceso-msg');
+    const codigo = document.getElementById('acceso-codigo').value.trim().toUpperCase();
+    btn.disabled = true; msg.innerHTML = '';
+    try {
+      const d = await api('admin_liga_acceso', 'POST', { codigo });
+      const url = location.origin + d.ruta;
+      msg.innerHTML = `<div class="ok">Enlace para ${esc(d.nombre || d.codigo)} (vale ${esc(d.horas)} h, un solo uso):</div>
+        <div style="font-family:var(--mono);font-size:.75rem;overflow-wrap:anywhere;margin:.5rem 0;padding:.6rem;border:1px solid var(--line-strong);border-radius:8px">${esc(url)}</div>
+        <button type="button" id="acceso-copiar">Copiar enlace</button>`;
+      document.getElementById('acceso-copiar').onclick = async ev => {
+        try { await navigator.clipboard.writeText(url); ev.target.textContent = 'Copiado'; }
+        catch (e) { ev.target.textContent = 'No se pudo copiar: selecciónalo a mano'; }
+      };
+    } catch (e) {
+      msg.innerHTML = `<div class="error">${esc(e.message)}</div>`;
+    } finally { btn.disabled = false; }
   });
 
   cargar();

@@ -11,14 +11,21 @@
 > como referencia histórica; no se le agregan commits. El congelamiento por
 > áreas protege producción: el directorio se abre y lo clínico sigue cerrado.
 
-**Última actualización:** 2026-10-24 (noche) — M9 "Únete a la red" (`5e4e004`) y resumen semanal al médico por Telegram (ver §1b, falta autorización de la tabla en producción). Push hasta `bafbd6a`; lo posterior está SIN PUSH. Todos los campos nuevos (directorio y `Modalidad`) YA están en producción; la tabla `VISITAS_DIRECTORIO` solo en prueba (ver §4b).
+**Última actualización:** 2026-10-24 (noche) — rama única (`ad6020b`); hotfix de inyección en login (`hotfix/auth-login-inyeccion`, falta push + merge a main); **PIN para médicos + entrada única `entrar.html`** (ver §1). Tablas `VISITAS_DIRECTORIO` y `CREDENCIALES_MEDICO` solo en prueba (§4b).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor haga push** de lo posterior a `bafbd6a` (M9 + resumen semanal + docs).
-2. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
+1. **Que Víctor haga push:** `git push origin hotfix/auth-login-inyeccion` + merge a `main` en GitHub (URGENTE, seguridad); `git push origin feat/paciente-unico` (rama única).
+2. **PIN para médicos + entrada única (2026-10-24, decisión de Víctor):**
+   - `entrar.html`: "¿Eres médico o paciente?" → código → PIN → portal (`#selector`) o `mi-nivel.html`. Recibe las ligas `?activar=…&t=medico|paciente`. El portal sin sesión y "Salir" mandan aquí; se quitó el auto-login de 90 días por dispositivo (entraba sin nada). La app del paciente sin código recordado manda aquí.
+   - Servidor: `lib/credenciales.js` (antes `credencialesPaciente.js`) sirve a los dos; tabla `CREDENCIALES_MEDICO` (prueba `tbl2bkJUptlAM6Ghe`). `auth-login` exige PIN al médico (mismas reglas: scrypt, 5 fallos → 15 min, 10 → solo liga nueva).
+   - Ligas de médico: `node scripts/liga-activacion-medico.js CCMED-XXXX` (arranque; en producción con `--url https://www.codecells.mx --produccion` y el `SESSION_SECRET` de producción en `.env.local`, p. ej. con `vercel env pull`) o panel `admin-directorio.html` → "Enlace de acceso para un médico" (`api/directorio?accion=admin_liga_acceso`).
+   - Probado en navegador local con `CCMED-QACARD` (ficticio): liga → PIN trivial rechazado → PIN creado → selector → portal con pacientes → Salir → código recordado → PIN incorrecto (quedan 4) → PIN correcto. Panel: código inexistente da error; enlace generado. 489/489 pruebas (10 nuevas en `test/pin-medico.test.js`). PIN de prueba de QACARD: en `.env.local` del worktree (no en el repo).
+   - **AL LANZAR: ningún médico entra hasta tener su liga** (Víctor primero con el script, luego los demás desde el panel). `CCMED-DEMO01` también necesita PIN.
+   - **Hallazgo (pre-existente, no lo causó esto):** con un paciente demo la app pide PIN ("Tu sesión venció") porque la pestaña Citas consulta con `CC-PAC-DEMO01` FIJO (análisis §2.1) y un 401 dispara el aviso de sesión vencida. Siguiente arreglo: rehacer la pestaña Citas.
+3. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
    - **Dirección**: ficha del Dr. QA (`/directorio/prueba-dr-qa-cardiologia`) ya tiene dirección ficticia `[PRUEBA] Av. Álvaro Obregón 123…` y teléfono `6670000000` (base de prueba) → renglón con "Cómo llegar" (abre mapas). Pedir una cita ahí → en la liga de la cita: "Dónde", "Cómo llegar", y con cita confirmada "Teléfono" + "Llamar al consultorio"; el archivo de calendario debe traer el lugar.
@@ -35,8 +42,8 @@
    - Ojo: una cita real en Preview manda aviso de Telegram real.
    - **M9** (`5e4e004`): en `/directorio/` el encabezado dice "Únete a la red" (en celular "Únete") junto a "Acceso médico" → `unete.html`. Medido sin desbordar en 320/360/375/414/700 px. En `unete.html`, si la solicitud no se guarda, NOVA ya NO dice "quedó registrada": dice que no se pudo y por qué (probado con respuestas simuladas 503 / sin red / 200, sin crear registros).
    - **Resumen semanal**: abrir una ficha en Preview cuenta una visita (una por semana por navegador; en Airtable de prueba, tabla `VISITAS_DIRECTORIO`). El cron NO corre en Preview (solo en producción). Para ver los textos sin mandar nada: `curl -H "Authorization: Bearer <CRON_SECRET>" "<preview>/api/resumen-semanal?prueba=1"` (Preview además pide el bypass de Vercel Authentication). Sin `prueba=1` manda Telegram real a los médicos de prueba con Telegram (hoy solo VIRN01) y el control a Víctor.
-3. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ ~~P1~~ ~~M8~~ ~~P3~~ ~~consulta en línea (parte de P4)~~ · ~~M9~~ · ~~resumen semanal~~ · **siguiente: M7 botón "Agendar" fijo** (ya existe `vigilarBotonFijo` en la ficha: revisar si M7 ya está hecho) o M10 idiomas (baja), o pasar a la pestaña Citas de la app del paciente.
-4. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1). Rehacerla es categoría A. Lo demás de la app es fase 2.
+4. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ ~~P1~~ ~~M8~~ ~~P3~~ ~~consulta en línea (parte de P4)~~ · ~~M9~~ · ~~resumen semanal~~ · **siguiente: M7 botón "Agendar" fijo** (ya existe `vigilarBotonFijo` en la ficha: revisar si M7 ya está hecho) o M10 idiomas (baja), o pasar a la pestaña Citas de la app del paciente.
+5. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1). Rehacerla es categoría A. Lo demás de la app es fase 2.
 
 ### Lo hecho el 2026-10-24
 - `3241ff7` **M5 búsqueda**: `?q=` en la lectura pública; `palabrasBusqueda()` / `coincideBusqueda()` en `lib/directorio.js` (sin acentos, cada palabra debe estar en lo publicado). **Sin sinónimos a propósito** ("rodilla" no encuentra "Ortopedia" salvo que el médico lo escriba). Decisión posible (B): tabla de sinónimos revisada a mano.
@@ -145,6 +152,8 @@ Víctor contesta con número y opción ("3: A"). Las B no vetadas quedan aprobad
 5. Los 5–10 médicos piloto.
 
 ## 4b. Antes de fusionar a `main`
+
+**Tabla `CREDENCIALES_MEDICO` — FALTA EN PRODUCCIÓN (pedir autorización).** Prueba `tbl2bkJUptlAM6Ghe`: `Código de médico ref` (texto primario), `Médico` (liga a MÉDICOS), `PIN (hash)`, `Cuenta activada` (casilla), `Fecha activación`, `Intentos fallidos` (número), `Bloqueado hasta`, `Liga (hash)`, `Liga vence` (fechas con hora), `Liga emitida por` (texto). Sin ella NINGÚN médico entra en producción.
 
 **Tabla `VISITAS_DIRECTORIO` — FALTA EN PRODUCCIÓN.** Víctor la autorizó el 2026-10-24, pero el permiso de Claude Code bloqueó la creación por MCP: crearla a mano en Airtable o dar el permiso. En prueba: `tbl9SwedUiu9uBzKs` (`Clave` texto primario, `Perfil` texto, `Semana` texto, `Visitas` número entero). El código la llama por NOMBRE (los ids de tabla nuevos difieren entre bases). Sin ella en producción: cada visita responde 502 (la ficha no se afecta) y el resumen del lunes no se manda y avisa a Víctor.
 

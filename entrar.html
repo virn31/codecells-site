@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Entrar — CODE CELLS™</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!--
+    Entrada única de la app (2026-10-24, decisión de Víctor): "¿Eres médico o
+    paciente?" → código → PIN (los dos entran con PIN) → portal del médico o
+    app del paciente, cada uno con lo que ya muestra hoy. También recibe las
+    ligas de activación (?activar=…&t=medico|paciente) para crear el PIN.
+    El PIN solo viaja a /api/auth-login; aquí no se guarda.
+  -->
+  <style>
+    :root {
+      --bg: #0E1410;
+      --surface: #1A211B;
+      --surface-2: #222A23;
+      --ink: #F2EFE6;
+      --ink-muted: #A9B3A4;
+      --line: rgba(242,239,230,0.12);
+      --line-strong: rgba(242,239,230,0.24);
+      --c-energy: #E8A33D;
+      --c-regen: #5FAE6E;
+      --rojo: #E2735B;
+      --font-display: "Fraunces", serif;
+      --font-body: "IBM Plex Sans", sans-serif;
+      --font-mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { min-height: 100vh; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; display: flex; flex-direction: column; }
+    header { padding: 18px 24px; border-bottom: 1px solid var(--line); }
+    header a { font-family: var(--font-display); font-size: 20px; color: var(--c-energy); text-decoration: none; }
+    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 16px 48px; }
+    .caja { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px 24px; }
+    .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); margin: 0; }
+    h1 { font-family: var(--font-display); font-style: italic; font-weight: 500; color: var(--c-energy); font-size: 1.7rem; line-height: 1.2; margin: 6px 0 8px; overflow-wrap: anywhere; }
+    .sub { color: var(--ink-muted); margin: 0 0 22px; font-size: 14px; }
+    .roles { display: grid; gap: 12px; }
+    .rol { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); font: inherit; cursor: pointer; transition: border-color .15s; }
+    .rol:hover, .rol:focus-visible { border-color: var(--c-energy); outline: none; }
+    .rol svg { flex: none; width: 28px; height: 28px; color: var(--c-energy); }
+    .rol b { display: block; font-weight: 600; font-size: 16px; }
+    .rol span { color: var(--ink-muted); font-size: 13px; }
+    label { display: block; font-size: 13px; color: var(--ink-muted); margin-bottom: 6px; }
+    input[type=text] { width: 100%; font-family: var(--font-mono); font-size: 17px; letter-spacing: 0.06em; text-transform: uppercase; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); }
+    input[type=text]:focus { outline: none; border-color: var(--c-energy); }
+    .btn { width: 100%; margin-top: 16px; padding: 13px; border: 0; border-radius: 999px; background: var(--c-energy); color: #1A1406; font: inherit; font-weight: 600; font-size: 15px; cursor: pointer; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .enlace { background: none; border: 0; color: var(--ink-muted); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; margin-top: 16px; }
+    .msg { min-height: 1.4em; margin-top: 12px; font-size: 14px; color: var(--rojo); }
+    .msg.ok { color: var(--ink-muted); }
+    .puntos { display: flex; justify-content: center; gap: 14px; margin: 8px 0 18px; }
+    .puntos span { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--line-strong); }
+    .puntos span.lleno { background: var(--c-energy); border-color: var(--c-energy); }
+    .teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .tecla { height: 58px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); font-family: var(--font-body); font-size: 22px; cursor: pointer; }
+    .tecla:active { background: var(--bg); }
+    .tecla.vacia { visibility: hidden; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header><a href="/">CODE CELLS™</a></header>
+  <main>
+    <div class="caja">
+      <!-- 1) ¿Médico o paciente? -->
+      <section id="paso-rol">
+        <p class="eyebrow">Bienvenido</p>
+        <h1>¿Cómo entras?</h1>
+        <p class="sub">Elige tu acceso. Médicos y pacientes entran con su código y su PIN.</p>
+        <div class="roles">
+          <button type="button" class="rol" data-rol="paciente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+            <div><b>Soy paciente</b><span>Mi expediente, mis citas y NOVA</span></div>
+          </button>
+          <button type="button" class="rol" data-rol="medico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v3a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="12" r="2"/></svg>
+            <div><b>Soy médico</b><span>Portal médico, mis pacientes y mi directorio</span></div>
+          </button>
+        </div>
+      </section>
+
+      <!-- 2) Código -->
+      <section id="paso-codigo" hidden>
+        <p class="eyebrow" id="codigo-eyebrow">Paciente</p>
+        <h1>Tu código</h1>
+        <p class="sub" id="codigo-sub"></p>
+        <form id="form-codigo" novalidate>
+          <label for="codigo">Código</label>
+          <input type="text" id="codigo" autocomplete="username" autocapitalize="characters" spellcheck="false" inputmode="text">
+          <div class="msg" id="codigo-msg" role="alert"></div>
+          <button type="submit" class="btn" id="codigo-btn">Continuar</button>
+        </form>
+        <button type="button" class="enlace" data-volver>← Cambiar tipo de acceso</button>
+      </section>
+
+      <!-- 3) PIN: entrar, crear o confirmar -->
+      <section id="paso-pin" hidden>
+        <p class="eyebrow" id="pin-eyebrow"></p>
+        <h1 id="pin-titulo">Escribe tu PIN</h1>
+        <p class="sub" id="pin-sub"></p>
+        <div class="puntos" id="pin-puntos" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="teclado" id="pin-teclado"></div>
+        <div class="msg" id="pin-msg" role="alert"></div>
+        <button type="button" class="enlace" id="pin-volver" data-volver>← Usar otro código</button>
+      </section>
+
+      <!-- Mensaje final (error sin salida) -->
+      <section id="paso-error" hidden>
+        <p class="eyebrow">No pudimos continuar</p>
+        <h1>Algo falta</h1>
+        <p class="sub" id="error-texto"></p>
+        <button type="button" class="btn" data-volver>Volver a empezar</button>
+      </section>
+    </div>
+  </main>
+
+<script>
+(function () {
+  var ROLES = {
+    paciente: {
+      nombre: 'Paciente',
+      formato: /^CC-PAC-(DEMO\d{2}|\d{4,8})$/,
+      ejemplo: 'CC-PAC-123456',
+      subCodigo: 'Lo encuentras en tu receta o te lo da tu médico.',
+      quienEmite: 'tu médico',
+      // La app del paciente lee su sesión de aquí (mi-nivel.html).
+      guardar: function (d, codigo) {
+        sessionStorage.setItem('ccpac_token', d.token);
+        try { localStorage.setItem('ccpac_codigo', codigo); } catch (e) {}
+      },
+      destino: '/mi-nivel.html'
+    },
+    medico: {
+      nombre: 'Médico',
+      formato: /^CCMED-[A-Z0-9]{2,12}$/,
+      ejemplo: 'CCMED-XXXX',
+      subCodigo: 'Tu código de médico CODE CELLS.',
+      quienEmite: 'administración de CODE CELLS',
+      // El portal lee su sesión de aquí (portal-medico.html).
+      guardar: function (d, codigo) {
+        var medico = Object.assign({ id: d.recordId }, d.fields || {});
+        var horas = Number(d.horasValidez) || 6;
+        sessionStorage.setItem('cc_medico_token', d.token);
+        sessionStorage.setItem('cc_medico_session', JSON.stringify({ medico: medico, expira: Date.now() + horas * 3600000 }));
+      },
+      destino: '/portal-medico.html#selector'
+    }
+  };
+  var LLAVE_ROL = 'cc_entrar_rol';
+  var llaveCodigo = function (rol) { return 'cc_entrar_codigo_' + rol; };
+
+  var rol = null, codigo = null, liga = null;
+  var modo = 'entrar';           // 'entrar' | 'crear' | 'confirmar'
+  var pin = '', pinPrimero = '', ocupado = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function guardarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  function mostrar(paso) {
+    ['paso-rol', 'paso-codigo', 'paso-pin', 'paso-error'].forEach(function (id) { $(id).hidden = id !== paso; });
+  }
+
+  function login(cuerpo) {
+    return fetch('/api/auth-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, data: d }; }); })
+      .catch(function () { return { status: 0, data: {} }; });
+  }
+
+  function error(texto) { $('error-texto').textContent = texto; mostrar('paso-error'); }
+
+  // ── 1) Rol ──────────────────────────────────────────────────────
+  function elegirRol(r) {
+    rol = r;
+    guardarLocal(LLAVE_ROL, r);
+    var R = ROLES[r];
+    $('codigo-eyebrow').textContent = R.nombre;
+    $('codigo-sub').textContent = R.subCodigo;
+    $('codigo').placeholder = R.ejemplo;
+    $('codigo').value = leer(llaveCodigo(r)) || recordadoAntes(r) || '';
+    $('codigo-msg').textContent = '';
+    mostrar('paso-codigo');
+    $('codigo').focus();
+  }
+  // Códigos que el portal y la app recordaban antes de la entrada única.
+  function recordadoAntes(r) {
+    if (r === 'paciente') return leer('ccpac_codigo');
+    try { var d = JSON.parse(leer('cc_medico_device') || 'null'); return d && d.codigo; } catch (e) { return null; }
+  }
+  document.querySelectorAll('[data-rol]').forEach(function (b) {
+    b.addEventListener('click', function () { elegirRol(b.dataset.rol); });
+  });
+  document.querySelectorAll('[data-volver]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      liga = null;
+      if (b.id === 'pin-volver' && rol) return elegirRol(rol);
+      mostrar('paso-rol');
+    });
+  });
+
+  // ── 2) Código: se pregunta sin PIN. Un demo entra directo (solo
+  //    lectura); los demás reciben "pin_requerido" y se pide el PIN. ──
+  $('form-codigo').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var R = ROLES[rol];
+    var c = $('codigo').value.trim().toUpperCase();
+    if (!R.formato.test(c)) { $('codigo-msg').textContent = 'Revisa tu código: debe verse como ' + R.ejemplo + '.'; return; }
+    codigo = c;
+    $('codigo-btn').disabled = true;
+    $('codigo-msg').className = 'msg ok'; $('codigo-msg').textContent = 'Verificando…';
+    login({ tipo: rol, codigo: codigo }).then(function (r) {
+      $('codigo-btn').disabled = false;
+      $('codigo-msg').className = 'msg'; $('codigo-msg').textContent = '';
+      if (r.status === 200 && r.data.token) return terminar(r.data);
+      var d = r.data || {};
+      if (d.motivo === 'pin_requerido') { guardarLocal(llaveCodigo(rol), codigo); return pedirPin('entrar'); }
+      if (d.motivo === 'bloqueado' || d.motivo === 'bloqueado_definitivo') { guardarLocal(llaveCodigo(rol), codigo); return pedirPin('entrar', d.error); }
+      if (r.status === 0) { $('codigo-msg').textContent = 'Sin conexión. Revisa tu internet e intenta de nuevo.'; return; }
+      $('codigo-msg').textContent = d.error || 'No pudimos verificar tu código.';
+    });
+  });
+
+  // ── 3) PIN ──────────────────────────────────────────────────────
+  function pedirPin(m, mensaje, esInfo) {
+    modo = m; pin = ''; ocupado = false;
+    var R = ROLES[rol];
+    $('pin-eyebrow').textContent = R.nombre + (codigo ? ' · ' + codigo : '');
+    $('pin-titulo').textContent = { entrar: 'Escribe tu PIN', crear: 'Crea tu PIN', confirmar: 'Confírmalo' }[m];
+    $('pin-sub').textContent = m === 'crear'
+      ? '6 dígitos que solo tú sepas. Evita números seguidos o repetidos.'
+      : m === 'confirmar' ? 'Escribe el mismo PIN otra vez.' : '';
+    $('pin-msg').className = 'msg' + (esInfo ? ' ok' : '');
+    $('pin-msg').textContent = mensaje || '';
+    $('pin-volver').hidden = !!liga;
+    pintar();
+    mostrar('paso-pin');
+  }
+  function pintar() {
+    var p = $('pin-puntos').children;
+    for (var i = 0; i < p.length; i++) p[i].className = i < pin.length ? 'lleno' : '';
+  }
+  ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(function (k) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tecla' + (k === '' ? ' vacia' : '');
+    b.textContent = k;
+    if (k === '⌫') b.setAttribute('aria-label', 'Borrar');
+    b.addEventListener('click', function () { tecla(k); });
+    $('pin-teclado').appendChild(b);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if ($('paso-pin').hidden) return;
+    if (/^\d$/.test(ev.key)) tecla(ev.key);
+    else if (ev.key === 'Backspace') tecla('⌫');
+  });
+  function tecla(k) {
+    if (ocupado) return;
+    if (k === '⌫') { pin = pin.slice(0, -1); pintar(); return; }
+    if (!/^\d$/.test(k) || pin.length >= 6) return;
+    pin += k; pintar();
+    if (pin.length === 6) setTimeout(completo, 120);
+  }
+  function completo() {
+    var p = pin;
+    if (modo === 'crear') { pinPrimero = p; return pedirPin('confirmar'); }
+    if (modo === 'confirmar') {
+      if (p !== pinPrimero) return pedirPin('crear', 'Los PIN no coinciden. Empecemos de nuevo.');
+      return activar(p);
+    }
+    entrar(p);
+  }
+
+  function entrar(p) {
+    ocupado = true;
+    $('pin-msg').className = 'msg ok'; $('pin-msg').textContent = 'Verificando…';
+    login({ tipo: rol, codigo: codigo, pin: p }).then(function (r) {
+      if (r.status === 200 && r.data.token) return terminar(r.data);
+      var d = r.data || {};
+      if (r.status === 0) return pedirPin('entrar', 'Sin conexión. Revisa tu internet e intenta de nuevo.');
+      if (d.motivo === 'pin_incorrecto') {
+        return pedirPin('entrar', d.intentosAntesDeBloqueo ? 'PIN incorrecto. Te quedan ' + d.intentosAntesDeBloqueo + ' intento(s) antes de un bloqueo temporal.' : 'PIN incorrecto.');
+      }
+      if (d.motivo === 'bloqueado' || d.motivo === 'bloqueado_definitivo' || r.status === 503) return pedirPin('entrar', d.error || 'No pudimos verificar tu PIN en este momento.');
+      error(d.error || 'No pudimos verificar tu acceso.');
+    });
+  }
+
+  // ── Liga de activación: ?activar=…&t=medico|paciente ─────────────
+  function iniciarActivacion(l, t) {
+    liga = l;
+    rol = t === 'medico' ? 'medico' : 'paciente';
+    // La liga es el secreto: se quita de la barra en cuanto se lee.
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    $('pin-msg').textContent = '';
+    login({ modo: 'consultar_activacion', tipo: rol, liga: liga }).then(function (r) {
+      if (r.status !== 200) return error((r.data && r.data.error) || 'No pudimos revisar tu enlace. Intenta de nuevo.');
+      codigo = r.data.codigo;
+      guardarLocal(LLAVE_ROL, rol);
+      guardarLocal(llaveCodigo(rol), codigo);
+      pedirPin('crear');
+      if (r.data.nombre) $('pin-titulo').textContent = 'Hola, ' + r.data.nombre + '. Crea tu PIN';
+    });
+  }
+  function activar(p) {
+    ocupado = true;
+    $('pin-msg').className = 'msg ok'; $('pin-msg').textContent = 'Activando tu cuenta…';
+    login({ modo: 'activar', tipo: rol, liga: liga, pin: p }).then(function (r) {
+      if (r.status === 200 && r.data.token) { liga = null; return terminar(r.data); }
+      var d = r.data || {};
+      if (d.motivo === 'pin_trivial' || d.motivo === 'pin_formato' || r.status === 503) return pedirPin('crear', d.error);
+      if (r.status === 0) return pedirPin('crear', 'Sin conexión. Tu enlace sigue sirviendo: intenta de nuevo.');
+      error(d.error || 'No se pudo activar tu cuenta.');
+    });
+  }
+
+  function terminar(d) {
+    var R = ROLES[rol];
+    // El servidor decide el tipo de sesión (un demo de paciente es 'demo').
+    if (rol === 'medico' && d.tipo !== 'medico') return error('Este código no es de médico.');
+    R.guardar(d, codigo);
+    guardarLocal(llaveCodigo(rol), codigo);
+    location.replace(R.destino);
+  }
+
+  // ── Arranque ────────────────────────────────────────────────────
+  var q = new URLSearchParams(location.search);
+  if (q.get('activar')) return iniciarActivacion(q.get('activar'), q.get('t'));
+  var como = q.get('como');
+  if (como === 'medico' || como === 'paciente') return elegirRol(como);
+  mostrar('paso-rol');
+})();
+</script>
+</body>
+</html>

@@ -6,12 +6,18 @@
 //
 // Paciente (SPEC-PACIENTE-UNICO.md §3): el código CC-PAC- es solo un
 // identificador; la credencial es su PIN, verificado aquí contra
-// CREDENCIALES_PACIENTE (lib/credencialesPaciente.js). La cuenta se activa
+// CREDENCIALES_PACIENTE (lib/credenciales.js). La cuenta se activa
 // con una liga de un solo uso que emite su médico (modo 'activar'). Los
 // códigos demo siguen entrando sin PIN, como sesión 'demo' de solo lectura.
+//
+// Médico (2026-10-24, decisión de Víctor): también entra con código + PIN.
+// Antes bastaba el código (CCMED- + iniciales, adivinable) para ver sus
+// pacientes. Su credencial vive en CREDENCIALES_MEDICO y su liga de
+// activación la emite administración (panel o scripts/liga-activacion-medico.js).
+// La activación lleva `tipo: 'medico'`; sin tipo es la del paciente.
 
 const { generarToken } = require('../lib/auth');
-const cred = require('../lib/credencialesPaciente');
+const credenciales = require('../lib/credenciales');
 const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { camposParaSuDueno } = require('../lib/camposMedico');
 
@@ -37,60 +43,70 @@ const HORAS_SESION = { medico: 6, paciente: 24, vip: 24, demo: 0.5 };
 const MSG_NO_VERIFICABLE = 'No se pudo verificar tu código en este momento. Intenta de nuevo en unos minutos.';
 // Mismo mensaje para liga inexistente, vencida, ya usada o de un demo: no se
 // le dice a quien prueba ligas cuál de las cuatro acertó.
-const MSG_LIGA = 'Este enlace de activación no es válido o ya venció. Pide a tu médico uno nuevo.';
+const MSG_LIGA = {
+  paciente: 'Este enlace de activación no es válido o ya venció. Pide a tu médico uno nuevo.',
+  medico: 'Este enlace de activación no es válido o ya venció. Pide a administración uno nuevo.',
+};
+// A quién se le pide una liga nueva (sin activar, bloqueo definitivo).
+const QUIEN_EMITE = { paciente: 'tu médico', medico: 'administración de CODE CELLS' };
 
 function primerNombre(nombre) {
   return String(nombre || '').trim().split(/\s+/)[0] || '';
 }
 
-async function leerPaciente(recordId) {
-  const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLAS.paciente.id}/${recordId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-  if (!r.ok) { const e = new Error(`PACIENTES respondió ${r.status}`); e.status = 502; throw e; }
+async function leerRegistro(tipo, recordId) {
+  const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLAS[tipo].id}/${recordId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+  if (!r.ok) { const e = new Error(`${tipo === 'medico' ? 'MÉDICOS' : 'PACIENTES'} respondió ${r.status}`); e.status = 502; throw e; }
   return r.json();
 }
 
-// Resuelve una liga a { credencial, paciente } o null si no sirve. Un fallo
-// de Airtable se lanza (502), nunca se confunde con "liga inválida".
-async function resolverLiga(liga) {
-  if (!cred.ligaConForma(liga)) return null;
-  const credencial = await cred.leerPorLiga(cred.hashLiga(liga));
+// Resuelve una liga a { credencial, registro } (registro = PACIENTES o
+// MÉDICOS) o null si no sirve. Un fallo de Airtable se lanza (502), nunca se
+// confunde con "liga inválida".
+async function resolverLiga(liga, tipo) {
+  const c = credenciales[tipo];
+  if (!c.ligaConForma(liga)) return null;
+  const credencial = await c.leerPorLiga(c.hashLiga(liga));
   if (!credencial) return null;
   const vence = new Date(credencial.fields['Liga vence'] || 0).getTime();
   if (!Number.isFinite(vence) || vence <= Date.now()) return null;
-  const pacRecId = (credencial.fields['Paciente'] || [])[0];
-  if (!pacRecId) return null;
-  const paciente = await leerPaciente(pacRecId);
-  if (paciente.fields['Es demo'] === true) return null;
-  return { credencial, paciente };
+  const recId = (credencial.fields[tipo === 'medico' ? 'Médico' : 'Paciente'] || [])[0];
+  if (!recId) return null;
+  const registro = await leerRegistro(tipo, recId);
+  if (tipo === 'paciente' && registro.fields['Es demo'] === true) return null;
+  if (tipo === 'medico' && registro.fields['Activo'] === false) return null;
+  return { credencial, registro };
 }
 
 async function manejarActivacion(req, res) {
   const { modo, liga, pin } = req.body || {};
+  const tipo = req.body && req.body.tipo === 'medico' ? 'medico' : 'paciente';
+  const c = credenciales[tipo];
   let resuelta;
   try {
-    resuelta = await resolverLiga(liga);
+    resuelta = await resolverLiga(liga, tipo);
   } catch (err) {
     console.error('[auth-login] activación, Airtable:', err.message);
     return res.status(503).json({ error: MSG_NO_VERIFICABLE });
   }
-  if (!resuelta) return res.status(403).json({ error: MSG_LIGA, motivo: 'liga_invalida' });
-  const { credencial, paciente } = resuelta;
-  const codigo = paciente.fields['Código de paciente'];
+  if (!resuelta) return res.status(403).json({ error: MSG_LIGA[tipo], motivo: 'liga_invalida' });
+  const { credencial, registro } = resuelta;
+  const codigo = registro.fields[TABLAS[tipo].campo];
 
   // Solo consultar: la pantalla de activación saluda por nombre. La liga
-  // (256 bits, un uso, 72 h) es el secreto; quien la tiene es el paciente.
+  // (256 bits, un uso, 72 h) es el secreto; quien la tiene es su dueño.
   if (modo === 'consultar_activacion') {
-    return res.status(200).json({ ok: true, nombre: primerNombre(paciente.fields['Nombre completo']), codigo });
+    return res.status(200).json({ ok: true, tipo, nombre: primerNombre(registro.fields['Nombre completo']), codigo });
   }
 
-  if (!cred.pinValido(pin)) return res.status(400).json({ error: `El PIN debe tener ${cred.LARGO_PIN} dígitos.`, motivo: 'pin_formato' });
-  if (cred.pinTrivial(pin)) return res.status(400).json({ error: 'Ese PIN es muy fácil de adivinar (números iguales, seguidos o repetidos). Elige otro.', motivo: 'pin_trivial' });
+  if (!c.pinValido(pin)) return res.status(400).json({ error: `El PIN debe tener ${c.LARGO_PIN} dígitos.`, motivo: 'pin_formato' });
+  if (c.pinTrivial(pin)) return res.status(400).json({ error: 'Ese PIN es muy fácil de adivinar (números iguales, seguidos o repetidos). Elige otro.', motivo: 'pin_trivial' });
 
   try {
     // La liga se borra al usarse: un solo uso. Activar con liga también
     // desbloquea (es la recuperación por PIN olvidado o bloqueo definitivo).
-    await cred.actualizar(credencial.id, {
-      'PIN (hash)': cred.hashPin(pin),
+    await c.actualizar(credencial.id, {
+      'PIN (hash)': c.hashPin(pin),
       'Cuenta activada': true,
       'Fecha activación': new Date().toISOString(),
       'Intentos fallidos': 0,
@@ -102,18 +118,24 @@ async function manejarActivacion(req, res) {
     console.error('[auth-login] activación, guardar PIN:', err.message);
     return res.status(503).json({ error: 'No se pudo guardar tu PIN. Intenta de nuevo con el mismo enlace.' });
   }
-  await registrarAccesoExpediente({ pacienteCode: codigo, codigoMedico: '(paciente)', accion: 'Activación de cuenta', resultado: 'Exitoso', endpoint: 'auth-login:activar' });
+  if (tipo === 'paciente') {
+    await registrarAccesoExpediente({ pacienteCode: codigo, codigoMedico: '(paciente)', accion: 'Activación de cuenta', resultado: 'Exitoso', endpoint: 'auth-login:activar' });
+  }
 
-  const token = generarToken({ tipo: 'paciente', codigo, horas: HORAS_SESION.paciente });
-  return res.status(200).json({ ok: true, token, tipo: 'paciente', horasValidez: HORAS_SESION.paciente, recordId: paciente.id, fields: paciente.fields });
+  const token = generarToken({ tipo, codigo, horas: HORAS_SESION[tipo] });
+  return res.status(200).json({
+    ok: true, token, tipo, horasValidez: HORAS_SESION[tipo], recordId: registro.id,
+    fields: tipo === 'medico' ? camposParaSuDueno(registro.fields) : registro.fields,
+  });
 }
 
-// Paciente real: exige PIN contra CREDENCIALES_PACIENTE. Devuelve true si
-// ya respondió (rechazo), false si el PIN es correcto y se puede emitir token.
-async function verificarPinPaciente(codigo, pin, res) {
+// Exige PIN contra CREDENCIALES_PACIENTE / CREDENCIALES_MEDICO. Devuelve true
+// si ya respondió (rechazo), false si el PIN es correcto y se puede emitir token.
+async function verificarPin(tipo, codigo, pin, res) {
+  const c = credenciales[tipo];
   let credencial;
   try {
-    credencial = await cred.leerPorCodigo(codigo);
+    credencial = await c.leerPorCodigo(codigo);
   } catch (err) {
     console.error('[auth-login] credencial, Airtable:', err.message);
     res.status(503).json({ error: MSG_NO_VERIFICABLE });
@@ -121,13 +143,13 @@ async function verificarPinPaciente(codigo, pin, res) {
   }
   const f = (credencial && credencial.fields) || {};
   if (!credencial || f['Cuenta activada'] !== true || !f['PIN (hash)']) {
-    res.status(401).json({ error: 'Tu cuenta aún no está activada. Pide a tu médico tu enlace de activación.', motivo: 'sin_activar' });
+    res.status(401).json({ error: `Tu cuenta aún no está activada. Pide a ${QUIEN_EMITE[tipo]} tu enlace de activación.`, motivo: 'sin_activar' });
     return true;
   }
-  const bloqueo = cred.estadoBloqueo(f);
+  const bloqueo = c.estadoBloqueo(f);
   if (bloqueo) {
     res.status(429).json(bloqueo.definitivo
-      ? { error: 'Demasiados intentos. Pide a tu médico un nuevo enlace de activación.', motivo: 'bloqueado_definitivo' }
+      ? { error: `Demasiados intentos. Pide a ${QUIEN_EMITE[tipo]} un nuevo enlace de activación.`, motivo: 'bloqueado_definitivo' }
       : { error: `Demasiados intentos. Intenta de nuevo en ${bloqueo.minutos} min.`, motivo: 'bloqueado', minutos: bloqueo.minutos });
     return true;
   }
@@ -135,10 +157,10 @@ async function verificarPinPaciente(codigo, pin, res) {
     res.status(401).json({ error: 'Escribe tu PIN.', motivo: 'pin_requerido' });
     return true;
   }
-  if (!cred.pinValido(pin) || !cred.verificarPin(pin, f['PIN (hash)'])) {
-    const cambios = cred.camposTrasFallo(f);
+  if (!c.pinValido(pin) || !c.verificarPin(pin, f['PIN (hash)'])) {
+    const cambios = c.camposTrasFallo(f);
     try {
-      await cred.actualizar(credencial.id, cambios);
+      await c.actualizar(credencial.id, cambios);
     } catch (err) {
       // Si no se pudo contar el fallo, no se responde "PIN incorrecto" como
       // si nada: el contador es la defensa contra fuerza bruta.
@@ -147,15 +169,16 @@ async function verificarPinPaciente(codigo, pin, res) {
       return true;
     }
     const fallos = cambios['Intentos fallidos'];
-    if (cambios['Bloqueado hasta'] || fallos >= cred.FALLOS_MAXIMOS) {
-      await registrarAccesoExpediente({ pacienteCode: codigo, codigoMedico: '(paciente)', accion: 'Bloqueo por intentos de PIN', resultado: 'Rechazado', endpoint: 'auth-login:paciente' });
+    if (cambios['Bloqueado hasta'] || fallos >= c.FALLOS_MAXIMOS) {
+      if (tipo === 'paciente') await registrarAccesoExpediente({ pacienteCode: codigo, codigoMedico: '(paciente)', accion: 'Bloqueo por intentos de PIN', resultado: 'Rechazado', endpoint: 'auth-login:paciente' });
+      else console.warn(`[auth-login] ${codigo} bloqueado por intentos de PIN (${fallos})`);
     }
-    const restantes = cred.FALLOS_POR_BLOQUEO - (fallos % cred.FALLOS_POR_BLOQUEO);
-    res.status(401).json({ error: 'PIN incorrecto.', motivo: 'pin_incorrecto', intentosAntesDeBloqueo: fallos >= cred.FALLOS_MAXIMOS ? 0 : (restantes === cred.FALLOS_POR_BLOQUEO ? 0 : restantes) });
+    const restantes = c.FALLOS_POR_BLOQUEO - (fallos % c.FALLOS_POR_BLOQUEO);
+    res.status(401).json({ error: 'PIN incorrecto.', motivo: 'pin_incorrecto', intentosAntesDeBloqueo: fallos >= c.FALLOS_MAXIMOS ? 0 : (restantes === c.FALLOS_POR_BLOQUEO ? 0 : restantes) });
     return true;
   }
   if (Number(f['Intentos fallidos'] || 0) > 0 || f['Bloqueado hasta']) {
-    try { await cred.actualizar(credencial.id, { 'Intentos fallidos': 0, 'Bloqueado hasta': null }); }
+    try { await c.actualizar(credencial.id, { 'Intentos fallidos': 0, 'Bloqueado hasta': null }); }
     catch (err) { console.error('[auth-login] no se pudo reiniciar el contador de intentos:', err.message); }
   }
   return false;
@@ -226,9 +249,9 @@ module.exports = async (req, res) => {
     // tipo de sesión distinto ('demo'): TTL corto, solo lectura, sin PIN.
     const esDemo = tipo === 'paciente' && registro.fields['Es demo'] === true;
 
-    // Paciente real: el código solo no basta — PIN verificado en el servidor.
-    if (tipo === 'paciente' && !esDemo) {
-      const yaRespondio = await verificarPinPaciente(codigo.trim(), typeof pin === 'string' ? pin : '', res);
+    // Paciente real y médico: el código solo no basta — PIN verificado en el servidor.
+    if ((tipo === 'paciente' && !esDemo) || tipo === 'medico') {
+      const yaRespondio = await verificarPin(tipo, codigo.trim(), typeof pin === 'string' ? pin : '', res);
       if (yaRespondio) return;
     }
 

@@ -12,6 +12,7 @@
 //     POST ?accion=admin_aprobar          → { recordId } publica (exige consentimiento registrado)
 //     POST ?accion=admin_rechazar         → { recordId, motivo } (motivo obligatorio)
 //     POST ?accion=admin_despublicar      → { recordId, motivo }
+//     POST ?accion=admin_liga_acceso      → { codigo } enlace para que un médico cree su PIN
 //
 // Reglas: el médico nunca pone `Publicado` por su cuenta (api/airtable.js
 // quita esos campos); cada transición queda en "Historial de publicación";
@@ -22,6 +23,7 @@ const { congelado, respuestaCongelada } = require('../lib/congelamientoDatosPers
 const CONGELADO = congelado('directorio'); // área descongelable por separado
 const { sendTelegramMessage } = require('../lib/telegram');
 const D = require('../lib/directorio');
+const credenciales = require('../lib/credenciales');
 
 const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA'); // base del ambiente (Preview = prueba)
 const TBL_DIRECTORIO = 'tblkUNPwu1sQgZBPJ';
@@ -270,6 +272,20 @@ module.exports = async (req, res) => {
           };
         });
         return res.status(200).json({ perfiles: lista });
+      }
+
+      // Enlace de acceso (crear PIN) para CUALQUIER médico, tenga o no perfil
+      // en el directorio. Vale 72 h y un uso; uno nuevo invalida el anterior.
+      // No se congela: sin PIN ningún médico entra al portal.
+      if (accion === 'admin_liga_acceso' && req.method === 'POST') {
+        const codigo = String((req.body && req.body.codigo) || '').trim().toUpperCase();
+        if (!/^CCMED-[A-Z0-9]{2,12}$/.test(codigo)) return res.status(400).json({ error: 'Escribe un código de médico válido (CCMED-…).' });
+        const busca = await at(`${TBL_MEDICOS}?${new URLSearchParams({ filterByFormula: `{Código de médico}="${codigo}"`, maxRecords: '1' })}`);
+        const med = (busca.records || [])[0];
+        if (!med) return res.status(404).json({ error: `No existe el médico ${codigo}.` });
+        if (med.fields['Activo'] === false) return res.status(409).json({ error: `${codigo} está desactivado.` });
+        const liga = await credenciales.medico.emitirLiga({ medicoRecId: med.id, codigo, emitidaPor: sesion.codigo });
+        return res.status(200).json({ ok: true, codigo, nombre: med.fields['Nombre completo'] || '', ruta: `/entrar.html?activar=${liga}&t=medico`, horas: credenciales.HORAS_LIGA });
       }
 
       if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido.' });

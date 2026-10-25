@@ -59,7 +59,7 @@ const {
   TABLA_LLAVES, TABLA_VINCULACIONES, HORAS_VIGENCIA_LLAVE, MAX_LLAVES_VIGENTES,
   generarLlave, normalizarLlave, hashLlave, urlTabla,
 } = require('../lib/vinculacion');
-const credPaciente = require('../lib/credencialesPaciente');
+const credPaciente = require('../lib/credenciales').paciente;
 const evalBio = require('../lib/evaluacionesBiologicas');
 const meds = require('../lib/medicamentos');
 
