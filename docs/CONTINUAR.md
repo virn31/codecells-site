@@ -11,26 +11,23 @@
 > como referencia histórica; no se le agregan commits. El congelamiento por
 > áreas protege producción: el directorio se abre y lo clínico sigue cerrado.
 
-**Última actualización:** 2026-10-24 (noche) — rama única (`ad6020b`); hotfix de inyección en login (`hotfix/auth-login-inyeccion`, falta push + merge a main); **PIN para médicos + entrada única `entrar.html`** (ver §1). Tablas `VISITAS_DIRECTORIO` y `CREDENCIALES_MEDICO` ya creadas en producción (vacías, §4b).
+**Última actualización:** 2026-10-24 (cierre de sesión). Seguimos el **lunes 2026-10-26**. Todo está pusheado hasta `ccc8aaf`; `ab23ce0` (este CONTINUAR) y el cierre quedan locales: Víctor hace push al empezar. Trabajar en el worktree `C:\Users\virn3\Documents\codecells-pu` (rama `feat/paciente-unico`); el checkout `codecells-site` sigue en `feat/directorio`, que ya NO recibe commits.
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. ~~Hotfix de inyección~~ EN PRODUCCIÓN (PR #7, `3d951df`, verificado 401 en codecells.mx, 2026-10-24). Falta `git push origin feat/paciente-unico` (rama única).
-   - Vercel (2026-10-24): los 4 ajustes de Preview por rama (`TELEGRAM_BOT_TOKEN_PRUEBA`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_PRUEBA`, `GOOGLE_REDIRECT_URI`) se MOVIERON de `feat/directorio` a `feat/paciente-unico` (no se copiaron: los secretos no pasan por Claude). `GOOGLE_REDIRECT_URI` = `https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/api/google-oauth-callback` → Víctor la agrega en Google Cloud (Credenciales → cliente OAuth → URIs de redireccionamiento).
-   - Tras el primer Preview: abrir `https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/api/telegram-bot?accion=registrar_webhook` (registra el webhook del bot de prueba en el Preview nuevo y confirma que el token movido es el del bot de prueba).
-2. **PIN para médicos + entrada única (2026-10-24, decisión de Víctor):**
-   - `entrar.html`: "¿Eres médico o paciente?" → código → PIN → portal (`#selector`) o `mi-nivel.html`. Recibe las ligas `?activar=…&t=medico|paciente`. El portal sin sesión y "Salir" mandan aquí; se quitó el auto-login de 90 días por dispositivo (entraba sin nada). La app del paciente sin código recordado manda aquí.
-   - Servidor: `lib/credenciales.js` (antes `credencialesPaciente.js`) sirve a los dos; tabla `CREDENCIALES_MEDICO` (prueba `tbl2bkJUptlAM6Ghe`). `auth-login` exige PIN al médico (mismas reglas: scrypt, 5 fallos → 15 min, 10 → solo liga nueva).
-   - Ligas de médico: `node scripts/liga-activacion-medico.js CCMED-XXXX` (arranque; en producción con `--url https://www.codecells.mx --produccion` y el `SESSION_SECRET` de producción en `.env.local`, p. ej. con `vercel env pull`) o panel `admin-directorio.html` → "Enlace de acceso para un médico" (`api/directorio?accion=admin_liga_acceso`).
-   - Probado en navegador local con `CCMED-QACARD` (ficticio): liga → PIN trivial rechazado → PIN creado → selector → portal con pacientes → Salir → código recordado → PIN incorrecto (quedan 4) → PIN correcto. Panel: código inexistente da error; enlace generado. 489/489 pruebas (10 nuevas en `test/pin-medico.test.js`). PIN de prueba de QACARD: en `.env.local` del worktree (no en el repo).
-   - **PROBADO EN PREVIEW por Víctor (2026-10-24):** webhook del bot de prueba registrado en el Preview nuevo, `/pin` a @CodeCellsPruebaBot → liga → PIN creado → portal abierto. Ojo: Telegram abre las ligas en su navegador interno, que no tiene sesión de Vercel → en Preview hay que copiar la liga a Chrome (en producción no aplica).
-   - **Arranque del PIN = Telegram `/pin`** (2026-10-24): el médico con Telegram vinculado escribe `/pin` al bot y recibe SU liga (firmada en el servidor del ambiente: Preview → liga de Preview, producción → codecells.mx). El script `liga-activacion-medico.js` solo sirve en local: `SESSION_SECRET` de Vercel es "sensitive" y no se puede leer.
-   - **AL LANZAR: ningún médico entra hasta tener su liga** (Víctor con `/pin`, los demás con `/pin` o desde el panel). `CCMED-DEMO01` también necesita PIN.
-   - Hotfix Telegram EN PRODUCCIÓN (PR #8, `05e467d`): un vínculo de Telegram ya no se reemplaza mandando el código de otro médico. Falta: el PRIMER vínculo de un médico sin Telegram sigue siendo solo con código → hacerlo con liga de un solo uso desde el portal (con PIN).
-   - **Hallazgo (pre-existente, no lo causó esto):** con un paciente demo la app pide PIN ("Tu sesión venció") porque la pestaña Citas consulta con `CC-PAC-DEMO01` FIJO (análisis §2.1) y un 401 dispara el aviso de sesión vencida. Siguiente arreglo: rehacer la pestaña Citas.
-3. **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
+1. **Push de lo local:** `git -C C:/Users/virn3/Documents/codecells-site push origin feat/paciente-unico`.
+2. **Pestaña Citas de la app del paciente** (`mi-nivel.html` + `panel-citas-mi-nivel.js`, análisis §2.1) — EMPEZAR AQUÍ. Hoy consulta CONSULTAS con `CC-PAC-DEMO01` FIJO; el 401 dispara "Tu sesión venció" y la app vuelve a pedir PIN (comprobado 2026-10-24 con el demo `CC-PAC-123456` de la base de prueba, también entrando directo sin `entrar.html`). Rehacerla: consultas en solo lectura del paciente de la sesión, error ≠ vacío, sin rellenos inventados, botón "Agendar con mi médico".
+3. **Primer vínculo de Telegram desde el portal** (con PIN): "Vincular Telegram" → liga de un solo uso `t.me/<bot>?start=<token>`. Hoy un médico SIN Telegram se vincula solo con su código (el reemplazo de un vínculo existente ya está cerrado en producción, PR #8).
+4. **La "joya de la corona"** (integración directorio ↔ portal ↔ app). Decisiones pendientes de Víctor: (a) ¿una solicitud aceptada del directorio puede crear expediente? (tercera vía, CLAUDE.md §7); (b) ¿las citas del directorio se ligan a la app del paciente con su clave? (recomendado). Luego: "Mi equipo" con liga al perfil del médico y "Agendar".
+5. **Perfiles familiares / menores:** propuesta para el abogado en https://claude.ai/artifact/Eic3UxeUALpTNuV2bxVBqa (LGDNNA, advertencia + casilla al médico de qué se comparte con los padres). NADA programado hasta su respuesta. Víctor debe compartir el documento.
+6. **Pagos (Mercado Pago de Víctor):** en pausa hasta que Víctor lo hable con Juan y Pavel. No crear nada.
+7. Galván: confirmar mandando `CCMED-JCG01` a @Drvirnbot (debe responder "Tu cuenta ya estaba vinculada a este Telegram"). Víctor ya lo confirmó para VIRN01.
+
+### Revisión pendiente en Preview (sigue vigente; ahora en el Preview de `feat/paciente-unico`)
+
+**Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
    - **Liga bonita**: `/directorio/prueba-dr-qa-cardiologia` y `/directorio/dr-rodriguez`. **Pegar la liga de Preview en un chat de WhatsApp contigo mismo** y ver que salgan nombre, especialidad y ciudad. Ojo: Preview tiene Vercel Authentication, así que WhatsApp probablemente NO podrá leerla (verá la pantalla de acceso de Vercel); la prueba de la vista previa de verdad es en producción o con el bypass. En local no se puede probar (WhatsApp no llega a 127.0.0.1).
    - **Dirección**: ficha del Dr. QA (`/directorio/prueba-dr-qa-cardiologia`) ya tiene dirección ficticia `[PRUEBA] Av. Álvaro Obregón 123…` y teléfono `6670000000` (base de prueba) → renglón con "Cómo llegar" (abre mapas). Pedir una cita ahí → en la liga de la cita: "Dónde", "Cómo llegar", y con cita confirmada "Teléfono" + "Llamar al consultorio"; el archivo de calendario debe traer el lugar.
@@ -47,8 +44,17 @@
    - Ojo: una cita real en Preview manda aviso de Telegram real.
    - **M9** (`5e4e004`): en `/directorio/` el encabezado dice "Únete a la red" (en celular "Únete") junto a "Acceso médico" → `unete.html`. Medido sin desbordar en 320/360/375/414/700 px. En `unete.html`, si la solicitud no se guarda, NOVA ya NO dice "quedó registrada": dice que no se pudo y por qué (probado con respuestas simuladas 503 / sin red / 200, sin crear registros).
    - **Resumen semanal**: abrir una ficha en Preview cuenta una visita (una por semana por navegador; en Airtable de prueba, tabla `VISITAS_DIRECTORIO`). El cron NO corre en Preview (solo en producción). Para ver los textos sin mandar nada: `curl -H "Authorization: Bearer <CRON_SECRET>" "<preview>/api/resumen-semanal?prueba=1"` (Preview además pide el bypass de Vercel Authentication). Sin `prueba=1` manda Telegram real a los médicos de prueba con Telegram (hoy solo VIRN01) y el control a Víctor.
-4. **Siguiente trabajo** (orden del análisis, `docs/ANALISIS-DIRECTORIO-Y-APP-PACIENTE-2026-10-23.md`): ~~M5~~ ~~M6~~ ~~P1~~ ~~M8~~ ~~P3~~ ~~consulta en línea (parte de P4)~~ · ~~M9~~ · ~~resumen semanal~~ · **siguiente: M7 botón "Agendar" fijo** (ya existe `vigilarBotonFijo` en la ficha: revisar si M7 ya está hecho) o M10 idiomas (baja), o pasar a la pestaña Citas de la app del paciente.
-5. **App del paciente** (`mi-nivel.html`, rama `feat/paciente-unico`): la pestaña **Citas está rota** (análisis §2.1). Rehacerla es categoría A. Lo demás de la app es fase 2.
+
+### Lo hecho el 2026-10-24 (tarde y noche)
+- **M9** "Únete a la red" (`5e4e004`); `unete.html` ya no dice "registrada" si no se guardó. **Resumen semanal** al médico por Telegram (`f0fbc05`; cron lunes 9:00 Culiacán, tabla `VISITAS_DIRECTORIO`).
+- **Pasada del directorio** (API 36/36 + navegador): arreglados teléfono ilegible y "el médico ya fue avisado" falso en la liga de la cita (`ed1b4d3`). Pendiente: el horario escrito a mano ("Horarios") puede contradecir la agenda automática.
+- **SEGURIDAD — dos agujeros en producción, cerrados:** (1) inyección en `auth-login` (con `" != "x` se entraba como el primer médico sin código) → PR #7 (`3d951df`), verificado 401 en codecells.mx; (2) Telegram: mandar el código de otro médico reemplazaba su vínculo → PR #8 (`05e467d`), verificado por Víctor.
+- **Rama única:** `feat/directorio` fusionada en `feat/paciente-unico` (`ad6020b`, 16 conflictos; se conservó el filtro de notas privadas y el PIN del paciente; Google OAuth de directorio).
+- **PIN para médicos + entrada única `entrar.html`** (`9676262`): ¿médico o paciente? → código → PIN. `lib/credenciales.js` común; tabla `CREDENCIALES_MEDICO`. Ligas: Telegram `/pin` (`ccc8aaf`, el arranque real: `SESSION_SECRET` de Vercel es "sensitive" y no se puede leer), panel de admin, o script (solo local). **Víctor lo probó en Preview: PIN creado y portal abierto.** En Preview hay que copiar la liga de Telegram a Chrome (Vercel Authentication).
+- **Vercel:** los 4 ajustes de Preview por rama se movieron de `feat/directorio` a `feat/paciente-unico`; `GOOGLE_REDIRECT_URI` del Preview nuevo (Víctor la agrega en Google Cloud si no lo hizo). Webhook del bot de prueba registrado en el Preview nuevo.
+- **Producción (Airtable):** creadas `CREDENCIALES_MEDICO` (`tblr2DDj55hHWKwhn`) y `VISITAS_DIRECTORIO` (`tblZ5A4m2PqFtQzb0`), vacías.
+- Pruebas: **496/496** en la rama única.
+- **Lanzamiento:** `DESCONGELAR_AREAS=directorio,afiliacion` (decidido). Al lanzar, ningún médico entra sin su liga de PIN (cada uno con `/pin` al bot real o desde el panel).
 
 ### Lo hecho el 2026-10-24
 - `3241ff7` **M5 búsqueda**: `?q=` en la lectura pública; `palabrasBusqueda()` / `coincideBusqueda()` en `lib/directorio.js` (sin acentos, cada palabra debe estar en lo publicado). **Sin sinónimos a propósito** ("rodilla" no encuentra "Ortopedia" salvo que el médico lo escriba). Decisión posible (B): tabla de sinónimos revisada a mano.
