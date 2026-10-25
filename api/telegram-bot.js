@@ -282,11 +282,13 @@ async function buscarMedicoPorChatId(chatId) {
 
 async function vincularChatId(recordId, chatId) {
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${MEDICOS_TABLE_ID}/${recordId}`;
-  await fetch(url, {
+  const r = await fetch(url, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: { [CAMPO_CHAT_ID]: String(chatId) } }),
   });
+  // "Cuenta vinculada" solo si de verdad quedó guardada.
+  if (!r.ok) throw new Error(`Airtable respondió ${r.status} al vincular Telegram`);
 }
 
 /**
@@ -622,7 +624,33 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
-      await vincularChatId(medico.id, chatId);
+      // Hallazgo 2026-10-24: bastaba mandar el código de OTRO médico para
+      // quedarse con su vínculo (se reemplazaba sin preguntar) y actuar como él
+      // ante el bot. Un vínculo existente ya no se reemplaza desde aquí, y un
+      // chat no se vincula a dos médicos. Cambiar de teléfono → administración.
+      const chatActual = medico.fields[CAMPO_CHAT_ID] ? String(medico.fields[CAMPO_CHAT_ID]) : '';
+      if (chatActual === String(chatId)) {
+        await sendTelegramMessage(chatId, 'Tu cuenta ya estaba vinculada a este Telegram.');
+        return res.status(200).json({ ok: true });
+      }
+      if (chatActual) {
+        console.warn(`[telegram-bot] intento de vincular ${codigo}, que ya tiene otro Telegram; se rechazó.`);
+        await sendTelegramMessage(chatId, 'Ese código ya está vinculado a otra cuenta de Telegram. Si cambiaste de teléfono, pide a administración de CODE CELLS™ que lo desvincule.');
+        return res.status(200).json({ ok: true });
+      }
+      const yaVinculado = await buscarMedicoPorChatId(chatId);
+      if (yaVinculado && yaVinculado.id !== medico.id) {
+        await sendTelegramMessage(chatId, 'Este Telegram ya está vinculado a otro código de médico. Un Telegram solo puede pertenecer a un médico.');
+        return res.status(200).json({ ok: true });
+      }
+
+      try {
+        await vincularChatId(medico.id, chatId);
+      } catch (e) {
+        console.error('[telegram-bot] vincular:', e.message);
+        await sendTelegramMessage(chatId, 'No pude guardar la vinculación por un problema temporal. Envía tu código de nuevo en unos minutos.');
+        return res.status(200).json({ ok: true });
+      }
 
       const nombre = medico.fields[CAMPO_NOMBRE] || 'Doctor(a)';
       await sendTelegramMessage(
