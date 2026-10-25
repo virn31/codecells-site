@@ -18,6 +18,7 @@ const { registrarAccesoExpediente } = require('../lib/accesosExpediente');
 const { estructurarDictado } = require('../lib/dictado');
 const { sugerirCie10, integrarCodigosEnDiagnostico } = require('../lib/cie10');
 const { manejarMensajeAgenda, manejarBotonAgenda } = require('../lib/agenda-telegram');
+const credenciales = require('../lib/credenciales');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -317,6 +318,14 @@ async function buscarMedicoPorCodigo(codigo) {
 
 async function buscarMedicoPorChatId(chatId) {
   return airtableGet(MEDICOS_TABLE_ID, `{${CAMPO_CHAT_ID}} = "${chatId}"`);
+}
+
+// Dirección del sitio de ESTE ambiente (las ligas de PIN se firman con su
+// propia clave: una liga de Preview no sirve en producción ni al revés).
+function baseDelSitio() {
+  if (process.env.VERCEL_ENV === 'production') return 'https://www.codecells.mx';
+  if (process.env.VERCEL_BRANCH_URL) return `https://${process.env.VERCEL_BRANCH_URL}`;
+  return 'http://127.0.0.1:3077';
 }
 
 async function vincularChatId(recordId, chatId) {
@@ -753,6 +762,30 @@ module.exports = async (req, res) => {
         chatId,
         'Este bot es exclusivo para médicos de la Red CODE CELLS™. Si aún no vinculaste tu cuenta, envíame tu código CCMED-XXXXXX.'
       );
+      return res.status(200).json({ ok: true });
+    }
+
+    // /pin → liga para crear (o recuperar) el PIN del portal, enviada SOLO al
+    // Telegram ya vinculado a ese médico (2026-10-24). Es el arranque del PIN:
+    // la clave que firma las ligas vive en el servidor y nadie puede leerla.
+    if (/^\/pin\b/i.test(texto)) {
+      if (medicoVinculado.fields['Activo'] === false) {
+        await sendTelegramMessage(chatId, 'Tu acceso está desactivado. Contacta a administración de CODE CELLS™.');
+        return res.status(200).json({ ok: true });
+      }
+      const codigo = medicoVinculado.fields[CAMPO_CODIGO];
+      let liga;
+      try {
+        liga = await credenciales.medico.emitirLiga({ medicoRecId: medicoVinculado.id, codigo, emitidaPor: 'Telegram /pin' });
+      } catch (e) {
+        console.error('[telegram-bot] /pin:', e.message);
+        await sendTelegramMessage(chatId, 'No pude generar tu enlace por un problema temporal. Escribe /pin de nuevo en unos minutos.');
+        return res.status(200).json({ ok: true });
+      }
+      await sendTelegramMessage(chatId,
+        `Tu enlace para crear tu PIN del portal (${codigo}). Vale ${credenciales.HORAS_LIGA} horas y un solo uso:\n\n` +
+        `${baseDelSitio()}/entrar.html?activar=${liga}&t=medico\n\n` +
+        'No lo compartas. Un enlace nuevo anula el anterior. Si no lo pediste tú, avisa a administración.');
       return res.status(200).json({ ok: true });
     }
 
