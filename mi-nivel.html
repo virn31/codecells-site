@@ -327,7 +327,9 @@
         Sirve una sola vez y vence en 24 horas. Ese médico verá tus diagnósticos, tratamientos y estudios,
         pero no las notas privadas de tus otros médicos.
       </div>
+      <div style="font-size:12px;color:var(--text-3);line-height:1.5;margin:-6px 0 14px;">Tu PIN nunca se comparte: es solo para entrar a tu app.</div>
       <button type="button" class="filtro-labs-btn activo" id="btn-generar-llave" onclick="generarLlaveCompartir()">Generar llave</button>
+      <div id="llave-demo" style="display:none;font-size:13px;color:var(--text-3);">Modo demo: solo lectura.</div>
       <div id="llave-resultado" style="display:none;margin-top:16px;">
         <div style="font-size:12px;color:var(--text-3);">Tu código</div>
         <div id="llave-codigo" style="font-family:monospace;font-size:16px;letter-spacing:0.06em;">—</div>
@@ -345,6 +347,14 @@
     <div class="chat-caja" style="padding:20px;">
       <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">Si conoces a alguien a quien le pueda servir CODE CELLS™, compártele la invitación desde tu WhatsApp. No guardamos ningún dato de esa persona.</div>
       <button type="button" class="filtro-labs-btn activo" onclick="compartirInvitacion()">Compartir por WhatsApp</button>
+    </div>
+
+    <!-- Salir: cierra la sesión y olvida el código en este teléfono (celular
+         compartido). Para volver a entrar: código + PIN. -->
+    <div class="seccion-label">Tu sesión</div>
+    <div class="chat-caja" style="padding:20px;">
+      <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">Si usas un teléfono que no es tuyo o que compartes, sal al terminar.</div>
+      <button type="button" class="btn-reintentar" style="margin-top:0;" onclick="salirApp()">Salir de mi app</button>
     </div>
 
   </div>
@@ -521,6 +531,14 @@ window.fetch = function(url, opts) {
       // Sesión vencida (24 h) → se pide el PIN otra vez, sin recargar ni
       // mostrar el expediente como si estuviera vacío.
       return _fetchOriginal(url, opts).then(function(r) {
+        // Un 401 de UNA sección con la sesión aún vigente es un error de
+        // esa sección (se muestra ahí), no "sesión vencida": antes cualquier
+        // 401 mandaba a la pantalla de PIN. Se pide PIN solo si la sesión
+        // ya venció o si falla la lectura principal del expediente.
+        if (r.status === 401 && !sesionVencida() && urlStr.indexOf('tabla=pacientes') === -1) {
+          console.warn('[app] 401 con sesión vigente en', urlStr.split('?')[0]);
+          return r;
+        }
         if (r.status === 401) {
           var eraDemo = tipoDeSesion() === 'demo';
           try { sessionStorage.removeItem(TOKEN_KEY); } catch(e) {}
@@ -570,6 +588,18 @@ function codigoDeSesion() {
   } catch(e) { return null; }
 }
 
+// ¿La sesión guardada ya pasó su hora de vencimiento? (Solo para decidir
+// qué mostrar; la firma y la vigencia las verifica el servidor.)
+function sesionVencida() {
+  try {
+    var t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) return true;
+    var p = t.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    var exp = JSON.parse(atob(p)).exp;
+    return !exp || Date.now() >= exp;
+  } catch(e) { return true; }
+}
+
 function tipoDeSesion() {
   try {
     var t = sessionStorage.getItem(TOKEN_KEY);
@@ -577,6 +607,12 @@ function tipoDeSesion() {
     var p = t.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
     return JSON.parse(atob(p)).tipo || null;
   } catch(e) { return null; }
+}
+
+function salirApp() {
+  try { sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem('ccpac_demo_recarga'); } catch(e) {}
+  try { localStorage.removeItem(STORAGE_KEY_CODIGO); localStorage.removeItem('cc_entrar_codigo_paciente'); } catch(e) {}
+  location.replace('/entrar.html');
 }
 
 function guardarSesion(data, codigo) {
@@ -1528,6 +1564,11 @@ function cargarPaciente() {
       renderInstallBanner();
       cargarComparativoLabs();
       cargarBio();
+      // Demo (solo lectura): no se ofrece generar llave (CLAUDE.md §5).
+      if (tipoDeSesion() === 'demo') {
+        document.getElementById('btn-generar-llave').style.display = 'none';
+        document.getElementById('llave-demo').style.display = '';
+      }
       cargarEquipo();
       cargarCitas();
       cargarProgreso();

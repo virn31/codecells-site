@@ -137,6 +137,20 @@ test('comparativo de labs: la sesión demo lee el SUYO (200), sin sesión → 40
   } finally { w.restaurar(); }
 });
 
+test('demo que intenta escribir (llave, evaluación) → 403 "solo lectura", nunca 401', async () => {
+  const w = mundo();
+  try {
+    const demo = generarToken({ tipo: 'demo', codigo: PAC, horas: 1 });
+    for (const action of ['paciente_generar_llave', 'paciente_guardar_evaluacion']) {
+      const r = await nova(demo, action);
+      assert.strictEqual(r.statusCode, 403, `${action}: ${JSON.stringify(r.body)}`);
+      assert.match(r.body.error, /solo lectura/);
+      assert.strictEqual((await nova(null, action)).statusCode, 401, `${action} sin sesión`);
+    }
+    assert.ok(!w.pedidos.some(u => u.includes('VINCULACIONES') || u.includes('EVALUACIONES')), 'el demo no llega a escribir nada');
+  } finally { w.restaurar(); }
+});
+
 test('mi equipo: liga a la ficha publicada del directorio para "Agendar"', async () => {
   const w = mundo();
   try {

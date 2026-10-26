@@ -135,11 +135,11 @@ test('paciente: guarda calificando en el servidor (ignora puntajes que mande el 
   } finally { w.restaurar(); }
 });
 
-test('paciente: sin sesión → 401; sesión demo → 401 (solo lectura); test incompleto → 400', async () => {
+test('paciente: sin sesión → 401; sesión demo → 403 (solo lectura; un 401 la app lo toma como sesión vencida); test incompleto → 400', async () => {
   const w = mundo();
   try {
     assert.strictEqual((await nova(null, { action: 'paciente_guardar_evaluacion', respuestas: respuestasTodas(0) })).statusCode, 401);
-    assert.strictEqual((await nova(tDemo(DEMO), { action: 'paciente_guardar_evaluacion', respuestas: respuestasTodas(0) })).statusCode, 401);
+    assert.strictEqual((await nova(tDemo(DEMO), { action: 'paciente_guardar_evaluacion', respuestas: respuestasTodas(0) })).statusCode, 403);
     const inc = respuestasTodas(0); delete inc.regen_q1;
     assert.strictEqual((await nova(tPac(PAC), { action: 'paciente_guardar_evaluacion', respuestas: inc })).statusCode, 400);
     assert.strictEqual(w.guardadas.length, 0);

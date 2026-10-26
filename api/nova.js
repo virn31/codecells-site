@@ -2493,6 +2493,8 @@ module.exports = async function handler(req, res) {
     try {
       // Solo el paciente mismo. Una sesión 'demo' no es 'paciente' (ver
       // api/auth-login.js), así que los demo nunca generan llaves.
+      // Demo → 403, no 401: la app toma un 401 como "sesión vencida".
+      if (sesion && sesion.tipo === 'demo') return res.status(403).json({ error: 'Modo demo: solo lectura.' });
       if (!sesion || sesion.tipo !== 'paciente') {
         return res.status(401).json({ error: 'Inicia sesión en tu app para compartir tu expediente.' });
       }
@@ -2702,6 +2704,8 @@ module.exports = async function handler(req, res) {
     if (CONGELADO) return respuestaCongelada(res);
     try {
       // Solo el paciente real. 'demo' es de solo lectura (CLAUDE.md §5).
+      // Demo → 403, no 401: la app toma un 401 como "sesión vencida".
+      if (sesion && sesion.tipo === 'demo') return res.status(403).json({ error: 'Modo demo: solo lectura.' });
       if (!sesion || sesion.tipo !== 'paciente') return res.status(401).json({ error: 'Inicia sesión en tu app para guardar tu evaluación.' });
       const codigoPac = sesion.codigo;
       let previas;
