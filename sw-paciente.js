@@ -40,3 +40,36 @@ self.addEventListener('fetch', function(event) {
     })
   );
 });
+
+// ─── Notificaciones del teléfono (lib/avisosPush.js) ─────────────
+// El servidor manda { title, body, url, tag } cifrado; aquí solo se muestra.
+// El texto ya viene sin datos clínicos si el paciente eligió "discreto", y
+// nunca trae el contenido de un mensaje del médico.
+self.addEventListener('push', function(event) {
+  var d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = {}; }
+  event.waitUntil(self.registration.showNotification(d.title || 'CODE CELLS™', {
+    body: d.body || '',
+    tag: d.tag || 'codecells',
+    icon: '/assets/icon-192.png',
+    badge: '/assets/icon-192.png',
+    data: { url: d.url || '/mi-nivel.html' }
+  }));
+});
+
+// Tocar el aviso abre la app (o la trae al frente si ya estaba abierta).
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  var destino = new URL((event.notification.data && event.notification.data.url) || '/mi-nivel.html', self.location.origin);
+  if (destino.origin !== self.location.origin) destino = new URL('/mi-nivel.html', self.location.origin);
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(lista) {
+    for (var i = 0; i < lista.length; i++) {
+      var c = lista[i];
+      if (new URL(c.url).pathname === '/mi-nivel.html' && 'focus' in c) {
+        if ('navigate' in c) c.navigate(destino.href);
+        return c.focus();
+      }
+    }
+    return self.clients.openWindow(destino.href);
+  }));
+});

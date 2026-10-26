@@ -63,6 +63,8 @@ const credPaciente = require('../lib/credenciales').paciente;
 const evalBio = require('../lib/evaluacionesBiologicas');
 const meds = require('../lib/medicamentos');
 const Mensajes = require('../lib/mensajes');
+const AvisosPush = require('../lib/avisosPush');
+const WebPush = require('../lib/webPush');
 const citasPaciente = require('../lib/citasPaciente');
 const vinculoTelegram = require('../lib/vinculoTelegram');
 
@@ -920,6 +922,47 @@ ${INFO_COMERCIAL}`;
 }
 
 // ─── HANDLER PRINCIPAL ────────────────────────────────────────────
+// Consultas del paciente con nombre y especialidad de su médico (nada más:
+// CLAUDE.md §10). La usan la pestaña Citas (paciente_mis_citas) y el aviso
+// de la víspera de la cita (lib/avisosPush.js). Lanza si Airtable falla:
+// quien llama decide cómo decirlo (nunca "no tienes citas").
+async function consultasConMedico(codigoPaciente) {
+  const esc = (v) => String(v).replace(/"/g, '\\"');
+  const registros = await leerTodoAirtable('tbl1Xp2IGxdV178Ky', {
+    filterByFormula: `{Código de paciente ref}="${esc(codigoPaciente)}"`,
+    'fields[]': ['Fecha de consulta', 'Tipo de consulta', 'Plan terapéutico', 'Próxima cita', 'Médico', 'Código de médico ref'],
+    'sort[0][field]': 'Fecha de consulta',
+    'sort[0][direction]': 'desc',
+  });
+
+  // Nombre y especialidad del médico (nada más: CLAUDE.md §10).
+  const recIds = [...new Set(registros.flatMap(r => (r.fields || {})['Médico'] || []))];
+  const codigos = [...new Set(registros.map(r => (r.fields || {})['Código de médico ref']).filter(c => typeof c === 'string' && c.startsWith('CCMED-')))];
+  const condiciones = recIds.map(id => `RECORD_ID()="${esc(id)}"`).concat(codigos.map(c => `{Código de médico}="${esc(c)}"`));
+  let medicos = [];
+  if (condiciones.length) {
+    medicos = await leerTodoAirtable('tbl87DsuBMmb4DjFM', { filterByFormula: `OR(${condiciones.join(',')})`, 'fields[]': ['Nombre completo', 'Especialidad', 'Código de médico'] });
+  }
+  const medicoDe = (f) => {
+    const recId = (f['Médico'] || [])[0];
+    const m = medicos.find(x => (recId && x.id === recId) || (x.fields || {})['Código de médico'] === f['Código de médico ref']);
+    return m ? { clave: m.id, nombre: m.fields['Nombre completo'] || null, especialidad: citasPaciente.especialidadLegible(m.fields['Especialidad']) } : null;
+  };
+
+  return registros.map(r => {
+    const f = r.fields || {};
+    const m = medicoDe(f);
+    return {
+      fecha: f['Fecha de consulta'] || null,
+      tipo: f['Tipo de consulta'] || null,
+      plan: f['Plan terapéutico'] || null,
+      proximaCita: f['Próxima cita'] || null,
+      medico: m ? { nombre: m.nombre, especialidad: m.especialidad } : null,
+      medicoClave: m ? m.clave : (f['Código de médico ref'] || null),
+    };
+  }).filter(c => c.fecha);
+}
+
 module.exports = async function handler(req, res) {
 
   const origin = req.headers.origin || '';
@@ -934,6 +977,20 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  // Tarea programada (vercel.json: /api/avisos-push → aquí, cada 5 min):
+  // avisos de tomas y de la víspera de la cita a los teléfonos que los
+  // activaron. Solo con CRON_SECRET; ?prueba=1 devuelve lo que mandaría sin
+  // mandar nada. Va dentro de nova.js para no sumar otra función en Vercel.
+  if (req.method === 'GET' && req.query && req.query.accion === 'avisos_push') {
+    const secreto = process.env.CRON_SECRET;
+    if (!secreto || (req.headers && req.headers.authorization) !== `Bearer ${secreto}`) return res.status(401).json({ error: 'No autorizado.' });
+    try {
+      return res.status(200).json(await AvisosPush.ejecutarCron({ prueba: String(req.query.prueba || '') === '1', leerConsultas: consultasConMedico }));
+    } catch (e) {
+      console.error('[nova] avisos_push:', e.message);
+      return res.status(502).json({ error: 'No se pudieron leer las suscripciones; no se mandó nada.' });
+    }
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
@@ -2857,6 +2914,83 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // ─── NOTIFICACIONES DEL TELÉFONO (lib/avisosPush.js) ─────────────
+  // Opcionales, por tipo y por teléfono. El endpoint identifica al teléfono;
+  // todo se acota al paciente de la SESIÓN. El demo no activa avisos.
+  if (action === 'paciente_avisos_estado') {
+    try {
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
+      const llaves = WebPush.llavesDelAmbiente();
+      const base = { ok: true, disponible: !!llaves, publica: llaves ? llaves.publica : null, demo: sesion.tipo === 'demo' };
+      const endpoint = String(req.body.endpoint || '');
+      if (sesion.tipo === 'demo' || !endpoint) return res.status(200).json({ ...base, estado: null });
+      try { return res.status(200).json({ ...base, estado: await AvisosPush.estado(sesion.codigo, endpoint) }); }
+      catch (e) {
+        console.error('[nova] paciente_avisos_estado:', e.message);
+        return res.status(502).json({ error: 'No pudimos revisar tus avisos. Intenta de nuevo.' });
+      }
+    } catch (err) {
+      console.error('[nova] paciente_avisos_estado error:', err.message);
+      return res.status(500).json({ error: 'Error interno.' });
+    }
+  }
+
+  if (action === 'paciente_suscribir_avisos') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(sesion && sesion.tipo === 'demo' ? 403 : 401).json({ error: sesion && sesion.tipo === 'demo' ? 'Modo demo: solo lectura.' : 'Sesión requerida.' });
+      if (!WebPush.llavesDelAmbiente()) return res.status(503).json({ error: 'Los avisos no están disponibles todavía.' });
+      const v = AvisosPush.validarSuscripcion(req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      let r;
+      try { r = await AvisosPush.guardar(sesion.codigo, v.valor); }
+      catch (e) {
+        console.error('[nova] paciente_suscribir_avisos:', e.message);
+        return res.status(502).json({ error: 'No pudimos activar tus avisos. Intenta de nuevo.' });
+      }
+      if (r.error) return res.status(r.error.status).json({ error: r.error.mensaje });
+      const s = r.suscripcion;
+      return res.status(200).json({ ok: true, estado: { mensajes: s.mensajes, tomas: s.tomas, citas: s.citas, discreto: s.discreto, horarios: s.horarios } });
+    } catch (err) {
+      console.error('[nova] paciente_suscribir_avisos error:', err.message);
+      return res.status(500).json({ error: 'Error interno activando tus avisos.' });
+    }
+  }
+
+  // Desactivar siempre se permite (también con producción congelada): solo
+  // apaga avisos de este teléfono.
+  if (action === 'paciente_desuscribir_avisos') {
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(401).json({ error: 'Sesión requerida.' });
+      try { return res.status(200).json({ ok: true, desactivadas: await AvisosPush.desactivar(sesion.codigo, String(req.body.endpoint || '')) }); }
+      catch (e) {
+        console.error('[nova] paciente_desuscribir_avisos:', e.message);
+        return res.status(502).json({ error: 'No pudimos desactivar tus avisos. Intenta de nuevo.' });
+      }
+    } catch (err) {
+      console.error('[nova] paciente_desuscribir_avisos error:', err.message);
+      return res.status(500).json({ error: 'Error interno.' });
+    }
+  }
+
+  // Aviso de prueba a ESTE teléfono (para que el paciente vea cómo llega).
+  if (action === 'paciente_probar_aviso') {
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(401).json({ error: 'Sesión requerida.' });
+      const endpoint = String(req.body.endpoint || '');
+      let sus;
+      try { sus = (await AvisosPush.activasDePaciente(sesion.codigo)).find(s => s.endpoint === endpoint); }
+      catch (e) { return res.status(502).json({ error: 'No pudimos revisar tus avisos. Intenta de nuevo.' }); }
+      if (!sus) return res.status(404).json({ error: 'Este teléfono no tiene avisos activados.' });
+      const r = await AvisosPush.enviarA(sus, AvisosPush.avisoPrueba(sus));
+      if (!r.ok) return res.status(502).json({ error: r.vencida ? 'Tu teléfono ya no acepta avisos: vuelve a activarlos.' : 'El servicio de avisos de tu teléfono no aceptó el aviso. Intenta de nuevo.' });
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('[nova] paciente_probar_aviso error:', err.message);
+      return res.status(500).json({ error: 'Error interno.' });
+    }
+  }
+
   // Contacto de emergencia: lo elige y lo escribe el paciente (decisión de
   // Víctor 2026-10-26). Solo en SU registro (código de la sesión, nunca uno
   // del cuerpo); el demo no escribe. Vacíos los dos = lo borra. Se responde
@@ -2909,51 +3043,12 @@ module.exports = async function handler(req, res) {
   if (action === 'paciente_mis_citas') {
     try {
       if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
-      const esc = (v) => String(v).replace(/"/g, '\\"');
-      let registros;
-      try {
-        registros = await leerTodoAirtable('tbl1Xp2IGxdV178Ky', {
-          filterByFormula: `{Código de paciente ref}="${esc(sesion.codigo)}"`,
-          'fields[]': ['Fecha de consulta', 'Tipo de consulta', 'Plan terapéutico', 'Próxima cita', 'Médico', 'Código de médico ref'],
-          'sort[0][field]': 'Fecha de consulta',
-          'sort[0][direction]': 'desc',
-        });
-      } catch (e) {
-        console.error('[nova] paciente_mis_citas consultas:', e.message);
+      let consultas;
+      try { consultas = await consultasConMedico(sesion.codigo); }
+      catch (e) {
+        console.error('[nova] paciente_mis_citas:', e.message);
         return res.status(502).json({ error: 'No pudimos cargar tus citas. Esto no significa que no tengas: intenta de nuevo.' });
       }
-
-      // Nombre y especialidad del médico (nada más: CLAUDE.md §10).
-      const recIds = [...new Set(registros.flatMap(r => (r.fields || {})['Médico'] || []))];
-      const codigos = [...new Set(registros.map(r => (r.fields || {})['Código de médico ref']).filter(c => typeof c === 'string' && c.startsWith('CCMED-')))];
-      const condiciones = recIds.map(id => `RECORD_ID()="${esc(id)}"`).concat(codigos.map(c => `{Código de médico}="${esc(c)}"`));
-      let medicos = [];
-      if (condiciones.length) {
-        try {
-          medicos = await leerTodoAirtable('tbl87DsuBMmb4DjFM', { filterByFormula: `OR(${condiciones.join(',')})`, 'fields[]': ['Nombre completo', 'Especialidad', 'Código de médico'] });
-        } catch (e) {
-          console.error('[nova] paciente_mis_citas médicos:', e.message);
-          return res.status(502).json({ error: 'No pudimos cargar tus citas. Esto no significa que no tengas: intenta de nuevo.' });
-        }
-      }
-      const medicoDe = (f) => {
-        const recId = (f['Médico'] || [])[0];
-        const m = medicos.find(x => (recId && x.id === recId) || (x.fields || {})['Código de médico'] === f['Código de médico ref']);
-        return m ? { clave: m.id, nombre: m.fields['Nombre completo'] || null, especialidad: citasPaciente.especialidadLegible(m.fields['Especialidad']) } : null;
-      };
-
-      const consultas = registros.map(r => {
-        const f = r.fields || {};
-        const m = medicoDe(f);
-        return {
-          fecha: f['Fecha de consulta'] || null,
-          tipo: f['Tipo de consulta'] || null,
-          plan: f['Plan terapéutico'] || null,
-          proximaCita: f['Próxima cita'] || null,
-          medico: m ? { nombre: m.nombre, especialidad: m.especialidad } : null,
-          medicoClave: m ? m.clave : (f['Código de médico ref'] || null),
-        };
-      }).filter(c => c.fecha);
       const proximas = citasPaciente.proximasCitas(consultas, meds.hoyEnZona());
       consultas.forEach(c => { delete c.medicoClave; });
       return res.status(200).json({ ok: true, proximas, consultas });
@@ -3046,7 +3141,10 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'No se pudo enviar el mensaje. Intenta de nuevo.' });
       }
       if (!enviado.id) return res.status(502).json({ error: 'No se pudo confirmar el envío. Revisa la lista antes de reintentar.' });
-      return res.status(200).json({ ok: true, mensaje: enviado });
+      // Aviso al teléfono del paciente si lo activó (nunca el texto del
+      // mensaje). Un fallo aquí no deshace el mensaje: ya quedó en su buzón.
+      const aviso = await AvisosPush.notificarMensaje(puerta.auth.codigo, nombreMedico);
+      return res.status(200).json({ ok: true, mensaje: enviado, avisoTelefono: aviso.enviados > 0 });
     } catch (err) {
       console.error('[nova] medico_enviar_mensaje error:', err.message);
       return res.status(500).json({ error: 'Error interno enviando el mensaje.' });
