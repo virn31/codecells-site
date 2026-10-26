@@ -116,6 +116,7 @@
   .hoy-texto.listo { color: var(--gold); }
   .btn-buzon { position: relative; width: 38px; height: 38px; border-radius: 50%; background: var(--black-2); border: 1px solid var(--border-dim); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
   .buzon-cuenta { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: #E2574B; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; padding: 0 4px; box-sizing: border-box; }
+  .buzon-telefono { margin: 14px 0 4px; padding: 14px; border: 1px solid var(--border-dim); border-radius: 12px; background: var(--black-2); }
   .buzon-item { padding: 14px 0; border-bottom: 1px solid var(--border-dim); }
   .buzon-item:last-child { border-bottom: none; }
   .buzon-item.nuevo .buzon-de::before { content: '● '; color: #E2574B; }
@@ -637,6 +638,20 @@
     </div>
     <div style="font-size:12px;color:var(--text-3);line-height:1.5;margin:8px 0 6px;">Aquí te escribe tu médico. Estos mensajes no se contestan desde la app: si tienes dudas, pregúntale en tu consulta o a su consultorio. En una emergencia llama al 911.</div>
     <label class="alarmas-discreto" style="margin:10px 0 4px;"><input type="checkbox" id="buzon-avisos" onchange="cambiarAvisos(this.checked)"> <span>Recibir también avisos de la app (cuando tu médico registra una consulta, una receta, un plan o hay resultados nuevos)</span></label>
+    <!-- Avisos de ESTE teléfono a la mano: si algo falla (no llegan, llegan
+         de más), el paciente los apaga o prende desde aquí. Misma lógica que
+         la tarjeta de Inicio (activarAvisos / desactivarAvisos / probarAviso). -->
+    <div class="buzon-telefono">
+      <div class="ficha-clave">Avisos en este teléfono</div>
+      <div id="buzon-tel-estado" class="hoy-texto falta">Cargando…</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button type="button" class="filtro-labs-btn activo" id="buzon-tel-activar" style="display:none;" onclick="activarDesdeBuzon()">Activar avisos</button>
+        <button type="button" class="filtro-labs-btn" id="buzon-tel-probar" style="display:none;" onclick="probarAviso()">Probar</button>
+        <button type="button" class="filtro-labs-btn" id="buzon-tel-desactivar" style="display:none;" onclick="desactivarAvisos()">Desactivar</button>
+        <button type="button" class="filtro-labs-btn" id="buzon-tel-opciones" style="display:none;" onclick="irAOpcionesAvisos()">Más opciones</button>
+      </div>
+      <div id="buzon-av-msg" style="font-size:12px;margin-top:8px;line-height:1.5;"></div>
+    </div>
     <div id="buzon-estado" style="font-size:13px;color:var(--text-3);margin-top:12px;"></div>
     <div id="buzon-lista"></div>
   </div>
@@ -1739,6 +1754,7 @@ function actualizarCampana() {
 function pintarBuzon() {
   var estado = document.getElementById('buzon-estado'), lista = document.getElementById('buzon-lista');
   document.getElementById('buzon-avisos').checked = avisosActivos();
+  pintarBuzonTelefono();
   var items = (buzonMensajes || []).map(function(m) { return { fecha: fechaDe(m.fecha), de: m.medico || tt('Tu médico'), texto: m.mensaje, nuevo: !m.leido, aviso: false }; })
     .concat(avisosApp().map(function(a) { return { fecha: a.fecha, de: 'CODE CELLS™', texto: a.texto, nuevo: avisoNuevo(a), aviso: true }; }))
     .sort(function(a, b) { return (b.fecha || 0) - (a.fecha || 0); });
@@ -1786,8 +1802,45 @@ window.addEventListener('i18n:change', function(){ if (document.getElementById('
 // nova paciente_avisos_estado / _suscribir / _desuscribir / _probar.
 // Lo guardado es lo que el servidor confirmó; un fallo se dice como fallo.
 var avisosPublica = null, avisosSuscripcion = null;
-function avMsg(texto, error) { var m = document.getElementById('av-msg'); m.style.color = error ? '#E2574B' : 'var(--text-2)'; m.textContent = texto ? tt(texto) : ''; }
-function avEstado(texto) { var e = document.getElementById('avisos-estado'); e.textContent = texto ? tt(texto) : ''; e.style.display = texto ? '' : 'none'; }
+// Estado para el buzón: 'cargando' | 'no' (motivo en avisosMotivo) | 'listo'
+// (se pueden activar) ; avisosActivo = este teléfono tiene avisos.
+var avisosFase = 'cargando', avisosMotivo = '', avisosActivo = false;
+// El mensaje se muestra en la tarjeta de Inicio y en el buzón.
+function avMsg(texto, error) {
+  ['av-msg', 'buzon-av-msg'].forEach(function(id) {
+    var m = document.getElementById(id); m.style.color = error ? '#E2574B' : 'var(--text-2)'; m.textContent = texto ? tt(texto) : '';
+  });
+}
+function avEstado(texto) {
+  var e = document.getElementById('avisos-estado'); e.textContent = texto ? tt(texto) : ''; e.style.display = texto ? '' : 'none';
+}
+function avNoDisponible(texto) { avisosFase = 'no'; avisosMotivo = texto; avEstado(texto); pintarBuzonTelefono(); }
+function pintarBuzonTelefono() {
+  var est = document.getElementById('buzon-tel-estado');
+  var ver = function(id, v) { document.getElementById(id).style.display = v ? '' : 'none'; };
+  var listo = avisosFase === 'listo';
+  est.className = 'hoy-texto' + (avisosActivo ? ' listo' : ' falta');
+  est.textContent = avisosFase === 'cargando' ? tt('Cargando…')
+    : avisosFase === 'no' ? tt(avisosMotivo)
+    : avisosActivo ? '✓ ' + tt('Activados: te avisamos aunque la app esté cerrada.')
+    : tt('Desactivados: solo verás tus mensajes al abrir la app.');
+  ver('buzon-tel-activar', listo && !avisosActivo);
+  ver('buzon-tel-probar', listo && avisosActivo);
+  ver('buzon-tel-desactivar', listo && avisosActivo);
+  ver('buzon-tel-opciones', listo);
+}
+// Desde el buzón se activan al menos los avisos de mensajes; lo demás
+// (tomas, cita, discreto) queda como esté en la tarjeta de Inicio.
+function activarDesdeBuzon() {
+  document.getElementById('av-mensajes').checked = true;
+  activarAvisos();
+}
+function irAOpcionesAvisos() {
+  cerrarBuzon();
+  irATab('inicio');
+  var caja = document.getElementById('avisos-caja');
+  setTimeout(function(){ caja.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+}
 function pushSoportado() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 function b64uABytes(s) {
   var b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4));
@@ -1820,12 +1873,14 @@ function ponerEstadoAvisos(est) {
   document.getElementById('av-probar').style.display = activo ? '' : 'none';
   document.getElementById('av-desactivar').style.display = activo ? '' : 'none';
   avEstado(activo ? 'Avisos activados en este teléfono.' : '');
+  avisosFase = 'listo'; avisosActivo = activo;
   pintarHorasAvisos();
+  pintarBuzonTelefono();
 }
 function cargarAvisos() {
-  if (tipoDeSesion() === 'demo') { avEstado('Modo demo: los avisos no se activan.'); return; }
+  if (tipoDeSesion() === 'demo') { avNoDisponible('Modo demo: los avisos no se activan.'); return; }
   if (!pushSoportado()) {
-    avEstado(isIOS() && !isStandalone()
+    avNoDisponible(isIOS() && !isStandalone()
       ? 'En iPhone, primero instala la app: toca compartir ⬆ y elige "Agregar a pantalla de inicio"; luego ábrela desde ahí.'
       : 'Este navegador no permite avisos. Prueba con Chrome o con la app instalada.');
     return;
@@ -1834,13 +1889,13 @@ function cargarAvisos() {
     avisosSuscripcion = sub;
     return postNova({ action: 'paciente_avisos_estado', endpoint: sub ? sub.endpoint : '' });
   }).then(function(x) {
-    if (!x.ok) { avEstado((x.d && x.d.error) || 'No pudimos revisar tus avisos.'); return; }
-    if (!x.d.disponible) { avEstado('Los avisos aún no están disponibles.'); return; }
+    if (!x.ok) { avNoDisponible((x.d && x.d.error) || 'No pudimos revisar tus avisos.'); return; }
+    if (!x.d.disponible) { avNoDisponible('Los avisos aún no están disponibles.'); return; }
     avisosPublica = x.d.publica;
     document.getElementById('avisos-form').style.display = '';
     ponerEstadoAvisos(x.d.estado);
     if (Notification.permission === 'denied') avMsg('Bloqueaste los avisos para esta app. Actívalos en los ajustes de tu navegador para este sitio.', true);
-  }).catch(function(){ avEstado('No pudimos revisar tus avisos. Intenta de nuevo más tarde.'); });
+  }).catch(function(){ avNoDisponible('No pudimos revisar tus avisos. Intenta de nuevo más tarde.'); });
 }
 document.getElementById('av-tomas').addEventListener('change', pintarHorasAvisos);
 function activarAvisos() {
@@ -1849,7 +1904,8 @@ function activarAvisos() {
   if (!tipos.mensajes && !tipos.tomas && !tipos.citas) { avMsg('Elige al menos un tipo de aviso.', true); return; }
   var horarios = tipos.tomas ? horasElegidas(document.getElementById('av-horas-lista')) : {};
   if (tipos.tomas && !Object.keys(horarios).length) { avMsg('Elige la hora de la primera toma de al menos un medicamento.', true); return; }
-  btn.disabled = true; avMsg('Activando…');
+  var btnBuzon = document.getElementById('buzon-tel-activar');
+  btn.disabled = true; btnBuzon.disabled = true; avMsg('Activando…');
   // El permiso se pide aquí, con el toque del paciente: los navegadores no
   // dejan pedirlo solo.
   Notification.requestPermission().then(function(permiso) {
@@ -1871,10 +1927,10 @@ function activarAvisos() {
     if (!x.ok) throw { mensaje: (x.d && x.d.error) || 'No pudimos activar tus avisos.' };
     Object.keys(horarios).forEach(function(id){ guardarLocal('ccpac_alarma_' + id, horarios[id]); });
     ponerEstadoAvisos(x.d.estado);
-    avMsg('Listo. Toca "Enviarme un aviso de prueba" para ver cómo llegan.');
+    avMsg('Listo. Usa el botón de prueba para ver cómo llegan.');
   }).catch(function(e) {
     avMsg((e && e.mensaje) || 'No pudimos activar tus avisos en este teléfono.', true);
-  }).then(function(){ btn.disabled = false; });
+  }).then(function(){ btn.disabled = false; btnBuzon.disabled = false; });
 }
 function probarAviso() {
   if (!avisosSuscripcion) return;
