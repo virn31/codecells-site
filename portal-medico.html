@@ -3494,6 +3494,7 @@
           <button class="tab-btn" data-tab="labs">NOVA LABS</button>
           <button class="tab-btn" data-tab="nutricion">Nutrición</button>
           <button class="tab-btn" data-tab="biomap">Biological Map</button>
+          <button class="tab-btn" data-tab="mensajes">Mensajes</button>
           <button class="tab-btn" data-tab="prenatal" id="tab-btn-prenatal" style="display:none;">Control prenatal</button>
         </div>
 
@@ -3878,6 +3879,23 @@
             <div id="biomap-estado" style="font-size:13px;"></div>
             <div id="biomap-grafica-caja" style="display:none;margin-bottom:16px;"><svg id="biomap-grafica" viewBox="0 0 560 200"></svg></div>
             <div id="biomap-tabla"></div>
+          </div>
+
+          <!-- Tab: Mensajes al paciente (buzón de su app, nova
+               medico_enviar_mensaje / medico_listar_mensajes). De una vía: el
+               paciente lee, no contesta. Un mensaje no es expediente: lo
+               clínico se registra en la consulta. Solo ves los tuyos. -->
+          <div class="tab-pane" id="tab-mensajes">
+            <div class="section-title" style="margin-bottom:6px;">Mensajes al paciente</div>
+            <p style="font-size:12px;color:var(--text-secondary,#9a9590);margin:0 0 14px;line-height:1.5;">Le llegan a su app, en su buzón. Es de una vía: el paciente los lee pero no puede contestar. Un mensaje no modifica el expediente; si cambias algo clínico (dosis, diagnóstico, indicaciones), regístralo en la consulta. Lo enviado no se puede editar ni borrar. No escribas aquí nada urgente: el paciente solo lo ve cuando abre su app.</p>
+            <div class="form-group"><textarea id="msg-texto" rows="4" maxlength="1000" placeholder="Ej. Recuerde venir en ayunas de 8 horas a su cita del jueves." style="width:100%;box-sizing:border-box;resize:vertical;"></textarea></div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+              <button class="btn-primary" id="btn-enviar-mensaje" style="font-size:12px;padding:8px 18px;width:auto;flex:0 0 auto;margin:0;">Enviar al paciente</button>
+              <span id="msg-contador" style="font-size:11px;color:var(--text-secondary,#9a9590);">0 / 1000</span>
+              <span id="msg-resultado" style="font-size:12px;"></span>
+            </div>
+            <div class="section-label" style="margin-top:22px;">Tus mensajes enviados</div>
+            <div id="msg-lista" style="font-size:13px;"></div>
           </div>
         </div>
 
@@ -5361,7 +5379,63 @@ function activarTab(tab) {
   if (tab === 'nutricion') cargarNutricion();
   if (tab === 'prenatal') cargarControlPrenatal();
   if (tab === 'biomap') cargarBioMapPortal();
+  if (tab === 'mensajes') cargarMensajesPortal();
 }
+
+// ─── MENSAJES AL PACIENTE (buzón de su app; de una vía) ──────────
+// La lista es lo que Airtable confirmó; un fallo se muestra como fallo.
+async function cargarMensajesPortal() {
+  const lista = document.getElementById('msg-lista');
+  const btn = document.getElementById('btn-enviar-mensaje');
+  const texto = document.getElementById('msg-texto');
+  document.getElementById('msg-resultado').textContent = '';
+  lista.innerHTML = '<span class="loader"></span>';
+  if (!pacienteActual) { lista.textContent = ''; return; }
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_listar_mensajes', pacienteCode: pacienteActual.fields['Código de paciente'] }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { lista.innerHTML = `<span style="color:#e24b4a;">${escaparHtml(data.error || `No se pudieron leer los mensajes (error ${res.status}).`)}</span>`; return; }
+    const demo = !!data.soloLectura;
+    btn.disabled = demo; texto.disabled = demo;
+    if (demo) { lista.textContent = 'Paciente demo: no recibe mensajes.'; return; }
+    const msgs = data.mensajes || [];
+    if (!msgs.length) { lista.textContent = 'Aún no le has enviado mensajes a este paciente.'; return; }
+    lista.innerHTML = msgs.map(m => `
+      <div class="data-cell" style="margin-bottom:8px;border-radius:4px;">
+        <div class="key">${escaparHtml(m.fecha ? new Date(m.fecha).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—')} · ${m.leido ? '✓ Leído ' + escaparHtml(new Date(m.leido).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })) : 'Sin leer'}</div>
+        <div class="val" style="font-weight:400;font-size:13px;line-height:1.6;margin-top:4px;white-space:pre-line;">${escaparHtml(m.mensaje)}</div>
+      </div>`).join('');
+  } catch (e) {
+    lista.innerHTML = '<span style="color:#e24b4a;">Error de conexión — no se pudieron leer los mensajes.</span>';
+  }
+}
+document.getElementById('msg-texto').addEventListener('input', e => {
+  document.getElementById('msg-contador').textContent = e.target.value.length + ' / 1000';
+});
+document.getElementById('btn-enviar-mensaje').addEventListener('click', async () => {
+  const texto = document.getElementById('msg-texto');
+  const resultado = document.getElementById('msg-resultado');
+  const btn = document.getElementById('btn-enviar-mensaje');
+  if (!pacienteActual) return;
+  if (!texto.value.trim()) { resultado.style.color = '#e24b4a'; resultado.textContent = 'Escribe el mensaje.'; return; }
+  btn.disabled = true; resultado.style.color = ''; resultado.textContent = 'Enviando…';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_enviar_mensaje', pacienteCode: pacienteActual.fields['Código de paciente'], mensaje: texto.value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { resultado.style.color = '#e24b4a'; resultado.textContent = data.error || `No se pudo enviar (error ${res.status}).`; return; }
+    texto.value = ''; document.getElementById('msg-contador').textContent = '0 / 1000';
+    await cargarMensajesPortal();
+    resultado.style.color = 'var(--green, #4caf7a)'; resultado.textContent = '✓ Enviado';
+  } catch (e) {
+    resultado.style.color = '#e24b4a'; resultado.textContent = 'Sin conexión — el mensaje no se envió.';
+  } finally { btn.disabled = false; }
+});
 
 // ─── NUTRICIÓN: evolución y seguimiento (conectado a CONSULTAS) ────
 // Lee las consultas del paciente actual, usa "Peso en consulta (kg)" para

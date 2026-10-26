@@ -62,6 +62,7 @@ const {
 const credPaciente = require('../lib/credenciales').paciente;
 const evalBio = require('../lib/evaluacionesBiologicas');
 const meds = require('../lib/medicamentos');
+const Mensajes = require('../lib/mensajes');
 const citasPaciente = require('../lib/citasPaciente');
 const vinculoTelegram = require('../lib/vinculoTelegram');
 
@@ -3017,6 +3018,89 @@ module.exports = async function handler(req, res) {
       return { error: { status: err.status || 502, mensaje: 'No se pudo verificar el acceso al paciente.' } };
     }
     return { auth, esDemo: auth.via === 'demo' };
+  }
+
+  // ─── BUZÓN: mensajes de UNA vía médico → paciente (lib/mensajes.js) ──
+  // Un mensaje no es expediente (Víctor 2026-10-26). Escribir pide el mismo
+  // permiso que escribir en el expediente (autorizarPaciente con escritura:
+  // nunca a un demo); cada médico ve solo lo que él escribió.
+  if (action === 'medico_enviar_mensaje') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      const v = Mensajes.validarMensaje(req.body.mensaje);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      const puerta = await puertaMedicoPaciente(true, 'medico_enviar_mensaje');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      let nombreMedico = '';
+      try {
+        const m = (await leerTodoAirtable('tbl87DsuBMmb4DjFM', { filterByFormula: `{Código de médico}="${String(sesion.codigo).replace(/"/g, '\\"')}"`, maxRecords: '1', 'fields[]': ['Nombre completo'] }))[0];
+        nombreMedico = (m && m.fields['Nombre completo']) || '';
+      } catch (e) {
+        console.error('[nova] medico_enviar_mensaje nombre:', e.message);
+        return res.status(502).json({ error: 'No se pudo enviar el mensaje. Intenta de nuevo.' });
+      }
+      let enviado;
+      try { enviado = await Mensajes.enviar({ codigoPaciente: puerta.auth.codigo, codigoMedico: sesion.codigo, nombreMedico, mensaje: v.valor }); }
+      catch (e) {
+        console.error('[nova] medico_enviar_mensaje:', e.message);
+        return res.status(502).json({ error: 'No se pudo enviar el mensaje. Intenta de nuevo.' });
+      }
+      if (!enviado.id) return res.status(502).json({ error: 'No se pudo confirmar el envío. Revisa la lista antes de reintentar.' });
+      return res.status(200).json({ ok: true, mensaje: enviado });
+    } catch (err) {
+      console.error('[nova] medico_enviar_mensaje error:', err.message);
+      return res.status(500).json({ error: 'Error interno enviando el mensaje.' });
+    }
+  }
+
+  if (action === 'medico_listar_mensajes') {
+    try {
+      const puerta = await puertaMedicoPaciente(false, 'medico_listar_mensajes');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      if (puerta.esDemo) return res.status(200).json({ ok: true, mensajes: [], soloLectura: true });
+      try {
+        return res.status(200).json({ ok: true, mensajes: await Mensajes.listarDeMedico(sesion.codigo, puerta.auth.codigo) });
+      } catch (e) {
+        console.error('[nova] medico_listar_mensajes:', e.message);
+        return res.status(502).json({ error: 'No se pudieron leer los mensajes enviados.' });
+      }
+    } catch (err) {
+      console.error('[nova] medico_listar_mensajes error:', err.message);
+      return res.status(500).json({ error: 'Error interno leyendo los mensajes.' });
+    }
+  }
+
+  // El paciente lee su buzón (todos sus mensajes, de todos sus médicos).
+  // Demo: buzón vacío de solo lectura (los demos no reciben mensajes).
+  if (action === 'paciente_mis_mensajes') {
+    try {
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
+      if (sesion.tipo === 'demo') return res.status(200).json({ ok: true, mensajes: [] });
+      try { return res.status(200).json({ ok: true, mensajes: await Mensajes.listarDePaciente(sesion.codigo) }); }
+      catch (e) {
+        console.error('[nova] paciente_mis_mensajes:', e.message);
+        return res.status(502).json({ error: 'No pudimos cargar tus mensajes. Esto no significa que no tengas: intenta de nuevo.' });
+      }
+    } catch (err) {
+      console.error('[nova] paciente_mis_mensajes error:', err.message);
+      return res.status(500).json({ error: 'Error interno cargando tus mensajes.' });
+    }
+  }
+
+  if (action === 'paciente_marcar_leidos') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(sesion && sesion.tipo === 'demo' ? 403 : 401).json({ error: sesion && sesion.tipo === 'demo' ? 'Modo demo: solo lectura.' : 'Sesión requerida.' });
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      try { return res.status(200).json({ ok: true, marcados: await Mensajes.marcarLeidos(sesion.codigo, ids) }); }
+      catch (e) {
+        console.error('[nova] paciente_marcar_leidos:', e.message);
+        return res.status(502).json({ error: 'No pudimos marcar tus mensajes como leídos.' });
+      }
+    } catch (err) {
+      console.error('[nova] paciente_marcar_leidos error:', err.message);
+      return res.status(500).json({ error: 'Error interno.' });
+    }
   }
 
   if (action === 'generar_plan_semanal') {
