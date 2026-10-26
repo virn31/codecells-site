@@ -249,6 +249,8 @@
     <div class="pin-dots" id="pin-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="pin-keypad" id="pin-keypad"></div>
     <div class="pin-msg" id="pin-msg"></div>
+    <button type="button" class="btn-reintentar" id="pin-olvido-btn" onclick="document.getElementById('pin-olvido').style.display='';this.style.display='none';">¿Olvidaste tu PIN?</button>
+    <div class="pin-sub" id="pin-olvido" style="display:none;margin-top:12px;">Pídele a tu médico un enlace nuevo: en su portal, desde tu expediente, «Acceso app». Con ese enlace creas un PIN nuevo y el anterior deja de servir. Tu PIN es personal: nadie de CODE CELLS™ te lo va a pedir.</div>
   </div>
 
   <!-- Pantalla: principal -->
@@ -520,7 +522,22 @@ window.fetch = function(url, opts) {
       // mostrar el expediente como si estuviera vacío.
       return _fetchOriginal(url, opts).then(function(r) {
         if (r.status === 401) {
+          var eraDemo = tipoDeSesion() === 'demo';
           try { sessionStorage.removeItem(TOKEN_KEY); } catch(e) {}
+          // Un demo no tiene PIN (CLAUDE.md §5): su sesión de 30 min se
+          // renueva sola recargando. Solo una vez por minuto, para que un
+          // 401 por otra causa no recargue sin fin: entonces se dice.
+          if (eraDemo) {
+            var ultima = 0;
+            try { ultima = Number(sessionStorage.getItem('ccpac_demo_recarga')) || 0; } catch(e) {}
+            if (Date.now() - ultima > 60000) {
+              try { sessionStorage.setItem('ccpac_demo_recarga', String(Date.now())); } catch(e) {}
+              location.reload();
+            } else {
+              mostrarError('No pudimos abrir la demostración. Intenta de nuevo en un momento.');
+            }
+            return r;
+          }
           mostrarPin('login', 'Tu sesión venció. Escribe tu PIN para continuar.');
         }
         return r;
@@ -553,6 +570,15 @@ function codigoDeSesion() {
   } catch(e) { return null; }
 }
 
+function tipoDeSesion() {
+  try {
+    var t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) return null;
+    var p = t.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(p)).tipo || null;
+  } catch(e) { return null; }
+}
+
 function guardarSesion(data, codigo) {
   sessionStorage.setItem(TOKEN_KEY, data.token);
   if (codigo) { try { localStorage.setItem(STORAGE_KEY_CODIGO, codigo); } catch(e) {} }
@@ -580,6 +606,8 @@ function mostrarPin(modo, mensaje, esInfo) {
   if (Array.isArray(mensaje)) msg.innerHTML = mensaje.map(function(x){ return '<span>' + esc(x) + '</span>'; }).join(' ');
   else msg.textContent = mensaje || '';
   msg.className = 'pin-msg' + (esInfo ? ' ok' : '');
+  document.getElementById('pin-olvido-btn').style.display = modo === 'login' ? '' : 'none';
+  document.getElementById('pin-olvido').style.display = 'none';
   pintarPin();
   irA('p-pin');
 }
