@@ -11,40 +11,48 @@
 > como referencia histórica; no se le agregan commits. El congelamiento por
 > áreas protege producción: el directorio se abre y lo clínico sigue cerrado.
 
-**Última actualización:** 2026-10-25 (cierre de sesión). Todo pusheado hasta `1aadfe9`; este CONTINUAR queda local (Víctor hace push al empezar: `! git -C C:/Users/virn3/Documents/codecells-pu push origin feat/paciente-unico`). Trabajar en el worktree `C:\Users\virn3\Documents\codecells-pu` (rama `feat/paciente-unico`); el checkout `codecells-site` sigue en `feat/directorio`, que ya NO recibe commits. Pruebas: **516/516** (`node --test test/*.test.js`; `node --test test/` NO sirve).
+**Última actualización:** 2026-10-26 (cierre de sesión). Todo pusheado hasta `986b737` (este CONTINUAR va en un commit aparte, también pusheado). Trabajar en el worktree `C:\Users\virn3\Documents\codecells-pu` (rama `feat/paciente-unico`); el checkout `codecells-site` sigue en `feat/directorio`, que ya NO recibe commits. Pruebas: **565/565** (`node --test test/*.test.js`; `node --test test/` NO sirve).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Push de lo local** (ver arriba).
-2. **6 cambios rápidos para hacer más amigable la app del paciente** (propuestos 2026-10-25, Víctor aún NO dijo "sí" — preguntar antes de arrancar):
-   1. Letrero "Instala CODE CELLS™" una sola vez en Inicio con ✕ (hoy ocupa el tercio superior de CADA pestaña).
-   2. Fechas de laboratorios legibles ("12 abr 2026", no `2026-04-12`).
-   3. Una línea que explique el rojo en laboratorios ("fuera del rango del laboratorio; tu médico lo interpreta contigo").
-   4. Especialidad del médico bien escrita (hoy "CIRUGIA PLASTICA" crudo).
-   5. NOVA: el chip "Agendar mi próxima cita" lleva a la pestaña Citas (NOVA no agenda).
-   6. "Compartir por WhatsApp" (invitar) → "Compartir invitación" con el menú del teléfono (`navigator.share`), alineado con [sin WhatsApp].
-   Después (más grandes): 7 pantalla "Hoy" en Inicio (próxima cita, tomas de hoy, día X de 90); 8 recordatorios con notificaciones del navegador; 9 explicar el protocolo (texto de ustedes); 10 íconos de línea en la barra y música fuera del encabezado; 11 mismo diseño que directorio/home.
-3. **Probar el vínculo nuevo de Telegram en Preview** con un médico SIN Telegram (Dr. QA, `CCMED-QACARD`, ya tiene PIN en la base de prueba desde 2026-10-25 01:09): portal → "Vincular Telegram" → "Abrir Telegram" → Iniciar en @CodeCellsPruebaBot. No probado con el bot real (local no tiene llave de Telegram).
-4. **La "joya de la corona"** (directorio ↔ portal ↔ app). Decisiones pendientes de Víctor: (a) ¿una solicitud aceptada del directorio puede crear expediente? (tercera vía, CLAUDE.md §7); (b) ¿las citas del directorio se ligan a la app del paciente con su clave? (recomendado). "Mi equipo" ya trae la liga a la ficha (`fichaDirectorio`).
-5. **Perfiles familiares / menores:** propuesta al abogado https://claude.ai/artifact/Eic3UxeUALpTNuV2bxVBqa. NADA programado hasta su respuesta.
-6. **Pagos (Mercado Pago):** en pausa hasta que Víctor hable con Juan y Pavel.
-7. Galván: mandar `CCMED-JCG01` a @Drvirnbot → debe decir "Tu cuenta ya estaba vinculada a este Telegram" (sigue igual con el bot nuevo **en esta rama**; producción aún tiene la vía vieja).
+1. **Que Víctor pruebe en Preview desde su celular** todo lo del 2026-10-26 (lista abajo, "Cómo probarlo"). Es lo que falta para dar por bueno el bloque: nada de esto se ha visto en un teléfono real.
+2. **Notificaciones — lo que falta:**
+   - Probar en teléfono real: Android (Chrome) y **iPhone con la app instalada en la pantalla de inicio** (sin instalar, iPhone no permite avisos; la tarjeta lo explica).
+   - Tomas y víspera de cita **no corren solas en Preview** (Vercel solo corre tareas programadas en producción). Para verlas en Preview: `GET /api/avisos-push` con `Authorization: Bearer <CRON_SECRET>` (Preview pide además el bypass de Vercel); `?prueba=1` solo dice qué mandaría. O correr `AvisosPush.ejecutarCron({ ahora })` en local (así se probó).
+   - Opcional: rotar la llave VAPID privada de Preview (pasó por la conversación al crearla; solo sirve para Preview).
+3. **Siguientes ideas de la app del paciente** (del análisis de 20 puntos del 2026-10-26, Víctor aún no las pidió): registro de presión/glucosa/peso por el paciente (cardiología, endocrino); indicaciones de cada consulta en palabras simples; ver "quién vio mi expediente" (ACCESOS_EXPEDIENTE ya existe); receta para enseñar en farmacia; por especialidad: embarazo (gineco), cuidados postoperatorios/fotos (cirugía plástica, dermato), ejercicios (ortopedia). Perfiles familiares siguen esperando al abogado.
+4. **Pendientes de antes (siguen vigentes):** probar el vínculo de Telegram con Dr. QA en Preview; "joya de la corona" (directorio ↔ portal ↔ app, decisiones (a) y (b) de Víctor); perfiles familiares con el abogado (https://claude.ai/artifact/Eic3UxeUALpTNuV2bxVBqa); pagos en pausa (Juan y Pavel); Galván manda `CCMED-JCG01` al bot.
 
-### Cómo probar desde el celular (Preview)
-- **Liga para compartir** (salta Vercel Authentication, vence 2026-10-26 23:16; regenerar con la herramienta de Vercel `get_access_to_vercel_url` sobre `https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/...`): `...?_vercel_share=UpFYFReYKSBtOjazW1t5vSs9Hw1F2hJy`.
-- **Paciente demo sin PIN:** `/mi-nivel.html?codigo=CC-PAC-200002` (Roberto Carrillo Mendoza, `Es demo`=true en la base de prueba: entra directo, solo lectura). También por `entrar.html` → Soy paciente.
-- **Paciente con PIN:** médico → expediente → "⚿ Acceso app" → Copiar → Salir → pegar la liga (un demo NO puede: `medico_emitir_activacion` lo rechaza, por diseño). Víctor ya probó crear PIN así desde su cuenta (2026-10-25).
-- **Prueba automática en Chrome invisible** (sin la extensión): scripts CDP en el scratchpad de la sesión (no en el repo). Revisar la PANTALLA visible (`.pantalla` sin display:none), no solo el texto: el 2026-10-25 un texto "correcto" escondía la pantalla de PIN encima.
+### Antes de lanzar (además de §4b)
+- **Crear en PRODUCCIÓN** (pedir autorización a Víctor): tablas `MENSAJES_PACIENTE` y `SUSCRIPCIONES_PUSH` (mismos campos que en prueba; el código las llama por NOMBRE), y un **par de llaves VAPID propio de producción** (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` sensitive, `VAPID_SUBJECT`).
+- **Plan de Vercel:** confirmar que permite el cron `*/5 * * * *` de `vercel.json` (la cuenta es equipo "CODECELLS", así que debería; si no, el despliegue a producción falla con error claro).
+- **Aviso de privacidad (abogado):** contacto de emergencia (dato de un tercero, lo elige el paciente), buzón de mensajes, avisos del teléfono (pasan cifrados por Google/Apple).
+- Ojo: con producción congelada, suscribirse a avisos, guardar contacto, enviar mensajes y marcar leídos responden 503 (congelamiento global, no por área).
+
+### Cómo probarlo (Preview, desde el celular)
+- **Liga para compartir** (salta Vercel Authentication): regenerar con la herramienta de Vercel `get_access_to_vercel_url` sobre `https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/...` (la del 2026-10-25 vencía el 26 a las 23:16).
+- **Demo sin PIN** `/mi-nivel.html?codigo=CC-PAC-200002` (Roberto): Hoy con próxima cita 20 dic ("Faltan N días" + "📅 Recordármela en mi calendario"), ficha de emergencia + "Ver en grande", letrero de instalar con ✕ (no vuelve), labs con fechas legibles y leyenda rojo/azul, "Compartir invitación" (menú del teléfono). El demo NO guarda contacto, ni activa avisos, ni recibe mensajes.
+- **Paciente con PIN** (médico → expediente → "⚿ Acceso app"): contacto de emergencia (elegir, Llamar, quitar); "⏰ Alarmas en mi calendario" (elegir hora de la 1ª toma → el teléfono debe ofrecer agregarlas); "Avisos en este teléfono" → Activar → "Enviarme un aviso de prueba".
+- **Buzón:** portal → expediente → pestaña **Mensajes** → enviar → en la app 🔔 con 1 (y, con avisos activados, notificación "Dr. … te escribió" con la app cerrada) → abrir y cerrar el buzón → en el portal "✓ Leído".
+
+### Hecho el 2026-10-26 — NO repetir
+Contexto: Víctor pidió un análisis "como paciente" (20 cosas que querría un paciente de cualquier especialidad; 5 ya había, 7 a medias, 8 faltaban) y luego, a pedido de un paciente real, alarmas y mensajes.
+- `6e14309` **6 cambios rápidos + ficha de emergencia.** Letrero de instalar solo en Inicio con ✕; fechas de labs legibles (`fechaEstudio`); especialidad legible (`citasPaciente.especialidadLegible`, catálogo de 44, desconocidas solo pierden MAYÚSCULAS, nunca se inventan acentos); chip "Agendar" de NOVA → pestaña Citas; "Compartir invitación" con `navigator.share` (sin WhatsApp). Ficha (`nova paciente_ficha_emergencia`): grupo sanguíneo (PACIENTES), alergias (HISTORIA CLÍNICA, todas las historias, sin duplicados), padecimientos, medicamentos activos; vacío = "tu médico no lo ha registrado" (nunca "sin alergias"); "Ver en grande" fuera de `.wrap` (z-index). De paso: el filtro de labs apagaba el estilo de "Generar llave"; labs escapados.
+- `b85d5fd` **Pantalla "Hoy"** (fecha, próxima cita con "Hoy tienes cita"/"Mañana"/"Faltan N días", resumen "Te faltan X de Y tomas") + **contacto de emergencia ELEGIDO POR EL PACIENTE** (decisión de Víctor): `nova paciente_guardar_contacto_emergencia` usa campos que YA existían en PACIENTES y nadie usaba: `Contacto de emergencia` (`fldQ2C27m7Jz0NQ7O`) y `Tel. emergencia` (`fldnunJlIcPZiyQZR`), mismos IDs en prueba y producción. Portal muestra el contacto en Datos generales ("lo eligió el paciente", escapado). **Corrección:** la leyenda de labs decía "En rojo: fuera de rango", pero bajo el rango es AZUL.
+- `8a7031a` **Alarmas en el calendario** (`lib/alarmasCalendario.js`, usa `directorio/calendario.js`): .ics con eventos repetidos y alarma a la hora; la receta trae frecuencia, no hora → el paciente elige la hora de su 1ª toma; respeta c48h/semanal desde el inicio, fin de receta y no suena antes de la 1ª toma al cruzar medianoche; prn/suspendidos/terminados sin alarma; opción discreta. Cita: evento de todo el día (la hora no se inventa), avisos víspera 9:00 y mismo día 7:00. Nada va al servidor.
+- `73273a4` **Buzón de una vía** (decisiones de Víctor: solo de ida; "un mensaje es un mensaje, no expediente"). Tabla `MENSAJES_PACIENTE` (prueba `tbl8r7SVxKLGp1aOF`), `lib/mensajes.js`; nova `medico_enviar_mensaje` (permiso de escritura del expediente: nunca a un demo), `medico_listar_mensajes` (cada médico solo los suyos), `paciente_mis_mensajes`, `paciente_marcar_leidos`. Portal: pestaña "Mensajes". App: campana 🔔 + "Tu buzón" (sin responder; 911). Avisos de la app OPCIONALES, armados en el teléfono con lo ya cargado (consultas, receta, plan, labs; 30 días; uno por día; solo fecha).
+- `a2bab7d` **Notificaciones del teléfono (Web Push)** sin librerías ni cuentas de terceros: `lib/webPush.js` (RFC 8291, coincide byte por byte con el Apéndice A; VAPID RFC 8292), `lib/avisosPush.js`, tabla `SUSCRIPCIONES_PUSH` (prueba `tblCfmcR6khyS9LD1`, con `Idioma`). Opcionales por tipo (mensajes / tomas / víspera de cita 18:00) + discreto; el aviso de mensaje NUNCA trae el texto; 404/410 → se desactiva. nova `paciente_avisos_estado/_suscribir/_desuscribir/_probar`; tarea `GET /api/avisos-push` → `nova?accion=avisos_push` cada 5 min (CRON_SECRET). `consultasConMedico()` extraída de `paciente_mis_citas`. `sw-paciente.js` muestra el aviso y al tocarlo abre la app (buzón si es mensaje). Probado de punta a punta en Chrome por el FCM real de Google (prueba, mensaje y toma llegaron).
+- `986b737` **Arreglo:** `api/nova.js` rechazaba con 403 cualquier llamada sin Origin permitido, y Vercel llama al cron sin Origin → en producción la tarea nunca habría corrido. Se vio en Preview (403 en vez de 401); las pruebas no lo veían por `NODE_ENV=development`. Ahora la tarea va antes del filtro y hay prueba en modo producción.
+- **Vercel Preview (rama `feat/paciente-unico`)**: creadas `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (sensitive), `VAPID_SUBJECT`; redeploy hecho. Local: llaves VAPID y `CRON_SECRET` en `.env.local`.
+- **Base de prueba:** quedaron 2 mensajes "[PRUEBA QA]" para `CC-PAC-9999901` y su suscripción de prueba desactivada.
 
 ### Hecho el 2026-10-25 — NO repetir
-- `84155a5` **Pestaña Citas rehecha** (solo lectura): acción `paciente_mis_citas` (lista blanca de 6 campos; **sin diagnóstico — decisión de Víctor**; 502 ≠ vacío), próxima cita = `Próxima cita` de la consulta MÁS RECIENTE de cada médico y solo si ≥ hoy (`lib/citasPaciente.js`), "Agendar con mi médico" con la ficha publicada del directorio (`paciente_mi_equipo` → `fichaDirectorio`, `directorioError`), sin `CC-PAC-DEMO01`, sin rellenos, sin "Confirmar". `panel-citas-mi-nivel.js` ya no se carga en la app (sigue en `portal-vip.html`, que no lo pinta: retirar con Fase 3).
-- `93b6da8` **Telegram: primer vínculo SOLO desde el portal** (decisión de Víctor: cerrar la vía vieja). `lib/vinculoTelegram.js` (token ≤64 car., HMAC con SESSION_SECRET, código de la SESIÓN, 30 min, uso único por el propio vínculo, sin tabla nueva); `nova medico_telegram` (estado/liga, nunca el chat id); bot `/start <token>`; mandar `CCMED-` ya NO vincula; tarjeta "Vincula tu Telegram" en el inicio del portal. **Producción sigue con la vía vieja** hasta fusionar (posible hotfix aparte si Víctor lo pide). Pendiente: `capacitacion/_pendiente-dictamen/modulo_portal_medico.html` enseña la vía vieja.
-- `d42824e` demo caía en la pantalla de PIN: `paciente_comparativo_labs` daba 401 a la sesión demo.
-- `55b02c2` **"¿Olvidaste tu PIN?"** en `entrar.html` y `mi-nivel.html` (paciente → su médico, «Acceso app»; médico → `/pin` en Telegram o admin). Demo con sesión vencida recarga solo (máx. 1/min).
-- `1aadfe9` un 401 de UNA sección con sesión vigente ya no manda a la pantalla de PIN (solo si venció o falla la lectura de `pacientes`); `paciente_generar_llave` y `paciente_guardar_evaluacion` → 403 al demo; demo no ve "Generar llave"; "Tu PIN nunca se comparte"; **botón "Salir de mi app"** (antes no existía).
-- **Decidido por Víctor (2026-10-25):** el paciente entrega a otro médico SOLO código + llave; el PIN es personal, nunca se transfiere, y se recupera por canal de confianza (sin correo/SMS). Los demo siguen SIN PIN.
+- `84155a5` Pestaña Citas rehecha (solo lectura; sin diagnóstico por decisión de Víctor; próxima cita = la de la consulta MÁS RECIENTE de cada médico, si ≥ hoy; "Agendar" con la ficha del directorio).
+- `93b6da8` Telegram: primer vínculo SOLO desde el portal con liga firmada; `CCMED-` ya no vincula. **Producción sigue con la vía vieja** hasta fusionar. Pendiente: `capacitacion/_pendiente-dictamen/modulo_portal_medico.html` enseña la vía vieja.
+- `d42824e`, `55b02c2`, `1aadfe9`: demo ya no cae en la pantalla de PIN; "¿Olvidaste tu PIN?"; un 401 de una sección no tira la sesión; demo sin escrituras; botón "Salir de mi app".
+- **Decidido por Víctor:** el paciente entrega a otro médico SOLO código + llave; el PIN nunca se transfiere y se recupera por su médico o `/pin`. Los demo siguen SIN PIN.
 
 ### Revisión pendiente en Preview (del 2026-10-24, sigue vigente)
 
@@ -208,7 +216,12 @@ En Google Cloud el redirect de producción ya existe (`https://www.codecells.mx/
 
 
 - `127.0.0.1`, no `localhost`. 1ª llamada a Airtable de cada proceso: ~10 s o falla, reintentar.
-- `git push` lo corre Víctor: `! git -C C:/Users/virn3/Documents/codecells-pu push origin feat/paciente-unico` (solo, en un mensaje aparte: junto a un comando / se toma como texto).
+- `git push`: desde el 2026-10-26 Claude lo hace cuando Víctor dice "commitea y sube" (funciona desde el worktree). Si falla, Víctor: `! git -C C:/Users/virn3/Documents/codecells-pu push origin feat/paciente-unico`.
+- **`api/nova.js` rechaza con 403 toda llamada sin Origin permitido** (filtro al inicio del handler). Cualquier llamada que no venga de un navegador (cron de Vercel, webhooks) debe ir ANTES del filtro y protegerse con su propio secreto. Las pruebas corren con `NODE_ENV=development`, que se salta el filtro: probar en modo producción.
+- **`curl` en Git Bash de Windows rompe los acentos** del cuerpo JSON (llegan como `�` y así se guardan en Airtable). Para probar la API con texto en español, usar `node -e "fetch(...)"`.
+- **Chrome invisible (CDP) y Web Push:** al reiniciar Chrome con el mismo perfil, la suscripción queda vencida (FCM responde 410). Probar push dentro de UNA sola sesión. En CDP: `Browser.grantPermissions` para notificaciones; `registration.getNotifications()` para ver lo que mostró el service worker.
+- **Variables nuevas de Vercel solo aplican a despliegues NUEVOS:** si el push del commit se desplegó antes de crearlas, hacer redeploy (`create_deployment` con `deploymentId`).
+- **Pacientes de prueba en la base de prueba:** `CC-PAC-9999901` "QA Automatizado" (no demo, con medicamentos de PRUEBA y médico VIRN01) sirve para escrituras; token local con `lib/auth.generarToken` y el `SESSION_SECRET` de `.env.local` (guardarlo en `sessionStorage.ccpac_token`). Portal: `cc_medico_token` + `cc_medico_session`, y navegar al portal DESPUÉS de guardarlos (si no, redirige a `entrar.html`).
 - Comparar ramas por CONTENIDO, no por hash.
 - Airtable: GET por id ignora `fields[]`; POST máx. 10 registros.
 - Variables de Vercel: cambiar una exige redeploy. Preview protegido con Vercel Authentication.
