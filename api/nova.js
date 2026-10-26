@@ -1170,7 +1170,10 @@ module.exports = async function handler(req, res) {
       // mandara el cliente, sin sesión. Ahora exige sesión de paciente/vip
       // y fuerza el código de la propia sesión — mismo patrón que
       // graficas_series en api/airtable.js (nunca el expediente ajeno).
-      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'vip')) {
+      // La sesión 'demo' (paciente demo, solo lectura) también lee el suyo:
+      // antes recibía 401 y la app lo tomaba como "sesión vencida" y pedía
+      // un PIN que un demo nunca tiene (2026-10-25).
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'vip' && sesion.tipo !== 'demo')) {
         return res.status(401).json({ error: 'Sesión de paciente requerida.' });
       }
       const pacienteCode = sesion.codigo;
@@ -1179,7 +1182,7 @@ module.exports = async function handler(req, res) {
       // Mismo patrón que paciente_subir_estudio: el paciente lee SU PROPIO
       // comparativo, no el de otro — autorizarPaciente() no aplica aquí.
       const sesionPac = verificarToken(tokenDesdeRequest(req));
-      if (!sesionPac || sesionPac.tipo !== 'paciente') {
+      if (!sesionPac || (sesionPac.tipo !== 'paciente' && sesionPac.tipo !== 'demo')) {
         return res.status(401).json({ error: 'Sesión no válida o expirada. Inicia sesión de nuevo.' });
       }
       if (sesionPac.codigo !== pacienteCode) {

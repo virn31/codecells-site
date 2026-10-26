@@ -72,6 +72,7 @@ function mundo({ fallaConsultas = false, fallaDirectorio = false } = {}) {
     if (u.includes('tbl87DsuBMmb4DjFM?')) return ok({ records: soloCampos(u, MEDICOS) });
     if (u.includes('tblyUcCfueFLJuvIv?')) return ok({ records: [{ id: 'recPAC', fields: { 'Código de paciente': PAC, 'Médico_principal': ['recMEDA'] } }] });
     if (u.includes('VINCULACIONES')) return ok({ records: [] });
+    if (u.includes('tbl6y1ZfsmPPhrlFk?')) return ok({ records: [] });
     if (u.includes('tblkUNPwu1sQgZBPJ?')) return fallaDirectorio ? falla : ok({ records: [{ id: 'recPERF', fields: { 'Médico': ['recMEDA'], Publicado: true, 'Liga pública': 'dra-ana-gine' } }] });
     throw new Error('fetch no mockeado: ' + u);
   };
@@ -118,6 +119,21 @@ test('mis citas: si Airtable falla → 502, nunca listas vacías', async () => {
     assert.strictEqual(r.statusCode, 502);
     assert.strictEqual(r.body.consultas, undefined);
     assert.strictEqual(r.body.proximas, undefined);
+  } finally { w.restaurar(); }
+});
+
+// 2026-10-25: el comparativo de labs devolvía 401 a la sesión demo y la app
+// lo tomaba como "sesión vencida": pedía un PIN que un demo nunca tiene.
+test('comparativo de labs: la sesión demo lee el SUYO (200), sin sesión → 401', async () => {
+  const w = mundo();
+  try {
+    const r = await nova(generarToken({ tipo: 'demo', codigo: PAC, horas: 1 }), 'paciente_comparativo_labs');
+    assert.strictEqual(r.statusCode, 200, JSON.stringify(r.body));
+    const lectura = w.pedidos.find(u => u.includes('tbl6y1ZfsmPPhrlFk?'));
+    assert.ok(lectura.includes(`{Código de paciente ref}="${PAC}"`), 'filtra por el código de la sesión');
+    assert.ok(!lectura.includes('CC-PAC-999999'), 'ignora el pacienteCode del cuerpo');
+    assert.strictEqual((await nova(null, 'paciente_comparativo_labs')).statusCode, 401);
+    assert.strictEqual((await nova(generarToken({ tipo: 'medico', codigo: 'CCMED-GINE01', horas: 1 }), 'paciente_comparativo_labs')).statusCode, 401);
   } finally { w.restaurar(); }
 });
 
