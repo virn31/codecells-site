@@ -11,21 +11,42 @@
 > como referencia histórica; no se le agregan commits. El congelamiento por
 > áreas protege producción: el directorio se abre y lo clínico sigue cerrado.
 
-**Última actualización:** 2026-10-24 (cierre de sesión). Seguimos el **lunes 2026-10-26**. Todo está pusheado hasta `ccc8aaf`; `ab23ce0` (este CONTINUAR) y el cierre quedan locales: Víctor hace push al empezar. Trabajar en el worktree `C:\Users\virn3\Documents\codecells-pu` (rama `feat/paciente-unico`); el checkout `codecells-site` sigue en `feat/directorio`, que ya NO recibe commits.
+**Última actualización:** 2026-10-25 (cierre de sesión). Todo pusheado hasta `1aadfe9`; este CONTINUAR queda local (Víctor hace push al empezar: `! git -C C:/Users/virn3/Documents/codecells-pu push origin feat/paciente-unico`). Trabajar en el worktree `C:\Users\virn3\Documents\codecells-pu` (rama `feat/paciente-unico`); el checkout `codecells-site` sigue en `feat/directorio`, que ya NO recibe commits. Pruebas: **516/516** (`node --test test/*.test.js`; `node --test test/` NO sirve).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Push de lo local:** `git -C C:/Users/virn3/Documents/codecells-site push origin feat/paciente-unico`.
-2. **Pestaña Citas de la app del paciente** (`mi-nivel.html` + `panel-citas-mi-nivel.js`, análisis §2.1) — EMPEZAR AQUÍ. Hoy consulta CONSULTAS con `CC-PAC-DEMO01` FIJO; el 401 dispara "Tu sesión venció" y la app vuelve a pedir PIN (comprobado 2026-10-24 con el demo `CC-PAC-123456` de la base de prueba, también entrando directo sin `entrar.html`). Rehacerla: consultas en solo lectura del paciente de la sesión, error ≠ vacío, sin rellenos inventados, botón "Agendar con mi médico".
-3. **Primer vínculo de Telegram desde el portal** (con PIN): "Vincular Telegram" → liga de un solo uso `t.me/<bot>?start=<token>`. Hoy un médico SIN Telegram se vincula solo con su código (el reemplazo de un vínculo existente ya está cerrado en producción, PR #8).
-4. **La "joya de la corona"** (integración directorio ↔ portal ↔ app). Decisiones pendientes de Víctor: (a) ¿una solicitud aceptada del directorio puede crear expediente? (tercera vía, CLAUDE.md §7); (b) ¿las citas del directorio se ligan a la app del paciente con su clave? (recomendado). Luego: "Mi equipo" con liga al perfil del médico y "Agendar".
-5. **Perfiles familiares / menores:** propuesta para el abogado en https://claude.ai/artifact/Eic3UxeUALpTNuV2bxVBqa (LGDNNA, advertencia + casilla al médico de qué se comparte con los padres). NADA programado hasta su respuesta. Víctor debe compartir el documento.
-6. **Pagos (Mercado Pago de Víctor):** en pausa hasta que Víctor lo hable con Juan y Pavel. No crear nada.
-7. Galván: confirmar mandando `CCMED-JCG01` a @Drvirnbot (debe responder "Tu cuenta ya estaba vinculada a este Telegram"). Víctor ya lo confirmó para VIRN01.
+1. **Push de lo local** (ver arriba).
+2. **6 cambios rápidos para hacer más amigable la app del paciente** (propuestos 2026-10-25, Víctor aún NO dijo "sí" — preguntar antes de arrancar):
+   1. Letrero "Instala CODE CELLS™" una sola vez en Inicio con ✕ (hoy ocupa el tercio superior de CADA pestaña).
+   2. Fechas de laboratorios legibles ("12 abr 2026", no `2026-04-12`).
+   3. Una línea que explique el rojo en laboratorios ("fuera del rango del laboratorio; tu médico lo interpreta contigo").
+   4. Especialidad del médico bien escrita (hoy "CIRUGIA PLASTICA" crudo).
+   5. NOVA: el chip "Agendar mi próxima cita" lleva a la pestaña Citas (NOVA no agenda).
+   6. "Compartir por WhatsApp" (invitar) → "Compartir invitación" con el menú del teléfono (`navigator.share`), alineado con [sin WhatsApp].
+   Después (más grandes): 7 pantalla "Hoy" en Inicio (próxima cita, tomas de hoy, día X de 90); 8 recordatorios con notificaciones del navegador; 9 explicar el protocolo (texto de ustedes); 10 íconos de línea en la barra y música fuera del encabezado; 11 mismo diseño que directorio/home.
+3. **Probar el vínculo nuevo de Telegram en Preview** con un médico SIN Telegram (Dr. QA, `CCMED-QACARD`, ya tiene PIN en la base de prueba desde 2026-10-25 01:09): portal → "Vincular Telegram" → "Abrir Telegram" → Iniciar en @CodeCellsPruebaBot. No probado con el bot real (local no tiene llave de Telegram).
+4. **La "joya de la corona"** (directorio ↔ portal ↔ app). Decisiones pendientes de Víctor: (a) ¿una solicitud aceptada del directorio puede crear expediente? (tercera vía, CLAUDE.md §7); (b) ¿las citas del directorio se ligan a la app del paciente con su clave? (recomendado). "Mi equipo" ya trae la liga a la ficha (`fichaDirectorio`).
+5. **Perfiles familiares / menores:** propuesta al abogado https://claude.ai/artifact/Eic3UxeUALpTNuV2bxVBqa. NADA programado hasta su respuesta.
+6. **Pagos (Mercado Pago):** en pausa hasta que Víctor hable con Juan y Pavel.
+7. Galván: mandar `CCMED-JCG01` a @Drvirnbot → debe decir "Tu cuenta ya estaba vinculada a este Telegram" (sigue igual con el bot nuevo **en esta rama**; producción aún tiene la vía vieja).
 
-### Revisión pendiente en Preview (sigue vigente; ahora en el Preview de `feat/paciente-unico`)
+### Cómo probar desde el celular (Preview)
+- **Liga para compartir** (salta Vercel Authentication, vence 2026-10-26 23:16; regenerar con la herramienta de Vercel `get_access_to_vercel_url` sobre `https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/...`): `...?_vercel_share=UpFYFReYKSBtOjazW1t5vSs9Hw1F2hJy`.
+- **Paciente demo sin PIN:** `/mi-nivel.html?codigo=CC-PAC-200002` (Roberto Carrillo Mendoza, `Es demo`=true en la base de prueba: entra directo, solo lectura). También por `entrar.html` → Soy paciente.
+- **Paciente con PIN:** médico → expediente → "⚿ Acceso app" → Copiar → Salir → pegar la liga (un demo NO puede: `medico_emitir_activacion` lo rechaza, por diseño). Víctor ya probó crear PIN así desde su cuenta (2026-10-25).
+- **Prueba automática en Chrome invisible** (sin la extensión): scripts CDP en el scratchpad de la sesión (no en el repo). Revisar la PANTALLA visible (`.pantalla` sin display:none), no solo el texto: el 2026-10-25 un texto "correcto" escondía la pantalla de PIN encima.
+
+### Hecho el 2026-10-25 — NO repetir
+- `84155a5` **Pestaña Citas rehecha** (solo lectura): acción `paciente_mis_citas` (lista blanca de 6 campos; **sin diagnóstico — decisión de Víctor**; 502 ≠ vacío), próxima cita = `Próxima cita` de la consulta MÁS RECIENTE de cada médico y solo si ≥ hoy (`lib/citasPaciente.js`), "Agendar con mi médico" con la ficha publicada del directorio (`paciente_mi_equipo` → `fichaDirectorio`, `directorioError`), sin `CC-PAC-DEMO01`, sin rellenos, sin "Confirmar". `panel-citas-mi-nivel.js` ya no se carga en la app (sigue en `portal-vip.html`, que no lo pinta: retirar con Fase 3).
+- `93b6da8` **Telegram: primer vínculo SOLO desde el portal** (decisión de Víctor: cerrar la vía vieja). `lib/vinculoTelegram.js` (token ≤64 car., HMAC con SESSION_SECRET, código de la SESIÓN, 30 min, uso único por el propio vínculo, sin tabla nueva); `nova medico_telegram` (estado/liga, nunca el chat id); bot `/start <token>`; mandar `CCMED-` ya NO vincula; tarjeta "Vincula tu Telegram" en el inicio del portal. **Producción sigue con la vía vieja** hasta fusionar (posible hotfix aparte si Víctor lo pide). Pendiente: `capacitacion/_pendiente-dictamen/modulo_portal_medico.html` enseña la vía vieja.
+- `d42824e` demo caía en la pantalla de PIN: `paciente_comparativo_labs` daba 401 a la sesión demo.
+- `55b02c2` **"¿Olvidaste tu PIN?"** en `entrar.html` y `mi-nivel.html` (paciente → su médico, «Acceso app»; médico → `/pin` en Telegram o admin). Demo con sesión vencida recarga solo (máx. 1/min).
+- `1aadfe9` un 401 de UNA sección con sesión vigente ya no manda a la pantalla de PIN (solo si venció o falla la lectura de `pacientes`); `paciente_generar_llave` y `paciente_guardar_evaluacion` → 403 al demo; demo no ve "Generar llave"; "Tu PIN nunca se comparte"; **botón "Salir de mi app"** (antes no existía).
+- **Decidido por Víctor (2026-10-25):** el paciente entrega a otro médico SOLO código + llave; el PIN es personal, nunca se transfiere, y se recupera por canal de confianza (sin correo/SMS). Los demo siguen SIN PIN.
+
+### Revisión pendiente en Preview (del 2026-10-24, sigue vigente)
 
 **Revisar en Preview, desde un celular** (lo de hoy se probó en local contra la base de prueba; la ficha y la búsqueda también en navegador):
    - `/directorio/`: caja **Buscar** ("cardiología", "Culiacan", "rodriguez", algo que no exista → «Ningún médico menciona…»; queda en `?q=`). Las tarjetas ya abren `/directorio/<liga>`.
@@ -89,7 +110,7 @@
 - Datos de prueba: Víctor publicó su perfil en la base de prueba (`rec1upfZfkftncHii`, "Dr. Rodriguez", guarda "Culiacan" sin acento — se muestra "Culiacán"). Su primera solicitud (`recudd3onYdDJJHYY`) quedó ligada al perfil ficticio de Bruno (`recDk9rLagIn3PVyK`). Su registro de médico no tiene `Telegram Chat ID` (avisos al chat de respaldo). Perfil QA `[PRUEBA] Dr. QA Cardiología` (CCMED-QACARD, `recVNUCiwPAxNR4w0`): agenda Lun/Mié/Vie 9–14 y 16–18, bloqueo 4–6 nov, Instagram y sitio web de prueba.
 
 ### Cómo probar
-- Preview: https://codecells-site-git-feat-directorio-codecells.vercel.app (Vercel Authentication). `/directorio/` → ficha `/directorio/medico.html?id=…` → liga `/directorio/solicitud.html#id=…&c=…`. Portal → "◉ Mi directorio" (solicitudes, agenda, redes). Admin: `admin-directorio.html`.
+- Preview: https://codecells-site-git-feat-paciente-unico-codecells.vercel.app (Vercel Authentication; liga para compartir arriba). `/directorio/` → ficha `/directorio/medico.html?id=…` → liga `/directorio/solicitud.html#id=…&c=…`. Portal → "◉ Mi directorio" (solicitudes, agenda, redes). Admin: `admin-directorio.html`.
 - Local: `node scripts/servidor-local.js` → http://127.0.0.1:3077 (base de prueba; sin llaves de Google: la agenda de Víctor responde 503, lo cual es correcto). Reiniciar el servidor tras cambiar archivos de `api/` (cachea módulos).
 
 ### Pendientes conocidos del directorio
@@ -187,7 +208,7 @@ En Google Cloud el redirect de producción ya existe (`https://www.codecells.mx/
 
 
 - `127.0.0.1`, no `localhost`. 1ª llamada a Airtable de cada proceso: ~10 s o falla, reintentar.
-- `git push` lo corre Víctor: `! cd /c/Users/virn3/Documents/codecells-site && git push -u origin feat/directorio`.
+- `git push` lo corre Víctor: `! git -C C:/Users/virn3/Documents/codecells-pu push origin feat/paciente-unico` (solo, en un mensaje aparte: junto a un comando / se toma como texto).
 - Comparar ramas por CONTENIDO, no por hash.
 - Airtable: GET por id ignora `fields[]`; POST máx. 10 registros.
 - Variables de Vercel: cambiar una exige redeploy. Preview protegido con Vercel Authentication.
