@@ -1,8 +1,7 @@
 // Hallazgo 2026-10-24: para vincular Telegram bastaba mandar al bot el código
-// CCMED- de cualquier médico, y el vínculo anterior se REEMPLAZABA sin
-// preguntar — quien supiera el código se quedaba con el Telegram del médico y
-// actuaba como él ante el bot. Ahora un vínculo existente no se reemplaza desde
-// el bot y un chat no se vincula a dos médicos.
+// CCMED- de cualquier médico. Desde 2026-10-25 (decisión de Víctor) el primer
+// vínculo solo se hace con la liga firmada que da el portal (/start <token>);
+// un vínculo existente no se reemplaza y un chat no se vincula a dos médicos.
 // Corre con: node --test
 
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret-no-es-real';
@@ -62,37 +61,82 @@ function mensaje(chatId, texto) {
 
 const VIRN = (chat) => ({ id: 'recVIRN', fields: { 'Código de médico': 'CCMED-VIRN01', 'Nombre completo': 'Dr. Víctor', ...(chat ? { 'Telegram Chat ID': chat } : {}) } });
 
-test('un código ya vinculado a OTRO Telegram no se reemplaza', async () => {
-  const m = mundo({ porCodigo: VIRN('111') });
-  await mensaje(999, 'CCMED-VIRN01');
-  assert.strictEqual(m.parches.length, 0, 'no debe tocar el vínculo existente');
-  assert.match(m.mensajes.join(' '), /ya está vinculado a otra cuenta/);
+// ── Vínculo desde el portal: /start <token> (2026-10-25) ──────────────
+const vinculo = require('../lib/vinculoTelegram');
+const liga = (codigo = 'CCMED-VIRN01', ahora) => '/start ' + vinculo.emitirToken(codigo, ahora);
+
+test('el código CCMED- solo ya NO vincula (ni a un médico sin Telegram)', async () => {
+  const m = mundo({ porCodigo: VIRN(null) });
+  await mensaje(777, 'CCMED-VIRN01');
+  assert.strictEqual(m.parches.length, 0, 'mandar el código no escribe nada');
+  assert.match(m.mensajes.join(' '), /ya no vincula/);
 });
 
-test('mismo Telegram que ya estaba vinculado: no reescribe, solo confirma', async () => {
-  const m = mundo({ porCodigo: VIRN('111') });
+test('el código propio desde el Telegram ya vinculado: solo confirma', async () => {
+  const m = mundo({ porCodigo: VIRN('111'), porChat: VIRN('111') });
   await mensaje(111, 'CCMED-VIRN01');
   assert.strictEqual(m.parches.length, 0);
   assert.match(m.mensajes.join(' '), /ya estaba vinculada/);
 });
 
-test('un Telegram vinculado a un médico no se vincula a otro código', async () => {
-  const m = mundo({ porCodigo: VIRN(null), porChat: { id: 'recJCG', fields: { 'Código de médico': 'CCMED-JCG01' } } });
-  await mensaje(555, 'CCMED-VIRN01');
-  assert.strictEqual(m.parches.length, 0);
-  assert.match(m.mensajes.join(' '), /solo puede pertenecer a un médico/);
-});
-
-test('médico sin Telegram se vincula, y solo dice "vinculada" si se guardó', async () => {
+test('liga del portal: médico sin Telegram se vincula, y solo dice "vinculada" si se guardó', async () => {
   let m = mundo({ porCodigo: VIRN(null) });
-  await mensaje(777, 'CCMED-VIRN01');
+  await mensaje(777, liga());
   assert.deepStrictEqual(m.parches, [{ 'Telegram Chat ID': '777' }]);
   assert.match(m.mensajes.join(' '), /vinculada correctamente/);
 
   m = mundo({ porCodigo: VIRN(null), fallaGuardar: true });
-  await mensaje(777, 'CCMED-VIRN01');
+  await mensaje(777, liga());
   assert.ok(!/vinculada correctamente/.test(m.mensajes.join(' ')), 'no puede decir vinculada si Airtable falló');
   assert.match(m.mensajes.join(' '), /No pude guardar/);
+});
+
+test('liga del portal: un vínculo existente con OTRO Telegram no se reemplaza', async () => {
+  const m = mundo({ porCodigo: VIRN('111') });
+  await mensaje(999, liga());
+  assert.strictEqual(m.parches.length, 0, 'no debe tocar el vínculo existente');
+  assert.match(m.mensajes.join(' '), /ya está vinculada a otro Telegram/);
+});
+
+test('liga del portal: mismo Telegram que ya estaba vinculado → solo confirma', async () => {
+  const m = mundo({ porCodigo: VIRN('111') });
+  await mensaje(111, liga());
+  assert.strictEqual(m.parches.length, 0);
+  assert.match(m.mensajes.join(' '), /ya estaba vinculada/);
+});
+
+test('liga del portal: un Telegram de otro médico no se vincula a un segundo', async () => {
+  const m = mundo({ porCodigo: VIRN(null), porChat: { id: 'recJCG', fields: { 'Código de médico': 'CCMED-JCG01' } } });
+  await mensaje(555, liga());
+  assert.strictEqual(m.parches.length, 0);
+  assert.match(m.mensajes.join(' '), /solo puede pertenecer a un médico/);
+});
+
+test('liga vencida, alterada o de otro médico con firma ajena → no vincula', async () => {
+  let m = mundo({ porCodigo: VIRN(null) });
+  await mensaje(777, liga('CCMED-VIRN01', Date.now() - 31 * 60 * 1000));
+  assert.strictEqual(m.parches.length, 0);
+  assert.match(m.mensajes.join(' '), /venció/);
+
+  // Se cambia el código dentro del token conservando la firma de VIRN01.
+  const t = vinculo.emitirToken('CCMED-VIRN01');
+  m = mundo({ porCodigo: VIRN(null) });
+  await mensaje(777, '/start ' + t.replace(/^VIRN01_/, 'JCG01_'));
+  assert.strictEqual(m.parches.length, 0);
+  assert.match(m.mensajes.join(' '), /no es válido/);
+});
+
+test('liga de un médico desactivado → no vincula', async () => {
+  const m = mundo({ porCodigo: { id: 'recVIRN', fields: { 'Código de médico': 'CCMED-VIRN01', 'Activo': false } } });
+  await mensaje(777, liga());
+  assert.strictEqual(m.parches.length, 0);
+});
+
+test('token: cabe en el /start de Telegram (≤64, [A-Za-z0-9_-]) y la firma depende del secreto', () => {
+  const t = vinculo.emitirToken('CCMED-ABCDEFGHIJKLMNOPQRSTUVWX');
+  assert.ok(t.length <= 64 && /^[A-Za-z0-9_-]+$/.test(t), t);
+  assert.deepStrictEqual(vinculo.verificarToken(vinculo.emitirToken('CCMED-VIRN01')), { ok: true, codigo: 'CCMED-VIRN01' });
+  assert.throws(() => vinculo.emitirToken('CC-PAC-123456'));
 });
 
 // ── /pin: liga de PIN enviada solo al Telegram ya vinculado ───────────

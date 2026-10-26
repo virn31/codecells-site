@@ -63,6 +63,23 @@ const credPaciente = require('../lib/credenciales').paciente;
 const evalBio = require('../lib/evaluacionesBiologicas');
 const meds = require('../lib/medicamentos');
 const citasPaciente = require('../lib/citasPaciente');
+const vinculoTelegram = require('../lib/vinculoTelegram');
+
+// Nombre del bot del ambiente (real o de prueba, lib/telegram.js) para la
+// liga t.me. Se pregunta a Telegram una vez por proceso; null si no responde.
+let usuarioBotCache = null;
+async function usuarioDelBot() {
+  if (usuarioBotCache) return usuarioBotCache;
+  const { TOKEN_BOT } = require('../lib/telegram');
+  if (!TOKEN_BOT) return null;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${TOKEN_BOT}/getMe`);
+    const d = await r.json().catch(() => ({}));
+    const u = r.ok && d && d.result && d.result.username;
+    if (u && /^[A-Za-z0-9_]{5,32}$/.test(u)) usuarioBotCache = u;
+  } catch (e) { /* null abajo */ }
+  return usuarioBotCache;
+}
 
 // Puerta común de las acciones kiosco_* — las mismas reglas que
 // /api/airtable aplica a ANTECEDENTES_OBSTETRICOS desde el mismo kiosco.
@@ -1544,6 +1561,31 @@ module.exports = async function handler(req, res) {
   if (action === 'medico_google_oauth_state') {
     if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ ok: false, error: 'Sesión médica requerida.' });
     return res.status(200).json({ ok: true, state: generarToken({ tipo: 'google_oauth', codigo: sesion.codigo, horas: 0.25 }) });
+  }
+
+  // ─── TELEGRAM DESDE EL PORTAL (lib/vinculoTelegram.js) ─────────────
+  // modo 'estado' → { vinculado }; modo 'liga' → { url } de un solo uso
+  // (30 min) para el médico de la SESIÓN. Nunca devuelve el chat id.
+  if (action === 'medico_telegram') {
+    try {
+      if (!sesion || sesion.tipo !== 'medico') return res.status(401).json({ error: 'Sesión médica requerida.' });
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const filtro = `{Código de médico}="${String(sesion.codigo).replace(/"/g, '\\"')}"`;
+      const mRes = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tbl87DsuBMmb4DjFM?filterByFormula=${encodeURIComponent(filtro)}&maxRecords=1&fields%5B%5D=${encodeURIComponent('Telegram Chat ID')}&fields%5B%5D=Activo`, { headers: { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}` } });
+      if (!mRes.ok) return res.status(502).json({ error: 'No pudimos revisar tu Telegram. Intenta de nuevo.' });
+      const medico = ((await mRes.json()).records || [])[0];
+      if (!medico) return res.status(403).json({ error: 'No disponible.' });
+      const vinculado = !!(medico.fields || {})['Telegram Chat ID'];
+      if (req.body.modo !== 'liga' || vinculado) return res.status(200).json({ ok: true, vinculado });
+      if ((medico.fields || {})['Activo'] === false) return res.status(403).json({ error: 'Tu acceso está desactivado. Contacta a administración de CODE CELLS™.' });
+      const usuario = await usuarioDelBot();
+      if (!usuario) return res.status(502).json({ error: 'No pudimos contactar a Telegram. Intenta de nuevo en unos minutos.' });
+      const token = vinculoTelegram.emitirToken(sesion.codigo);
+      return res.status(200).json({ ok: true, vinculado: false, url: `https://t.me/${usuario}?start=${token}`, minutos: vinculoTelegram.MINUTOS_VIGENCIA });
+    } catch (err) {
+      console.error('[nova] medico_telegram error:', err.message);
+      return res.status(500).json({ error: 'Error interno con tu vínculo de Telegram.' });
+    }
   }
 
   if (action === 'medico_crear_evento_calendario') {

@@ -19,6 +19,7 @@ const { estructurarDictado } = require('../lib/dictado');
 const { sugerirCie10, integrarCodigosEnDiagnostico } = require('../lib/cie10');
 const { manejarMensajeAgenda, manejarBotonAgenda } = require('../lib/agenda-telegram');
 const credenciales = require('../lib/credenciales');
+const vinculoTelegram = require('../lib/vinculoTelegram');
 
 // Vercel: esta función puede tardar (generación con Claude), se permite hasta 60s.
 module.exports.config = { maxDuration: 60 };
@@ -553,7 +554,7 @@ async function manejarCallbackQuery(callbackQuery, res) {
     });
 
     await answerCallbackQuery(callbackQuery.id, `Autorizado — ${codigoNuevo}`);
-    await editarMensaje(chatId, messageId, textoOriginal + `\n\n✅ AUTORIZADO — Código: ${codigoNuevo}\n(Aún debe vincular su Telegram: buscar @Drvirnbot, /start, enviar su código.)`);
+    await editarMensaje(chatId, messageId, textoOriginal + `\n\n✅ AUTORIZADO — Código: ${codigoNuevo}\n(Para entrar al portal necesita su liga de PIN: mándasela desde el panel de admin. Desde el portal vincula su Telegram con "Vincular Telegram".)`);
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('[telegram-bot] error en manejarCallbackQuery:', err.message);
@@ -690,12 +691,81 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
-    // /start sin código: instrucciones
-    if (texto === '/start') {
+    // /start <token> → vínculo desde el portal (lib/vinculoTelegram.js).
+    // Desde 2026-10-25 es la ÚNICA forma de vincular: antes bastaba mandar
+    // el código CCMED- de un médico sin Telegram para quedarse con su bot.
+    const matchStart = texto.match(/^\/start(?:@\w+)?(?:\s+(\S+))?$/);
+    if (matchStart && matchStart[1]) {
+      const v = vinculoTelegram.verificarToken(matchStart[1]);
+      if (!v.ok) {
+        await sendTelegramMessage(chatId, v.motivo === 'vencida'
+          ? 'Este enlace ya venció (dura 30 minutos). Entra a tu portal de CODE CELLS™ y pulsa "Vincular Telegram" otra vez.'
+          : 'Este enlace no es válido. Entra a tu portal de CODE CELLS™ y pulsa "Vincular Telegram".');
+        return res.status(200).json({ ok: true });
+      }
+      let medico;
+      try {
+        medico = await buscarMedicoPorCodigo(v.codigo);
+      } catch (e) {
+        console.error('[telegram-bot] vincular (lectura):', e.message);
+        await sendTelegramMessage(chatId, 'No pude revisar tu cuenta por un problema temporal. Abre el enlace otra vez en unos minutos.');
+        return res.status(200).json({ ok: true });
+      }
+      if (!medico || medico.fields['Activo'] === false) {
+        await sendTelegramMessage(chatId, 'No pude vincular esta cuenta. Contacta a administración de CODE CELLS™.');
+        return res.status(200).json({ ok: true });
+      }
+      // Un vínculo existente no se reemplaza desde aquí y un chat no se
+      // vincula a dos médicos. Cambiar de teléfono → administración.
+      const chatActual = medico.fields[CAMPO_CHAT_ID] ? String(medico.fields[CAMPO_CHAT_ID]) : '';
+      if (chatActual === String(chatId)) {
+        await sendTelegramMessage(chatId, 'Tu cuenta ya estaba vinculada a este Telegram.');
+        return res.status(200).json({ ok: true });
+      }
+      if (chatActual) {
+        console.warn(`[telegram-bot] liga de vínculo de ${v.codigo}, que ya tiene otro Telegram; se rechazó.`);
+        await sendTelegramMessage(chatId, 'Esa cuenta ya está vinculada a otro Telegram. Si cambiaste de teléfono, pide a administración de CODE CELLS™ que lo desvincule.');
+        return res.status(200).json({ ok: true });
+      }
+      let yaVinculado;
+      try {
+        yaVinculado = await buscarMedicoPorChatId(chatId);
+      } catch (e) {
+        console.error('[telegram-bot] vincular (chat):', e.message);
+        await sendTelegramMessage(chatId, 'No pude revisar tu cuenta por un problema temporal. Abre el enlace otra vez en unos minutos.');
+        return res.status(200).json({ ok: true });
+      }
+      if (yaVinculado && yaVinculado.id !== medico.id) {
+        await sendTelegramMessage(chatId, 'Este Telegram ya está vinculado a otro médico. Un Telegram solo puede pertenecer a un médico.');
+        return res.status(200).json({ ok: true });
+      }
+
+      try {
+        await vincularChatId(medico.id, chatId);
+      } catch (e) {
+        console.error('[telegram-bot] vincular:', e.message);
+        await sendTelegramMessage(chatId, 'No pude guardar la vinculación por un problema temporal. Abre el enlace otra vez en unos minutos.');
+        return res.status(200).json({ ok: true });
+      }
+
+      const nombre = medico.fields[CAMPO_NOMBRE] || 'Doctor(a)';
+      await sendTelegramMessage(
+        chatId,
+        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS™ (solicitudes de cita, avisos de NOVA).\n\n` +
+          '• /agenda → configura tu horario para que NOVA agende tus citas sola.\n' +
+          '• /pin → enlace para crear o recuperar tu PIN del portal.\n' +
+          '• "plan" + datos del paciente → plan nutricional de 7 días.\n' +
+          '• Código del paciente (CC-PAC-XXXXXX) + tu dictado → lo registro en su expediente cuando confirmes.'
+      );
+      return res.status(200).json({ ok: true });
+    }
+
+    // /start sin enlace: instrucciones
+    if (matchStart) {
       await sendTelegramMessage(
         chatId,
         'Hola, soy el bot de notificaciones y apoyo clínico de CODE CELLS™ Red Médica.\n\n' +
-          'Para vincular tu cuenta, envíame tu código de médico (formato CCMED-XXXXXX).\n\n' +
+          `Para vincular tu cuenta: entra a tu portal de CODE CELLS™ (${baseDelSitio()}/entrar.html) y pulsa "Vincular Telegram". El enlace te trae aquí y queda listo.\n\n` +
           'Una vez vinculado:\n' +
           '• Escribe /agenda → configura tu horario para que NOVA agende tus citas sola.\n' +
           '• Escribe "plan" + datos del paciente → plan nutricional de 7 días.\n' +
@@ -704,53 +774,18 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
-    // Mensaje con código CCMED- (vinculación)
+    // Mensaje con código CCMED-: ya NO vincula (2026-10-25). Se contesta
+    // igual que antes a quien ya está vinculado con ese código.
     const matchCodigo = texto.match(/CCMED-[A-Za-z0-9]+/i);
     if (matchCodigo) {
       const codigo = matchCodigo[0].toUpperCase();
-      const medico = await buscarMedicoPorCodigo(codigo);
-
-      if (!medico) {
-        await sendTelegramMessage(
-          chatId,
-          `No encontré el código ${codigo} en la Red CODE CELLS™. Verifica que esté bien escrito o contacta a Víctor.`
-        );
-        return res.status(200).json({ ok: true });
-      }
-
-      // Hallazgo 2026-10-24: bastaba mandar el código de OTRO médico para
-      // quedarse con su vínculo (se reemplazaba sin preguntar) y actuar como él
-      // ante el bot. Un vínculo existente ya no se reemplaza desde aquí, y un
-      // chat no se vincula a dos médicos. Cambiar de teléfono → administración.
-      const chatActual = medico.fields[CAMPO_CHAT_ID] ? String(medico.fields[CAMPO_CHAT_ID]) : '';
-      if (chatActual === String(chatId)) {
+      let propio = null;
+      try { propio = await buscarMedicoPorChatId(chatId); } catch (e) { propio = null; }
+      if (propio && propio.fields[CAMPO_CODIGO] === codigo) {
         await sendTelegramMessage(chatId, 'Tu cuenta ya estaba vinculada a este Telegram.');
-        return res.status(200).json({ ok: true });
+      } else {
+        await sendTelegramMessage(chatId, `Por seguridad, el código ya no vincula una cuenta. Entra a tu portal de CODE CELLS™ (${baseDelSitio()}/entrar.html) y pulsa "Vincular Telegram".`);
       }
-      if (chatActual) {
-        console.warn(`[telegram-bot] intento de vincular ${codigo}, que ya tiene otro Telegram; se rechazó.`);
-        await sendTelegramMessage(chatId, 'Ese código ya está vinculado a otra cuenta de Telegram. Si cambiaste de teléfono, pide a administración de CODE CELLS™ que lo desvincule.');
-        return res.status(200).json({ ok: true });
-      }
-      const yaVinculado = await buscarMedicoPorChatId(chatId);
-      if (yaVinculado && yaVinculado.id !== medico.id) {
-        await sendTelegramMessage(chatId, 'Este Telegram ya está vinculado a otro código de médico. Un Telegram solo puede pertenecer a un médico.');
-        return res.status(200).json({ ok: true });
-      }
-
-      try {
-        await vincularChatId(medico.id, chatId);
-      } catch (e) {
-        console.error('[telegram-bot] vincular:', e.message);
-        await sendTelegramMessage(chatId, 'No pude guardar la vinculación por un problema temporal. Envía tu código de nuevo en unos minutos.');
-        return res.status(200).json({ ok: true });
-      }
-
-      const nombre = medico.fields[CAMPO_NOMBRE] || 'Doctor(a)';
-      await sendTelegramMessage(
-        chatId,
-        `Cuenta vinculada correctamente, ${nombre}.\n\nA partir de ahora recibirás aquí tus notificaciones de CODE CELLS™ (certificaciones, recordatorios del Diplomado, avisos de NOVA).\n\nPara generar un plan nutricional, escribe "plan" seguido de los datos del paciente. Para dictar un expediente, escribe el código del paciente (CC-PAC-XXXXXX) seguido de lo que quieras registrar.`
-      );
       return res.status(200).json({ ok: true });
     }
 

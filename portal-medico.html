@@ -1542,6 +1542,11 @@
     max-width: 460px;
   }
   .dash-actions .exp-action-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; flex-shrink: 0; }
+  .dash-telegram { max-width: 460px; width: 100%; border: 1px solid var(--border); background: var(--black-2); border-radius: 12px; padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.5; text-align: left; box-sizing: border-box; }
+  .dash-telegram.ok { border: none; background: none; padding: 0; text-align: center; font-size: 12px; color: var(--text-3); }
+  .dash-telegram .tg-error { color: #D4654A; margin-top: 8px; }
+  .dash-telegram .tg-acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  .dash-telegram a.exp-action-btn { text-decoration: none; }
 
   /* Expediente */
   #expediente { display: none; flex-direction: column; flex: 1; }
@@ -3448,6 +3453,8 @@
           <button class="exp-action-btn" onclick="document.getElementById('btn-nova-open').click()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg>Hablar con NOVA</button>
         </div>
 
+        <div id="dash-telegram" class="dash-telegram" style="display:none;"></div>
+
         <p id="dash-quote"></p>
       </div>
 
@@ -5038,6 +5045,7 @@ function iniciarApp() {
   document.getElementById('consulta-fecha').textContent = new Date().toLocaleDateString(i18nDateLocale(), { day:'2-digit', month:'short', year:'numeric' });
 
   cargarPacientes();
+  cargarTelegramDash();
 }
 
 document.getElementById('btn-logout').addEventListener('click', () => {
@@ -9403,6 +9411,7 @@ function iniciarApp() {
   actualizarLinksCapacitacion();
   iniciarTemporizador();
   cargarPacientes();
+  cargarTelegramDash();
 }
 
 // ── Mi directorio (perfil público del médico) ──
@@ -9935,7 +9944,7 @@ function htmlAgendaMiDir(c) {
   let h = null, bloqueos = [];
   try { h = JSON.parse(c['Agenda — horario'] || 'null'); } catch (e) { h = null; }
   try { bloqueos = JSON.parse(c['Agenda — bloqueos'] || '[]') || []; } catch (e) { bloqueos = []; }
-  const instruccion = 'En Telegram, escríbele <b>/agenda</b> a @Drvirnbot (si no lo has vinculado, mándale primero tu código de médico).';
+  const instruccion = 'En Telegram, escríbele <b>/agenda</b> a @Drvirnbot (si no lo has vinculado, usa primero «Vincular Telegram» en tu inicio del portal).';
   if (!h || !h.dias || !Object.keys(h.dias).length) {
     return `<p class="mi-citas-vacio" style="text-align:left">Sin configurar: los pacientes te envían <b>solicitudes</b> que tú respondes aquí.<br>Para que NOVA agende sola en tus horarios libres: ${instruccion} Son 4 preguntas con botones.</p>`;
   }
@@ -10087,6 +10096,55 @@ async function responderCitaMiDir(id, respuesta) {
     err.textContent = e.message;
     btn.disabled = false;
     btn.textContent = 'Enviar respuesta';
+  }
+}
+
+// ── Telegram: primer vínculo desde el portal (nova medico_telegram) ──
+// Desde 2026-10-25 es la única vía: mandar el código al bot ya no vincula.
+// La liga es de un solo uso y vence en 30 min; un fallo se muestra como fallo.
+async function cargarTelegramDash() {
+  const caja = document.getElementById('dash-telegram');
+  if (!caja) return;
+  try {
+    const r = await fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'medico_telegram', modo: 'estado' }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Error ' + r.status);
+    if (d.vinculado) {
+      caja.className = 'dash-telegram ok';
+      caja.textContent = '✓ Telegram vinculado';
+    } else {
+      caja.className = 'dash-telegram';
+      caja.innerHTML = '<div><b>Vincula tu Telegram</b></div>' +
+        '<div>Para recibir aquí los avisos de solicitudes de cita, configurar tu agenda y dictar expedientes desde tu celular.</div>' +
+        '<div class="tg-acciones"><button class="exp-action-btn" id="btn-vincular-telegram" onclick="pedirLigaTelegram(this)">Vincular Telegram</button></div>' +
+        '<div class="tg-error" id="tg-error" style="display:none;"></div>';
+    }
+  } catch (e) {
+    caja.className = 'dash-telegram';
+    caja.innerHTML = '<div class="tg-error" style="margin-top:0">No pudimos revisar tu Telegram en este momento.</div>' +
+      '<div class="tg-acciones"><button class="exp-action-btn" onclick="cargarTelegramDash()">Reintentar</button></div>';
+    console.error('cargarTelegramDash:', e);
+  }
+  caja.style.display = '';
+}
+
+async function pedirLigaTelegram(btn) {
+  const err = document.getElementById('tg-error');
+  if (err) err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Generando…';
+  try {
+    const r = await fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'medico_telegram', modo: 'liga' }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo generar el enlace.');
+    if (d.vinculado) { cargarTelegramDash(); return; }
+    // Un enlace que el médico toca (no window.open tras un await: el
+    // navegador lo bloquea como ventana emergente).
+    btn.parentNode.innerHTML = `<a class="exp-action-btn" href="${escaparHtml(d.url)}" target="_blank" rel="noopener">Abrir Telegram</a>` +
+      `<span>Pulsa «Iniciar» en el chat. El enlace vale ${Number(d.minutos) || 30} minutos y sirve una sola vez.</span>` +
+      '<button class="exp-action-btn" onclick="cargarTelegramDash()">Ya lo vinculé</button>';
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Vincular Telegram';
+    if (err) { err.textContent = e.message || 'No se pudo generar el enlace.'; err.style.display = ''; }
   }
 }
 
