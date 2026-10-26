@@ -95,7 +95,9 @@
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  const api = { utcDesdeLocal, armarIcs, descargarIcs };
+  // textoIcs/doblar/sello también los usa lib/alarmasCalendario.js (alarmas
+  // de tomas y de la próxima cita en la app del paciente).
+  const api = { utcDesdeLocal, armarIcs, descargarIcs, textoIcs, doblar, sello };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.CalendarioCita = api;
 })(typeof window !== 'undefined' ? window : globalThis);

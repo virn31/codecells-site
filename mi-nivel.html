@@ -114,6 +114,10 @@
   .hoy-texto.falta { font-size: 13px; color: var(--text-3); }
   .hoy-texto.error { font-size: 13px; color: #E2574B; }
   .hoy-texto.listo { color: var(--gold); }
+  .alarma-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-dim); }
+  .alarma-fila input[type=time] { background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 10px; color: var(--text-1); padding: 8px 10px; font-size: 15px; font-family: var(--font-sans); color-scheme: dark; }
+  .alarma-horas { font-size: 12px; color: var(--gold); margin-top: 2px; }
+  .alarmas-discreto { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--text-2); line-height: 1.4; margin-top: 12px; }
   .hoy-ir { background: none; border: none; color: var(--gold); font-size: 13px; padding: 4px 0 0; cursor: pointer; font-family: inherit; }
   .ficha-llamar { color: var(--gold); text-decoration: none; white-space: nowrap; }
   .labs-leyenda-azul { color: var(--cyan); font-weight: 600; }
@@ -235,6 +239,8 @@
   <script src="/lib/cuestionarioBiologico.js"></script>
   <script src="/lib/motor-graficas.js"></script>
   <script src="/lib/i18n.js"></script>
+  <script src="/directorio/calendario.js"></script>
+  <script src="/lib/alarmasCalendario.js"></script>
 </head>
 <body>
 
@@ -318,7 +324,22 @@
         <div id="hoy-resumen" class="hoy-texto">Cargando…</div>
         <div id="hoy-estado" style="font-size:13px;color:var(--text-3);"></div>
         <div id="hoy-lista" class="meds-lista"></div>
-        <div id="hoy-nota" style="display:none;font-size:11px;color:var(--text-3);margin-top:12px;">Toca cada toma cuando la tomes. Por ahora la app no te avisa si está cerrada.</div>
+        <div id="hoy-nota" style="display:none;font-size:11px;color:var(--text-3);margin-top:12px;">Toca cada toma cuando la tomes. Para que tu teléfono te avise aunque la app esté cerrada, pon las alarmas en tu calendario.</div>
+        <!-- Alarmas en el calendario del teléfono (lib/alarmasCalendario.js):
+             opcional, el paciente elige la hora de su primera toma. No se
+             guarda nada en el servidor. -->
+        <button type="button" class="filtro-labs-btn" id="btn-alarmas" style="display:none;margin-top:12px;" onclick="abrirAlarmas()">⏰ Alarmas en mi calendario</button>
+        <div id="alarmas-form" class="sup-form" style="display:none;">
+          <div style="font-size:12px;color:var(--text-2);line-height:1.5;">¿A qué hora tomas la primera dosis del día? Las demás se reparten según tu receta.</div>
+          <div id="alarmas-lista"></div>
+          <label class="alarmas-discreto"><input type="checkbox" id="alarmas-discreto"> <span>Que el aviso no diga el nombre del medicamento (se ve en la pantalla bloqueada)</span></label>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button type="button" class="filtro-labs-btn activo" onclick="descargarAlarmas()">Agregar a mi calendario</button>
+            <button type="button" class="filtro-labs-btn" onclick="cerrarAlarmas()">Cancelar</button>
+          </div>
+          <div id="alarmas-msg" style="font-size:12px;margin-top:8px;line-height:1.5;"></div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.5;">Tu teléfono te preguntará si quieres agregarlas a tu calendario. Si tu médico cambia tu receta, borra las anteriores de tu calendario y vuelve a ponerlas. Los medicamentos "solo si lo necesitas" no llevan alarma.</div>
+        </div>
       </div>
     </div>
 
@@ -1528,12 +1549,14 @@ function pintarHoyCita() {
     : dias === 1 ? '<b>' + esc(tt('Mañana')) + '</b> · ' + sinTraducir(fechaLarga(c.fecha))
     : sinTraducir(fechaLarga(c.fecha)) + '<br><span class="med-detalle">' + esc(tt('Faltan')) + ' <span data-no-i18n>' + dias + '</span> ' + esc(tt('días')) + '</span>';
   var medico = c.medico && c.medico.nombre ? '<br><span class="med-detalle">' + lineaMedico(c.medico) + '</span>' : '';
-  hoyTexto('hoy-cita', null, '', cuando + medico + botonIrCitas('Ver mis citas'));
+  var alarma = AC ? '<br><button type="button" class="hoy-ir" onclick="alarmaCita()">📅 ' + esc(tt('Recordármela en mi calendario')) + '</button>' : '';
+  hoyTexto('hoy-cita', null, '', cuando + medico + botonIrCitas('Ver mis citas') + alarma);
 }
 // Resumen de las tomas fijas de hoy (las "si es necesario" no cuentan: no
 // hay una cantidad esperada). Cuenta lo que el servidor dice marcado.
 function pintarResumenTomas(activos) {
   document.getElementById('hoy-nota').style.display = activos.length ? '' : 'none';
+  document.getElementById('btn-alarmas').style.display = medsConAlarma().length && document.getElementById('alarmas-form').style.display === 'none' ? '' : 'none';
   if (!activos.length) { hoyTexto('hoy-resumen', 'Tu médico no te ha recetado medicamentos en la app.', 'falta'); return; }
   var esperadas = 0, hechas = 0;
   activos.forEach(function(m) {
@@ -1546,6 +1569,65 @@ function pintarResumenTomas(activos) {
   hoyTexto('hoy-resumen', null, '', esc(tt('Te faltan')) + ' <b data-no-i18n>' + (esperadas - hechas) + '</b> ' + esc(tt('de')) + ' <span data-no-i18n>' + esperadas + '</span> ' + esc(tt(esperadas === 1 ? 'toma' : 'tomas')));
 }
 window.addEventListener('i18n:change', function(){ pintarHoyFecha(); pintarHoyCita(); if (medsDatos) pintarMedicamentos(); });
+
+// ─── ALARMAS EN EL CALENDARIO DEL TELÉFONO ───────────────────────
+// lib/alarmasCalendario.js. La hora elegida y la preferencia "discreto" se
+// recuerdan solo en este teléfono (comodidad); nada va al servidor.
+var AC = window.AlarmasCalendario;
+function leerLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function guardarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function medsConAlarma() {
+  if (!AC || !medsDatos) return [];
+  return (medsDatos.medicamentos || []).filter(function(m){ return AC.admiteAlarma(m, hoyLocal()); });
+}
+function pintarHorasAlarma(m, input, salida) {
+  var hs = AC.horasDeTomas(m.frecuencia, input.value);
+  salida.textContent = hs.length ? hs.join(' · ') : tt('Elige la hora');
+}
+function abrirAlarmas() {
+  var lista = document.getElementById('alarmas-lista');
+  lista.innerHTML = '';
+  medsConAlarma().forEach(function(m) {
+    var fila = document.createElement('div'); fila.className = 'alarma-fila';
+    fila.innerHTML = '<div><div class="med-nombre" data-no-i18n>' + esc(m.nombre) + '</div><div class="med-detalle">' + esc(tt(m.frecuenciaEtiqueta)) + '</div><div class="alarma-horas" data-no-i18n></div></div>';
+    var input = document.createElement('input'); input.type = 'time'; input.setAttribute('data-med', m.id);
+    input.setAttribute('aria-label', tt('Hora de la primera toma'));
+    input.value = leerLocal('ccpac_alarma_' + m.id) || '';
+    var salida = fila.querySelector('.alarma-horas');
+    input.addEventListener('input', function(){ pintarHorasAlarma(m, input, salida); document.getElementById('alarmas-msg').textContent = ''; });
+    pintarHorasAlarma(m, input, salida);
+    fila.appendChild(input);
+    lista.appendChild(fila);
+  });
+  document.getElementById('alarmas-discreto').checked = leerLocal('ccpac_alarmas_discreto') === '1';
+  document.getElementById('alarmas-msg').textContent = '';
+  document.getElementById('alarmas-form').style.display = '';
+  document.getElementById('btn-alarmas').style.display = 'none';
+}
+function cerrarAlarmas() {
+  document.getElementById('alarmas-form').style.display = 'none';
+  document.getElementById('btn-alarmas').style.display = medsConAlarma().length ? '' : 'none';
+}
+function descargarAlarmas() {
+  var msg = document.getElementById('alarmas-msg');
+  var horas = {};
+  document.querySelectorAll('#alarmas-lista input[type=time]').forEach(function(i){ if (i.value) horas[i.getAttribute('data-med')] = i.value; });
+  var discreto = document.getElementById('alarmas-discreto').checked;
+  var r;
+  try { r = AC.armarIcsTomas({ meds: medsConAlarma(), horas: horas, hoy: hoyLocal(), discreto: discreto }); }
+  catch (e) { r = null; }
+  if (!r || !r.ics) { msg.style.color = '#E2574B'; msg.textContent = tt('Elige la hora de la primera toma de al menos un medicamento.'); return; }
+  Object.keys(horas).forEach(function(id){ guardarLocal('ccpac_alarma_' + id, horas[id]); });
+  guardarLocal('ccpac_alarmas_discreto', discreto ? '1' : '0');
+  AC.descargar(r.ics, 'alarmas-tomas-codecells.ics');
+  msg.style.color = 'var(--text-2)';
+  msg.innerHTML = esc(tt('Listo: abre el archivo y acepta agregarlo a tu calendario.')) + ' <span data-no-i18n>(' + r.incluidos.map(function(x){ return esc(x.nombre); }).join(', ') + ')</span>';
+}
+function alarmaCita() {
+  var c = citasDatos && citasDatos.proximas[0];
+  if (!AC || !c) return;
+  AC.descargar(AC.armarIcsCita({ fecha: c.fecha, medico: c.medico && c.medico.nombre, discreto: leerLocal('ccpac_alarmas_discreto') === '1' }), 'cita-codecells-' + c.fecha + '.ics');
+}
 function detalleMed(m) {
   var partes = [esc(m.dosis), esc(m.via ? tt(m.via) : ''), esc(tt(m.frecuenciaEtiqueta))].filter(Boolean).join(' · ');
   if (m.duracionDias) partes += ' · ' + esc(tt('por')) + ' <span data-no-i18n>' + m.duracionDias + '</span> ' + esc(tt('días'));
