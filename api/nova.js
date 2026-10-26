@@ -2809,7 +2809,7 @@ module.exports = async function handler(req, res) {
         const perfil = perfiles.find(p => ((p.fields || {})['Médico'] || []).includes(m.id));
         equipo.push({
           nombre: f['Nombre completo'] || null,
-          especialidad: f['Especialidad'] || (vinc && vinc['Especialidad']) || null,
+          especialidad: citasPaciente.especialidadLegible(f['Especialidad'] || (vinc && vinc['Especialidad'])),
           rol: esPrincipal ? 'principal' : 'compartido',
           desde: !esPrincipal && vinc ? (vinc['Fecha de vinculación'] || null) : null,
           fichaDirectorio: perfil ? citasPaciente.urlFichaDirectorio(perfil) : null,
@@ -2820,6 +2820,39 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] paciente_mi_equipo error:', err.message);
       return res.status(500).json({ error: 'Error interno cargando tu equipo médico.' });
+    }
+  }
+
+  // ─── FICHA DE EMERGENCIA (app del paciente, Inicio) ───────────────
+  // Solo lectura y solo lo que anotó su médico: grupo sanguíneo (PACIENTES),
+  // alergias (HISTORIA CLÍNICA) y padecimientos activos. Lista blanca de
+  // campos; nunca antecedentes completos ni notas. Vacío → null (la app dice
+  // "no registrado"); fallo de lectura → 502, nunca una ficha vacía.
+  if (action === 'paciente_ficha_emergencia') {
+    try {
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
+      const esc = (v) => String(v).replace(/"/g, '\\"');
+      const error = { error: 'No pudimos cargar tu ficha de emergencia. Esto no significa que no tengas datos: intenta de nuevo.' };
+      let pac, historias;
+      try {
+        pac = (await leerTodoAirtable('tblyUcCfueFLJuvIv', {
+          filterByFormula: `{Código de paciente}="${esc(sesion.codigo)}"`,
+          maxRecords: '1',
+          'fields[]': ['Grupo sanguíneo', 'Patologías activas'],
+        }))[0];
+        historias = await leerTodoAirtable('tblm2xUADazitHisR', {
+          filterByFormula: `{Código de paciente ref}="${esc(sesion.codigo)}"`,
+          'fields[]': ['Alergias'],
+        });
+      } catch (e) {
+        console.error('[nova] paciente_ficha_emergencia:', e.message);
+        return res.status(502).json(error);
+      }
+      if (!pac) return res.status(403).json({ error: 'No disponible.' });
+      return res.status(200).json({ ok: true, ...citasPaciente.fichaEmergencia(pac.fields, historias) });
+    } catch (err) {
+      console.error('[nova] paciente_ficha_emergencia error:', err.message);
+      return res.status(500).json({ error: 'Error interno cargando tu ficha de emergencia.' });
     }
   }
 
@@ -2862,7 +2895,7 @@ module.exports = async function handler(req, res) {
       const medicoDe = (f) => {
         const recId = (f['Médico'] || [])[0];
         const m = medicos.find(x => (recId && x.id === recId) || (x.fields || {})['Código de médico'] === f['Código de médico ref']);
-        return m ? { clave: m.id, nombre: m.fields['Nombre completo'] || null, especialidad: m.fields['Especialidad'] || null } : null;
+        return m ? { clave: m.id, nombre: m.fields['Nombre completo'] || null, especialidad: citasPaciente.especialidadLegible(m.fields['Especialidad']) } : null;
       };
 
       const consultas = registros.map(r => {

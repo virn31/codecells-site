@@ -94,6 +94,7 @@
   .install-banner { background: var(--gold-pale2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; }
   .install-banner p { flex: 1; font-size: 13px; color: var(--text-1); line-height: 1.5; margin: 0; }
   .install-banner button { background: var(--gold); color: var(--black); border: none; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .install-banner button.install-cerrar { background: none; color: var(--text-3); padding: 4px 6px; font-size: 18px; font-weight: 400; line-height: 1; }
 
   .filtro-labs-btn { font-size: 11.5px; color: var(--text-2); background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 20px; padding: 7px 13px; cursor: pointer; }
   .filtro-labs-btn.activo { color: var(--black); background: var(--gold); border-color: var(--gold); font-weight: 600; }
@@ -105,7 +106,22 @@
   .lab-punto-normal { background: var(--black-3); color: var(--text-2); }
   .lab-punto-alto { background: rgba(226,87,75,0.15); color: #E2574B; }
   .lab-punto-bajo { background: rgba(0,212,255,0.12); color: var(--cyan); }
-  .lab-punto-fecha { display: block; font-size: 9px; color: var(--text-3); margin-top: 2px; }
+  .lab-punto-fecha { display: block; font-size: 10px; color: var(--text-3); margin-top: 2px; }
+  .ficha-fila { padding: 8px 0; border-bottom: 1px solid var(--border-dim); }
+  .ficha-fila:last-child { border-bottom: none; }
+  .ficha-clave { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+  .ficha-valor { font-size: 15px; color: var(--text-1); line-height: 1.5; margin-top: 2px; white-space: pre-line; }
+  .ficha-valor.falta { font-size: 13px; color: var(--text-3); font-style: italic; }
+  .ficha-valor.error { font-size: 13px; color: #E2574B; }
+  .ficha-grande { position: fixed; inset: 0; z-index: 200; background: var(--black, #0A0A0A); overflow-y: auto; }
+  .ficha-grande-int { max-width: 640px; margin: 0 auto; padding: 28px 20px 40px; }
+  .ficha-grande-titulo { font-size: 26px; font-weight: 700; color: #E2574B; margin-bottom: 8px; }
+  .ficha-grande .ficha-nombre { font-size: 24px; color: var(--text-1); margin-bottom: 12px; }
+  .ficha-grande .ficha-clave { font-size: 13px; }
+  .ficha-grande .ficha-valor { font-size: 22px; }
+  .ficha-grande .ficha-valor.falta, .ficha-grande .ficha-valor.error { font-size: 17px; }
+  .labs-leyenda { font-size: 12px; color: var(--text-2); line-height: 1.5; margin: -4px 0 14px; }
+  .labs-leyenda-rojo { color: #E2574B; font-weight: 600; }
 
   /* PIN (activación y entrada) — mismo diseño que tenía el portal VIP */
   .pin-titulo { font-family: var(--font-serif); font-size: 24px; text-align: center; margin: 10px 0 6px; }
@@ -222,7 +238,6 @@
          de flotar abajo, donde tapaba botones como "Compartir por WhatsApp"). -->
     <span id="i18n-slot"></span>
   </div>
-  <div id="install-banner-slot"></div>
 
   <!-- Pantalla: cargando -->
   <div class="pantalla activa" id="p-cargando">
@@ -257,6 +272,9 @@
   <div class="pantalla" id="p-principal">
   <!-- ═══ Pestaña INICIO ═══ (navegación inferior: docs/VISION-APP-MEDICA.md, MVP-1) -->
   <div class="tab-pane activa" data-tab="inicio">
+    <!-- Letrero "Instala CODE CELLS™": solo aquí (antes encabezaba cada
+         pestaña) y se cierra con ✕ para siempre en este teléfono. -->
+    <div id="install-banner-slot"></div>
     <div class="card-paciente">
       <div class="card-paciente-top">
         <div>
@@ -271,6 +289,21 @@
         <div id="protocolo-progreso" style="display:none;"></div>
       </div>
       <div class="patologias-chips" id="patologias-chips"></div>
+    </div>
+
+    <!-- Ficha de emergencia (nova paciente_ficha_emergencia + medicamentos
+         activos): solo lo que anotó su médico. Lo no registrado se dice "no
+         registrado", nunca "ninguna" (CLAUDE.md §7). "Ver en grande" es para
+         enseñarla en una urgencia. -->
+    <div class="seccion-label">Ficha de emergencia</div>
+    <div class="chat-caja ficha-emergencia" style="padding:20px;" id="ficha-caja">
+      <div id="ficha-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
+      <div id="ficha-contenido" style="display:none;"></div>
+      <div id="ficha-acciones" style="display:none;margin-top:14px;">
+        <button type="button" class="filtro-labs-btn activo" onclick="abrirFichaGrande()">Ver en grande</button>
+      </div>
+      <button type="button" class="btn-reintentar" id="ficha-reintentar" style="display:none;margin-top:12px;" onclick="cargarFichaEmergencia()">Intentar de nuevo</button>
+      <div style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.4;">Estos datos los anotó tu médico. Si falta algo o cambió, díselo en tu próxima consulta. En una emergencia llama al 911.</div>
     </div>
 
     <!-- Hoy: tomas de los medicamentos que recetó el médico (nova
@@ -340,13 +373,15 @@
       <div id="llave-error" style="display:none;margin-top:12px;font-size:13px;color:#E2574B;"></div>
     </div>
 
-    <!-- Invitar a alguien: se comparte desde el WhatsApp del propio paciente.
-         No se guarda ningún dato de la otra persona (antes NOVA guardaba
-         nombre y teléfono de terceros sin su consentimiento). -->
+    <!-- Invitar a alguien: con el menú "Compartir" del propio teléfono (la app
+         que el paciente elija) o copiando el mensaje. La plataforma no manda
+         nada por WhatsApp. No se guarda ningún dato de la otra persona (antes
+         NOVA guardaba nombre y teléfono de terceros sin su consentimiento). -->
     <div class="seccion-label">Invita a alguien</div>
     <div class="chat-caja" style="padding:20px;">
-      <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">Si conoces a alguien a quien le pueda servir CODE CELLS™, compártele la invitación desde tu WhatsApp. No guardamos ningún dato de esa persona.</div>
-      <button type="button" class="filtro-labs-btn activo" onclick="compartirInvitacion()">Compartir por WhatsApp</button>
+      <div style="font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:14px;">Si conoces a alguien a quien le pueda servir CODE CELLS™, compártele la invitación desde tu teléfono, por la app que tú elijas. No guardamos ningún dato de esa persona.</div>
+      <button type="button" class="filtro-labs-btn activo" onclick="compartirInvitacion()">Compartir invitación</button>
+      <div id="invitar-msg" style="display:none;font-size:12px;color:var(--text-3);margin-top:10px;line-height:1.5;"></div>
     </div>
 
     <!-- Salir: cierra la sesión y olvida el código en este teléfono (celular
@@ -380,6 +415,7 @@
           <button type="button" class="filtro-labs-btn" data-filtro="fuera" onclick="cambiarFiltroLabs('fuera')">Fuera de rango</button>
           <button type="button" class="filtro-labs-btn" data-filtro="todos" onclick="cambiarFiltroLabs('todos')">Todos</button>
         </div>
+        <div class="labs-leyenda"><span class="labs-leyenda-rojo">En rojo:</span> <span>el valor quedó fuera del rango de referencia que trae el laboratorio. No siempre es grave: tu médico lo interpreta contigo.</span></div>
         <div id="labs-tabla"></div>
       </div>
     </div>
@@ -487,6 +523,16 @@
       <button type="button" class="btn-reintentar" id="btn-test-atras" onclick="testAtras()">Atrás</button>
       <button type="button" class="btn-reintentar" onclick="cerrarTestBio()">Salir sin guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- Ficha de emergencia "en grande": fuera de .wrap para quedar encima de la
+     navegación inferior y del botón de música. -->
+<div class="ficha-grande" id="ficha-grande" style="display:none;" role="dialog" aria-modal="true" aria-label="Ficha de emergencia">
+  <div class="ficha-grande-int">
+    <div class="ficha-grande-titulo">Ficha de emergencia</div>
+    <div id="ficha-grande-contenido"></div>
+    <button type="button" class="btn-reintentar" onclick="cerrarFichaGrande()">Cerrar</button>
   </div>
 </div>
 
@@ -763,17 +809,29 @@ function isStandalone(){
 function isIOS(){
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
+var BOTON_CERRAR_INSTALL = '<button type="button" class="install-cerrar" id="btn-dismiss-install" aria-label="Cerrar">✕</button>';
+function installCerrado(){
+  try { return localStorage.getItem('ccpac_install_dismissed') === '1'; } catch (e) { return false; }
+}
+function conectarCerrarInstall(slot){
+  document.getElementById('btn-dismiss-install').addEventListener('click', function(){
+    try { localStorage.setItem('ccpac_install_dismissed', '1'); } catch (e) {}
+    slot.innerHTML = '';
+  });
+}
 function renderInstallBanner(){
   var slot = document.getElementById('install-banner-slot');
   if (!slot || isStandalone()) return;
-  if (localStorage.getItem('ccpac_install_dismissed') === '1') return;
+  if (installCerrado()) return;
 
   if (deferredInstallPrompt) {
     slot.innerHTML =
       '<div class="install-banner">' +
         '<p>Instala CODE CELLS™ en tu pantalla de inicio — acceso directo a NOVA, sin buscar la liga.</p>' +
         '<button type="button" id="btn-install">Instalar</button>' +
+        BOTON_CERRAR_INSTALL +
       '</div>';
+    conectarCerrarInstall(slot);
     document.getElementById('btn-install').addEventListener('click', function(){
       deferredInstallPrompt.prompt();
       deferredInstallPrompt.userChoice.finally(function(){
@@ -785,22 +843,16 @@ function renderInstallBanner(){
     slot.innerHTML =
       '<div class="install-banner">' +
         '<p>Instala esta app: toca el ícono de compartir <strong>⬆</strong> y elige "Agregar a pantalla de inicio".</p>' +
-        '<button type="button" id="btn-dismiss-install">Entendido</button>' +
+        BOTON_CERRAR_INSTALL +
       '</div>';
-    document.getElementById('btn-dismiss-install').addEventListener('click', function(){
-      localStorage.setItem('ccpac_install_dismissed', '1');
-      slot.innerHTML = '';
-    });
+    conectarCerrarInstall(slot);
   } else {
     slot.innerHTML =
       '<div class="install-banner">' +
         '<p>Instala esta app: toca los tres puntos <strong>⋮</strong> arriba a la derecha del navegador y elige "Instalar app" o "Agregar a pantalla de inicio".</p>' +
-        '<button type="button" id="btn-dismiss-install">Entendido</button>' +
+        BOTON_CERRAR_INSTALL +
       '</div>';
-    document.getElementById('btn-dismiss-install').addEventListener('click', function(){
-      localStorage.setItem('ccpac_install_dismissed', '1');
-      slot.innerHTML = '';
-    });
+    conectarCerrarInstall(slot);
   }
 }
 
@@ -1274,15 +1326,93 @@ function cargarMedicamentos() {
       [est, sup].forEach(function(e){ e.textContent = m; e.style.color = '#E2574B'; });
       document.getElementById('hoy-seccion').style.display = '';
       hoy.textContent = m; hoy.style.color = '#E2574B';
+      medsError = true; pintarFicha();
       return;
     }
+    medsError = false;
     medsDatos = x.d;
     pintarMedicamentos();
+    pintarFicha();
   }).catch(function() {
     var m = 'Sin conexión — no pudimos cargar tus medicamentos.';
     [est, sup].forEach(function(e){ e.textContent = m; e.style.color = '#E2574B'; });
+    medsError = true; pintarFicha();
   });
 }
+
+// ─── FICHA DE EMERGENCIA ─────────────────────────────────────────
+// Grupo sanguíneo, alergias y padecimientos (nova paciente_ficha_emergencia)
+// + medicamentos activos (medicamentos_listar, ya cargados arriba). Cada
+// renglón distingue "tu médico no lo ha registrado" de "no pudimos leerlo".
+var fichaDatos = null, medsError = false;
+function cargarFichaEmergencia() {
+  var estado = document.getElementById('ficha-estado');
+  fichaDatos = null;
+  estado.style.display = ''; estado.style.color = ''; estado.textContent = 'Cargando…';
+  document.getElementById('ficha-contenido').style.display = 'none';
+  document.getElementById('ficha-acciones').style.display = 'none';
+  document.getElementById('ficha-reintentar').style.display = 'none';
+  postNova({ action: 'paciente_ficha_emergencia' }).then(function(x) {
+    if (!x.ok) return errorFicha((x.d && x.d.error) || 'No pudimos cargar tu ficha de emergencia.');
+    fichaDatos = x.d;
+    pintarFicha();
+  }).catch(function(){ errorFicha('Sin conexión — no pudimos cargar tu ficha de emergencia.'); });
+}
+function errorFicha(msg) {
+  var estado = document.getElementById('ficha-estado');
+  estado.style.display = ''; estado.style.color = '#E2574B'; estado.textContent = msg;
+  document.getElementById('ficha-reintentar').style.display = '';
+}
+function filaFicha(clave, valorHtml, clase) {
+  return '<div class="ficha-fila"><div class="ficha-clave">' + esc(tt(clave)) + '</div><div class="ficha-valor' + (clase ? ' ' + clase : '') + '">' + valorHtml + '</div></div>';
+}
+function htmlFicha() {
+  var d = fichaDatos;
+  var faltaTxt = function(t) { return esc(tt(t)); };
+  var html = '';
+  html += d.grupoSanguineo
+    ? filaFicha('Grupo sanguíneo', sinTraducir(d.grupoSanguineo))
+    : filaFicha('Grupo sanguíneo', faltaTxt('Tu médico no lo ha registrado.'), 'falta');
+  html += d.alergias
+    ? filaFicha('Alergias', d.alergias.map(sinTraducir).join('<br>'))
+    : filaFicha('Alergias', faltaTxt('Tu médico no ha registrado alergias. No quiere decir que no tengas: si tienes alguna, díselo.'), 'falta');
+  html += (d.padecimientos && d.padecimientos.length)
+    ? filaFicha('Padecimientos', d.padecimientos.map(sinTraducir).join('<br>'))
+    : filaFicha('Padecimientos', faltaTxt('Tu médico no ha anotado padecimientos activos.'), 'falta');
+  if (medsDatos) {
+    var activos = (medsDatos.medicamentos || []).filter(function(m){ return m.estado === 'Activo'; });
+    html += activos.length
+      ? filaFicha('Medicamentos', activos.map(function(m){ return sinTraducir(m.nombre + (m.dosis ? ' · ' + m.dosis : '')); }).join('<br>'))
+      : filaFicha('Medicamentos', faltaTxt('Tu médico no te ha recetado medicamentos en la app.'), 'falta');
+  } else if (medsError) {
+    html += filaFicha('Medicamentos', faltaTxt('No pudimos cargar tus medicamentos.'), 'error');
+  } else {
+    html += filaFicha('Medicamentos', faltaTxt('Cargando…'), 'falta');
+  }
+  return html;
+}
+function pintarFicha() {
+  if (!fichaDatos) return;
+  document.getElementById('ficha-estado').style.display = 'none';
+  var cont = document.getElementById('ficha-contenido');
+  cont.innerHTML = htmlFicha();
+  cont.style.display = '';
+  document.getElementById('ficha-acciones').style.display = '';
+  if (document.getElementById('ficha-grande').style.display !== 'none') abrirFichaGrande();
+}
+function abrirFichaGrande() {
+  if (!fichaDatos) return;
+  var nombre = (pacienteRecord && pacienteRecord.fields['Nombre completo']) || '';
+  document.getElementById('ficha-grande-contenido').innerHTML =
+    (nombre ? '<div class="ficha-nombre" data-no-i18n>' + esc(nombre) + '</div>' : '') + htmlFicha();
+  document.getElementById('ficha-grande').style.display = '';
+  document.body.style.overflow = 'hidden';
+}
+function cerrarFichaGrande() {
+  document.getElementById('ficha-grande').style.display = 'none';
+  document.body.style.overflow = '';
+}
+window.addEventListener('i18n:change', pintarFicha);
 function detalleMed(m) {
   var partes = [esc(m.dosis), esc(m.via ? tt(m.via) : ''), esc(tt(m.frecuenciaEtiqueta))].filter(Boolean).join(' · ');
   if (m.duracionDias) partes += ' · ' + esc(tt('por')) + ' <span data-no-i18n>' + m.duracionDias + '</span> ' + esc(tt('días'));
@@ -1574,6 +1704,7 @@ function cargarPaciente() {
       cargarProgreso();
       cargarPlan();
       cargarMedicamentos();
+      cargarFichaEmergencia();
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';
@@ -1589,6 +1720,8 @@ function renderSugerencias() {
     var chip = document.createElement('div');
     chip.className = 'sugerencia-chip';
     chip.textContent = op;
+    // NOVA no agenda: ese chip lleva a la pestaña Citas ("Agendar con mi médico").
+    if (op === 'Agendar mi próxima cita') { chip.onclick = function(){ irATab('citas'); }; cont.appendChild(chip); return; }
     // Se envía en el idioma elegido: NOVA responde en el idioma en que le escriben.
     chip.onclick = function(){ document.getElementById('chat-input').value = window.t ? window.t(op) : op; enviarMensaje(); };
     cont.appendChild(chip);
@@ -1708,7 +1841,24 @@ function compartirInvitacion() {
   var mensaje = 'Te comparto CODE CELLS™: una red de médicos donde tu expediente es tuyo y te acompaña. Puedes hacer su evaluación aquí: https://www.codecells.mx';
   // En el idioma que eligió el paciente (diccionario de lib/i18n.js).
   if (window.t) mensaje = window.t(mensaje);
-  window.open('https://wa.me/?text=' + encodeURIComponent(mensaje), '_blank');
+  var aviso = document.getElementById('invitar-msg');
+  aviso.style.display = 'none';
+  // Sin el menú del teléfono (o si falló) se copia el mensaje; si tampoco se
+  // puede copiar, se muestra para copiarlo a mano.
+  function copiar() {
+    var mostrar = function(txt) { aviso.setAttribute('data-no-i18n', ''); aviso.textContent = txt; aviso.style.display = ''; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(mensaje).then(function() {
+        aviso.removeAttribute('data-no-i18n');
+        aviso.textContent = tt('Copiamos la invitación: pégala en el mensaje que quieras mandar.');
+        aviso.style.display = '';
+      }, function() { mostrar(mensaje); });
+    } else mostrar(mensaje);
+  }
+  if (navigator.share) {
+    // Cerrar el menú sin elegir también rechaza (AbortError): no es un error.
+    navigator.share({ text: mensaje }).catch(function(e) { if (!e || e.name !== 'AbortError') copiar(); });
+  } else copiar();
 }
 
 // ─── COMPARTIR EXPEDIENTE CON UN MÉDICO (llave temporal) ─────────
@@ -1750,11 +1900,22 @@ function generarLlaveCompartir() {
 
 function cambiarFiltroLabs(filtro) {
   filtroLabsActual = filtro;
-  document.querySelectorAll('.filtro-labs-btn').forEach(function(b){
+  // Solo los botones del filtro: la clase también la usan otros botones de la
+  // app ("Generar llave"), que antes perdían su estilo al filtrar.
+  document.querySelectorAll('.filtro-labs-btn[data-filtro]').forEach(function(b){
     b.classList.toggle('activo', b.getAttribute('data-filtro') === filtro);
   });
   renderComparativoLabs();
 }
+
+// 'AAAA-MM-DD' → "12 abr 2026" en el idioma elegido. Sin fecha: "—"; una
+// fecha que no se entiende se muestra tal cual, no se adivina.
+function fechaEstudio(f) {
+  if (!f) return '—';
+  var d = new Date(String(f).length === 10 ? f + 'T12:00:00' : f);
+  return isNaN(d.getTime()) ? String(f) : fechaCorta(d);
+}
+window.addEventListener('i18n:change', function(){ if (Object.keys(labsPivote).length) renderComparativoLabs(); });
 
 function renderComparativoLabs() {
   var nombres = Object.keys(labsPivote);
@@ -1795,12 +1956,12 @@ function renderComparativoLabs() {
     fila.className = 'lab-analito';
     var puntosHtml = serie.map(function(p) {
       var claseBandera = (p.bandera === 'alto' || p.bandera === 'bajo') ? 'lab-punto-' + p.bandera : 'lab-punto-normal';
-      return '<div class="lab-punto ' + claseBandera + '">' +
-        p.valor + (p.unidad ? ' ' + p.unidad : '') +
-        '<span class="lab-punto-fecha">' + (p.fecha || '—') + '</span>' +
+      return '<div class="lab-punto ' + claseBandera + '" data-no-i18n>' +
+        esc(p.valor) + (p.unidad ? ' ' + esc(p.unidad) : '') +
+        '<span class="lab-punto-fecha">' + esc(fechaEstudio(p.fecha)) + '</span>' +
         '</div>';
     }).join('');
-    fila.innerHTML = '<div class="lab-analito-nombre">' + nombre + '</div><div class="lab-serie">' + puntosHtml + '</div>';
+    fila.innerHTML = '<div class="lab-analito-nombre" data-no-i18n>' + esc(nombre) + '</div><div class="lab-serie">' + puntosHtml + '</div>';
     tablaEl.appendChild(fila);
   });
 }
