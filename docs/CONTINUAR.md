@@ -26,6 +26,9 @@
 4. **Pendientes de antes (siguen vigentes):** probar el vínculo de Telegram con Dr. QA en Preview; "joya de la corona" (directorio ↔ portal ↔ app, decisiones (a) y (b) de Víctor); perfiles familiares con el abogado (https://claude.ai/artifact/Eic3UxeUALpTNuV2bxVBqa); pagos en pausa (Juan y Pavel); Galván manda `CCMED-JCG01` al bot.
 
 ### Antes de lanzar (además de §4b)
+- **Choques con `main` RESUELTOS** (`e7943e1`, 2026-10-26): `main` (hotfixes PR #7 y #8) ya está dentro de la rama; la rama se fusiona a `main` sin conflictos. Si `main` recibe otro hotfix, repetir.
+- **Evaluación 2026-10-26:** lanzamiento del directorio ~50 % (código ~90 %; frenan el aviso de privacidad —domicilio fiscal + abogado—, las pruebas de Víctor en celular, la operación —médicos piloto, PINs, ligas, bot real, `DESCONGELAR_AREAS`— y la fusión); plataforma completa ~35 %.
+- **Riesgo al fusionar:** el cron `*/5` de avisos viaja con `vercel.json`. Sin `SUSCRIPCIONES_PUSH` en producción, la tarea dará 502 cada 5 min: crear la tabla antes o quitar el cron en ese despliegue.
 - **Crear en PRODUCCIÓN** (pedir autorización a Víctor): tablas `MENSAJES_PACIENTE` y `SUSCRIPCIONES_PUSH` (mismos campos que en prueba; el código las llama por NOMBRE), y un **par de llaves VAPID propio de producción** (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` sensitive, `VAPID_SUBJECT`).
 - **Plan de Vercel:** confirmar que permite el cron `*/5 * * * *` de `vercel.json` (la cuenta es equipo "CODECELLS", así que debería; si no, el despliegue a producción falla con error claro).
 - **Aviso de privacidad (abogado):** contacto de emergencia (dato de un tercero, lo elige el paciente), buzón de mensajes, avisos del teléfono (pasan cifrados por Google/Apple).
