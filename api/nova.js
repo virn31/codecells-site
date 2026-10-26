@@ -964,6 +964,22 @@ async function consultasConMedico(codigoPaciente) {
 }
 
 module.exports = async function handler(req, res) {
+  // Tarea programada (vercel.json: /api/avisos-push → aquí, cada 5 min):
+  // avisos de tomas y de la víspera de la cita a los teléfonos que los
+  // activaron. Solo con CRON_SECRET; ?prueba=1 devuelve lo que mandaría sin
+  // mandar nada. Va dentro de nova.js para no sumar otra función en Vercel.
+  // Va ANTES del filtro de origen: Vercel llama sin encabezado Origin (no es
+  // un navegador) y el filtro la rechazaba con 403; la protege CRON_SECRET.
+  if (req.method === 'GET' && req.query && req.query.accion === 'avisos_push') {
+    const secreto = process.env.CRON_SECRET;
+    if (!secreto || (req.headers && req.headers.authorization) !== `Bearer ${secreto}`) return res.status(401).json({ error: 'No autorizado.' });
+    try {
+      return res.status(200).json(await AvisosPush.ejecutarCron({ prueba: String(req.query.prueba || '') === '1', leerConsultas: consultasConMedico }));
+    } catch (e) {
+      console.error('[nova] avisos_push:', e.message);
+      return res.status(502).json({ error: 'No se pudieron leer las suscripciones; no se mandó nada.' });
+    }
+  }
 
   const origin = req.headers.origin || '';
   const isDev  = process.env.NODE_ENV === 'development' || origin.includes('localhost');
@@ -977,20 +993,6 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  // Tarea programada (vercel.json: /api/avisos-push → aquí, cada 5 min):
-  // avisos de tomas y de la víspera de la cita a los teléfonos que los
-  // activaron. Solo con CRON_SECRET; ?prueba=1 devuelve lo que mandaría sin
-  // mandar nada. Va dentro de nova.js para no sumar otra función en Vercel.
-  if (req.method === 'GET' && req.query && req.query.accion === 'avisos_push') {
-    const secreto = process.env.CRON_SECRET;
-    if (!secreto || (req.headers && req.headers.authorization) !== `Bearer ${secreto}`) return res.status(401).json({ error: 'No autorizado.' });
-    try {
-      return res.status(200).json(await AvisosPush.ejecutarCron({ prueba: String(req.query.prueba || '') === '1', leerConsultas: consultasConMedico }));
-    } catch (e) {
-      console.error('[nova] avisos_push:', e.message);
-      return res.status(502).json({ error: 'No se pudieron leer las suscripciones; no se mandó nada.' });
-    }
-  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';

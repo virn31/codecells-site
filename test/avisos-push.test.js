@@ -218,6 +218,20 @@ test('cron: sin CRON_SECRET → 401; con prueba=1 dice qué mandaría sin mandar
   } finally { global.Date = realDate; w.restaurar(); }
 });
 
+test('cron en producción: Vercel llama SIN encabezado Origin y no debe chocar con el filtro de origen', async () => {
+  const w = mundo();
+  const modo = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = 'production'; // fuera de desarrollo, el filtro de origen sí aplica
+    const sin = await nova(null, {}, { metodo: 'GET', query: { accion: 'avisos_push' } });
+    assert.strictEqual(sin.statusCode, 401, 'sin secreto: 401 (no 403 del filtro de origen)');
+    const con = await nova(null, {}, { metodo: 'GET', query: { accion: 'avisos_push', prueba: '1' }, headers: { authorization: 'Bearer cron-de-prueba' } });
+    assert.strictEqual(con.statusCode, 200, JSON.stringify(con.body));
+    // Y cualquier otra llamada sin origen permitido sigue rechazada.
+    assert.strictEqual((await nova(paciente, { action: 'paciente_avisos_estado' })).statusCode, 403);
+  } finally { process.env.NODE_ENV = modo; w.restaurar(); }
+});
+
 test('cron (lib): a las 08:00 de su teléfono manda la toma; a las 08:05 no', async () => {
   const t = telefono();
   const w = mundo({ previas: [{ id: 'recSUS00000000001', fields: { 'Código de paciente ref': PAC, 'Endpoint': t.endpoint, 'p256dh': t.p256dh, 'auth': t.auth, 'Activa': true, 'Tomas': true, 'Zona': 'America/Mazatlan', 'Horarios': JSON.stringify({ recMED00000000001: '08:00' }) } }] });
