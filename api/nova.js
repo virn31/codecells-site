@@ -2838,7 +2838,7 @@ module.exports = async function handler(req, res) {
         pac = (await leerTodoAirtable('tblyUcCfueFLJuvIv', {
           filterByFormula: `{Código de paciente}="${esc(sesion.codigo)}"`,
           maxRecords: '1',
-          'fields[]': ['Grupo sanguíneo', 'Patologías activas'],
+          'fields[]': ['Grupo sanguíneo', 'Patologías activas', citasPaciente.CAMPO_CONTACTO_NOMBRE, citasPaciente.CAMPO_CONTACTO_TEL],
         }))[0];
         historias = await leerTodoAirtable('tblm2xUADazitHisR', {
           filterByFormula: `{Código de paciente ref}="${esc(sesion.codigo)}"`,
@@ -2853,6 +2853,49 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] paciente_ficha_emergencia error:', err.message);
       return res.status(500).json({ error: 'Error interno cargando tu ficha de emergencia.' });
+    }
+  }
+
+  // Contacto de emergencia: lo elige y lo escribe el paciente (decisión de
+  // Víctor 2026-10-26). Solo en SU registro (código de la sesión, nunca uno
+  // del cuerpo); el demo no escribe. Vacíos los dos = lo borra. Se responde
+  // con lo que Airtable confirmó guardado, no con lo que se mandó.
+  if (action === 'paciente_guardar_contacto_emergencia') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      if (!sesion || sesion.tipo !== 'paciente') return res.status(sesion && sesion.tipo === 'demo' ? 403 : 401).json({ error: sesion && sesion.tipo === 'demo' ? 'Modo demo: solo lectura.' : 'Sesión requerida.' });
+      const n = citasPaciente.normalizarContactoEmergencia({ nombre: req.body.nombre, telefono: req.body.telefono });
+      if (!n.ok) return res.status(400).json({ error: n.error });
+      const esc = (v) => String(v).replace(/"/g, '\\"');
+      const BASE_ID = (process.env.AIRTABLE_BASE_ID || 'app6jyD9pDlTLpknA');
+      const H = { Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' };
+      const errorGuardar = { error: 'No pudimos guardar tu contacto. Intenta de nuevo.' };
+      let pac;
+      try {
+        pac = (await leerTodoAirtable('tblyUcCfueFLJuvIv', { filterByFormula: `{Código de paciente}="${esc(sesion.codigo)}"`, maxRecords: '1', 'fields[]': ['Código de paciente'] }))[0];
+      } catch (e) {
+        console.error('[nova] paciente_guardar_contacto_emergencia leer:', e.message);
+        return res.status(502).json(errorGuardar);
+      }
+      if (!pac) return res.status(403).json({ error: 'No disponible.' });
+      const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/tblyUcCfueFLJuvIv/${pac.id}`, {
+        method: 'PATCH', headers: H,
+        body: JSON.stringify({ fields: {
+          [citasPaciente.CAMPO_CONTACTO_NOMBRE]: n.valor ? n.valor.nombre : null,
+          [citasPaciente.CAMPO_CONTACTO_TEL]: n.valor ? n.valor.telefono : null,
+        } }),
+      });
+      if (!r.ok) {
+        console.error('[nova] paciente_guardar_contacto_emergencia PATCH:', r.status);
+        return res.status(502).json(errorGuardar);
+      }
+      const f = ((await r.json()) || {}).fields || {};
+      const nombre = f[citasPaciente.CAMPO_CONTACTO_NOMBRE] || null;
+      const telefono = f[citasPaciente.CAMPO_CONTACTO_TEL] || null;
+      return res.status(200).json({ ok: true, contacto: (nombre || telefono) ? { nombre, telefono } : null });
+    } catch (err) {
+      console.error('[nova] paciente_guardar_contacto_emergencia error:', err.message);
+      return res.status(500).json({ error: 'Error interno guardando tu contacto.' });
     }
   }
 

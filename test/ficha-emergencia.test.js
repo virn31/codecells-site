@@ -40,10 +40,10 @@ test('ficha: lo anotado se devuelve; lo vacío es null, nunca un negativo', () =
   const llena = fichaEmergencia(
     { 'Grupo sanguíneo': ' O+ ', 'Patologías activas': ['Diabetes tipo 2', '', 'Hipertensión'] },
     [{ fields: { Alergias: 'Penicilina' } }, { fields: { Alergias: 'Penicilina' } }, { fields: { Alergias: '  ' } }, { fields: {} }]);
-  assert.deepStrictEqual(llena, { grupoSanguineo: 'O+', alergias: ['Penicilina'], padecimientos: ['Diabetes tipo 2', 'Hipertensión'] });
+  assert.deepStrictEqual(llena, { grupoSanguineo: 'O+', alergias: ['Penicilina'], padecimientos: ['Diabetes tipo 2', 'Hipertensión'], contacto: null });
 
   const vacia = fichaEmergencia({}, []);
-  assert.deepStrictEqual(vacia, { grupoSanguineo: null, alergias: null, padecimientos: [] });
+  assert.deepStrictEqual(vacia, { grupoSanguineo: null, alergias: null, padecimientos: [], contacto: null });
   assert.ok(!JSON.stringify(vacia).match(/niega|ningun|sin alerg/i));
 });
 
@@ -56,7 +56,7 @@ function mundo({ falla = null, sinPaciente = false } = {}) {
     const u = decodeURIComponent(String(url)); pedidos.push(u);
     const ok = d => ({ ok: true, status: 200, json: async () => d });
     if (falla && u.includes(falla)) return { ok: false, status: 503, json: async () => ({}) };
-    if (u.includes('tblyUcCfueFLJuvIv?')) return ok({ records: sinPaciente ? [] : [{ id: 'recPAC', fields: { 'Grupo sanguíneo': 'A-', 'Patologías activas': ['Embarazo'] } }] });
+    if (u.includes('tblyUcCfueFLJuvIv?')) return ok({ records: sinPaciente ? [] : [{ id: 'recPAC', fields: { 'Grupo sanguíneo': 'A-', 'Patologías activas': ['Embarazo'], 'Contacto de emergencia': 'Luis Pérez, mi esposo', 'Tel. emergencia': '6671234567' } }] });
     if (u.includes('tblm2xUADazitHisR?')) return ok({ records: [{ id: 'recH', fields: { Alergias: 'Sulfas' } }] });
     throw new Error('fetch no mockeado: ' + u);
   };
@@ -75,11 +75,11 @@ test('ficha: paciente con sesión → solo sus datos, solo los campos de la list
   try {
     const r = await nova(generarToken({ tipo: 'paciente', codigo: PAC, horas: 1 }));
     assert.strictEqual(r.statusCode, 200, JSON.stringify(r.body));
-    assert.deepStrictEqual(r.body, { ok: true, grupoSanguineo: 'A-', alergias: ['Sulfas'], padecimientos: ['Embarazo'] });
+    assert.deepStrictEqual(r.body, { ok: true, grupoSanguineo: 'A-', alergias: ['Sulfas'], padecimientos: ['Embarazo'], contacto: { nombre: 'Luis Pérez, mi esposo', telefono: '6671234567' } });
     // Filtrado por el código de la SESIÓN y pidiendo solo esos campos.
     assert.ok(w.pedidos.every(u => u.includes(`"${PAC}"`)), 'cada lectura filtra por el paciente de la sesión');
     const camposPedidos = w.pedidos.flatMap(u => [...u.matchAll(/fields\[\]=([^&]+)/g)].map(m => m[1].replace(/\+/g, ' '))).sort();
-    assert.deepStrictEqual(camposPedidos, ['Alergias', 'Grupo sanguíneo', 'Patologías activas']);
+    assert.deepStrictEqual(camposPedidos, ['Alergias', 'Contacto de emergencia', 'Grupo sanguíneo', 'Patologías activas', 'Tel. emergencia']);
   } finally { w.restaurar(); }
 });
 

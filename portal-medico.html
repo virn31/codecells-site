@@ -6423,6 +6423,10 @@ function cargarDatosGenerales(record) {
     { key: 'Estado civil', val: f['Estado civil'] },
     { key: 'Ocupación', val: f['Ocupación'] },
     { key: 'Grupo sanguíneo', val: f['Grupo sanguíneo'] },
+    // Lo escribe el paciente desde su app (texto libre): se escapa.
+    { key: 'Contacto de emergencia', val: (f['Contacto de emergencia'] || f['Tel. emergencia'])
+        ? escaparHtml([f['Contacto de emergencia'], f['Tel. emergencia']].filter(Boolean).join(' · ')) + ' <span style="color:var(--text-3);font-size:11px;">(lo eligió el paciente)</span>'
+        : null },
     { key: 'Escolaridad', val: f['Escolaridad'] },
     { key: 'Protocolo', val: f['Protocolo actual'] || f['Protocolo'] || f['protocolo'] },
     { key: 'Inicio del protocolo', val: f['Fecha inicio protocolo'] ? formatDate(f['Fecha inicio protocolo']) : null },

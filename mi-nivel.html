@@ -107,6 +107,16 @@
   .lab-punto-alto { background: rgba(226,87,75,0.15); color: #E2574B; }
   .lab-punto-bajo { background: rgba(0,212,255,0.12); color: var(--cyan); }
   .lab-punto-fecha { display: block; font-size: 10px; color: var(--text-3); margin-top: 2px; }
+  .hoy-fecha { font-family: var(--font-serif); font-size: 22px; color: var(--gold); margin-bottom: 4px; }
+  .hoy-bloque { padding: 10px 0; border-bottom: 1px solid var(--border-dim); }
+  .hoy-bloque:last-child { border-bottom: none; padding-bottom: 0; }
+  .hoy-texto { font-size: 15px; color: var(--text-1); line-height: 1.5; margin-top: 4px; }
+  .hoy-texto.falta { font-size: 13px; color: var(--text-3); }
+  .hoy-texto.error { font-size: 13px; color: #E2574B; }
+  .hoy-texto.listo { color: var(--gold); }
+  .hoy-ir { background: none; border: none; color: var(--gold); font-size: 13px; padding: 4px 0 0; cursor: pointer; font-family: inherit; }
+  .ficha-llamar { color: var(--gold); text-decoration: none; white-space: nowrap; }
+  .labs-leyenda-azul { color: var(--cyan); font-weight: 600; }
   .ficha-fila { padding: 8px 0; border-bottom: 1px solid var(--border-dim); }
   .ficha-fila:last-child { border-bottom: none; }
   .ficha-clave { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
@@ -196,8 +206,8 @@
   .meds-adherencia b { color: var(--gold); font-size: 20px; font-weight: 500; }
   .receta-ultima { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-dim); font-size: 13px; color: var(--text-2); line-height: 1.6; white-space: pre-wrap; }
   .sup-form { margin-top: 14px; display: flex; flex-direction: column; }
-  .sup-form input[type=text] { width: 100%; box-sizing: border-box; background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 12px; color: var(--text-1); padding: 11px 14px; font-size: 14px; font-family: var(--font-sans); margin-top: 8px; }
-  .sup-form input[type=text]:focus { outline: none; border-color: var(--gold); }
+  .sup-form input[type=text], .sup-form input[type=tel] { width: 100%; box-sizing: border-box; background: var(--black-3); border: 1px solid var(--border-dim); border-radius: 12px; color: var(--text-1); padding: 11px 14px; font-size: 14px; font-family: var(--font-sans); margin-top: 8px; }
+  .sup-form input[type=text]:focus, .sup-form input[type=tel]:focus { outline: none; border-color: var(--gold); }
   .sup-tipo { display: flex; gap: 16px; font-size: 14px; color: var(--text-2); }
   .sup-tipo input { accent-color: var(--gold); }
   .sup-aviso { margin-top: 10px; font-size: 13px; color: #D9A441; line-height: 1.5; }
@@ -291,6 +301,27 @@
       <div class="patologias-chips" id="patologias-chips"></div>
     </div>
 
+    <!-- Hoy: lo del día de un vistazo. Próxima cita (la misma lectura de la
+         pestaña Citas, nova paciente_mis_citas) y tomas de hoy de los
+         medicamentos que recetó el médico (medicamentos_listar /
+         paciente_marcar_toma). Cada parte distingue "no hay" de "no pudimos
+         leerlo". -->
+    <div class="seccion-label">Hoy</div>
+    <div class="chat-caja" style="padding:20px;" id="hoy-seccion">
+      <div class="hoy-fecha" id="hoy-fecha" data-no-i18n></div>
+      <div class="hoy-bloque">
+        <div class="ficha-clave">Próxima cita</div>
+        <div id="hoy-cita" class="hoy-texto">Cargando…</div>
+      </div>
+      <div class="hoy-bloque">
+        <div class="ficha-clave">Medicamentos de hoy</div>
+        <div id="hoy-resumen" class="hoy-texto">Cargando…</div>
+        <div id="hoy-estado" style="font-size:13px;color:var(--text-3);"></div>
+        <div id="hoy-lista" class="meds-lista"></div>
+        <div id="hoy-nota" style="display:none;font-size:11px;color:var(--text-3);margin-top:12px;">Toca cada toma cuando la tomes. Por ahora la app no te avisa si está cerrada.</div>
+      </div>
+    </div>
+
     <!-- Ficha de emergencia (nova paciente_ficha_emergencia + medicamentos
          activos): solo lo que anotó su médico. Lo no registrado se dice "no
          registrado", nunca "ninguna" (CLAUDE.md §7). "Ver en grande" es para
@@ -299,24 +330,26 @@
     <div class="chat-caja ficha-emergencia" style="padding:20px;" id="ficha-caja">
       <div id="ficha-estado" style="font-size:13px;color:var(--text-3);">Cargando…</div>
       <div id="ficha-contenido" style="display:none;"></div>
-      <div id="ficha-acciones" style="display:none;margin-top:14px;">
+      <!-- Contacto de emergencia: lo elige el paciente (no su médico). -->
+      <div id="contacto-form" class="sup-form" style="display:none;">
+        <div style="font-size:12px;color:var(--text-2);line-height:1.5;margin-bottom:10px;">Elige a alguien que esté de acuerdo en que lo llamen si te pasa algo. Lo ven tú y los médicos que te atienden.</div>
+        <input type="text" id="contacto-nombre" maxlength="100" placeholder="Nombre (ej. Ana López, mi hermana)" autocomplete="off">
+        <input type="tel" id="contacto-telefono" maxlength="20" placeholder="Teléfono (10 dígitos)" autocomplete="off">
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button type="button" class="filtro-labs-btn activo" id="contacto-guardar" onclick="guardarContacto(false)">Guardar</button>
+          <button type="button" class="filtro-labs-btn" onclick="cerrarFormContacto()">Cancelar</button>
+          <button type="button" class="filtro-labs-btn" id="contacto-quitar" style="display:none;" onclick="guardarContacto(true)">Quitar contacto</button>
+        </div>
+        <div id="contacto-msg" style="font-size:12px;margin-top:8px;"></div>
+      </div>
+      <div id="ficha-acciones" style="display:none;margin-top:14px;gap:8px;flex-wrap:wrap;">
         <button type="button" class="filtro-labs-btn activo" onclick="abrirFichaGrande()">Ver en grande</button>
+        <button type="button" class="filtro-labs-btn" id="btn-contacto" onclick="abrirFormContacto()">Elegir contacto de emergencia</button>
       </div>
       <button type="button" class="btn-reintentar" id="ficha-reintentar" style="display:none;margin-top:12px;" onclick="cargarFichaEmergencia()">Intentar de nuevo</button>
-      <div style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.4;">Estos datos los anotó tu médico. Si falta algo o cambió, díselo en tu próxima consulta. En una emergencia llama al 911.</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.4;">Los datos de salud los anotó tu médico: si falta algo o cambió, díselo en tu próxima consulta. El contacto lo eliges tú. En una emergencia llama al 911.</div>
     </div>
 
-    <!-- Hoy: tomas de los medicamentos que recetó el médico (nova
-         medicamentos_listar / paciente_marcar_toma). Oculto si no hay
-         medicamentos activos; un error se muestra como error. -->
-    <div id="hoy-seccion" style="display:none;">
-      <div class="seccion-label">Hoy</div>
-      <div class="chat-caja" style="padding:20px;">
-        <div id="hoy-estado" style="font-size:13px;color:var(--text-3);"></div>
-        <div id="hoy-lista" class="meds-lista"></div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:12px;">Toca cada toma cuando la tomes. Por ahora la app no te avisa si está cerrada.</div>
-      </div>
-    </div>
 
     <!-- Biological Map™: un aro por sistema (función 0–10, más = mejor),
          estado general al centro. Si no hay evaluación se dice tal cual —
@@ -415,7 +448,7 @@
           <button type="button" class="filtro-labs-btn" data-filtro="fuera" onclick="cambiarFiltroLabs('fuera')">Fuera de rango</button>
           <button type="button" class="filtro-labs-btn" data-filtro="todos" onclick="cambiarFiltroLabs('todos')">Todos</button>
         </div>
-        <div class="labs-leyenda"><span class="labs-leyenda-rojo">En rojo:</span> <span>el valor quedó fuera del rango de referencia que trae el laboratorio. No siempre es grave: tu médico lo interpreta contigo.</span></div>
+        <div class="labs-leyenda"><span class="labs-leyenda-rojo">En rojo:</span> <span>por arriba del rango de referencia que trae el laboratorio.</span> <span class="labs-leyenda-azul">En azul:</span> <span>por debajo del rango.</span> <span>No siempre es grave: tu médico lo interpreta contigo.</span></div>
         <div id="labs-tabla"></div>
       </div>
     </div>
@@ -1123,6 +1156,7 @@ function pintarEquipo() {
 var citasDatos = null;
 function cargarCitas() {
   citasDatos = null;
+  hoyTexto('hoy-cita', 'Cargando…', 'falta');
   ['citas-estado', 'consultas-estado'].forEach(function(id){
     var e = document.getElementById(id); e.style.display = ''; e.className = 'citas-estado'; e.textContent = 'Cargando…';
   });
@@ -1140,6 +1174,7 @@ function errorCitas(msg) {
   ['citas-estado', 'consultas-estado'].forEach(function(id){
     var e = document.getElementById(id); e.style.display = ''; e.className = 'citas-estado error'; e.textContent = msg;
   });
+  hoyTexto('hoy-cita', msg, 'error');
   document.getElementById('btn-citas-reintentar').style.display = '';
 }
 // 'AAAA-MM-DD' (campo date) → mediodía local, para que no cambie de día.
@@ -1157,6 +1192,7 @@ function lineaMedico(m) {
 }
 function pintarCitas() {
   if (!citasDatos) return;
+  pintarHoyCita();
   var estado = document.getElementById('citas-estado');
   var cont = document.getElementById('citas-proximas');
   if (!citasDatos.proximas.length) {
@@ -1324,8 +1360,7 @@ function cargarMedicamentos() {
     if (!x.ok) {
       var m = (x.d && x.d.error) || 'No pudimos cargar tus medicamentos.';
       [est, sup].forEach(function(e){ e.textContent = m; e.style.color = '#E2574B'; });
-      document.getElementById('hoy-seccion').style.display = '';
-      hoy.textContent = m; hoy.style.color = '#E2574B';
+      hoyTexto('hoy-resumen', m, 'error');
       medsError = true; pintarFicha();
       return;
     }
@@ -1336,6 +1371,7 @@ function cargarMedicamentos() {
   }).catch(function() {
     var m = 'Sin conexión — no pudimos cargar tus medicamentos.';
     [est, sup].forEach(function(e){ e.textContent = m; e.style.color = '#E2574B'; });
+    hoyTexto('hoy-resumen', m, 'error');
     medsError = true; pintarFicha();
   });
 }
@@ -1389,6 +1425,13 @@ function htmlFicha() {
   } else {
     html += filaFicha('Medicamentos', faltaTxt('Cargando…'), 'falta');
   }
+  var c = d.contacto;
+  if (c) {
+    var tel = c.telefono ? sinTraducir(c.telefono) + ' · <a class="ficha-llamar" href="tel:' + esc(c.telefono) + '">' + esc(tt('Llamar')) + '</a>' : faltaTxt('Falta el teléfono.');
+    html += filaFicha('Contacto de emergencia', (c.nombre ? sinTraducir(c.nombre) : faltaTxt('Falta el nombre.')) + '<br>' + tel);
+  } else {
+    html += filaFicha('Contacto de emergencia', faltaTxt('Aún no eliges a nadie.'), 'falta');
+  }
   return html;
 }
 function pintarFicha() {
@@ -1397,7 +1440,12 @@ function pintarFicha() {
   var cont = document.getElementById('ficha-contenido');
   cont.innerHTML = htmlFicha();
   cont.style.display = '';
-  document.getElementById('ficha-acciones').style.display = '';
+  // Con el formulario del contacto abierto, los botones esperan.
+  var formAbierto = document.getElementById('contacto-form').style.display !== 'none';
+  document.getElementById('ficha-acciones').style.display = formAbierto ? 'none' : 'flex';
+  var btnC = document.getElementById('btn-contacto');
+  btnC.style.display = tipoDeSesion() === 'demo' ? 'none' : '';
+  btnC.textContent = tt(fichaDatos.contacto ? 'Cambiar contacto de emergencia' : 'Elegir contacto de emergencia');
   if (document.getElementById('ficha-grande').style.display !== 'none') abrirFichaGrande();
 }
 function abrirFichaGrande() {
@@ -1413,6 +1461,91 @@ function cerrarFichaGrande() {
   document.body.style.overflow = '';
 }
 window.addEventListener('i18n:change', pintarFicha);
+
+// ─── CONTACTO DE EMERGENCIA (lo elige el paciente) ───────────────
+// nova paciente_guardar_contacto_emergencia. Lo que se pinta después de
+// guardar es lo que el servidor confirmó, no lo que se escribió.
+function abrirFormContacto() {
+  var c = fichaDatos && fichaDatos.contacto;
+  document.getElementById('contacto-nombre').value = (c && c.nombre) || '';
+  document.getElementById('contacto-telefono').value = (c && c.telefono) || '';
+  document.getElementById('contacto-quitar').style.display = c ? '' : 'none';
+  document.getElementById('contacto-msg').textContent = '';
+  document.getElementById('contacto-form').style.display = '';
+  document.getElementById('ficha-acciones').style.display = 'none';
+  document.getElementById('contacto-nombre').focus();
+}
+function cerrarFormContacto() {
+  document.getElementById('contacto-form').style.display = 'none';
+  pintarFicha();
+}
+function guardarContacto(quitar) {
+  var msg = document.getElementById('contacto-msg');
+  var btn = document.getElementById(quitar ? 'contacto-quitar' : 'contacto-guardar');
+  var cuerpo = { action: 'paciente_guardar_contacto_emergencia', nombre: '', telefono: '' };
+  if (!quitar) {
+    cuerpo.nombre = document.getElementById('contacto-nombre').value;
+    cuerpo.telefono = document.getElementById('contacto-telefono').value;
+    if (!cuerpo.nombre.trim() && !cuerpo.telefono.trim()) { msg.style.color = '#E2574B'; msg.textContent = tt('Escribe el nombre y el teléfono de tu contacto.'); return; }
+  }
+  btn.disabled = true; msg.style.color = 'var(--text-3)'; msg.textContent = tt('Guardando…');
+  postNova(cuerpo).then(function(x) {
+    if (!x.ok) { msg.style.color = '#E2574B'; msg.textContent = (x.d && x.d.error) || tt('No pudimos guardar tu contacto. Intenta de nuevo.'); return; }
+    fichaDatos.contacto = x.d.contacto || null;
+    document.getElementById('contacto-form').style.display = 'none';
+    pintarFicha();
+  }).catch(function() {
+    msg.style.color = '#E2574B'; msg.textContent = tt('Sin conexión — tu contacto no se guardó.');
+  }).then(function() { btn.disabled = false; });
+}
+
+// ─── HOY (Inicio) ────────────────────────────────────────────────
+function hoyTexto(id, texto, clase, html) {
+  var e = document.getElementById(id);
+  e.className = 'hoy-texto' + (clase ? ' ' + clase : '');
+  if (html) e.innerHTML = html; else e.textContent = tt(texto);
+}
+function pintarHoyFecha() {
+  var t = new Date().toLocaleDateString(localeActual(), { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('hoy-fecha').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+}
+// Días enteros de hoy a 'AAAA-MM-DD' (ambos a mediodía local).
+function diasHasta(dia) {
+  return Math.round((new Date(dia + 'T12:00:00') - new Date(hoyLocal() + 'T12:00:00')) / 864e5);
+}
+function botonIrCitas(texto) {
+  return '<br><button type="button" class="hoy-ir" onclick="irATab(\'citas\')">' + esc(tt(texto)) + ' →</button>';
+}
+function pintarHoyCita() {
+  if (!citasDatos) return;
+  var c = citasDatos.proximas[0];
+  if (!c) {
+    hoyTexto('hoy-cita', null, 'falta', esc(tt('Tu médico no ha anotado una próxima cita.')) + botonIrCitas('Agendar con mi médico'));
+    return;
+  }
+  var dias = diasHasta(c.fecha);
+  var cuando = dias === 0 ? '<b>' + esc(tt('Hoy tienes cita')) + '</b>'
+    : dias === 1 ? '<b>' + esc(tt('Mañana')) + '</b> · ' + sinTraducir(fechaLarga(c.fecha))
+    : sinTraducir(fechaLarga(c.fecha)) + '<br><span class="med-detalle">' + esc(tt('Faltan')) + ' <span data-no-i18n>' + dias + '</span> ' + esc(tt('días')) + '</span>';
+  var medico = c.medico && c.medico.nombre ? '<br><span class="med-detalle">' + lineaMedico(c.medico) + '</span>' : '';
+  hoyTexto('hoy-cita', null, '', cuando + medico + botonIrCitas('Ver mis citas'));
+}
+// Resumen de las tomas fijas de hoy (las "si es necesario" no cuentan: no
+// hay una cantidad esperada). Cuenta lo que el servidor dice marcado.
+function pintarResumenTomas(activos) {
+  document.getElementById('hoy-nota').style.display = activos.length ? '' : 'none';
+  if (!activos.length) { hoyTexto('hoy-resumen', 'Tu médico no te ha recetado medicamentos en la app.', 'falta'); return; }
+  var esperadas = 0, hechas = 0;
+  activos.forEach(function(m) {
+    if (m.frecuencia === 'prn' || !m.tomasHoy || !(m.tomasHoy.esperadas > 0)) return;
+    esperadas += m.tomasHoy.esperadas;
+    hechas += Math.min(m.tomasHoy.esperadas, ((m.tomasHoy.marcadas) || []).length);
+  });
+  if (!esperadas) { hoyTexto('hoy-resumen', 'Hoy no te toca ninguna toma fija.', 'falta'); return; }
+  if (hechas >= esperadas) { hoyTexto('hoy-resumen', null, 'listo', '✓ ' + esc(tt('Ya registraste todas tus tomas de hoy.'))); return; }
+  hoyTexto('hoy-resumen', null, '', esc(tt('Te faltan')) + ' <b data-no-i18n>' + (esperadas - hechas) + '</b> ' + esc(tt('de')) + ' <span data-no-i18n>' + esperadas + '</span> ' + esc(tt(esperadas === 1 ? 'toma' : 'tomas')));
+}
+window.addEventListener('i18n:change', function(){ pintarHoyFecha(); pintarHoyCita(); if (medsDatos) pintarMedicamentos(); });
 function detalleMed(m) {
   var partes = [esc(m.dosis), esc(m.via ? tt(m.via) : ''), esc(tt(m.frecuenciaEtiqueta))].filter(Boolean).join(' · ');
   if (m.duracionDias) partes += ' · ' + esc(tt('por')) + ' <span data-no-i18n>' + m.duracionDias + '</span> ' + esc(tt('días'));
@@ -1427,9 +1560,9 @@ function pintarMedicamentos() {
   var otros = (d.medicamentos || []).filter(function(m){ return m.estado !== 'Activo'; });
 
   // ── Hoy (Inicio)
-  var hoySec = document.getElementById('hoy-seccion'), hoyLista = document.getElementById('hoy-lista'), hoyEst = document.getElementById('hoy-estado');
+  var hoyLista = document.getElementById('hoy-lista'), hoyEst = document.getElementById('hoy-estado');
   hoyLista.innerHTML = ''; hoyEst.textContent = ''; hoyEst.style.color = '';
-  hoySec.style.display = activos.length ? '' : 'none';
+  pintarResumenTomas(activos);
   activos.forEach(function(m) {
     var item = document.createElement('div'); item.className = 'med-item';
     item.innerHTML = '<div class="med-nombre" data-no-i18n>' + esc(m.nombre) + '</div><div class="med-detalle">' + detalleMed(m) + '</div>';
@@ -1699,6 +1832,7 @@ function cargarPaciente() {
         document.getElementById('btn-generar-llave').style.display = 'none';
         document.getElementById('llave-demo').style.display = '';
       }
+      pintarHoyFecha();
       cargarEquipo();
       cargarCitas();
       cargarProgreso();
