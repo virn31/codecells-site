@@ -1,0 +1,12 @@
+{
+  "appId": "mx.codecells.paciente",
+  "appName": "CODE CELLS",
+  "webDir": "www",
+  "server": {
+    "url": "https://codecells-site-git-feat-paciente-unico-codecells.vercel.app/mi-nivel.html",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

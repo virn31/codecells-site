@@ -1,0 +1,16 @@
+{
+  "name": "codecells-app-paciente",
+  "private": true,
+  "description": "App del paciente CODE CELLS™ (Android; iOS después) — contenedor Capacitor de mi-nivel.html",
+  "scripts": {
+    "sync": "cap sync android",
+    "apk": "cap sync android && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

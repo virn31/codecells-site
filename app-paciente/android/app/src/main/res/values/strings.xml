@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CODE CELLS</string>
+    <string name="title_activity_main">CODE CELLS</string>
+    <string name="package_name">mx.codecells.paciente</string>
+    <string name="custom_url_scheme">mx.codecells.paciente</string>
+</resources>
