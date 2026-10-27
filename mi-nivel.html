@@ -250,6 +250,7 @@
   <script src="/lib/i18n.js"></script>
   <script src="/directorio/calendario.js"></script>
   <script src="/lib/alarmasCalendario.js"></script>
+  <script src="/lib/fotosPaciente.js"></script>
 </head>
 <body>
 
@@ -590,6 +591,35 @@
     </div>
     <button type="button" class="btn-reintentar" id="btn-citas-reintentar" style="display:none;" onclick="cargarCitas()">Intentar de nuevo</button>
   </div>
+  <!-- ═══ Pestaña FOTOS (lib/fotosPaciente.js): solo en este teléfono,
+       nada se sube al servidor. Cámara guiada, antes/después, galería
+       difuminada hasta que el paciente la muestra. -->
+  <div class="tab-pane" data-tab="fotos" id="fotos-tab">
+    <div class="seccion-label">Mis fotos</div>
+    <div class="fotos-aviso"><span style="font-size:18px;">🔒</span><div><b>Solo en este teléfono.</b> Tus fotos no se suben a CODE CELLS™. Si desinstalas la app o borras sus datos, se pierden.</div></div>
+    <div class="fotos-msg" id="fotos-estado" style="margin-top:8px;"></div>
+
+    <div class="seccion-label">¿Qué quieres fotografiar?</div>
+    <div class="fotos-cats" id="fotos-cats"></div>
+
+    <div id="fotos-comparar" style="display:none;">
+      <div class="seccion-label">Antes y después</div>
+      <div class="fotos-filtros" id="fotos-comp-cats" style="margin-bottom:10px;"></div>
+      <div class="fotos-comp">
+        <img id="fotos-comp-antes" alt="">
+        <img class="despues" id="fotos-comp-despues" alt="">
+        <div class="linea" id="fotos-comp-linea"></div>
+        <span class="etq izq" id="fotos-comp-etq-antes"></span>
+        <span class="etq der" id="fotos-comp-etq-despues"></span>
+        <input type="range" id="fotos-comp-rango" min="0" max="100" value="50" aria-label="Deslizar para comparar">
+      </div>
+      <div class="fotos-delta" id="fotos-delta"></div>
+    </div>
+
+    <div class="seccion-label fotos-barra"><span>Tu galería</span><button type="button" class="filtro-labs-btn" id="fotos-mostrar" style="display:none;">👁 Mostrar</button></div>
+    <div class="fotos-filtros" id="fotos-filtros"></div>
+    <div id="fotos-galeria"></div>
+  </div>
   <!-- ═══ Pestaña NOVA ═══ -->
   <div class="tab-pane" data-tab="nova">
     <div class="seccion-label">Habla con NOVA</div>
@@ -663,6 +693,7 @@
   <button type="button" class="nav-btn" data-tab="labs" onclick="irATab('labs')"><span>📈</span>Salud</button>
   <button type="button" class="nav-btn" data-tab="plan" onclick="irATab('plan')"><span>📋</span>Plan</button>
   <button type="button" class="nav-btn" data-tab="citas" onclick="irATab('citas')"><span>📅</span>Citas</button>
+  <button type="button" class="nav-btn" data-tab="fotos" onclick="irATab('fotos')"><span>📷</span>Fotos</button>
   <button type="button" class="nav-btn" data-tab="nova" onclick="irATab('nova')"><span>💬</span>NOVA</button>
 </div></nav>
 
@@ -1004,6 +1035,7 @@ function irA(id) {
 function irATab(tab) {
   document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.toggle('activa', p.getAttribute('data-tab') === tab); });
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('activo', b.getAttribute('data-tab') === tab); });
+  if (window.FotosPaciente) FotosPaciente.alCambiarTab(tab);
   window.scrollTo(0, 0);
 }
 
@@ -2287,6 +2319,7 @@ function cargarPaciente() {
       cargarFichaEmergencia();
       cargarMensajes();
       cargarAvisos();
+      if (window.FotosPaciente) FotosPaciente.iniciar({ codigo: function(){ return pacienteCodigo; }, esc: esc, tt: tt });
     })
     .catch(function(){
       document.getElementById('error-texto').textContent = 'Error de conexión — intenta de nuevo.';
