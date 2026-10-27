@@ -32,6 +32,7 @@ const usoNova = require('../lib/usoNova');
 const { MAX_TEXTO_DICTADO, procesarDictado, normalizarDictado, numerosEnPalabras, estructurarDictado } = require('../lib/dictado');
 const { sugerirCie10 } = require('../lib/cie10');
 const { restriccionesAlimentarias } = require('../lib/restriccionesAlimentarias');
+const { macrosDelPlan } = require('../lib/proteinaPlan');
 // Campos y limpieza del directorio público (costos, consulta en línea, ciudad sin acentos).
 const Directorio = require('../lib/directorio');
 
@@ -3529,9 +3530,9 @@ module.exports = async function handler(req, res) {
 
       // ─── CAPA DE FORMATO — texto tipo WhatsApp, listo para copiar ──────
       const nombreDieta = presetElegido.replace(/_/g, ' ').toUpperCase();
-      const proteinaG = Math.round((kcalObjetivo * macrosPreset.proteina_pct) / 4);
-      const grasaG = Math.round((kcalObjetivo * macrosPreset.grasa_pct) / 9);
-      const carboG = Math.round((kcalObjetivo * macrosPreset.carbo_pct) / 4);
+      // Proteína por g/kg (ERC, hiperproteico, tope, peso ajustado en obesidad): lib/proteinaPlan.js
+      const macros = macrosDelPlan({ kcal: kcalObjetivo, preset: macrosPreset, presetNombre: presetElegido, peso, talla, patologias: perfil.patologias, severidadErc: perfil.severidad_erc });
+      const { proteinaG, grasaG, carboG } = macros;
 
       let texto = `👋🏼 Hola ${nombrePaciente.split(' ')[0]}, este plan fue diseñado especialmente para ti`;
       texto += glp1Activo ? `, considerando tu tratamiento con ${glp1Info || 'GLP-1'}.\n\n` : '.\n\n';
@@ -3542,7 +3543,8 @@ module.exports = async function handler(req, res) {
 
       texto += `\n🎯 *Objetivos terapéuticos*\n• Plan ${nombreDieta.toLowerCase()}: ${kcalObjetivo} kcal/día — ${proteinaG}g proteína, ${carboG}g carbohidrato, ${grasaG}g grasa\n`;
       if (seleccionAuto) texto += `  _(tipo de dieta elegido automáticamente: ${seleccionAuto.razon})_\n`;
-      if (perfil.restricciones.aplicadas.length) texto += `• 🚫 Sin: ${perfil.restricciones.aplicadas.join(', ')}\n`;
+      if (macros.regla || macros.ajustado) texto += `• 🥩 Proteína: ${macros.gKg} g/kg${macros.ajustado ? ` de peso ajustado (${macros.pesoRef} kg)` : ''}${macros.regla ? ` — ${macros.regla}` : ''}\n`;
+      if (perfil.restricciones.aplicadas.length) texto += `• 🚫 Sin:${perfil.restricciones.aplicadas.join(', ')}\n`;
       if (perfil.restricciones.noAplicadas.length) texto += `\n⚠️ *Revisar a mano:* no se pudo aplicar ${perfil.restricciones.noAplicadas.map(x => `"${x}"`).join(', ')} (no está en el catálogo de ingredientes). Verifica que ningún platillo lo contenga.\n`;
       if (objsSemana.size) texto += `• Enfoque de la semana: ${[...objsSemana].join(', ')}\n`;
       if (mesetaDetectada) {
