@@ -31,6 +31,7 @@ const { generarCodigoUnico } = require('../lib/codigos');
 const usoNova = require('../lib/usoNova');
 const { MAX_TEXTO_DICTADO, procesarDictado, normalizarDictado, numerosEnPalabras, estructurarDictado } = require('../lib/dictado');
 const { sugerirCie10 } = require('../lib/cie10');
+const { restriccionesAlimentarias } = require('../lib/restriccionesAlimentarias');
 // Campos y limpieza del directorio público (costos, consulta en línea, ciudad sin acentos).
 const Directorio = require('../lib/directorio');
 
@@ -3346,7 +3347,9 @@ module.exports = async function handler(req, res) {
       const perfil = {
         patologias: f['Patologías activas'] || [],
         severidad_erc: f['Severidad ERC'] || null,
-        alergias: (f['Alergias alimentarias'] || '').split(',').map(a => a.trim()).filter(Boolean),
+        // Por ID de ingrediente (lib/restriccionesAlimentarias.js); lo que no
+        // se pudo aplicar se avisa en el plan, nunca se ignora en silencio.
+        restricciones: restriccionesAlimentarias(f['Alergias alimentarias'], BNCC_DATA.ingredientes),
         preferencias: perfilPreferencias,
       };
 
@@ -3382,7 +3385,7 @@ module.exports = async function handler(req, res) {
         for (const ing of (p.ingredientes || [])) {
           const info = BNCC_ING_POR_ID[ing.id];
           if (!info) continue;
-          for (const alergia of perfil.alergias) if (info.nombre.toLowerCase().includes(alergia.toLowerCase())) return false;
+          if (perfil.restricciones.excluir.has(ing.id)) return false;
         }
         if (perfil.preferencias.vegetariano) for (const ing of (p.ingredientes || [])) { const info = BNCC_ING_POR_ID[ing.id]; if (info && info.origen === 'Animal' && info.vegetariano === false) return false; }
         if (perfil.preferencias.evitar_pescado) for (const ing of (p.ingredientes || [])) { const info = BNCC_ING_POR_ID[ing.id]; if (info && info.categoria === 'Pescados y mariscos') return false; }
@@ -3539,6 +3542,8 @@ module.exports = async function handler(req, res) {
 
       texto += `\n🎯 *Objetivos terapéuticos*\n• Plan ${nombreDieta.toLowerCase()}: ${kcalObjetivo} kcal/día — ${proteinaG}g proteína, ${carboG}g carbohidrato, ${grasaG}g grasa\n`;
       if (seleccionAuto) texto += `  _(tipo de dieta elegido automáticamente: ${seleccionAuto.razon})_\n`;
+      if (perfil.restricciones.aplicadas.length) texto += `• 🚫 Sin: ${perfil.restricciones.aplicadas.join(', ')}\n`;
+      if (perfil.restricciones.noAplicadas.length) texto += `\n⚠️ *Revisar a mano:* no se pudo aplicar ${perfil.restricciones.noAplicadas.map(x => `"${x}"`).join(', ')} (no está en el catálogo de ingredientes). Verifica que ningún platillo lo contenga.\n`;
       if (objsSemana.size) texto += `• Enfoque de la semana: ${[...objsSemana].join(', ')}\n`;
       if (mesetaDetectada) {
         texto += `\n⚠️ *Meseta detectada* — el peso no bajó en los últimos registros. Este plan ya se ajustó hacia un enfoque más ${presetElegido === 'keto_clinico' ? 'cetogénico' : 'hiperproteico'} para romperla. Se revalora en 7 días.\n`;
@@ -3610,6 +3615,7 @@ module.exports = async function handler(req, res) {
         tipo_dieta: tipoDietaEfectivo || 'estandar', ayuno_intermitente: ayunoEfectivo, ayuno_contraindicado: ayunoIntermitente ? ayunoContraindicado : false,
         glp1_activo: glp1Activo, meseta_detectada: mesetaDetectada, plan: planSemana, lista_compras: listaCompras,
         suplementos_sugeridos: suplementos.map(s => ({ nombre: s.nombre, marca: s.marca, producto: s.producto, precio_medico: s.precio_medico, precio_publico: s.precio_publico })),
+        restricciones_no_aplicadas: perfil.restricciones.noAplicadas,
         texto_formateado: texto,
       });
     } catch (err) {
@@ -3972,7 +3978,7 @@ module.exports = async function handler(req, res) {
       const perfil = {
         patologias: pacData.fields?.['Patologías activas'] || [],
         severidad_erc: pacData.fields?.['Severidad ERC'] || null,
-        alergias: (pacData.fields?.['Alergias alimentarias'] || '').split(',').map(a => a.trim()).filter(Boolean),
+        restricciones: restriccionesAlimentarias(pacData.fields?.['Alergias alimentarias'], BNCC_DATA.ingredientes),
         preferencias: preferencias || {},
       };
 
@@ -3996,9 +4002,7 @@ module.exports = async function handler(req, res) {
         for (const ing of (p.ingredientes || [])) {
           const info = BNCC_ING_POR_ID[ing.id];
           if (!info) continue;
-          for (const alergia of perfil.alergias) {
-            if (info.nombre.toLowerCase().includes(alergia.toLowerCase())) return false;
-          }
+          if (perfil.restricciones.excluir.has(ing.id)) return false;
         }
         if (perfil.preferencias.vegetariano) {
           for (const ing of (p.ingredientes || [])) {
@@ -4057,7 +4061,7 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      return res.status(200).json({ objetivo_nutricional: objetivoNutricional, compatibles_total: compatibles.length, bncc_total: BNCC_DATA.platillos.length, plan_dia: planDia });
+      return res.status(200).json({ objetivo_nutricional: objetivoNutricional, compatibles_total: compatibles.length, bncc_total: BNCC_DATA.platillos.length, plan_dia: planDia, restricciones_no_aplicadas: perfil.restricciones.noAplicadas });
     } catch (err) {
       console.error('[nova] generar_menu_dia error:', err.message);
       return res.status(500).json({ error: 'Error interno generando el menú del día.' });
@@ -4086,7 +4090,7 @@ module.exports = async function handler(req, res) {
       const perfil = {
         patologias: pacData.fields?.['Patologías activas'] || [],
         severidad_erc: pacData.fields?.['Severidad ERC'] || null,
-        alergias: (pacData.fields?.['Alergias alimentarias'] || '').split(',').map(a => a.trim()).filter(Boolean),
+        restricciones: restriccionesAlimentarias(pacData.fields?.['Alergias alimentarias'], BNCC_DATA.ingredientes),
       };
 
       const resultado = { compatibles: [], con_advertencia: [], excluidos: [] };
@@ -4108,11 +4112,7 @@ module.exports = async function handler(req, res) {
         for (const ing of (platillo.ingredientes || [])) {
           const info = BNCC_ING_POR_ID[ing.id];
           if (!info) continue;
-          for (const alergia of perfil.alergias) {
-            if (info.nombre.toLowerCase().includes(alergia.toLowerCase())) {
-              razonesExcluir.push(`Contiene ${info.nombre} — alergia declarada: ${alergia}`);
-            }
-          }
+          if (perfil.restricciones.excluir.has(ing.id)) razonesExcluir.push(`Contiene ${info.nombre} — restricción declarada en el expediente`);
         }
 
         // 3) ERC: sodio/potasio calculado desde ingredientes (screening, no receta final)
@@ -4144,7 +4144,8 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      return res.status(200).json({ perfil_usado: perfil, ...resultado });
+      const { restricciones, ...resto } = perfil;
+      return res.status(200).json({ perfil_usado: { ...resto, restricciones_aplicadas: restricciones.aplicadas, restricciones_no_aplicadas: restricciones.noAplicadas }, ...resultado });
     } catch (err) {
       console.error('[nova] filtrar_platillos_compatibles error:', err.message);
       return res.status(500).json({ error: 'Error interno filtrando platillos.' });
