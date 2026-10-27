@@ -46,9 +46,9 @@ test('parPorDefecto: la primera y la última de la categoría; null con menos de
   assert.strictEqual(F.parPorDefecto(fotos, 'piel'), null);
 });
 
-test('cada categoría tiene silueta, cámara y consejo', () => {
+test('cada categoría tiene silueta (o ninguna, en estudios de imagen), cámara y consejo', () => {
   for (const c of F.CATEGORIAS) {
-    assert.ok(['cuerpo', 'perfil', 'rostro', 'piel', 'documento'].includes(c.guia), c.id);
+    assert.ok(['cuerpo', 'perfil', 'rostro', 'piel', 'documento', null].includes(c.guia), c.id);
     assert.ok(['user', 'environment'].includes(c.camara), c.id);
     assert.ok(c.consejo.length > 10, c.id);
   }
