@@ -254,7 +254,7 @@
 <body>
 
 <button class="btn-musica" id="btn-musica" onclick="toggleMusica()">🔇</button>
-<audio id="musica-fondo" src="assets/helix-in-gold.mp3" loop preload="none"></audio>
+<audio id="musica-fondo" src="assets/audio/Helix_in_Gold.mp3" loop preload="none"></audio>
 
   <div class="wrap">
   <div class="encabezado-app">
@@ -982,8 +982,10 @@ function toggleMusica() {
   const btn = document.getElementById('btn-musica');
   if (musica.paused) {
     musica.volume = 0.25;
-    musica.play().catch(function(){});
     btn.textContent = '🔊';
+    // Si no arranca (archivo que no carga, el teléfono lo bloquea), el
+    // botón vuelve a 🔇: nunca dice que suena algo que no suena.
+    musica.play().catch(function(){ btn.textContent = '🔇'; });
   } else {
     musica.pause();
     btn.textContent = '🔇';
