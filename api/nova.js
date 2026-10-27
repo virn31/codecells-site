@@ -2985,7 +2985,12 @@ module.exports = async function handler(req, res) {
       catch (e) { return res.status(502).json({ error: 'No pudimos revisar tus avisos. Intenta de nuevo.' }); }
       if (!sus) return res.status(404).json({ error: 'Este teléfono no tiene avisos activados.' });
       const r = await AvisosPush.enviarA(sus, AvisosPush.avisoPrueba(sus));
-      if (!r.ok) return res.status(502).json({ error: r.vencida ? 'Tu teléfono ya no acepta avisos: vuelve a activarlos.' : 'El servicio de avisos de tu teléfono no aceptó el aviso. Intenta de nuevo.' });
+      if (!r.ok) {
+        // El código queda en el log y en el mensaje: sin él no se puede saber
+        // si fue la llave (403), el teléfono (404/410) o el servicio (5xx).
+        console.error(`[nova] paciente_probar_aviso: el servicio de avisos respondió ${r.status} (${new URL(endpoint).host})`);
+        return res.status(502).json({ error: r.vencida ? 'Tu teléfono ya no acepta avisos: vuelve a activarlos.' : 'El servicio de avisos de tu teléfono no aceptó el aviso. Desactívalos y vuelve a activarlos.', codigo: r.status });
+      }
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[nova] paciente_probar_aviso error:', err.message);

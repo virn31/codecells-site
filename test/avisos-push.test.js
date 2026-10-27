@@ -203,6 +203,16 @@ test('probar: manda un aviso CIFRADO con VAPID a ese teléfono; 410 → se desac
     assert.strictEqual(r.statusCode, 502);
     assert.deepStrictEqual(w.cap.patches.map(x => x.f['Activa']), [false]);
   } finally { w.restaurar(); }
+  // 403 (la llave no coincide con la de la suscripción): no se desactiva,
+  // pero el paciente ve el código para poder reportarlo.
+  w = mundo({ previas, respuestaPush: 403 });
+  const error = console.error; console.error = () => {};
+  try {
+    const r = await nova(paciente, { action: 'paciente_probar_aviso', endpoint: t.endpoint });
+    assert.strictEqual(r.statusCode, 502);
+    assert.strictEqual(r.body.codigo, 403);
+    assert.strictEqual(w.cap.patches.length, 0);
+  } finally { console.error = error; w.restaurar(); }
 });
 
 test('cron: sin CRON_SECRET → 401; con prueba=1 dice qué mandaría sin mandar nada', async () => {

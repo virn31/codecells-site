@@ -1846,6 +1846,22 @@ function b64uABytes(s) {
   var b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4));
   var out = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) out[i] = b.charCodeAt(i); return out;
 }
+// Una suscripción hecha con otra llave (pruebas anteriores, llaves
+// renovadas) parece activa pero el servicio del teléfono rechaza todo aviso
+// (403). Sin la llave a la vista (navegador viejo) se da por buena.
+function suscripcionConOtraLlave(sub) {
+  var k = sub && sub.options && sub.options.applicationServerKey;
+  if (!k || !avisosPublica) return false;
+  var a = new Uint8Array(k), b = b64uABytes(avisosPublica);
+  if (a.length !== b.length) return true;
+  for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return true;
+  return false;
+}
+// La quita del teléfono y del servidor (que no siga contándose como activa).
+function retirarSuscripcion(sub) {
+  return postNova({ action: 'paciente_desuscribir_avisos', endpoint: sub.endpoint }).catch(function(){})
+    .then(function(){ return sub.unsubscribe().catch(function(){}); });
+}
 function pintarHorasAvisos() {
   var tomas = document.getElementById('av-tomas');
   var hay = medsConAlarma().length > 0;
@@ -1893,6 +1909,13 @@ function cargarAvisos() {
     if (!x.d.disponible) { avNoDisponible('Los avisos aún no están disponibles.'); return; }
     avisosPublica = x.d.publica;
     document.getElementById('avisos-form').style.display = '';
+    if (suscripcionConOtraLlave(avisosSuscripcion)) {
+      var vieja = avisosSuscripcion; avisosSuscripcion = null;
+      ponerEstadoAvisos(null);
+      avMsg('Tus avisos se renovaron. Vuelve a activarlos en este teléfono.', true);
+      retirarSuscripcion(vieja);
+      return;
+    }
     ponerEstadoAvisos(x.d.estado);
     if (Notification.permission === 'denied') avMsg('Bloqueaste los avisos para esta app. Actívalos en los ajustes de tu navegador para este sitio.', true);
   }).catch(function(){ avNoDisponible('No pudimos revisar tus avisos. Intenta de nuevo más tarde.'); });
@@ -1912,8 +1935,11 @@ function activarAvisos() {
     if (permiso !== 'granted') throw { mensaje: 'Tu teléfono no dio permiso para avisos. Puedes darlo en los ajustes de tu navegador para este sitio.' };
     return navigator.serviceWorker.ready;
   }).then(function(reg) {
+    var nueva = function() { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uABytes(avisosPublica) }); };
     return reg.pushManager.getSubscription().then(function(sub) {
-      return sub || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uABytes(avisosPublica) });
+      if (!sub) return nueva();
+      if (suscripcionConOtraLlave(sub)) return retirarSuscripcion(sub).then(nueva);
+      return sub;
     });
   }).then(function(sub) {
     avisosSuscripcion = sub;
@@ -1936,7 +1962,13 @@ function probarAviso() {
   if (!avisosSuscripcion) return;
   avMsg('Enviando…');
   postNova({ action: 'paciente_probar_aviso', endpoint: avisosSuscripcion.endpoint }).then(function(x) {
-    if (!x.ok) { avMsg((x.d && x.d.error) || 'No pudimos enviar el aviso de prueba.', true); return; }
+    if (!x.ok) {
+      // El código (403, 404…) va aparte para que la frase se traduzca y el
+      // paciente pueda reportarlo tal cual.
+      var cod = x.d && x.d.codigo ? ' (' + tt('código') + ' ' + x.d.codigo + ')' : '';
+      avMsg(tt((x.d && x.d.error) || 'No pudimos enviar el aviso de prueba.') + cod, true);
+      return;
+    }
     avMsg('Enviado. Debe llegarte en unos segundos; si no llega, revisa que las notificaciones de tu navegador estén permitidas.');
   }).catch(function(){ avMsg('Sin conexión — no se envió el aviso de prueba.', true); });
 }
