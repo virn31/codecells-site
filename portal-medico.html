@@ -2910,6 +2910,7 @@
   <script src="/lib/motor-graficas.js"></script>
   <script src="/lib/cuestionarioBiologico.js"></script>
   <script src="/lib/cie10-catalogo.js"></script>
+  <script src="/lib/fotosClinicasUI.js"></script>
   <script>
   // ─── AUTOCOMPLETE DE DIAGNÓSTICO (CIE-10) ───────────────────────
   // El médico escribe texto libre (p.ej. "hipertension") y se le
@@ -3495,6 +3496,7 @@
           <button class="tab-btn" data-tab="nutricion">Nutrición</button>
           <button class="tab-btn" data-tab="biomap">Biological Map</button>
           <button class="tab-btn" data-tab="mensajes">Mensajes</button>
+          <button class="tab-btn" data-tab="fotos">Fotos</button>
           <button class="tab-btn" data-tab="prenatal" id="tab-btn-prenatal" style="display:none;">Control prenatal</button>
         </div>
 
@@ -3896,6 +3898,25 @@
             </div>
             <div class="section-label" style="margin-top:22px;">Tus mensajes enviados</div>
             <div id="msg-lista" style="font-size:13px;"></div>
+          </div>
+
+          <!-- Tab: Fotos clínicas (nova medico_subir_foto / medico_listar_fotos /
+               medico_retirar_foto; lib/fotosClinicas.js). Son expediente: las
+               ven todos los médicos autorizados y el paciente en su app (que
+               puede guardarlas en su galería). No se borran; quien la subió
+               puede retirarla. Cámara guiada: lib/fotosClinicasUI.js. -->
+          <div class="tab-pane" id="tab-fotos">
+            <div class="section-title" style="margin-bottom:6px;">Fotos clínicas</div>
+            <p style="font-size:12px;color:var(--text-secondary,#9a9590);margin:0 0 14px;line-height:1.5;">Quedan en el expediente: las ven los médicos autorizados y el paciente en su app, que puede guardarlas en su teléfono. Elige qué vas a fotografiar: la cámara muestra una silueta y, si ya hay una foto de esa categoría, la anterior translúcida para repetir la postura. No se pueden borrar; puedes retirar las que tú subiste.</p>
+            <div id="fot-categorias" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;"></div>
+            <div id="fot-resultado" style="font-size:12px;margin-top:10px;min-height:16px;"></div>
+            <div id="fot-comparar" style="display:none;margin-top:18px;">
+              <div class="section-label">Antes y después</div>
+              <div id="fot-comp-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
+              <div id="fot-comp-caja" style="max-width:420px;"></div>
+            </div>
+            <div class="section-label" style="margin-top:22px;">Fotos del expediente</div>
+            <div id="fot-lista" style="font-size:13px;"></div>
           </div>
         </div>
 
@@ -5380,6 +5401,7 @@ function activarTab(tab) {
   if (tab === 'prenatal') cargarControlPrenatal();
   if (tab === 'biomap') cargarBioMapPortal();
   if (tab === 'mensajes') cargarMensajesPortal();
+  if (tab === 'fotos') cargarFotosPortal();
 }
 
 // ─── MENSAJES AL PACIENTE (buzón de su app; de una vía) ──────────
@@ -5435,6 +5457,99 @@ document.getElementById('btn-enviar-mensaje').addEventListener('click', async ()
   } catch (e) {
     resultado.style.color = '#e24b4a'; resultado.textContent = 'Sin conexión — el mensaje no se envió.';
   } finally { btn.disabled = false; }
+});
+
+// ─── FOTOS CLÍNICAS (expediente; las ve el paciente en su app) ────
+// La lista es lo que Airtable confirmó. Subir = cámara guiada
+// (FotosClinicasUI.camara) → medico_subir_foto. Retirar pide confirmar en el
+// mismo botón (sin confirm() del navegador) y solo aparece en las tuyas.
+let fotosPortal = [], fotComparar = null, fotComparador = null;
+function fotCat(id) { return (window.FotosClinicasUI && FotosClinicasUI.POR_ID[id]) || { icono: '📷', nombre: 'Foto' }; }
+async function cargarFotosPortal() {
+  const lista = document.getElementById('fot-lista');
+  const cats = document.getElementById('fot-categorias');
+  document.getElementById('fot-resultado').textContent = '';
+  if (!window.FotosClinicasUI) { lista.innerHTML = '<span style="color:#e24b4a;">No se pudo cargar el módulo de fotos. Recarga la página.</span>'; return; }
+  lista.innerHTML = '<span class="loader"></span>';
+  if (!pacienteActual) { lista.textContent = ''; return; }
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_listar_fotos', pacienteCode: pacienteActual.fields['Código de paciente'] }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { lista.innerHTML = `<span style="color:#e24b4a;">${escaparHtml(data.error || `No se pudieron leer las fotos (error ${res.status}).`)}</span>`; cats.innerHTML = ''; return; }
+    fotosPortal = data.fotos || [];
+    const soloLectura = !!data.soloLectura;
+    cats.innerHTML = FotosClinicasUI.CATEGORIAS.map(c => `<button type="button" class="btn-secondary" data-fotcat="${c.id}" ${soloLectura ? 'disabled' : ''} style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;font-size:12px;margin:0;"><span style="font-size:22px;">${c.icono}</span>${escaparHtml(c.nombre)}</button>`).join('');
+    if (soloLectura) document.getElementById('fot-resultado').textContent = 'Solo lectura: no puedes agregar fotos a este expediente.';
+    const mio = medicoActual && medicoActual['Código de médico'];
+    lista.innerHTML = fotosPortal.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">${fotosPortal.map(f => `
+      <div class="data-cell" style="padding:0;border-radius:6px;overflow:hidden;">
+        <a href="${escaparHtml(f.url)}" target="_blank" rel="noopener noreferrer" style="display:block;aspect-ratio:3/4;background:#111;"><img src="${escaparHtml(f.miniatura || f.url)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;"></a>
+        <div style="padding:8px 9px;font-size:11.5px;line-height:1.45;">
+          <div>${fotCat(f.categoria).icono} ${escaparHtml(fotCat(f.categoria).nombre)}</div>
+          <div class="key">${escaparHtml(f.fecha ? new Date(f.fecha).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—')} · ${f.medicoCodigo === mio ? 'tú' : escaparHtml(f.medicoCodigo || '—')}</div>
+          ${f.nota ? `<div style="margin-top:4px;white-space:pre-line;">${escaparHtml(f.nota)}</div>` : ''}
+          ${f.medicoCodigo === mio && !soloLectura ? `<button type="button" class="btn-secondary" data-fotretirar="${escaparHtml(f.id)}" style="margin-top:6px;padding:4px 10px;font-size:11px;">Retirar</button>` : ''}
+        </div>
+      </div>`).join('')}</div>` : 'Este expediente aún no tiene fotos.';
+    pintarComparadorPortal();
+  } catch (e) {
+    lista.innerHTML = '<span style="color:#e24b4a;">Error de conexión — no se pudieron leer las fotos.</span>';
+  }
+}
+function pintarComparadorPortal() {
+  const caja = document.getElementById('fot-comparar');
+  const cats = FotosClinicasUI.CATEGORIAS.filter(c => fotosPortal.filter(f => f.categoria === c.id).length >= 2);
+  if (!cats.length) { caja.style.display = 'none'; return; }
+  caja.style.display = '';
+  if (!fotComparar || !cats.some(c => c.id === fotComparar)) fotComparar = cats[0].id;
+  document.getElementById('fot-comp-cats').innerHTML = cats.length > 1 ? cats.map(c => `<button type="button" class="btn-secondary" data-fotcomp="${c.id}" style="padding:5px 11px;font-size:11.5px;margin:0;${c.id === fotComparar ? 'border-color:var(--gold,#C9A96E);color:var(--gold,#C9A96E);' : ''}">${c.icono} ${escaparHtml(c.nombre)}</button>`).join('') : '';
+  if (!fotComparador) fotComparador = FotosClinicasUI.comparador(document.getElementById('fot-comp-caja'));
+  const par = FotosClinicasUI.parPorDefecto(fotosPortal, fotComparar);
+  fotComparador.mostrar(par.antes, par.despues);
+}
+document.getElementById('fot-categorias').addEventListener('click', async e => {
+  const b = e.target.closest('[data-fotcat]'); if (!b || b.disabled || !pacienteActual) return;
+  const categoria = b.dataset.fotcat;
+  const resultado = document.getElementById('fot-resultado');
+  const previa = fotosPortal.filter(f => f.categoria === categoria).sort((x, y) => String(y.fecha).localeCompare(String(x.fecha)))[0];
+  const foto = await FotosClinicasUI.camara({ categoria, fantasmaUrl: previa ? previa.url : null });
+  if (!foto) return;
+  resultado.style.color = ''; resultado.textContent = 'Guardando la foto en el expediente…';
+  document.querySelectorAll('[data-fotcat]').forEach(x => { x.disabled = true; });
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_subir_foto', pacienteCode: pacienteActual.fields['Código de paciente'], categoria, imagen: await FotosClinicasUI.aDataUrl(foto.blob), nota: foto.nota }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { resultado.style.color = '#e24b4a'; resultado.textContent = data.error || `No se guardó la foto (error ${res.status}).`; return; }
+    fotComparar = categoria;
+    await cargarFotosPortal();
+    resultado.style.color = 'var(--green, #4caf7a)'; resultado.textContent = '✓ Guardada en el expediente. El paciente ya la ve en su app.';
+  } catch (er) {
+    resultado.style.color = '#e24b4a'; resultado.textContent = 'Sin conexión — la foto no se guardó.';
+  } finally { document.querySelectorAll('[data-fotcat]').forEach(x => { x.disabled = false; }); }
+});
+document.getElementById('fot-lista').addEventListener('click', async e => {
+  const b = e.target.closest('[data-fotretirar]'); if (!b) return;
+  if (!b.dataset.confirmar) { b.dataset.confirmar = '1'; b.textContent = '¿Retirar? Confirmar'; b.style.color = '#e24b4a'; return; }
+  b.disabled = true; b.textContent = 'Retirando…';
+  try {
+    const res = await fetch('/api/nova', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'medico_retirar_foto', pacienteCode: pacienteActual.fields['Código de paciente'], fotoId: b.dataset.fotretirar }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { b.disabled = false; b.textContent = data.error || 'No se pudo retirar'; return; }
+    await cargarFotosPortal();
+  } catch (er) { b.disabled = false; b.textContent = 'Sin conexión'; }
+});
+document.getElementById('fot-comp-cats').addEventListener('click', e => {
+  const b = e.target.closest('[data-fotcomp]'); if (!b) return;
+  fotComparar = b.dataset.fotcomp; pintarComparadorPortal();
 });
 
 // ─── NUTRICIÓN: evolución y seguimiento (conectado a CONSULTAS) ────

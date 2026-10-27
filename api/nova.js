@@ -65,6 +65,7 @@ const credPaciente = require('../lib/credenciales').paciente;
 const evalBio = require('../lib/evaluacionesBiologicas');
 const meds = require('../lib/medicamentos');
 const Mensajes = require('../lib/mensajes');
+const FotosClinicas = require('../lib/fotosClinicas');
 const AvisosPush = require('../lib/avisosPush');
 const WebPush = require('../lib/webPush');
 const citasPaciente = require('../lib/citasPaciente');
@@ -1007,8 +1008,11 @@ module.exports = async function handler(req, res) {
     return res.status(415).json({ error: 'Content-Type debe ser application/json' });
   }
 
-  if (JSON.stringify(req.body || {}).length > 50_000) {
-    return res.status(413).json({ error: 'Payload demasiado grande.' });
+  // Una foto clínica (medico_subir_foto) trae la imagen en base64: es la
+  // única acción con tope mayor (lib/fotosClinicas.js valida el tamaño real).
+  const topeCuerpo = (req.body && req.body.action === 'medico_subir_foto') ? 4_500_000 : 50_000;
+  if (JSON.stringify(req.body || {}).length > topeCuerpo) {
+    return res.status(413).json({ error: topeCuerpo > 50_000 ? 'La imagen es demasiado grande (máximo 3 MB).' : 'Payload demasiado grande.' });
   }
 
   const { action } = req.body || {};
@@ -3185,6 +3189,81 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       console.error('[nova] medico_listar_mensajes error:', err.message);
       return res.status(500).json({ error: 'Error interno leyendo los mensajes.' });
+    }
+  }
+
+  // ─── FOTOS CLÍNICAS (lib/fotosClinicas.js) ───────────────────────
+  // Las sube el MÉDICO (expediente): escribir pide escritura sobre el
+  // paciente (nunca un demo); las ve todo médico autorizado; solo el autor
+  // las retira. El paciente las ve en su app (paciente_mis_fotos).
+  if (action === 'medico_subir_foto') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      const v = FotosClinicas.validarFoto(req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      const puerta = await puertaMedicoPaciente(true, 'medico_subir_foto');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      let foto;
+      try {
+        foto = await FotosClinicas.subir({ codigoPaciente: puerta.auth.codigo, pacienteRecId: puerta.auth.recId, codigoMedico: sesion.codigo, medicoRecId: puerta.auth.medicoRecId, ...v.valor });
+      } catch (e) {
+        console.error('[nova] medico_subir_foto:', e.message);
+        return res.status(502).json({ error: 'No se pudo guardar la foto en el expediente. Intenta de nuevo.' });
+      }
+      return res.status(200).json({ ok: true, foto });
+    } catch (err) {
+      console.error('[nova] medico_subir_foto error:', err.message);
+      return res.status(500).json({ error: 'Error interno guardando la foto.' });
+    }
+  }
+
+  if (action === 'medico_listar_fotos') {
+    try {
+      const puerta = await puertaMedicoPaciente(false, 'medico_listar_fotos');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      try { return res.status(200).json({ ok: true, fotos: await FotosClinicas.listar(puerta.auth.codigo), soloLectura: puerta.esDemo || puerta.auth.escritura !== true }); }
+      catch (e) {
+        console.error('[nova] medico_listar_fotos:', e.message);
+        return res.status(502).json({ error: 'No se pudieron leer las fotos del expediente.' });
+      }
+    } catch (err) {
+      console.error('[nova] medico_listar_fotos error:', err.message);
+      return res.status(500).json({ error: 'Error interno leyendo las fotos.' });
+    }
+  }
+
+  if (action === 'medico_retirar_foto') {
+    if (CONGELADO) return respuestaCongelada(res);
+    try {
+      const puerta = await puertaMedicoPaciente(true, 'medico_retirar_foto');
+      if (puerta.error) return res.status(puerta.error.status).json({ error: puerta.error.mensaje });
+      let r;
+      try { r = await FotosClinicas.retirar({ id: req.body.fotoId, codigoPaciente: puerta.auth.codigo, codigoMedico: sesion.codigo }); }
+      catch (e) {
+        console.error('[nova] medico_retirar_foto:', e.message);
+        return res.status(502).json({ error: 'No se pudo retirar la foto. Intenta de nuevo.' });
+      }
+      if (r.error) return res.status(r.error.status).json({ error: r.error.mensaje });
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('[nova] medico_retirar_foto error:', err.message);
+      return res.status(500).json({ error: 'Error interno retirando la foto.' });
+    }
+  }
+
+  // El paciente ve las fotos de su expediente (de todos sus médicos). Demo:
+  // las suyas, si las hubiera (solo lectura).
+  if (action === 'paciente_mis_fotos') {
+    try {
+      if (!sesion || (sesion.tipo !== 'paciente' && sesion.tipo !== 'demo')) return res.status(401).json({ error: 'Sesión requerida.' });
+      try { return res.status(200).json({ ok: true, fotos: await FotosClinicas.listar(sesion.codigo) }); }
+      catch (e) {
+        console.error('[nova] paciente_mis_fotos:', e.message);
+        return res.status(502).json({ error: 'No pudimos cargar tus fotos. Intenta de nuevo.' });
+      }
+    } catch (err) {
+      console.error('[nova] paciente_mis_fotos error:', err.message);
+      return res.status(500).json({ error: 'Error interno.' });
     }
   }
 

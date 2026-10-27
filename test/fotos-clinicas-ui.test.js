@@ -1,8 +1,8 @@
-// lib/fotosPaciente.js — funciones puras de la pestaña Fotos (la parte de
+// lib/fotosClinicasUI.js — funciones puras de las fotos clínicas (la parte de
 // navegador: cámara, IndexedDB y pantalla, se prueba en el teléfono).
 const test = require('node:test');
 const assert = require('node:assert');
-const F = require('../lib/fotosPaciente');
+const F = require('../lib/fotosClinicasUI');
 
 test('escalar: el lado mayor no pasa del máximo y nunca agranda', () => {
   assert.deepStrictEqual(F.escalar(4000, 3000, 1600), { w: 1600, h: 1200 });

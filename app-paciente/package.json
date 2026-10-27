@@ -7,6 +7,7 @@
     "apk": "cap sync android && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "@capacitor-community/media": "9.1.0",
     "@capacitor/android": "8.5.3",
     "@capacitor/core": "8.5.3"
   },
