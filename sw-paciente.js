@@ -48,13 +48,22 @@ self.addEventListener('fetch', function(event) {
 self.addEventListener('push', function(event) {
   var d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = {}; }
+  // Acuse al servidor (solo el id del aviso y si se mostró): sin él no hay
+  // forma de saber si un aviso se perdió en el camino o en el teléfono.
+  var acuse = function(estado) {
+    if (!/^[0-9a-f]{12}$/.test(d.id || '')) return Promise.resolve();
+    return fetch('/api/nova', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'aviso_recibido', id: d.id, estado: estado }) }).catch(function(){});
+  };
+  var permiso = (self.Notification && self.Notification.permission) || '?';
   event.waitUntil(self.registration.showNotification(d.title || 'CODE CELLS™', {
     body: d.body || '',
     tag: d.tag || 'codecells',
     icon: '/assets/icon-192.png',
     badge: '/assets/icon-192.png',
     data: { url: d.url || '/mi-nivel.html' }
-  }));
+  }).then(function(){ return acuse('mostrado (permiso ' + permiso + ')'); },
+          function(e){ return acuse('error al mostrar: ' + ((e && e.name) || '?') + ' (permiso ' + permiso + ')'); }));
 });
 
 // Tocar el aviso abre la app (o la trae al frente si ya estaba abierta).

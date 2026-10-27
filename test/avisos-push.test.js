@@ -215,6 +215,33 @@ test('probar: manda un aviso CIFRADO con VAPID a ese teléfono; 410 → se desac
   } finally { console.error = error; w.restaurar(); }
 });
 
+test('acuse del teléfono: sin sesión, solo un id de 12 hex; deja el estado en el log', async () => {
+  const log = console.log, lineas = [];
+  console.log = (...a) => lineas.push(a.join(' '));
+  try {
+    const r = await nova(null, { action: 'aviso_recibido', id: 'a1b2c3d4e5f6', estado: 'mostrado (permiso granted)' });
+    assert.strictEqual(r.statusCode, 204);
+    assert.ok(lineas.some(l => l === '[avisos] recibido a1b2c3d4e5f6: mostrado (permiso granted)'), lineas.join('\n'));
+    assert.strictEqual((await nova(null, { action: 'aviso_recibido', id: 'recSUS00000000001' })).statusCode, 400);
+    await nova(null, { action: 'aviso_recibido', id: 'a1b2c3d4e5f6', estado: '<script>"x"\n' + 'y'.repeat(200) });
+    const ultima = lineas[lineas.length - 1];
+    assert.ok(!/[<>"\n]/.test(ultima) && ultima.length < 130, ultima);
+  } finally { console.log = log; }
+});
+
+test('cada aviso lleva un id al azar (para unir envío y acuse)', async () => {
+  const t = telefono();
+  const w = mundo({ previas: [{ id: 'recSUS00000000001', fields: { 'Código de paciente ref': PAC, 'Endpoint': t.endpoint, 'p256dh': t.p256dh, 'auth': t.auth, 'Activa': true, 'Mensajes': true } }] });
+  const log = console.log; console.log = () => {};
+  try {
+    const sus = (await A.activasDePaciente(PAC))[0];
+    const a = await A.enviarA(sus, A.avisoPrueba(sus));
+    const b = await A.enviarA(sus, A.avisoPrueba(sus));
+    assert.match(a.id, /^[0-9a-f]{12}$/);
+    assert.notStrictEqual(a.id, b.id);
+  } finally { console.log = log; w.restaurar(); }
+});
+
 test('cron: sin CRON_SECRET → 401; con prueba=1 dice qué mandaría sin mandar nada', async () => {
   const t = telefono();
   const w = mundo({ previas: [{ id: 'recSUS00000000001', fields: { 'Código de paciente ref': PAC, 'Endpoint': t.endpoint, 'p256dh': t.p256dh, 'auth': t.auth, 'Activa': true, 'Tomas': true, 'Zona': 'America/Mazatlan', 'Horarios': JSON.stringify({ recMED00000000001: '08:00' }) } }] });

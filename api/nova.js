@@ -1016,6 +1016,17 @@ module.exports = async function handler(req, res) {
   // (HOTFIX gate-sesion-nova) lo revisa explícitamente más abajo.
   const sesion = verificarToken(tokenDesdeRequest(req));
 
+  // Acuse del teléfono al recibir un aviso (sw-paciente.js). Sin sesión: el
+  // service worker no la tiene. Solo deja en el log el id al azar del aviso
+  // y si se mostró; no lee ni escribe datos.
+  if (action === 'aviso_recibido') {
+    const id = String(req.body.id || '');
+    if (!/^[0-9a-f]{12}$/.test(id)) return res.status(400).json({ error: 'Acuse no válido.' });
+    const estado = String(req.body.estado || '').replace(/[^\w ():áéíóú?-]/g, '').slice(0, 80);
+    console.log(`[avisos] recibido ${id}: ${estado}`);
+    return res.status(204).end();
+  }
+
   // (Aquí vivía 'airtable_lookup': sin sesión, aceptaba cualquier
   // filterByFormula sobre pacientes/médicos y respondía found:true/false —
   // servía para enumerar pacientes y para adivinar letra por letra el
