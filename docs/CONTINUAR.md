@@ -11,13 +11,13 @@
 > como referencia histórica; no se le agregan commits. El congelamiento por
 > áreas protege producción: el directorio se abre y lo clínico sigue cerrado.
 
-**Última actualización:** 2026-10-26 (cierre de sesión). Todo pusheado hasta `986b737` (este CONTINUAR va en un commit aparte, también pusheado). Trabajar en el worktree `C:\Users\virn3\Documents\codecells-pu` (rama `feat/paciente-unico`); el checkout `codecells-site` sigue en `feat/directorio`, que ya NO recibe commits. Pruebas: **565/565** (`node --test test/*.test.js`; `node --test test/` NO sirve).
+**Última actualización:** 2026-10-26 (cierre de sesión). Todo pusheado hasta `1aebb25` + este CONTINUAR (commit aparte, también pusheado). `main` ya está fusionado dentro de la rama (`e7943e1`): rama → main sin conflictos. Trabajar en el worktree `C:\Users\virn3\Documents\codecells-pu` (rama `feat/paciente-unico`); el checkout `codecells-site` sigue en `feat/directorio`, que ya NO recibe commits. Pruebas: **565/565** (`node --test test/*.test.js`; `node --test test/` NO sirve).
 
 ---
 
 ## 1. Siguiente paso (empezar aquí)
 
-1. **Que Víctor pruebe en Preview desde su celular** todo lo del 2026-10-26 (lista abajo, "Cómo probarlo"). Es lo que falta para dar por bueno el bloque: nada de esto se ha visto en un teléfono real.
+1. **Que Víctor (y Juan/Pavel) prueben en Preview desde el celular con la GUÍA DE PRUEBAS** — artifact https://claude.ai/artifact/Pb6AMpN6aVAbUbfBF2VWim (37 puntos: demo, paciente con PIN, buzón, portal, directorio; botones Funciona/Falla + teléfono + nota, guardados en su `db`, colección `resultados`, doc id = id del punto). Al retomar: si Víctor dice "revisa las pruebas", leer `resultados` con ArtifactData `list` y arreglar las fallas. La liga de Preview escrita en la guía vencía el 26-oct 23:16: regenerarla con `get_access_to_vercel_url` y actualizar la guía (publicar el mismo archivo con `url`). La guía es privada: Víctor debe compartirla como Colaborador para que Juan/Pavel marquen.
 2. **Notificaciones — lo que falta:**
    - Probar en teléfono real: Android (Chrome) y **iPhone con la app instalada en la pantalla de inicio** (sin instalar, iPhone no permite avisos; la tarjeta lo explica).
    - Tomas y víspera de cita **no corren solas en Preview** (Vercel solo corre tareas programadas en producción). Para verlas en Preview: `GET /api/avisos-push` con `Authorization: Bearer <CRON_SECRET>` (Preview pide además el bypass de Vercel); `?prueba=1` solo dice qué mandaría. O correr `AvisosPush.ejecutarCron({ ahora })` en local (así se probó).
